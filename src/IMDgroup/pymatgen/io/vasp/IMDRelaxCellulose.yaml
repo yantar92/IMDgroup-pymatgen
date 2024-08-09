@@ -1,0 +1,15 @@
+# Default VASP settings for relaxation of cellulose.
+INCAR:
+  ENCUT: 550.0
+  # Cannot use default 0.  Se pymatgen.io.vasp.sets._remove_unused_incar_params
+  NSW: 99
+  IBRION: 2
+  # fixed cell volume, see https://www.vasp.at/wiki/index.php/ISIF
+  ISIF: 4
+  EDIFFG: -0.01 # force threshold eV/ans
+KPOINTS:
+  grid_density: 5000
+POTCAR:
+  C: C
+  O: O
+  H: H

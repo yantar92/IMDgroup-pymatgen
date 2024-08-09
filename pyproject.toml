@@ -1,0 +1,43 @@
+[build-system]
+requires = ["setuptools >= 61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "IMDgroup-pymatgen"
+version = "0.1.0"
+description = "Pymatgen add-ons for Inverse Materials Design group"
+authors = [ {name = "Ihor Radchenko", email = "yantar92@posteo.net"} ]
+readme = {file = "README.org", content-type = "text/x-org"}
+keywords = ["crystal", "materials", "science", "structure", "VASP", "pymatgen"]
+classifiers = [
+	    "Development Status :: 2 - Pre-Alpha",
+            "License :: OSI Approved :: MIT License",
+            "Operating System :: OS Independent",
+            "Programming Language :: Python :: 3.12",
+            "Topic :: Scientific/Engineering :: Chemistry",
+            "Topic :: Scientific/Engineering :: Information Analysis",
+            "Topic :: Scientific/Engineering :: Physics",
+            "Topic :: Software Development :: Libraries :: Python Modules"]
+requires-python = ">=3.12"
+dependencies = [
+"numpy>=1.26.4",
+"numpy<2",  # until https://github.com/materialsproject/pymatgen/issues/3953 is fixed
+"pymatgen>=2024.7.18",
+]
+
+[project.urls]
+homepage = "https://www.oimalyi.org/"
+
+[project.optional-dependencies]
+dev = ["python-lsp-server[all]"]
+
+[project.scripts]
+pmg-insert-molecule = "IMDgroup.pymatgen.transformations.insert_molecule_cli:main"
+
+[tool.setuptools.packages.find]
+exclude = ["tests"]
+where = ["src/"]
+include = ["IMDgroup.pymatgen.transformations", "IMDgroup.pymatgen.io.vasp"]
+
+[tool.setuptools.package-data]
+"IMDgroup.pymatgen.io.vasp" = ["*.cif", "*.yaml"]
