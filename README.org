@@ -2,8 +2,8 @@
 #+options: toc:nil
 * IMDgroup-pymatgen
 
-This is a set of add-ons and helper for [[https://pymatgen.org/][pymatgen]], that are tailored to
-research in [[https://www.oimalyi.org/][Inverse Materials Design group]].
+This is a set of add-ons and helpers for [[https://pymatgen.org/][pymatgen]], that are tailored to
+research that is performed in [[https://www.oimalyi.org/][Inverse Materials Design group]].
 
 * Installation
 

@@ -2,8 +2,8 @@
 
 # IMDgroup-pymatgen
 
-This is a set of add-ons and helper for [pymatgen](https://pymatgen.org/), that are tailored to
-research in [Inverse Materials Design group](https://www.oimalyi.org/).
+This is a set of add-ons and helpers for [pymatgen](https://pymatgen.org/), that are tailored to
+research that is performed in [Inverse Materials Design group](https://www.oimalyi.org/).
 
 
 # Installation
