@@ -9,7 +9,7 @@ research in [Inverse Materials Design group](https://www.oimalyi.org/).
 # Installation
 
     # Download the package and source dependencies
-    git clone https://github.com/yantar92/IMDgroup-pymatgen
+    git clone https://git.sr.ht/~yantar92/IMDgroup-pymatgen
     
     # Activate virtual environment
     pip -m venv .venv
