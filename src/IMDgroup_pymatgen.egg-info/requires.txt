@@ -1,6 +1,0 @@
-numpy>=1.26.4
-numpy<2
-pymatgen>=2024.7.18
-
-[dev]
-python-lsp-server[all]

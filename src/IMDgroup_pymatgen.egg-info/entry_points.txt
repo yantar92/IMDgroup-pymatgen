@@ -1,2 +1,0 @@
-[console_scripts]
-pmg-insert-molecule = IMDgroup.pymatgen.transformations.insert_molecule_cli:main
