@@ -42,7 +42,7 @@ def get_args():
         default="IMDRelaxCellulose")
     argparser.add_argument(
         "-v", "--verbosity", action="count",
-        help="log verbosity (default: 1)", default=1)
+        help="log verbosity (default: 0)", default=0)
     return argparser.parse_args()
 
 
@@ -53,22 +53,24 @@ def setup_logger(args):
 
     file_handler = logging.FileHandler(filename=log_file)
     stdout_handler = logging.StreamHandler(stream=sys.stdout)
-    handlers = [file_handler, stdout_handler]
+    log_format = '[%(levelname)s] [%(asctime)s] %(message)s'
+    date_format = "%b %d %X"
 
     if args.verbosity >= 2:
         logging.basicConfig(
-            level=logging.DEBUG,
-            format='[%(levelname)s] [%(asctime)s] %(message)s',
-            datefmt="%b %d %X",
-            handlers=handlers)
+            format=log_format, datefmt=date_format,
+            level=logging.DEBUG, handlers=[file_handler, stdout_handler])
         logging.info("Setting debug level to: DEBUG")
+    elif args.verbosity >= 1:
+        logging.basicConfig(
+            format=log_format, datefmt=date_format,
+            level=logging.INFO, handlers=[file_handler, stdout_handler])
+        logging.info("Setting debug level to: INFO")
     else:
         logging.basicConfig(
-            level=logging.INFO,
-            format='[%(levelname)s] [%(asctime)s] %(message)s',
-            datefmt="%b %d %X",
-            handlers=handlers)
-        logging.info("Setting debug level to: INFO")
+            format=log_format, datefmt=date_format,
+            level=logging.INFO, handlers=[file_handler])
+        logging.info("Setting debug level to: INFO (writing to file)")
 
 
 def main():

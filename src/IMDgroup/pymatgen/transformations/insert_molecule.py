@@ -2,6 +2,7 @@
 """
 
 import logging
+from alive_progress import alive_bar
 import numpy as np
 from numpy.typing import ArrayLike
 from pymatgen.transformations.transformation_abc import AbstractTransformation
@@ -308,61 +309,79 @@ class InsertMoleculeTransformation(AbstractTransformation):
         cutoff = max([self._get_largest_radius(structure),
                       self._get_largest_radius(self.molecule)])
 
-        def append_inserts_fixed_rotation(
-                euler_angle: ArrayLike | None = None):
-            """Insert rotated molecule into all possible positions.
-            Modify structure_inserts by side effect, adding all
-            possible positions of self.molecule into structure with
-            self.molecule rotated by a fixed euler_angle.
-
-            Args:
-              euler_angle(3x1 vector or None):
-                Fixed rotation angle
-                """
-            # Accumulate all the inserts together, to automatically
-            # filter out the inserts that are too close to each other.
-            accumulate = structure.copy()
-            for coords in candidate_coords:
-                new = self._insert_molecule(
-                    structure=accumulate, coords=coords,
-                    euler_angle=euler_angle,
-                    known_inserts=known_inserts,
-                    cutoff=cutoff)
-                if new is not None:
-                    insert = self._insert_molecule(
-                        structure.copy(), coords, euler_angle,
-                        cutoff=cutoff)
-                    previous_matches = False
-                    if self.matcher:
-                        for x in structure_inserts:
-                            if insert != x and self.matcher.fit(insert, x):
-                                previous_matches = True
-                                break
-                    if self.matcher is None or not previous_matches:
-                        structure_inserts.append(insert)
-                        if euler_angle is None:
-                            logger.info(
-                                "#%d New insert :: pos=%s No rotation",
-                                len(structure_inserts), coords)
-                        else:
-                            logger.info(
-                                "#%d New insert :: pos=%s euler=%s",
-                                len(structure_inserts), coords, euler_angle)
-                        if limit is not None\
-                           and len(structure_inserts) > limit:
-                            break
-                    else:
-                        logger.info('complex mather found a duplicate!')
-                        del known_inserts[-1]
-
         if candidate_angles is None:
-            append_inserts_fixed_rotation()
+            n_candidates = len(candidate_coords)
         else:
-            for euler_angle in candidate_angles:
-                append_inserts_fixed_rotation(euler_angle)
-                if limit is not None\
-                   and len(structure_inserts) > limit:
-                    break
+            n_candidates = len(candidate_angles)*len(candidate_coords)
+        if limit is not None and limit < n_candidates:
+            n_candidates = limit
+
+        with alive_bar(n_candidates, enrich_print=False,
+                       dual_line=True, spinner='bubbles')\
+             as progress_bar:
+
+            def append_inserts_fixed_rotation(
+                    euler_angle: ArrayLike | None = None):
+                """Insert rotated molecule into all possible positions.
+                Modify structure_inserts by side effect, adding all
+                possible positions of self.molecule into structure with
+                self.molecule rotated by a fixed euler_angle.
+
+                Args:
+                  euler_angle(3x1 vector or None):
+                    Fixed rotation angle
+                    """
+                # Accumulate all the inserts together, to automatically
+                # filter out the inserts that are too close to each other.
+                accumulate = structure.copy()
+                for coords in candidate_coords:
+                    progress_bar()  # pylint: disable=not-callable
+                    new = self._insert_molecule(
+                        structure=accumulate, coords=coords,
+                        euler_angle=euler_angle,
+                        known_inserts=known_inserts,
+                        cutoff=cutoff)
+                    if new is not None:
+                        insert = self._insert_molecule(
+                            structure.copy(), coords, euler_angle,
+                            cutoff=cutoff)
+                        previous_matches = False
+                        if self.matcher:
+                            for x in structure_inserts:
+                                if insert != x and self.matcher.fit(insert, x):
+                                    previous_matches = True
+                                    break
+                        if self.matcher is None or not previous_matches:
+                            structure_inserts.append(insert)
+                            if euler_angle is None:
+                                log_message =\
+                                    f"#{len(structure_inserts)}" +\
+                                    "New insert :: " +\
+                                    f"pos={coords} No rotation"
+                                progress_bar.text = log_message
+                                logger.info("%s", log_message)
+                            else:
+                                log_message =\
+                                    f"#{len(structure_inserts)}" +\
+                                    "New insert :: " +\
+                                    f"euler={euler_angle} pos={coords}"
+                                progress_bar.text = log_message
+                                logger.info("%s", log_message)
+                            if limit is not None\
+                               and len(structure_inserts) > limit:
+                                break
+                        else:
+                            logger.info('complex mather found a duplicate!')
+                            del known_inserts[-1]
+
+            if candidate_angles is None:
+                append_inserts_fixed_rotation()
+            else:
+                for euler_angle in candidate_angles:
+                    append_inserts_fixed_rotation(euler_angle)
+                    if limit is not None\
+                       and len(structure_inserts) > limit:
+                        break
 
         logger.info("Found %d candidates", len(structure_inserts))
 
