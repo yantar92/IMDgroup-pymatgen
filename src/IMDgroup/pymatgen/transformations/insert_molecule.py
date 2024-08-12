@@ -67,7 +67,6 @@ class InsertMoleculeTransformation(AbstractTransformation):
         self.molecule = molecule
         self.step = step
         self.anglestep = anglestep
-        print(anglestep)
         self.label = label
         self._candidate_angles = None
         if len(molecule) > 1 and self.anglestep is not None:
