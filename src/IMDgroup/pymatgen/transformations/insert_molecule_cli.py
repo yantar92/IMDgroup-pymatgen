@@ -7,8 +7,9 @@ import argparse
 import logging
 import yaml
 import numpy as np
-import IMDgroup.pymatgen.io.vasp.sets
 import pymatgen.io.vasp.sets as vaspset
+# Used by str_to_class
+import IMDgroup.pymatgen.io.vasp.sets  # pylint: disable=unused-import # noqa: 501
 from .insert_molecule import InsertMoleculeTransformation
 
 logger = logging.getLogger(__name__)
@@ -34,7 +35,9 @@ def get_args():
         help="randomize initial molecule orientation", default=None)
     argparser.add_argument(
         "--vasp_input", type=str,
-        help="VASPInputSet name (default: IMDRelaxCellulose); https://pymatgen.org/pymatgen.io.vasp.html#module-pymatgen.io.vasp.sets",
+        help="VASPInputSet name (default: IMDRelaxCellulose); \
+        https://pymatgen.org/pymatgen.io.vasp.html\
+        #module-pymatgen.io.vasp.sets",
         default="IMDRelaxCellulose")
     argparser.add_argument(
         "-v", "--verbosity", action="count",
