@@ -41,3 +41,6 @@ include = ["IMDgroup.pymatgen.transformations", "IMDgroup.pymatgen.io.vasp"]
 
 [tool.setuptools.package-data]
 "IMDgroup.pymatgen.io.vasp" = ["*.cif", "*.yaml"]
+
+[tool.pylint]
+source-roots=['./src']

@@ -9,10 +9,11 @@ import yaml
 import numpy as np
 import pymatgen.io.vasp.sets as vaspset
 # Used by str_to_class
-import IMDgroup.pymatgen.io.vasp.sets  # pylint: disable=unused-import # noqa: 501
+import IMDgroup.pymatgen.io.vasp.sets
 from .insert_molecule import InsertMoleculeTransformation
 
 logger = logging.getLogger(__name__)
+assert IMDgroup.pymatgen.io.vasp.sets  # silence linters
 
 
 def get_args():
