@@ -354,14 +354,14 @@ class InsertMoleculeTransformation(AbstractTransformation):
                             structure_inserts.append(insert)
                             if euler_angle is None:
                                 log_message =\
-                                    f"#{len(structure_inserts)}" +\
+                                    f"#{len(structure_inserts)} " +\
                                     "New insert :: " +\
                                     f"pos={coords} No rotation"
                                 progress_bar.text = log_message
                                 logger.info("%s", log_message)
                             else:
                                 log_message =\
-                                    f"#{len(structure_inserts)}" +\
+                                    f"#{len(structure_inserts)} " +\
                                     "New insert :: " +\
                                     f"euler={euler_angle} pos={coords}"
                                 progress_bar.text = log_message
