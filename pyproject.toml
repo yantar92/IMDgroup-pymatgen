@@ -18,7 +18,7 @@ classifiers = [
             "Topic :: Scientific/Engineering :: Information Analysis",
             "Topic :: Scientific/Engineering :: Physics",
             "Topic :: Software Development :: Libraries :: Python Modules"]
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 dependencies = [
 "numpy>=1.26.4",
 "numpy<2",  # until https://github.com/materialsproject/pymatgen/issues/3953 is fixed
