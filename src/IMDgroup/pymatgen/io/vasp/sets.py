@@ -8,6 +8,7 @@ from monty.serialization import loadfn
 from pymatgen.io.vasp.sets import VaspInputSet
 from pymatgen.util.due import Doi, due
 from pymatgen.core import Structure
+from pymatgen.ext.matproj import MPRester
 
 __author__ = "Ihor Radchenko <yantar92@posteo.net>"
 MODULE_DIR = os.path.dirname(__file__)
@@ -15,6 +16,13 @@ MODULE_DIR = os.path.dirname(__file__)
 
 def _load_cif(fname):
     return Structure.from_file(f"{MODULE_DIR}/{fname}.cif")
+
+
+def _load_mp(name):
+    with MPRester() as m:
+        structure = m.get_structure_by_material_id(name)  # carbon
+        assert structure.is_valid()
+    return structure
 
 
 # We copy this over from pymatgen.io.vasp.sets because we need our own
@@ -64,4 +72,22 @@ class IMDRelaxCellulose(VaspInputSet):
             self.structure = _load_cif('cellulose_ialpha')
         if self.structure == 'ibeta':
             self.structure = _load_cif('cellulose_ibeta')
+        super().__post_init__()
+
+
+@dataclass
+class IMDGraphite(VaspInputSet):
+    """SCF input set for graphite.
+
+    Args:
+      user_kpoints_settings (dict or Kpoints):
+        Allow user to override kpoints setting by supplying a
+        dict. e.g. {"reciprocal_density": 1000}. User can also supply
+        Kpoints object.
+    """
+    CONFIG = _load_yaml_config("IMDGraphite")
+    force_gamma: bool = True  # Must use gamma-centered k-point grid
+
+    def __post_init__(self) -> None:
+        self.structure = _load_mp('mp-48')
         super().__post_init__()

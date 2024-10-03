@@ -1,0 +1,13 @@
+# Default VASP settings for graphite
+INCAR:
+  # Enable VdW potentials: https://www.vasp.at/wiki/index.php/Graphite_interlayer_distance
+  IVDW: 20
+  LVDW_EWALD: True
+  PREC: 'Accurate'
+  ENCUT: 550.0
+  ISMEAR: -5 # as recommended for total energy calculations in non-metals in https://www.vasp.at/wiki/index.php/ISMEAR
+  SIGMA: 0.01
+KPOINTS:
+  grid_density: 5000
+POTCAR:
+  C: C
