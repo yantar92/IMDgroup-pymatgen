@@ -9,5 +9,6 @@ INCAR:
   SIGMA: 0.01
 KPOINTS:
   grid_density: 5000
+POTCAR_FUNCTIONAL: PBE_64
 POTCAR:
   C: C

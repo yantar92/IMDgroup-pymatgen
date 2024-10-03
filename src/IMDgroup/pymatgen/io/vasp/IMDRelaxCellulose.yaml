@@ -9,6 +9,7 @@ INCAR:
   EDIFFG: -0.01 # force threshold eV/ans
 KPOINTS:
   grid_density: 5000
+POTCAR_FUNCTIONAL: PBE_64
 POTCAR:
   C: C
   O: O
