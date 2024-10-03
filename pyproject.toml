@@ -22,8 +22,8 @@ requires-python = ">=3.10"
 dependencies = [
 "numpy>=1.26.4",
 "numpy<2",  # until https://github.com/materialsproject/pymatgen/issues/3953 is fixed
-"pymatgen>=2024.7.18",
-"alive_progress>=3.1.5"
+"pymatgen==2024.7.18",
+"alive_progress==3.1.5"
 ]
 
 [project.urls]
