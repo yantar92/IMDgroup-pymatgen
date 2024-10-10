@@ -4,11 +4,11 @@ INCAR:
   IVDW: 20
   LVDW_EWALD: True
   PREC: 'Accurate'
-  ENCUT: 550.0
+  ENCUT: 900.0
   ISMEAR: -5 # as recommended for total energy calculations in non-metals in https://www.vasp.at/wiki/index.php/ISMEAR
   SIGMA: 0.01
 KPOINTS:
-  grid_density: 5000
+  grid_density: 10000
 POTCAR_FUNCTIONAL: PBE_64
 POTCAR:
   C: C
