@@ -2,7 +2,7 @@
 """
 import pymatgen.core as pmg
 from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
-from IMDgroup.pymatgen.io.vasp.sets import IMDVaspInputSet
+from IMDgroup.pymatgen.io.vasp.sets import IMDStandardVaspInputSet
 
 
 def add_args(parser):
@@ -42,7 +42,7 @@ def create(args):
     standard_structure = analyzer.get_primitive_standard_structure()
     standard_structure.properties = structure.properties
 
-    inputset = IMDVaspInputSet(structure)
+    inputset = IMDStandardVaspInputSet(structure)
     inputset.write_input(output_dir=inputset.incar['SYSTEM'])
 
     return 0

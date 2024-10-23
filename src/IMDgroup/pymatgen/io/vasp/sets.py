@@ -15,7 +15,6 @@ from pymatgen.ext.matproj import MPRester
 from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
 from ase.calculators.vasp.setups \
     import setups_defaults as ase_potential_defaults
-from pymatgen.util.typing import PathLike
 
 # ase uses pairs of 'Si': '_suffix'.  Convert them into 'Si': 'Si_suffix'
 POTCAR_RECOMMENDED = dict(
@@ -58,16 +57,114 @@ def _load_yaml_config(fname):
 class IMDVaspInputSet(VaspInputSet):
     """IMDGroup variant of VaspInputSet.
     New features:
-    1. Potentials do not have to be specified.  By default, use
-       VASP-recommended potentials via ase.
-    2. New argument FUNCTIONAL (see functionals.yaml) specifying
+    1. New argument FUNCTIONAL (see functionals.yaml) specifying
        functional to be used.  This is similar to vdw parameter in
        VaspInputSet, but also allows setting PBE/PBEsol and other
        non-vdw functionals.
-    3. prev_kpoints parameter is obeyed unconditionally, when
-       provided.
+    2. Automatic SYSTEM name generation.
+    3. Structure validation (and structure must be set in the
+       constructor)
     """
     functional = None
+
+    def __post_init__(self) -> None:
+        assert self.structure.is_valid()
+
+        super().__post_init__()
+
+        formula = self.structure.reduced_formula
+        lattice_type = SpacegroupAnalyzer(self.structure).get_crystal_system()
+        space_group =\
+            SpacegroupAnalyzer(self.structure).get_space_group_number()
+        if "mpid" in self.structure.properties:
+            mpid = self.structure.properties["mpid"] + '.'
+        else:
+            mpid = ''
+
+        if 'INCAR' not in self._config_dict or  'SYSTEM' not in self._config_dict['INCAR']:
+            self._config_dict.update(
+                {'INCAR':
+                 {
+                    'SYSTEM': f'{formula}.{mpid}{lattice_type}.{space_group}'
+                 }
+                }
+            )
+
+        # Setup default POTCAR.  If an element is missing from
+        # POTCAR_RECOMMENED, assume that the potential name is the
+        # same with element name.
+        for element in self.structure.composition.elements:
+            if element.symbol not in self._config_dict['POTCAR']:
+                self._config_dict['POTCAR'][element.symbol] = element.symbol
+
+        # Do it after parent class initialization, when _config_dict
+        # is set
+        if isinstance(self.functional, str):
+            self.functional = self.functional.lower()
+        if self.functional:
+            functional_config = _load_yaml_config("functionals")
+            if params := functional_config.get(self.functional):
+                self._config_dict["INCAR"].update(params)
+            else:
+                raise KeyError(
+                    "Invalid or unsupported functional. " +
+                    "Supported functionals are " +
+                    ', '.join(functional_config) + "."
+                )
+
+
+@dataclass
+class IMDDerivedInputSet(VaspInputSet):
+    """Inputset derived from an existing Vasp output or input directory.
+    Accepts mandatory argument DIRECTORY.
+    """
+    directory = None
+
+    @property
+    def kpoints_updates(self):
+        """Call kpoints_updates from VaspInputSet, but prefer
+        prev_kpoints unconditionally.
+        """
+
+        if self.prev_kpoints and isinstance(self.prev_kpoints, Kpoints):
+            return self.prev_kpoints
+        return super().kpoints_updates
+
+    def __post_init__(self) -> None:
+        # Directory settings take precedence.
+        try:
+            self.from_prev_calc(self.directory)
+            super().__post_init__()
+        except ValueError:
+            # No VASP output found.  Try to ingest VASP input.
+            vasp_input = VaspInput.from_directory(self.directory)
+            self.structure = vasp_input['POSCAR'].structure
+
+            super().__post_init__()
+
+            self.prev_incar = vasp_input['INCAR']
+            self.prev_kpoints = vasp_input['KPOINTS']
+            if potcars := sorted(glob(str(Path(self.directory) / "POTCAR*"))):
+                # Override defaults with POTCAR data
+                # We still want to transfer the file explicitly to
+                # make sure that any non-standard POTCARS are not
+                # going to be broken
+                potcar = Potcar.from_file(str(potcars[-1]))
+                potcar_dict = {}
+                for el, symbol in \
+                        zip(self.poscar.site_symbols,
+                            potcar.symbols):
+                    potcar_dict[el] = symbol
+                self._config_dict['POTCAR'] = potcar_dict
+
+
+@dataclass
+class IMDStandardVaspInputSet(IMDVaspInputSet):
+    """Standard input set for IMDGroup.
+    New features:
+    1. Potentials do not have to be specified.  By default, use
+       VASP-recommended potentials via ase.
+    """
     CONFIG = {'INCAR':
               {
                   # Generic INCAR defaults independes from a given system
@@ -86,91 +183,6 @@ class IMDVaspInputSet(VaspInputSet):
               'KPOINTS': {'grid_density': 10000},
               'POTCAR_FUNCTIONAL': 'PBE_64',
               'POTCAR': POTCAR_RECOMMENDED}
-
-    def __post_init__(self) -> None:
-        assert self.structure.is_valid()
-
-        # Setup default POTCAR.  If an element is missing from
-        # POTCAR_RECOMMENED, assume that the potential name is the
-        # same with element name.
-        for element in self.structure.composition.elements:
-            if element.symbol not in self.CONFIG['POTCAR']:
-                self.CONFIG['POTCAR'][element.symbol] = element.symbol
-
-        formula = self.structure.reduced_formula
-        lattice_type = SpacegroupAnalyzer(self.structure).get_crystal_system()
-        space_group =\
-            SpacegroupAnalyzer(self.structure).get_space_group_number()
-        if "mpid" in self.structure.properties:
-            mpid = self.structure.properties["mpid"] + '.'
-        else:
-            mpid = ''
-
-        self.CONFIG['INCAR']['SYSTEM'] =\
-            f'{formula}.{mpid}{lattice_type}.{space_group}'
-
-        super().__post_init__()
-
-        # Do it after parent class initialization, when _config_dict
-        # is set
-        if isinstance(self.functional, str):
-            self.functional = self.functional.lower()
-        if self.functional:
-            functional_config = _load_yaml_config("functionals")
-            if params := functional_config.get(self.functional):
-                self._config_dict["INCAR"].update(params)
-            else:
-                raise KeyError(
-                    "Invalid or unsupported functional. " +
-                    "Supported functionals are " +
-                    ', '.join(functional_config) + "."
-                )
-
-    @property
-    def kpoints_updates(self):
-        """Call kpoints_updates from VaspInputSet, but prefer
-        prev_kpoints unconditionally.
-        """
-
-        if self.prev_kpoints and isinstance(self.prev_kpoints, Kpoints):
-            return self.prev_kpoints
-        else:
-            return super().kpoints_updates
-
-    @classmethod
-    def input_from_directory(cls, directory: PathLike, **kwargs):
-        """Create VASP inputs from directory.
-        This is like VaspInputSet.from_prev_calc, but allows reading
-        vasp input directory that does not contain VASP outputs.
-        """
-        try:
-            return VaspInputSet.from_prev_calc(directory, **kwargs)
-        except Exception:
-            vasp_input = VaspInput.from_directory(directory)
-            input_set = cls(
-                vasp_input['POSCAR'].structure,
-                inherit_incar=True,
-                prev_incar=vasp_input['INCAR'],
-                prev_kpoints=vasp_input['KPOINTS'],
-                **kwargs
-                )
-            # Copy over POTCAR, if any
-            files_to_transfer = {}
-            if potcars := sorted(glob(str(Path(directory) / "POTCAR*"))):
-                files_to_transfer['POTCAR'] = str(potcars[-1])
-                # Override defaults with POTCAR data
-                # We still want to transfer the file explicitly to
-                # make sure that any non-standard POTCARS are not
-                # going to be broken
-                potcar = Potcar.from_file(str(potcars[-1]))
-                potcar_dict = {}
-                for el, symbol in \
-                        zip(input_set.poscar.site_symbols,
-                            potcar.symbols):
-                    potcar_dict[el] = symbol
-                input_set._config_dict['POTCAR'] = potcar_dict
-            input_set.files_to_transfer.update(files_to_transfer)
-            return input_set
 
 
 @due.dcite(
