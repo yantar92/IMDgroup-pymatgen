@@ -22,7 +22,7 @@ def get_args():
         .ArgumentParser(description="Generate structures for all possible \
         insertions of MOLECULE into STRUCTURE")
     argparser.add_argument(
-        "molecule", help="file storing molecule to be inserted")
+        "molecule", help="atom name or file storing molecule to be inserted")
     argparser.add_argument("structure", help="file storing the host structure")
     argparser.add_argument("output_dir", help="directory to write the result")
     argparser.add_argument(
