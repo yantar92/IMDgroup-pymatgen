@@ -118,6 +118,8 @@ class IMDDerivedInputSet(VaspInputSet):
     """
     directory: str | None = None
 
+    CONFIG = {'INCAR': {}}
+
     @property
     def kpoints_updates(self):
         """Call kpoints_updates from VaspInputSet, but prefer
