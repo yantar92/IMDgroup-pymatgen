@@ -112,7 +112,7 @@ class IMDVaspInputSet(VaspInputSet):
 
 
 @dataclass
-class IMDDerivedInputSet(VaspInputSet):
+class IMDDerivedInputSet(IMDVaspInputSet):
     """Inputset derived from an existing Vasp output or input directory.
     Accepts mandatory argument DIRECTORY.
     """
