@@ -91,12 +91,12 @@ class IMDVaspInputSet(VaspInputSet):
         space_group =\
             SpacegroupAnalyzer(self.structure).get_space_group_number()
         if "mpid" in self.structure.properties:
-            id = self.structure.properties["mpid"]
+            id = self.structure.properties["mpid"] + '.'
         else:
             id = ''
 
         self.CONFIG['INCAR']['SYSTEM'] =\
-            f'{formula}.{id}.{lattice_type}.{space_group}'
+            f'{formula}.{id}{lattice_type}.{space_group}'
         super().__post_init__()
 
 
