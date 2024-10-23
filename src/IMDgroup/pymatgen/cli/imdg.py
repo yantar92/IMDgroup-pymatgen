@@ -27,7 +27,6 @@ def main():
     parser_create.set_defaults(func=IMDgroup.pymatgen.cli.imdg_create.create)
 
     args = parser.parse_args()
-    print(args)
 
     return args.func(args)
 
