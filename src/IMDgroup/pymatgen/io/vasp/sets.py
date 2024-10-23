@@ -81,14 +81,12 @@ class IMDVaspInputSet(VaspInputSet):
         else:
             mpid = ''
 
-        # if 'INCAR' not in self._config_dict or  'SYSTEM' not in self._config_dict['INCAR']:
-        #     self._config_dict.update(
-        #         {'INCAR':
-        #          {
-        #             'SYSTEM': f'{formula}.{mpid}{lattice_type}.{space_group}'
-        #          }
-        #         }
-        #     )
+        if 'INCAR' not in self._config_dict:
+            self._config_dict.update({"INCAR": {}})
+        if 'SYSTEM' not in self._config_dict['INCAR']:
+            self._config_dict['INCAR'].update(
+                 {'SYSTEM': f'{formula}.{mpid}{lattice_type}.{space_group}'}
+            )
 
         # Setup default POTCAR.  If an element is missing from
         # POTCAR_RECOMMENED, assume that the potential name is the
