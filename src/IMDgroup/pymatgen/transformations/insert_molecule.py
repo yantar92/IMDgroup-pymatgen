@@ -292,6 +292,8 @@ class InsertMoleculeTransformation(AbstractTransformation):
         """Generate all possible inserts of self.molecule into STRUCTURE.
         Args:
           structure (Structure): Structure to insert into
+          limit (int): Limit the number of structures.  When negative,
+          search across random grid.
 
         Returns:
         List of structures with inserted molecule.
@@ -312,6 +314,12 @@ class InsertMoleculeTransformation(AbstractTransformation):
             n_candidates = len(candidate_coords)
         else:
             n_candidates = len(candidate_angles)*len(candidate_coords)
+        if limit is not None and limit < 0:
+            limit = abs(limit)
+            # randomize grids
+            candidate_coords = np.random.shuffle(candidate_coords)
+            if candidate_angles is not None:
+                candidate_angles = np.random.shuffle(candidate_angles)
         if limit is not None and limit < n_candidates:
             n_candidates = limit
 
@@ -398,6 +406,7 @@ class InsertMoleculeTransformation(AbstractTransformation):
             Structure to insert into.
           limit (int | None, optional):
             If int, return no more than that number of structures.
+            If negative, randomize the structure search.
 
         Returns:
           List of structures with self.molecule inserted.
@@ -449,6 +458,7 @@ def get_all_molecule_inserts(
             structure to insert into.
           limit (int | None, optional):
             if int, return no more than that number of structures.
+            if negative, randomize the structure search.
 
         Returns:
           List of structures with molecule inserted.

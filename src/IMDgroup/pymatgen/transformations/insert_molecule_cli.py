@@ -35,6 +35,10 @@ def get_args():
         "--randomize_molecule", action="count",
         help="randomize initial molecule orientation", default=None)
     argparser.add_argument(
+        "--limit", type=int,
+        help="limit the number of structures (negative means random search)",
+        default=None)
+    argparser.add_argument(
         "--vasp_input", type=str,
         help="VASPInputSet name (default: IMDRelaxCellulose); \
         https://pymatgen.org/pymatgen.io.vasp.html\
@@ -94,7 +98,7 @@ def main():
     if args.randomize_molecule is not None:
         transformer.rotate_molecule_euler(np.random.rand(3)*2*np.pi)
 
-    structures = transformer.all_inserts(args.structure)
+    structures = transformer.all_inserts(args.structure, limit=args.limit)
 
     def str_to_class(classname):
         """Return class named classname or None.
