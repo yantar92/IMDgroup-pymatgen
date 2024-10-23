@@ -131,7 +131,7 @@ class IMDDerivedInputSet(VaspInputSet):
     def __post_init__(self) -> None:
         # Directory settings take precedence.
         try:
-            self.from_prev_calc(prev_calc_dir=self.directory)
+            self.override_from_prev_calc(prev_calc_dir=self.directory)
             super().__post_init__()
         except ValueError:
             # No VASP output found.  Try to ingest VASP input.
