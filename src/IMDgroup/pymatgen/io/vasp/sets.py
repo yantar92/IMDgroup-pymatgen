@@ -116,7 +116,7 @@ class IMDDerivedInputSet(VaspInputSet):
     """Inputset derived from an existing Vasp output or input directory.
     Accepts mandatory argument DIRECTORY.
     """
-    directory = None
+    directory: str | None = None
 
     @property
     def kpoints_updates(self):
