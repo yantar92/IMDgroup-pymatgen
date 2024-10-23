@@ -9,6 +9,15 @@ from pymatgen.io.vasp.sets import VaspInputSet
 from pymatgen.util.due import Doi, due
 from pymatgen.core import Structure
 from pymatgen.ext.matproj import MPRester
+from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
+from ase.calculators.vasp.setups \
+    import setups_defaults as ase_potential_defaults
+
+# ase uses pairs of 'Si': '_suffix'.  Convert them into 'Si': 'Si_suffix'
+POTCAR_RECOMMENDED = dict(
+    (name, name + suffix)
+    for name, suffix in ase_potential_defaults['recommended'].items())
+
 
 __author__ = "Ihor Radchenko <yantar92@posteo.net>"
 MODULE_DIR = os.path.dirname(__file__)
@@ -39,6 +48,53 @@ def _load_yaml_config(fname):
                 v_new.update(v)
                 config[k] = v_new
     return config
+
+
+@dataclass
+class IMDVaspInputSet(VaspInputSet):
+    """IMDGroup variant of VaspInputSet.
+    New features:
+    1. Potentials do not have to be specified.  By default, use
+       VASP-recommended potentials via ase.
+    """
+    CONFIG = {'INCAR':
+              {
+                  # Generic INCAR defaults independes from a given system
+                  # Electronic minimization algo
+                  'ALGO': 'Normal',
+                  # Energy cutoff
+                  'ENCUT': 550.0,  # energy cutoff
+                  # Smearing, defaults suggested in
+                  # https://www.vasp.at/wiki/index.php/ISMEAR
+                  'ISMEAR': 0,
+                  'SIGMA': 0.04,
+                  # FIXME: May we calculate it automatically, from
+                  # POTCAR + INCAR data?
+                  'NCORE': 16
+              },
+              'KPOINTS': {'grid_density': 10000},
+              'POTCAR_FUNCTIONAL': 'PBE_64',
+              'POTCAR': POTCAR_RECOMMENDED}
+
+    def __post_init__(self) -> None:
+        assert self.structure.is_valid()
+
+        # Setup default POTCAR.  If an element is missing from
+        # POTCAR_RECOMMENED, assume that the potential name is the
+        # same with element name.
+        for element in self.structure.composition.elements:
+            if element.symbol not in self.CONFIG['POTCAR']:
+                self.CONFIG['POTCAR'][element.symbol] = element.symbol
+
+        formula = self.structure.reduced_formula
+        lattice_type = SpacegroupAnalyzer(self.structure).get_crystal_system()
+        space_group =\
+            SpacegroupAnalyzer(self.structure).get_space_group_number()
+
+        self.CONFIG['INCAR']['SYSTEM'] =\
+            f'{formula}.{self.structure.properties["mpid"]}' + \
+            f'.{lattice_type}.{space_group}'
+        super().__post_init__()
 
 
 @due.dcite(
