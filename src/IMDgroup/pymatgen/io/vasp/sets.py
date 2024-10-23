@@ -8,7 +8,7 @@ from pathlib import Path
 from dataclasses import dataclass
 from monty.serialization import loadfn
 from pymatgen.io.vasp.sets import VaspInputSet
-from pymatgen.io.vasp.inputs import VaspInput, Potcar
+from pymatgen.io.vasp.inputs import VaspInput, Potcar, Kpoints
 from pymatgen.util.due import Doi, due
 from pymatgen.core import Structure
 from pymatgen.ext.matproj import MPRester
@@ -64,6 +64,8 @@ class IMDVaspInputSet(VaspInputSet):
        functional to be used.  This is similar to vdw parameter in
        VaspInputSet, but also allows setting PBE/PBEsol and other
        non-vdw functionals.
+    3. prev_kpoints parameter is obeyed unconditionally, when
+       provided.
     """
     functional = None
     CONFIG = {'INCAR':
@@ -124,6 +126,17 @@ class IMDVaspInputSet(VaspInputSet):
                     ', '.join(functional_config) + "."
                 )
 
+    @property
+    def kpoints_updates(self):
+        """Call kpoints_updates from VaspInputSet, but prefer
+        prev_kpoints unconditionally.
+        """
+
+        if self.prev_kpoints and isinstance(self.prev_kpoints, Kpoints):
+            return self.prev_kpoints
+        else:
+            return super().kpoints_updates
+
     @classmethod
     def input_from_directory(cls, directory: PathLike, **kwargs):
         """Create VASP inputs from directory.
@@ -136,6 +149,7 @@ class IMDVaspInputSet(VaspInputSet):
             vasp_input = VaspInput.from_directory(directory)
             input_set = cls(
                 vasp_input['POSCAR'].structure,
+                inherit_incar=True,
                 prev_incar=vasp_input['INCAR'],
                 prev_kpoints=vasp_input['KPOINTS'],
                 **kwargs
