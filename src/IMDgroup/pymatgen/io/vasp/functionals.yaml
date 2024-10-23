@@ -1,0 +1,35 @@
+PMG-PARENT: "vdW_parameters"
+pbe:
+  GGA: PE
+pbesol:
+  GGA: PS
+pbe+d2:
+  IVDW: 1
+pbe+ts:
+  IVDW: 2
+  PREC: Accurate
+vdw-df:
+  LASPH: True
+  GGA: RE
+  AGGAC: 0.0
+  LUSE_VDW: True
+vdw-df2:
+  LASPH: True
+  ZAB_VDW: -1.8867
+  GGA: ML
+  AGGAC: 0.0
+  LUSE_VDW: True
+optb88-vdw:
+  LASPH: True
+  PARAM1: 0.18333333
+  PARAM2: 0.22
+  GGA: BO
+  AGGAC: 0.0
+  LUSE_VDW: True
+optb86b-vdw:
+  LASPH: True
+  PARAM1: 0.1234
+  PARAM2: 1.0
+  GGA: MK
+  AGGAC: 0.0
+  LUSE_VDW: True

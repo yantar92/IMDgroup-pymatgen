@@ -56,7 +56,12 @@ class IMDVaspInputSet(VaspInputSet):
     New features:
     1. Potentials do not have to be specified.  By default, use
        VASP-recommended potentials via ase.
+    2. New argument FUNCTIONAL (see functionals.yaml) specifying
+       functional to be used.  This is similar to vdw parameter in
+       VaspInputSet, but also allows setting PBE/PBEsol and other
+       non-vdw functionals.
     """
+    functional = None
     CONFIG = {'INCAR':
               {
                   # Generic INCAR defaults independes from a given system
@@ -100,6 +105,20 @@ class IMDVaspInputSet(VaspInputSet):
 
         super().__post_init__()
 
+        # Do it after parent class initialization, when _config_dict
+        # is set
+        if isinstance(self.functional, str):
+            self.functional = self.functional.lower()
+        if self.functional:
+            functional_config = _load_yaml_config("functionals")
+            if params := functional_config.get(self.functional):
+                self._config_dict["INCAR"].update(params)
+            else:
+                raise KeyError(
+                    "Invalid or unsupported functional. " +
+                    "Supported functionals are " +
+                    ', '.join(functional_config) + "."
+                )
 
 @due.dcite(
     Doi("10.1007/s10570-024-05754-7"),
