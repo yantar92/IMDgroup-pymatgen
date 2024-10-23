@@ -118,16 +118,6 @@ class IMDDerivedInputSet(VaspInputSet):
     """
     directory = None
 
-    def __init__(self, directory: str, **kwargs):
-        """
-        Args:
-          directory: Directory to read the input.
-          **kwargs: Other kwargs supported by VaspInputSet.
-        """
-        self.directory = directory
-        super().__init__()
-
-
     @property
     def kpoints_updates(self):
         """Call kpoints_updates from VaspInputSet, but prefer
