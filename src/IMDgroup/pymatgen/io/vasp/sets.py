@@ -8,8 +8,7 @@ from pathlib import Path
 from dataclasses import dataclass
 from monty.serialization import loadfn
 from pymatgen.io.vasp.sets import VaspInputSet
-from pymatgen.io.vasp.inputs import VaspInput
-from pymatgen.io.vasp.sets import _dummy_structure
+from pymatgen.io.vasp.inputs import VaspInput, Potcar
 from pymatgen.util.due import Doi, due
 from pymatgen.core import Structure
 from pymatgen.ext.matproj import MPRester
@@ -145,9 +144,19 @@ class IMDVaspInputSet(VaspInputSet):
             files_to_transfer = {}
             if potcars := sorted(glob(str(Path(directory) / "POTCAR*"))):
                 files_to_transfer['POTCAR'] = str(potcars[-1])
+                # Override defaults with POTCAR data
+                # We still want to transfer the file explicitly to
+                # make sure that any non-standard POTCARS are not
+                # going to be broken
+                potcar = Potcar.from_file(str(potcars[-1]))
+                potcar_dict = {}
+                for el, symbol in \
+                        zip(input_set.poscar.site_symbols,
+                            potcar.symbols):
+                    potcar_dict[el] = symbol
+                input_set._config_dict['POTCAR'] = potcar_dict
             input_set.files_to_transfer.update(files_to_transfer)
             return input_set
-        pass
 
 
 @due.dcite(
