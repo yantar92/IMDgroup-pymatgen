@@ -35,11 +35,16 @@ dev = ["python-lsp-server[all]"]
 
 [project.scripts]
 pmg-insert-molecule = "IMDgroup.pymatgen.transformations.insert_molecule_cli:main"
+imdg = "IMDgroup.pymatgen.cli.imdg:main"
 
 [tool.setuptools.packages.find]
 exclude = ["tests"]
 where = ["src/"]
-include = ["IMDgroup.pymatgen.transformations", "IMDgroup.pymatgen.io.vasp"]
+include = [
+	"IMDgroup.pymatgen.transformations",
+        "IMDgroup.pymatgen.io.vasp",
+        "IMDgroup.pymatgen.cli"
+        ]
 
 [tool.setuptools.package-data]
 "IMDgroup.pymatgen.io.vasp" = ["*.cif", "*.yaml"]
