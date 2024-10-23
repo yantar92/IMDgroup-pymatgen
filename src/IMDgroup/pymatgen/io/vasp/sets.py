@@ -3,15 +3,20 @@ group research.
 """
 
 import os
+from glob import glob
+from pathlib import Path
 from dataclasses import dataclass
 from monty.serialization import loadfn
 from pymatgen.io.vasp.sets import VaspInputSet
+from pymatgen.io.vasp.inputs import VaspInput
+from pymatgen.io.vasp.sets import _dummy_structure
 from pymatgen.util.due import Doi, due
 from pymatgen.core import Structure
 from pymatgen.ext.matproj import MPRester
 from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
 from ase.calculators.vasp.setups \
     import setups_defaults as ase_potential_defaults
+from pymatgen.util.typing import PathLike
 
 # ase uses pairs of 'Si': '_suffix'.  Convert them into 'Si': 'Si_suffix'
 POTCAR_RECOMMENDED = dict(
@@ -119,6 +124,31 @@ class IMDVaspInputSet(VaspInputSet):
                     "Supported functionals are " +
                     ', '.join(functional_config) + "."
                 )
+
+    @classmethod
+    def input_from_directory(cls, directory: PathLike, **kwargs):
+        """Create VASP inputs from directory.
+        This is like VaspInputSet.from_prev_calc, but allows reading
+        vasp input directory that does not contain VASP outputs.
+        """
+        try:
+            return VaspInputSet.from_prev_calc(directory, **kwargs)
+        except Exception:
+            vasp_input = VaspInput.from_directory(directory)
+            input_set = cls(
+                vasp_input['POSCAR'].structure,
+                prev_incar=vasp_input['INCAR'],
+                prev_kpoints=vasp_input['KPOINTS'],
+                **kwargs
+                )
+            # Copy over POTCAR, if any
+            files_to_transfer = {}
+            if potcars := sorted(glob(str(Path(directory) / "POTCAR*"))):
+                files_to_transfer['POTCAR'] = str(potcars[-1])
+            input_set.files_to_transfer.update(files_to_transfer)
+            return input_set
+        pass
+
 
 @due.dcite(
     Doi("10.1007/s10570-024-05754-7"),
