@@ -91,6 +91,8 @@ class IMDVaspInputSet(VaspInputSet):
         # Setup default POTCAR.  If an element is missing from
         # POTCAR_RECOMMENED, assume that the potential name is the
         # same with element name.
+        if 'POTCAR' not in self._config_dict:
+            self._config_dict.update({'POTCAR': {}})
         for element in self.structure.composition.elements:
             if element.symbol not in self._config_dict['POTCAR']:
                 self._config_dict['POTCAR'][element.symbol] = element.symbol
