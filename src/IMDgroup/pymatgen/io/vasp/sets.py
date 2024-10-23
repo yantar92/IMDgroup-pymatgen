@@ -130,6 +130,7 @@ class IMDDerivedInputSet(VaspInputSet):
 
     def __post_init__(self) -> None:
         # Directory settings take precedence.
+        self.inherit_incar = True
         try:
             self.override_from_prev_calc(prev_calc_dir=self.directory)
             super().__post_init__()
