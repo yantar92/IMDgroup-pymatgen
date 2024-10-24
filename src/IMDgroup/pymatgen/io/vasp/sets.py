@@ -69,7 +69,7 @@ class IMDVaspInputSet(VaspInputSet):
     4. Use the latest POTCAR_FUNCTIONAL PBE_64 by default.
     5. Complain when NCORE exceeds the number of sites in the system.
     """
-    functional = None
+    functional: str | None = None
 
     CONFIG = {'POTCAR_FUNCTIONAL': 'PBE_64'}
 
