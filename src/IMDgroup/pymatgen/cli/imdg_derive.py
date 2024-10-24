@@ -1,5 +1,7 @@
 """imdg sub-command to create new VASP inputs from existing.
 """
+from IMDgroup.pymatgen.io.vasp.sets import IMDDerivedInputSet
+
 
 def add_args(parser):
     """Setup parser arguments.
