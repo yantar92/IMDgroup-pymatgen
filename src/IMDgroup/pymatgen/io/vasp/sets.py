@@ -168,19 +168,21 @@ class IMDDerivedInputSet(IMDVaspInputSet):
 
             self.prev_incar = vasp_input['INCAR']
             self.prev_kpoints = vasp_input['KPOINTS']
-            if potcars := sorted(glob(str(Path(self.directory) / "POTCAR*"))):
-                # Override defaults with POTCAR data
-                # We still want to transfer the file explicitly to
-                # make sure that any non-standard POTCARS are not
-                # going to be broken
-                potcar = Potcar.from_file(str(potcars[-1]))
-                potcar_dict = {}
-                for el, symbol in \
-                        zip(self.poscar.site_symbols,
-                            potcar.symbols):
-                    potcar_dict[el] = symbol
-                self._config_dict['POTCAR'] = potcar_dict
-                self._config_dict['POTCAR_FUNCTIONAL'] = potcar.functional
+
+        # self.override_from_prev_calc does not inherit POTCAR.  Force it.
+        if potcars := sorted(glob(str(Path(self.directory) / "POTCAR*"))):
+            # Override defaults with POTCAR data
+            # We still want to transfer the file explicitly to
+            # make sure that any non-standard POTCARS are not
+            # going to be broken
+            potcar = Potcar.from_file(str(potcars[-1]))
+            potcar_dict = {}
+            for el, symbol in \
+                    zip(self.poscar.site_symbols,
+                        potcar.symbols):
+                potcar_dict[el] = symbol
+            self._config_dict['POTCAR'] = potcar_dict
+            self._config_dict['POTCAR_FUNCTIONAL'] = potcar.functional
 
 
 @dataclass
