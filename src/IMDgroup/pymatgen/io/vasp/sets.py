@@ -62,7 +62,7 @@ class IMDVaspInputSet(VaspInputSet):
        VaspInputSet, but also allows setting PBE/PBEsol and other
        non-vdw functionals.
     2. Automatic SYSTEM name generation.
-    3. Structure validation
+    3. Structure and input validation
     # FIXME: pymatgen forces PBE, but it ought to be configurable via
     # pmg config. May file a bug report.
     4. Use the latest POTCAR_FUNCTIONAL PBE_64 by default.
@@ -107,6 +107,7 @@ class IMDVaspInputSet(VaspInputSet):
         if 'SYSTEM' not in incar:
             incar['SYSTEM'] = f'{formula}.{mpid}{lattice_type}.{space_group}'
 
+        incar.check_params()
         return incar
 
     @property
