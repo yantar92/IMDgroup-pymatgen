@@ -178,6 +178,7 @@ class IMDDerivedInputSet(IMDVaspInputSet):
                             potcar.symbols):
                     potcar_dict[el] = symbol
                 self._config_dict['POTCAR'] = potcar_dict
+                self._config_dict['POTCAR_FUNCTIONAL'] = potcar.functional
 
 
 @dataclass
