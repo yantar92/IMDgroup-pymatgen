@@ -125,11 +125,10 @@ class IMDVaspInputSet(VaspInputSet):
         # same with element name.
         elements = self.poscar.site_symbols
         for element in elements:
-            symbol = element.symbol
-            if symbol not in self._config_dict['POTCAR']:
-                self._config_dict['POTCAR'][symbol] = \
-                    POTCAR_RECOMMENDED[symbol] if symbol in POTCAR_RECOMMENDED\
-                    else symbol
+            if element not in self._config_dict['POTCAR']:
+                self._config_dict['POTCAR'][element] = \
+                    POTCAR_RECOMMENDED[element] if element in POTCAR_RECOMMENDED\
+                    else element
 
 
 @dataclass
