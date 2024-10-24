@@ -29,6 +29,20 @@ def add_args(parser):
             'vdW-DF', 'vdW-DF2',
             'optB88-vdW', 'optB86b-vdW'],
         type=str)
+    parser.add_argument(
+        "--relax",
+        help="Relax system",
+        choices=[
+            "RELAX_POS", "FIX_SHAPE_VOL",
+            "RELAX_POS_SHAPE_VOL", "FIX_NONE",
+            "RELAX_POS_SHAPE", "FIX_VOL",
+            "RELAX_SHAPE", "FIX_POS_VOL",
+            "RELAX_SHAPE", "FIX_POS_VOL",
+            "RELAX_SHAPE_VOL", "FIX_POS",
+            "RELAX_VOL", "FIX_POS_SHAPE",
+            "RELAX_POS_VOL", "FIX_SHAPE"
+        ]
+    )
 
 
 def derive(args):
@@ -46,6 +60,32 @@ def derive(args):
             directory=args.input_directory,
             functional=args.functional)
         output_suffix = args.functional
+    elif args.relax is not None:
+        ISIF_RELAX_POS = ISIF_FIX_SHAPE_VOL = 2
+        ISIF_RELAX_POS_SHAPE_VOL = ISIF_FIX_NONE = 3
+        ISIF_RELAX_POS_SHAPE = ISIF_FIX_VOL = 4
+        ISIF_RELAX_SHAPE = IFIX_FIX_POS_VOL = 5
+        ISIF_RELAX_SHAPE_VOL = ISIF_FIX_POS = 6
+        ISIF_RELAX_VOL = ISIF_FIX_POS_SHAPE = 7
+        ISIF_RELAX_POS_VOL = ISIF_FIX_SHAPE = 8
+
+        IBRION_IONIC_RELAX_CGA = 2
+
+        relax_overrides = {
+            "ISTART": 0,
+            # Volume relaxation
+            "NSW": 100,
+            "IBRION": IBRION_IONIC_RELAX_CGA,
+            'ISIF': globals()["ISIF_" + args.relax],
+            'EDIFF': 1e-06,
+            'EDIFFG': -0.01
+        }
+
+        inputset = IMDDerivedInputSet(
+            directory=args.input_directory,
+            user_incar_settings=relax_overrides,
+            )
+        output_suffix = args.relax
     else:
         return 1
 
