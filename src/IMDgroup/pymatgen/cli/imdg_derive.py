@@ -86,7 +86,7 @@ def derive(args):
             directory=args.input_directory,
             user_incar_settings=relax_overrides,
             )
-        output_suffix = args.relax
+        output_suffix = f"relax.{args.relax}"
     else:
         return 1
 
