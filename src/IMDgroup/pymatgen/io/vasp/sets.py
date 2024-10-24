@@ -3,11 +3,12 @@ group research.
 """
 
 import os
+import warnings
 from glob import glob
 from pathlib import Path
 from dataclasses import dataclass
 from monty.serialization import loadfn
-from pymatgen.io.vasp.sets import VaspInputSet
+from pymatgen.io.vasp.sets import VaspInputSet, BadInputSetWarning
 from pymatgen.io.vasp.inputs import VaspInput, Potcar, Kpoints, Incar, Poscar
 from pymatgen.util.due import Doi, due
 from pymatgen.core import Structure
@@ -66,6 +67,7 @@ class IMDVaspInputSet(VaspInputSet):
     # FIXME: pymatgen forces PBE, but it ought to be configurable via
     # pmg config. May file a bug report.
     4. Use the latest POTCAR_FUNCTIONAL PBE_64 by default.
+    5. Complain when NCORE exceeds the number of sites in the system.
     """
     functional = None
 
@@ -108,6 +110,17 @@ class IMDVaspInputSet(VaspInputSet):
             incar['SYSTEM'] = f'{formula}.{mpid}{lattice_type}.{space_group}'
 
         incar.check_params()
+        NCORE = incar['NCORE'] if 'NCORE' in incar else None
+        if 'NPAR' in incar:
+            # https://www.vasp.at/wiki/index.php/KPAR
+            KPAR = incar['KPAR'] if 'KPAR' in incar else 1
+            NCORE = incar['NPAR'] * KPAR
+        if NCORE is not None and NCORE > len(self.structure):
+            warnings.warn(
+                "NCORE/NPAR parameter in the input set is too large"
+                f"{NCORE} > {len(self.structure)}",
+                BadInputSetWarning,
+            )
         return incar
 
     @property
