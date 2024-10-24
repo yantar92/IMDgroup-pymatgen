@@ -125,6 +125,8 @@ class IMDVaspInputSet(VaspInputSet):
         # same with element name.
         elements = self.poscar.site_symbols
         for element in elements:
+            if 'POTCAR' not in self._config_dict:
+                self._config_dict['POTCAR'] = {}
             if element not in self._config_dict['POTCAR']:
                 self._config_dict['POTCAR'][element] = \
                     POTCAR_RECOMMENDED[element] if element in POTCAR_RECOMMENDED\
