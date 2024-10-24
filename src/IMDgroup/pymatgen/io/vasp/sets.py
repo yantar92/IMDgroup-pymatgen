@@ -159,6 +159,12 @@ class IMDDerivedInputSet(IMDVaspInputSet):
         try:
             self.override_from_prev_calc(prev_calc_dir=self.directory)
             super().__post_init__()
+            # override_from_prev_calc uses vasprun.xml
+            # However, as it turns out vasprun.xml may not have all
+            # the incar parameters. For example, it does not store NCORE.
+            # Force using the actual INCAR file.
+            vasp_input = VaspInput.from_directory(self.directory)
+            self.prev_incar = vasp_input['INCAR']
         except ValueError:
             # No VASP output found.  Try to ingest VASP input.
             vasp_input = VaspInput.from_directory(self.directory)
