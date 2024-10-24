@@ -25,6 +25,7 @@ class InsertMoleculeTransformation(AbstractTransformation):
             molecule: Molecule | SpeciesLike | str,
             step: float,
             anglestep: float | None = None,
+            proximity_threshold: float = 0.75,
             label: str | None = "insert",
             matcher: StructureMatcher =
             StructureMatcher(attempt_supercell=True, scale=False)
@@ -40,6 +41,10 @@ class InsertMoleculeTransformation(AbstractTransformation):
         anglestep (float or None):
                 angle step, in radians, when trying different molecule
                 rotations.  Must be None when inserting an atom
+        proximity_threshold (float, default=0.75):
+          Threshold multiplier to judge that two atoms are too close
+          to each other.  The atoms are considered too close when
+          distance < proximity_threshold * (atom1.atomic_radius + atom2.atomic_radius)
         label (str):
           Label to mark the inserted molecule.  The label will be used
           to construct labels for each atom in the molecule as
@@ -67,6 +72,7 @@ class InsertMoleculeTransformation(AbstractTransformation):
         self.molecule = molecule
         self.step = step
         self.anglestep = anglestep
+        self.proximity_threshold = proximity_threshold
         self.label = label
         self._candidate_angles = None
         if len(molecule) > 1 and self.anglestep is not None:
@@ -131,10 +137,12 @@ class InsertMoleculeTransformation(AbstractTransformation):
                 r=cutoff + site.specie.atomic_radius,
                 zip_results=False)
         for nidx, distance in zip(neighbor_indices, distances):
-            if distance \
-               < structure[nidx].specie.atomic_radius\
-               + site.specie.atomic_radius\
-               and site != structure[nidx]:
+            max_distance =\
+                self.proximity_threshold * (
+                    structure[nidx].specie.atomic_radius
+                    + site.specie.atomic_radius
+                )
+            if distance < max_distance and site != structure[nidx]:
                 return False
         return True
 
