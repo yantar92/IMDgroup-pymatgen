@@ -8,7 +8,7 @@ from pathlib import Path
 from dataclasses import dataclass
 from monty.serialization import loadfn
 from pymatgen.io.vasp.sets import VaspInputSet
-from pymatgen.io.vasp.inputs import VaspInput, Potcar, Kpoints
+from pymatgen.io.vasp.inputs import VaspInput, Potcar, Kpoints, Incar, Poscar
 from pymatgen.util.due import Doi, due
 from pymatgen.core import Structure
 from pymatgen.ext.matproj import MPRester
@@ -62,40 +62,18 @@ class IMDVaspInputSet(VaspInputSet):
        VaspInputSet, but also allows setting PBE/PBEsol and other
        non-vdw functionals.
     2. Automatic SYSTEM name generation.
-    3. Structure validation (and structure must be set in the
-       constructor)
+    3. Structure validation
+    # FIXME: pymatgen forces PBE, but it ought to be configurable via
+    # pmg config. May file a bug report.
+    4. Use the latest POTCAR_FUNCTIONAL PBE_64 by default.
     """
     functional = None
 
+    CONFIG = {'POTCAR_FUNCTIONAL': 'PBE_64'}
+
     def __post_init__(self) -> None:
-        assert self.structure.is_valid()
 
         super().__post_init__()
-
-        formula = self.structure.reduced_formula
-        lattice_type = SpacegroupAnalyzer(self.structure).get_crystal_system()
-        space_group =\
-            SpacegroupAnalyzer(self.structure).get_space_group_number()
-        if "mpid" in self.structure.properties:
-            mpid = self.structure.properties["mpid"] + '.'
-        else:
-            mpid = ''
-
-        if 'INCAR' not in self._config_dict:
-            self._config_dict.update({"INCAR": {}})
-        if 'SYSTEM' not in self._config_dict['INCAR']:
-            self._config_dict['INCAR'].update(
-                 {'SYSTEM': f'{formula}.{mpid}{lattice_type}.{space_group}'}
-            )
-
-        # Setup default POTCAR.  If an element is missing from
-        # POTCAR_RECOMMENED, assume that the potential name is the
-        # same with element name.
-        if 'POTCAR' not in self._config_dict:
-            self._config_dict.update({'POTCAR': {}})
-        for element in self.structure.composition.elements:
-            if element.symbol not in self._config_dict['POTCAR']:
-                self._config_dict['POTCAR'][element.symbol] = element.symbol
 
         # Do it after parent class initialization, when _config_dict
         # is set
@@ -111,6 +89,47 @@ class IMDVaspInputSet(VaspInputSet):
                     "Supported functionals are " +
                     ', '.join(functional_config) + "."
                 )
+
+    @property
+    def incar(self) -> Incar:
+        """The INCAR.  Also, automatically derive SYSTEM name."""
+        incar = super().incar
+
+        formula = self.structure.reduced_formula
+        lattice_type = SpacegroupAnalyzer(self.structure).get_crystal_system()
+        space_group =\
+            SpacegroupAnalyzer(self.structure).get_space_group_number()
+        if "mpid" in self.structure.properties:
+            mpid = self.structure.properties["mpid"] + '.'
+        else:
+            mpid = ''
+
+        if 'SYSTEM' not in incar:
+            incar['SYSTEM'] = f'{formula}.{mpid}{lattice_type}.{space_group}'
+
+        return incar
+
+    @property
+    def poscar(self) -> Poscar:
+        """Check structure and return POSCAR."""
+        assert self.structure.is_valid()
+        return super().poscar
+
+    @property
+    def potcar_symbols(self) -> list[str]:
+        """List of POTCAR symbols.
+        Auto-fill missing potentials for elements using VASP
+        recommendations."""
+        # Setup default POTCAR.  If an element is missing from
+        # POTCAR_RECOMMENED, assume that the potential name is the
+        # same with element name.
+        elements = self.poscar.site_symbols
+        for element in elements:
+            symbol = element.symbol
+            if symbol not in self._config_dict['POTCAR']:
+                self._config_dict['POTCAR'][symbol] = \
+                    POTCAR_RECOMMENDED[symbol] if symbol in POTCAR_RECOMMENDED\
+                    else symbol
 
 
 @dataclass
