@@ -212,7 +212,10 @@ class IMDStandardVaspInputSet(IMDVaspInputSet):
                   'SIGMA': 0.04,
                   # FIXME: May we calculate it automatically, from
                   # POTCAR + INCAR data?
-                  'NCORE': 16
+                  'NCORE': 16,
+                  # By default, do not write WAVECAR and CHGCAR - save space
+                  'LWAVE': False,
+                  'LCHARG': False,
               },
               'KPOINTS': {'grid_density': 10000},
               'POTCAR_FUNCTIONAL': 'PBE_64',
