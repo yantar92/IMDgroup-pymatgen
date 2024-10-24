@@ -18,7 +18,7 @@ def add_args(parser):
 
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument(
-        "-s", "--supercell",
+        "--supercell",
         help="Supercell size (default: 1x1x1)",
         default="1x1x1")
 
