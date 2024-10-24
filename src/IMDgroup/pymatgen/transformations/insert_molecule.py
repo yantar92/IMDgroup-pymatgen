@@ -317,9 +317,9 @@ class InsertMoleculeTransformation(AbstractTransformation):
         if limit is not None and limit < 0:
             limit = abs(limit)
             # randomize grids
-            candidate_coords = np.random.shuffle(candidate_coords)
+            np.random.shuffle(candidate_coords)
             if candidate_angles is not None:
-                candidate_angles = np.random.shuffle(candidate_angles)
+                np.random.shuffle(candidate_angles)
         if limit is not None and limit < n_candidates:
             n_candidates = limit
 
