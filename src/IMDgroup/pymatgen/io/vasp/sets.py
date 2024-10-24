@@ -152,7 +152,7 @@ class IMDDerivedInputSet(IMDVaspInputSet):
     """
     directory: str | None = None
 
-    CONFIG = {'INCAR': {}}
+    CONFIG = {'INCAR': {}, 'POTCAR_FUNCTIONAL': "PBE_64"}
 
     @property
     def kpoints_updates(self):
@@ -199,7 +199,9 @@ class IMDDerivedInputSet(IMDVaspInputSet):
                         potcar.symbols):
                 potcar_dict[el] = symbol
             self._config_dict['POTCAR'] = potcar_dict
-            self._config_dict['POTCAR_FUNCTIONAL'] = potcar.functional
+            # potcar.functional is actually not what pymatgen means by
+            # POTCAR_FUNCTIONAL
+            # self._config_dict['POTCAR_FUNCTIONAL'] = potcar.functional
 
 
 @dataclass
