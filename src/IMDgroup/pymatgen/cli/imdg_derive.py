@@ -26,7 +26,7 @@ def add_args(parser):
 def derive(args):
     """Main routine.
     """
-    inputset = IMDDerivedInputSet(args.input_directory)
+    inputset = IMDDerivedInputSet(directory=args.input_directory)
 
     if args.supercell is not None:
         # supercell: N1xN2xN3 string
