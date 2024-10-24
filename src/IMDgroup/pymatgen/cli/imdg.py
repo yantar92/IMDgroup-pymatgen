@@ -4,6 +4,7 @@
 
 import argparse
 import IMDgroup.pymatgen.cli.imdg_create
+import IMDgroup.pymatgen.cli.imdg_derive
 
 
 def main():
@@ -25,6 +26,10 @@ def main():
     parser_create = subparsers.add_parser("create")
     IMDgroup.pymatgen.cli.imdg_create.add_args(parser_create)
     parser_create.set_defaults(func=IMDgroup.pymatgen.cli.imdg_create.create)
+
+    parser_create = subparsers.add_parser("derive")
+    IMDgroup.pymatgen.cli.imdg_derive.add_args(parser_create)
+    parser_create.set_defaults(func=IMDgroup.pymatgen.cli.imdg_derive.derive)
 
     args = parser.parse_args()
 
