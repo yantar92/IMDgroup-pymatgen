@@ -21,18 +21,32 @@ def add_args(parser):
         "--supercell",
         help="Supercell size (default: 1x1x1)",
         default="1x1x1")
+    group.add_argument(
+        "--functional",
+        help="Functional to be used",
+        choices=[
+            'PBE', 'PBEsol', 'PBE+D2', 'PBE+TS',
+            'vdW-DF', 'vdW-DF2',
+            'optB88-vdW', 'optB86b-vdW'],
+        type=str)
 
 
 def derive(args):
     """Main routine.
     """
-    inputset = IMDDerivedInputSet(directory=args.input_directory)
 
     if args.supercell is not None:
+        inputset = IMDDerivedInputSet(directory=args.input_directory)
         # supercell: N1xN2xN3 string
         scaling = [int(x) for x in args.supercell.split("x")]
         inputset.structure.make_supercell(scaling)
         output_suffix = args.supercell
+    elif args.functional is not None:
+        inputset = IMDDerivedInputSet(
+            directory=args.input_directory,
+            functional=args.functional)
+    else:
+        return 1
 
     if "SYSTEM" in inputset.incar:
         system_name = inputset.incar["SYSTEM"]
