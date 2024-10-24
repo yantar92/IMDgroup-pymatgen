@@ -129,6 +129,7 @@ class IMDVaspInputSet(VaspInputSet):
                 self._config_dict['POTCAR'][element] = \
                     POTCAR_RECOMMENDED[element] if element in POTCAR_RECOMMENDED\
                     else element
+        return super().potcar_symbols
 
 
 @dataclass
