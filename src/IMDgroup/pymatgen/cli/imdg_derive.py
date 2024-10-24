@@ -20,7 +20,7 @@ def add_args(parser):
     group.add_argument(
         "--supercell",
         help="Supercell size (default: 1x1x1)",
-        default="1x1x1")
+        type=str)
     group.add_argument(
         "--functional",
         help="Functional to be used",
