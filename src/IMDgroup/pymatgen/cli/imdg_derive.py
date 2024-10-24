@@ -29,7 +29,7 @@ def add_args(parser):
             'vdW-DF', 'vdW-DF2',
             'optB88-vdW', 'optB86b-vdW'],
         type=str)
-    parser.add_argument(
+    group.add_argument(
         "--relax",
         help="Relax system",
         choices=[
