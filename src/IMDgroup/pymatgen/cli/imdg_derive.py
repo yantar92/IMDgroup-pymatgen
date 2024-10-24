@@ -45,6 +45,7 @@ def derive(args):
         inputset = IMDDerivedInputSet(
             directory=args.input_directory,
             functional=args.functional)
+        output_suffix = args.functional
     else:
         return 1
 
