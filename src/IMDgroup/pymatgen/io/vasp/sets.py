@@ -71,8 +71,6 @@ class IMDVaspInputSet(VaspInputSet):
     """
     functional: str | None = None
 
-    CONFIG = {'POTCAR_FUNCTIONAL': 'PBE_64'}
-
     @property
     def incar_updates(self) -> dict:
         """Updates to the INCAR config according to funcational."""
