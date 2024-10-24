@@ -73,24 +73,23 @@ class IMDVaspInputSet(VaspInputSet):
 
     CONFIG = {'POTCAR_FUNCTIONAL': 'PBE_64'}
 
-    def __post_init__(self) -> None:
-
-        super().__post_init__()
-
-        # Do it after parent class initialization, when _config_dict
-        # is set
+    @property
+    def incar_updates(self) -> dict:
+        """Updates to the INCAR config according to funcational."""
+        incar_updates = {}
         if isinstance(self.functional, str):
             self.functional = self.functional.lower()
         if self.functional:
             functional_config = _load_yaml_config("functionals")
             if params := functional_config.get(self.functional):
-                self._config_dict["INCAR"].update(params)
+                incar_updates.update(params)
             else:
                 raise KeyError(
                     "Invalid or unsupported functional. " +
                     "Supported functionals are " +
                     ', '.join(functional_config) + "."
                 )
+        return incar_updates
 
     @property
     def incar(self) -> Incar:
