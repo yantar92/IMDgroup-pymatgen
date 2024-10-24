@@ -320,8 +320,6 @@ class InsertMoleculeTransformation(AbstractTransformation):
             np.random.shuffle(candidate_coords)
             if candidate_angles is not None:
                 np.random.shuffle(candidate_angles)
-        if limit is not None and limit < n_candidates:
-            n_candidates = limit
 
         with alive_bar(n_candidates, enrich_print=False,
                        dual_line=True, spinner='bubbles')\
