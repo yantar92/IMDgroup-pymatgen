@@ -1,5 +1,6 @@
 """imdg sub-command to create new VASP inputs from existing.
 """
+import warnings
 from IMDgroup.pymatgen.io.vasp.sets import IMDDerivedInputSet
 
 ISIF_RELAX_POS = ISIF_FIX_SHAPE_VOL = 2
@@ -127,7 +128,7 @@ def incar(args):
     if args.parameter is None:
         warnings.warn("No INCAR settings provided.  Creating a copy of the inputs.")
     else:
-        for str_val in args.incar:
+        for str_val in args.parameter:
             key, val = str_val.split(":")
             incar_overrides[key] = val
 
