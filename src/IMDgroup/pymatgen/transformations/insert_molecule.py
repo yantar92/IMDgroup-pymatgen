@@ -27,6 +27,7 @@ class InsertMoleculeTransformation(AbstractTransformation):
             anglestep: float | None = None,
             proximity_threshold: float = 0.75,
             label: str | None = "insert",
+            selective_dynamics: ArrayLike | None = None,
             reduce_supercell: bool = True,
             matcher: StructureMatcher =
             StructureMatcher(attempt_supercell=True, scale=False)
@@ -50,6 +51,8 @@ class InsertMoleculeTransformation(AbstractTransformation):
           Label to mark the inserted molecule.  The label will be used
           to construct labels for each atom in the molecule as
           label-<atom_name><site_index>
+        selective_dynamics (array[bool]):
+          selective_dynamics settings for the inserted atoms.
         reduce_supercell (bool; default: True):
           Whether to try reducing structure from supercell to
           primitive cell before searching for insertions.
@@ -78,6 +81,7 @@ class InsertMoleculeTransformation(AbstractTransformation):
         self.anglestep = anglestep
         self.proximity_threshold = proximity_threshold
         self.label = label
+        self.selective_dynamics = selective_dynamics
         self._candidate_angles = None
         if len(molecule) > 1 and self.anglestep is not None:
             self._candidate_angles = self._get_angle_grid()
@@ -284,6 +288,8 @@ class InsertMoleculeTransformation(AbstractTransformation):
             if self.label is not None:
                 structure[idx].label = self.label + "-"\
                     + structure[idx].specie.symbol + str(idx)
+            if self.selective_dynamics is not None:
+                structure[idx].selective_dynamics = self.selective_dynamics
 
         # Now, move them as needed to the target coordinates.
         anchor = structure[0].frac_coords
