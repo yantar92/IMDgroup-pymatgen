@@ -26,22 +26,29 @@ def add_args(parser):
         help="VASP directory to read system"
     )
 
-    group = parser.add_mutually_exclusive_group(required=True)
-    group.add_argument(
-        "--supercell",
-        help="Supercell size (default: 1x1x1)",
+    subparsers = parser.add_subparsers(required=True)
+    parser_supercell = subparsers.add_parser("supercell")
+    parser_supercell.add_argument(
+        "supercell_size",
+        help="Supercell size",
         type=str)
-    group.add_argument(
-        "--functional",
+    parser_supercell.set_defaults(func_derive=supercell)
+
+    parser_functional = subparsers.add_parser("functional")
+    parser_functional.add_argument(
+        "functional_type",
         help="Functional to be used",
         choices=[
             'PBE', 'PBEsol', 'PBE+D2', 'PBE+TS',
             'vdW-DF', 'vdW-DF2',
             'optB88-vdW', 'optB86b-vdW'],
         type=str)
-    group.add_argument(
-        "--relax",
-        help="Relax system",
+    parser_functional.set_defaults(func_derive=supercell)
+
+    parser_relax = subparsers.add_parser("relax")
+    parser_relax.add_argument(
+        "isif",
+        help="What to relax",
         choices=[
             "RELAX_POS", "FIX_SHAPE_VOL",
             "RELAX_POS_SHAPE_VOL", "FIX_NONE",
@@ -53,44 +60,60 @@ def add_args(parser):
             "RELAX_POS_VOL", "FIX_SHAPE"
         ]
     )
+    parser_relax.set_defaults(func_derive=relax)
+
+
+def relax(args):
+    """Create relaxation setup.
+    Return (inputset, output_suffix)
+    """
+    relax_overrides = {
+        "ISTART": 0,
+        # Volume relaxation
+        # 500 steps because 100 suggested in some online resources
+        # may not be enough in complex supercells.
+        "NSW": 500,
+        "IBRION": IBRION_IONIC_RELAX_CGA,
+        'ISIF': globals()["ISIF_" + args.isif],
+        'EDIFF': 1e-06,
+        'EDIFFG': -0.01
+    }
+
+    inputset = IMDDerivedInputSet(
+        directory=args.input_directory,
+        user_incar_settings=relax_overrides,
+    )
+    output_suffix = f"relax.{args.isif}"
+    return (inputset, output_suffix)
+
+
+def supercell(args):
+    """Create supercell.
+    Return (inputset, output_suffix)
+    """
+    inputset = IMDDerivedInputSet(directory=args.input_directory)
+    # supercell: N1xN2xN3 string
+    scaling = [int(x) for x in args.supercell_size.split("x")]
+    inputset.structure.make_supercell(scaling)
+    output_suffix = args.supercell_size
+    return (inputset, output_suffix)
+
+
+def functional(args):
+    """Create custom functional setup.
+    Return (inputset, output_suffix)
+    """
+    inputset = IMDDerivedInputSet(
+        directory=args.input_directory,
+        functional=args.functional_type)
+    output_suffix = args.functional_type
+    return (inputset, output_suffix)
 
 
 def derive(args):
     """Main routine.
     """
-
-    if args.supercell is not None:
-        inputset = IMDDerivedInputSet(directory=args.input_directory)
-        # supercell: N1xN2xN3 string
-        scaling = [int(x) for x in args.supercell.split("x")]
-        inputset.structure.make_supercell(scaling)
-        output_suffix = args.supercell
-    elif args.functional is not None:
-        inputset = IMDDerivedInputSet(
-            directory=args.input_directory,
-            functional=args.functional)
-        output_suffix = args.functional
-    elif args.relax is not None:
-
-        relax_overrides = {
-            "ISTART": 0,
-            # Volume relaxation
-            # 500 steps because 100 suggested in some online resources
-            # may not be enough in complex supercells.
-            "NSW": 500,
-            "IBRION": IBRION_IONIC_RELAX_CGA,
-            'ISIF': globals()["ISIF_" + args.relax],
-            'EDIFF': 1e-06,
-            'EDIFFG': -0.01
-        }
-
-        inputset = IMDDerivedInputSet(
-            directory=args.input_directory,
-            user_incar_settings=relax_overrides,
-            )
-        output_suffix = f"relax.{args.relax}"
-    else:
-        return 1
+    inputset, output_suffix = args.func_derive(args)
 
     if "SYSTEM" in inputset.incar:
         system_name = inputset.incar["SYSTEM"]
