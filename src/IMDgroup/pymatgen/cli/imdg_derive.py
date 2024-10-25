@@ -27,14 +27,24 @@ def add_args(parser):
     )
 
     subparsers = parser.add_subparsers(required=True)
+
+    parser_incar = subparsers.add_parser("incar")
+    parser_incar.set_defaults(func_derive=incar)
+    parser_incar.add_argument(
+        "parameter",
+        action="append",
+        help="PARAM:VALUE to be set in the INCAR.",
+        type=str)
+
     parser_supercell = subparsers.add_parser("supercell")
+    parser_supercell.set_defaults(func_derive=supercell)
     parser_supercell.add_argument(
         "supercell_size",
         help="Supercell size",
         type=str)
-    parser_supercell.set_defaults(func_derive=supercell)
 
     parser_functional = subparsers.add_parser("functional")
+    parser_functional.set_defaults(func_derive=supercell)
     parser_functional.add_argument(
         "functional_type",
         help="Functional to be used",
@@ -43,9 +53,9 @@ def add_args(parser):
             'vdW-DF', 'vdW-DF2',
             'optB88-vdW', 'optB86b-vdW'],
         type=str)
-    parser_functional.set_defaults(func_derive=supercell)
 
     parser_relax = subparsers.add_parser("relax")
+    parser_relax.set_defaults(func_derive=relax)
     parser_relax.add_argument(
         "isif",
         help="What to relax",
@@ -60,12 +70,11 @@ def add_args(parser):
             "RELAX_POS_VOL", "FIX_SHAPE"
         ]
     )
-    parser_relax.set_defaults(func_derive=relax)
 
 
 def relax(args):
     """Create relaxation setup.
-    Return (inputset, output_suffix)
+    Return (inputset, output_dir)
     """
     relax_overrides = {
         "ISTART": 0,
@@ -83,43 +92,58 @@ def relax(args):
         directory=args.input_directory,
         user_incar_settings=relax_overrides,
     )
-    output_suffix = f"relax.{args.isif}"
-    return (inputset, output_suffix)
+    output_dir = f"relax.{args.isif}"
+    return (inputset, output_dir)
 
 
 def supercell(args):
     """Create supercell.
-    Return (inputset, output_suffix)
+    Return (inputset, output_dir)
     """
     inputset = IMDDerivedInputSet(directory=args.input_directory)
     # supercell: N1xN2xN3 string
     scaling = [int(x) for x in args.supercell_size.split("x")]
     inputset.structure.make_supercell(scaling)
-    output_suffix = args.supercell_size
-    return (inputset, output_suffix)
+    output_dir = args.supercell_size
+    return (inputset, output_dir)
 
 
 def functional(args):
     """Create custom functional setup.
-    Return (inputset, output_suffix)
+    Return (inputset, output_dir)
     """
     inputset = IMDDerivedInputSet(
         directory=args.input_directory,
         functional=args.functional_type)
-    output_suffix = args.functional_type
-    return (inputset, output_suffix)
+    output_dir = args.functional_type
+    return (inputset, output_dir)
+
+
+def incar(args):
+    """Create custom incar setup.
+    Return (inputset, output_dir)
+    """
+    incar_overrides = {}
+    if args.parameter is None:
+        warnings.warn("No INCAR settings provided.  Creating a copy of the inputs.")
+    else:
+        for str_val in args.incar:
+            key, val = str_val.split(":")
+            incar_overrides[key] = val
+
+    inputset = IMDDerivedInputSet(
+        directory=args.input_directory,
+        user_incar_settings=incar_overrides,
+    )
+    output_dir = f"{system_name}.{','.join([f'{key}.{val}' for key, val in args.incar.items()])}"
+    return (inputset, output_dir)
 
 
 def derive(args):
     """Main routine.
     """
-    inputset, output_suffix = args.func_derive(args)
+    inputset, output_dir = args.func_derive(args)
 
-    if "SYSTEM" in inputset.incar:
-        system_name = inputset.incar["SYSTEM"]
-    else:
-        system_name = "unknown"
-
-    inputset.write_input(output_dir=f'{system_name}.{output_suffix}')
+    inputset.write_input(output_dir=output_dir)
 
     return 0
