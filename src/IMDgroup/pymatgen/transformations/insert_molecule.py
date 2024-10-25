@@ -81,6 +81,7 @@ class InsertMoleculeTransformation(AbstractTransformation):
         self._candidate_angles = None
         if len(molecule) > 1 and self.anglestep is not None:
             self._candidate_angles = self._get_angle_grid()
+        self.reduce_supercell = reduce_supercell
         self.matcher = matcher
 
     def _get_site_grid(self, structure: Structure):
