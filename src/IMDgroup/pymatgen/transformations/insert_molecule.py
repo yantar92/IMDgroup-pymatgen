@@ -52,7 +52,9 @@ class InsertMoleculeTransformation(AbstractTransformation):
           to construct labels for each atom in the molecule as
           label-<atom_name><site_index>
         selective_dynamics (array[bool]):
-          selective_dynamics settings for the inserted atoms.
+          selective_dynamics settings for the inserted atoms (only
+          used when the structure also sets selective_dynamics
+          properties).
         reduce_supercell (bool; default: True):
           Whether to try reducing structure from supercell to
           primitive cell before searching for insertions.
@@ -281,6 +283,8 @@ class InsertMoleculeTransformation(AbstractTransformation):
             """Undo the insertion."""
             structure.remove_sites(molecule_indices)
 
+        structure_has_selective_dynamics =\
+            'selective_dynamics' in structure[0].properties
         for idx, atom in enumerate(molecule):
             structure.insert(
                 idx=idx, species=atom.species, coords=atom.coords,
@@ -288,7 +292,8 @@ class InsertMoleculeTransformation(AbstractTransformation):
             if self.label is not None:
                 structure[idx].label = self.label + "-"\
                     + structure[idx].specie.symbol + str(idx)
-            if self.selective_dynamics is not None:
+            if structure_has_selective_dynamics \
+               and self.selective_dynamics is not None:
                 structure[idx].properties['selective_dynamics'] = \
                     self.selective_dynamics
 
