@@ -30,6 +30,7 @@ def add_args(parser):
     subparsers = parser.add_subparsers(required=True)
 
     parser_incar = subparsers.add_parser("incar")
+    parser_incar.help = "Modify incar"
     parser_incar.set_defaults(func_derive=incar)
     parser_incar.add_argument(
         "parameters",
@@ -38,6 +39,7 @@ def add_args(parser):
         type=str)
 
     parser_supercell = subparsers.add_parser("supercell")
+    parser_supercell.help = "Create supercell from input (rescaling k-points)"
     parser_supercell.set_defaults(func_derive=supercell)
     parser_supercell.add_argument(
         "supercell_size",
@@ -45,7 +47,8 @@ def add_args(parser):
         type=str)
 
     parser_functional = subparsers.add_parser("functional")
-    parser_functional.set_defaults(func_derive=supercell)
+    parser_functional.help = "Create input with a given functional"
+    parser_functional.set_defaults(func_derive=functional)
     parser_functional.add_argument(
         "functional_type",
         help="Functional to be used",
@@ -56,6 +59,7 @@ def add_args(parser):
         type=str)
 
     parser_relax = subparsers.add_parser("relax")
+    parser_relax.help = "Create relaxation input"
     parser_relax.set_defaults(func_derive=relax)
     parser_relax.add_argument(
         "isif",
