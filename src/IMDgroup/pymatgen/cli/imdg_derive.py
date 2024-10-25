@@ -32,8 +32,8 @@ def add_args(parser):
     parser_incar = subparsers.add_parser("incar")
     parser_incar.set_defaults(func_derive=incar)
     parser_incar.add_argument(
-        "parameter",
-        action="append",
+        "parameters",
+        nargs="*",
         help="PARAM:VALUE to be set in the INCAR.",
         type=str)
 
@@ -125,10 +125,10 @@ def incar(args):
     Return (inputset, output_dir)
     """
     incar_overrides = {}
-    if args.parameter is None:
+    if args.parameters is None:
         warnings.warn("No INCAR settings provided.  Creating a copy of the inputs.")
     else:
-        for str_val in args.parameter:
+        for str_val in args.parameters:
             key, val = str_val.split(":")
             incar_overrides[key] = val
 
