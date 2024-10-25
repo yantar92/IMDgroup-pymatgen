@@ -47,7 +47,7 @@ def add_args(parser):
         type=str)
     parser_supercell.add_argument(
         "--kpoint-density",
-        target="kpoint_density",
+        dest="kpoint_density",
         help="K-point density to be used (default: 10000)",
         type=float,
         default=10000)
