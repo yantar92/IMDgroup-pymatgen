@@ -102,7 +102,7 @@ class InsertMoleculeTransformation(AbstractTransformation):
         if self.reduce_supercell:
             logger.debug("Attempting to scale down the original structure")
             reduced_structure = structure.copy()
-            reduced_structure.get_primitive_structure(
+            reduced_structure = reduced_structure.get_primitive_structure(
                 constrain_latt=['alpha', 'beta', 'gamma'])
             logger.info(
                 "%s",
