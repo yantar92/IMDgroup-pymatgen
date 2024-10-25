@@ -45,6 +45,12 @@ def add_args(parser):
         "supercell_size",
         help="Supercell size",
         type=str)
+    parser_supercell.add_argument(
+        "--kpoint-density",
+        target="kpoint_density",
+        help="K-point density to be used (default: 10000)",
+        type=float,
+        default=10000)
 
     parser_functional = subparsers.add_parser("functional")
     parser_functional.help = "Create input with a given functional"
@@ -105,7 +111,9 @@ def supercell(args):
     """Create supercell.
     Return (inputset, output_dir)
     """
-    inputset = IMDDerivedInputSet(directory=args.input_directory)
+    inputset = IMDDerivedInputSet(
+        directory=args.input_directory,
+        user_kpoints_settings={'grid_density': args.kpoints_density})
     # supercell: N1xN2xN3 string
     scaling = [int(x) for x in args.supercell_size.split("x")]
     inputset.structure.make_supercell(scaling)
