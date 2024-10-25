@@ -136,7 +136,7 @@ def incar(args):
         directory=args.input_directory,
         user_incar_settings=incar_overrides,
     )
-    output_dir = f"{system_name}.{','.join([f'{key}.{val}' for key, val in args.incar.items()])}"
+    output_dir = ','.join([f'{key}.{val}' for key, val in args.incar.items()])
     return (inputset, output_dir)
 
 
