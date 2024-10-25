@@ -82,6 +82,16 @@ def add_args(parser):
         ]
     )
 
+    parser_kpoints = subparsers.add_parser("kpoints")
+    parser_kpoints.help = "Create input with custom kpoints settings"
+    parser_kpoints.set_defaults(func_derive=kpoints)
+    parser_kpoints.add_argument(
+        "--density",
+        help="K-point density to be used",
+        type=float,
+        default=10000
+    )
+
 
 def relax(args):
     """Create relaxation setup.
@@ -149,6 +159,18 @@ def incar(args):
         user_incar_settings=incar_overrides,
     )
     output_dir = ','.join([f'{key}.{val}' for key, val in incar_overrides.items()])
+    return (inputset, output_dir)
+
+
+def kpoints(args):
+    """Create custom kpoints setup.
+    Return (inputset, output_dir)
+    """
+    inputset = IMDDerivedInputSet(
+        directory=args.input_directory,
+        user_kpoints_settings={'grid_density': args.density},
+    )
+    output_dir = f"KPOINTS.{args.density}"
     return (inputset, output_dir)
 
 
