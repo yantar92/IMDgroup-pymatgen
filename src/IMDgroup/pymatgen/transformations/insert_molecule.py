@@ -27,6 +27,7 @@ class InsertMoleculeTransformation(AbstractTransformation):
             anglestep: float | None = None,
             proximity_threshold: float = 0.75,
             label: str | None = "insert",
+            reduce_supercell: bool = True,
             matcher: StructureMatcher =
             StructureMatcher(attempt_supercell=True, scale=False)
     ):
@@ -49,6 +50,9 @@ class InsertMoleculeTransformation(AbstractTransformation):
           Label to mark the inserted molecule.  The label will be used
           to construct labels for each atom in the molecule as
           label-<atom_name><site_index>
+        reduce_supercell (bool; default: True):
+          Whether to try reducing structure from supercell to
+          primitive cell before searching for insertions.
         matcher (StructureMatcher or None):
           Additional matcher to be used to detect duplicates.
         """
@@ -86,9 +90,31 @@ class InsertMoleculeTransformation(AbstractTransformation):
                 Returns:
                 List of 3x1 lists representing fractional coordinates.
                 """
-        xrange = np.arange(0.0, 1.0, self.step/structure.lattice.a)
-        yrange = np.arange(0.0, 1.0, self.step/structure.lattice.b)
-        zrange = np.arange(0.0, 1.0, self.step/structure.lattice.c)
+        # Try to scale down a supercell.  It is pointless to search
+        # supercell beyond the underlying primitive structure.
+        if self.reduce_supercell:
+            logger.debug("Attempting to scale down the original structure")
+            reduced_structure = structure.get_primitive_structure(
+                constrain_latt=['alpha', 'beta', 'gamma'])
+            logger.info(
+                "%s",
+                'Detected '
+                f'{structure.lattice.a/reduced_structure.lattice.a:.2}'
+                f'x{structure.lattice.b/reduced_structure.lattice.b:.2}'
+                f'x{structure.lattice.c/reduced_structure.lattice.c:.2}'
+                " supercell. Limiting scan volume."
+            )
+        else:
+            reduced_structure = structure
+        xrange = np.arange(
+            0.0, reduced_structure.lattice.a/structure.lattice.a,
+            self.step/structure.lattice.a)
+        yrange = np.arange(
+            0.0, reduced_structure.lattice.b/structure.lattice.b,
+            self.step/structure.lattice.b)
+        zrange = np.arange(
+            0.0, reduced_structure.lattice.c/structure.lattice.c,
+            self.step/structure.lattice.c)
         return [[x, y, z] for x in xrange for y in yrange for z in zrange]
 
     def _get_angle_grid(self):
