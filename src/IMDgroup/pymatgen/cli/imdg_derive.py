@@ -75,7 +75,9 @@ def derive(args):
         relax_overrides = {
             "ISTART": 0,
             # Volume relaxation
-            "NSW": 100,
+            # 500 steps because 100 suggested in some online resources
+            # may not be enough in complex supercells.
+            "NSW": 500,
             "IBRION": IBRION_IONIC_RELAX_CGA,
             'ISIF': globals()["ISIF_" + args.relax],
             'EDIFF': 1e-06,
