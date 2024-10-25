@@ -289,7 +289,8 @@ class InsertMoleculeTransformation(AbstractTransformation):
                 structure[idx].label = self.label + "-"\
                     + structure[idx].specie.symbol + str(idx)
             if self.selective_dynamics is not None:
-                structure[idx].selective_dynamics = self.selective_dynamics
+                structure[idx].properties['selective_dynamics'] = \
+                    self.selective_dynamics
 
         # Now, move them as needed to the target coordinates.
         anchor = structure[0].frac_coords
