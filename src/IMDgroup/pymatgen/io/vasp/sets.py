@@ -115,7 +115,7 @@ class IMDVaspInputSet(VaspInputSet):
         if NCORE is not None and NCORE > len(self.structure):
             warnings.warn(
                 "NCORE/NPAR parameter in the input set is too large"
-                f"{NCORE} > {len(self.structure)}",
+                f" ({NCORE} > {len(self.structure)} atoms)",
                 BadInputSetWarning,
             )
         return incar
