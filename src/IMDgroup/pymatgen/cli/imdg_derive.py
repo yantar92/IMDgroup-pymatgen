@@ -94,7 +94,7 @@ def relax(args):
         # may not be enough in complex supercells.
         "NSW": 500,
         "IBRION": sets.IBRION_IONIC_RELAX_CGA,
-        'ISIF': globals()["ISIF_" + args.isif],
+        'ISIF': vars(sets)["ISIF_" + args.isif],
         'EDIFF': 1e-06,
         'EDIFFG': -0.01
     }
