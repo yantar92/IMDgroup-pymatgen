@@ -77,7 +77,7 @@ def strain_add_args(parser):
             type=int,
             default=1
         )
-    parser.add_rgument(
+    parser.add_argument(
         "--selective-dynamics",
         dest="selective_dynamics",
         help="Selective dynamics to be applied to the sites"
