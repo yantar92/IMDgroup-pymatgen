@@ -128,9 +128,9 @@ def strain(args):
         inputset_new = dataclasses.replace(inputset)  # copy
         inputset_new.structure =\
             structure0.apply_strain(strain, inplace=False)
-        output_dir = (f"strain.a.{strain[0]:.f2}"
-                      f".b.{strain[1]:.f2}"
-                      f".c.{strain[2]:.f2}")
+        output_dir = (f"strain.a.{strain[0]:f.2}"
+                      f".b.{strain[1]:f.2}"
+                      f".c.{strain[2]:f.2}")
         outputs.append((inputset_new, output_dir))
 
     return outputs
