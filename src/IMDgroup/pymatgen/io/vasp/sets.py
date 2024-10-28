@@ -79,8 +79,38 @@ class IMDVaspInputSet(VaspInputSet):
     # pmg config. May file a bug report.
     4. Use the latest POTCAR_FUNCTIONAL PBE_64 by default.
     5. Complain when NCORE exceeds the number of sites in the system.
+    6. Warn if KPOINT density is too high/low
     """
     functional: str | None = None
+
+    @property
+    def kpoints(self) -> Kpoints | None:
+        """The KPOINTS file."""
+        kpoints = super().kpoints
+
+        kpts = kpoints.kpts
+        if kpoints.num_kpts == 0 and not kpts[0] == [1, 1, 1]:
+            n_atoms = len(self.structure)
+            n_kpoints = kpts[0] * kpts[1] * kpts[2] * n_atoms
+            # 5-10k kpoints/atom is a reasonable number
+            # Note that the number is always approximate wrt the
+            # target kpoint density because of discretization
+            if n_kpoints < 5000:
+                warnings.warn(
+                    "KPOINTS density is lower than 5000."
+                    f"({kpts})"
+                    "\nI hope that you know what you are doing.",
+                    BadInputSetWarning,
+                )
+            if n_kpoints > 15000:
+                warnings.warn(
+                    "KPOINTS density is higher than 15000."
+                    f"({kpts})"
+                    "\nI hope that you know what you are doing.",
+                    BadInputSetWarning,
+                )
+
+        return kpoints
 
     @property
     def incar_updates(self) -> dict:
