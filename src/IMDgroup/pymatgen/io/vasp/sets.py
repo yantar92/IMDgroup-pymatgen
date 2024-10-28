@@ -251,7 +251,12 @@ class IMDStandardVaspInputSet(IMDVaspInputSet):
                   # Electronic minimization algo
                   'ALGO': 'Normal',
                   # Energy cutoff
-                  'ENCUT': 550.0,  # energy cutoff
+                  # 500eV is the default.
+                  # Note: 550eV recommended for _volume/shape_ relaxation
+                  # During volume/shape relaxation, initial automatic
+                  # k-point grid calculated for original volume
+                  # becomes slightly less accurate unless we increase ENCUT
+                  'ENCUT': 500.0,  # energy cutoff
                   # Smearing, defaults suggested in
                   # https://www.vasp.at/wiki/index.php/ISMEAR
                   'ISMEAR': 0,
