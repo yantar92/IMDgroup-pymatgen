@@ -60,19 +60,19 @@ def strain_add_args(parser):
     parser.set_defaults(func_derive=strain)
     for name in ["a", "b", "c"]:
         parser.add_argument(
-            name + "min",
+            "--" + name + "min",
             help=f"Min value of {name} lattice parameter, %% of initial",
             type=float,
             default=100
         )
         parser.add_argument(
-            name + "max",
+            "--" + name + "max",
             help=f"Max value of {name} lattice parameter, %% of initial",
             type=float,
             default=100
         )
         parser.add_argument(
-            name + "steps",
+            "--" + name + "steps",
             help=f"Number of strain steps along {name} (default: 1)",
             type=int,
             default=1
