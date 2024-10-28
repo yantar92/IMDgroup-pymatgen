@@ -8,6 +8,7 @@ from glob import glob
 from pathlib import Path
 from dataclasses import dataclass
 from monty.serialization import loadfn
+import numpy as np
 from pymatgen.io.vasp.sets import VaspInputSet, BadInputSetWarning
 from pymatgen.io.vasp.inputs import VaspInput, Potcar, Kpoints, Incar, Poscar
 from pymatgen.util.due import Doi, due
@@ -162,7 +163,8 @@ class IMDVaspInputSet(VaspInputSet):
         # When using selective dynamics, detect bogus fully fixed atoms.
         for site in self.structure:
             if 'selective_dynamics' in site.properties and\
-               site.properties['selective_dynamics'] == [False, False, False]:
+               not np.any(site.properties['selective_dynamics']):
+                # [False, False, False]
                 warnings.warn(
                     "Bogus selective dynamics settings: site is fixed:"
                     f"\n{site}",
