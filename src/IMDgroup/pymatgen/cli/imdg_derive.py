@@ -2,17 +2,7 @@
 """
 import warnings
 from IMDgroup.pymatgen.io.vasp.sets import IMDDerivedInputSet
-
-ISIF_RELAX_POS = ISIF_FIX_SHAPE_VOL = 2
-ISIF_RELAX_POS_SHAPE_VOL = ISIF_FIX_NONE = 3
-ISIF_RELAX_POS_SHAPE = ISIF_FIX_VOL = 4
-ISIF_RELAX_SHAPE = IFIX_FIX_POS_VOL = 5
-ISIF_RELAX_SHAPE_VOL = ISIF_FIX_POS = 6
-ISIF_RELAX_VOL = ISIF_FIX_POS_SHAPE = 7
-ISIF_RELAX_POS_VOL = ISIF_FIX_SHAPE = 8
-
-IBRION_IONIC_RELAX_CGA = 2
-
+import IMDgroup.pymatgen.io.vasp.sets as sets
 
 def add_args(parser):
     """Setup parser arguments.
@@ -103,7 +93,7 @@ def relax(args):
         # 500 steps because 100 suggested in some online resources
         # may not be enough in complex supercells.
         "NSW": 500,
-        "IBRION": IBRION_IONIC_RELAX_CGA,
+        "IBRION": sets.IBRION_IONIC_RELAX_CGA,
         'ISIF': globals()["ISIF_" + args.isif],
         'EDIFF': 1e-06,
         'EDIFFG': -0.01

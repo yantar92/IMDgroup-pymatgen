@@ -17,6 +17,16 @@ from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
 from ase.calculators.vasp.setups \
     import setups_defaults as ase_potential_defaults
 
+ISIF_RELAX_POS = ISIF_FIX_SHAPE_VOL = 2
+ISIF_RELAX_POS_SHAPE_VOL = ISIF_FIX_NONE = 3
+ISIF_RELAX_POS_SHAPE = ISIF_FIX_VOL = 4
+ISIF_RELAX_SHAPE = IFIX_FIX_POS_VOL = 5
+ISIF_RELAX_SHAPE_VOL = ISIF_FIX_POS = 6
+ISIF_RELAX_VOL = ISIF_FIX_POS_SHAPE = 7
+ISIF_RELAX_POS_VOL = ISIF_FIX_SHAPE = 8
+
+IBRION_IONIC_RELAX_CGA = 2
+
 # ase uses pairs of 'Si': '_suffix'.  Convert them into 'Si': 'Si_suffix'
 POTCAR_RECOMMENDED = dict(
     (name, name + suffix)
