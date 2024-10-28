@@ -21,44 +21,29 @@ def add_args(parser):
     subparsers = parser.add_subparsers(required=True)
 
     parser_incar = subparsers.add_parser("incar")
-    parser_incar.help = "Modify incar"
-    parser_incar.set_defaults(func_derive=incar)
-    parser_incar.add_argument(
-        "parameters",
-        nargs="*",
-        help="PARAM:VALUE to be set in the INCAR.",
-        type=str)
+    incar_add_args(parser_incar)
 
     parser_supercell = subparsers.add_parser("supercell")
-    parser_supercell.help = "Create supercell from input (rescaling k-points)"
-    parser_supercell.set_defaults(func_derive=supercell)
-    parser_supercell.add_argument(
-        "supercell_size",
-        help="Supercell size",
-        type=str)
-    parser_supercell.add_argument(
-        "--kpoint-density",
-        dest="kpoint_density",
-        help="K-point density to be used (default: 10000)",
-        type=float,
-        default=10000)
+    supercell_add_args(parser_supercell)
 
     parser_functional = subparsers.add_parser("functional")
-    parser_functional.help = "Create input with a given functional"
-    parser_functional.set_defaults(func_derive=functional)
-    parser_functional.add_argument(
-        "functional_type",
-        help="Functional to be used",
-        choices=[
-            'PBE', 'PBEsol', 'PBE+D2', 'PBE+TS',
-            'vdW-DF', 'vdW-DF2',
-            'optB88-vdW', 'optB86b-vdW'],
-        type=str)
+    functional_add_args(parser_functional)
 
     parser_relax = subparsers.add_parser("relax")
-    parser_relax.help = "Create relaxation input"
-    parser_relax.set_defaults(func_derive=relax)
-    parser_relax.add_argument(
+    relax_add_args(parser_relax)
+
+    parser_kpoints = subparsers.add_parser("kpoints")
+    kpoints_add_args(parser_kpoints)
+
+
+def relax_add_args(parser):
+    """Setup parser arguments for relax.
+    Args:
+      parser: subparser
+    """
+    parser.help = "Create relaxation input"
+    parser.set_defaults(func_derive=relax)
+    parser.add_argument(
         "isif",
         help="What to relax",
         choices=[
@@ -71,16 +56,6 @@ def add_args(parser):
             "RELAX_VOL", "FIX_POS_SHAPE",
             "RELAX_POS_VOL", "FIX_SHAPE"
         ]
-    )
-
-    parser_kpoints = subparsers.add_parser("kpoints")
-    parser_kpoints.help = "Create input with custom kpoints settings"
-    parser_kpoints.set_defaults(func_derive=kpoints)
-    parser_kpoints.add_argument(
-        "--density",
-        help="K-point density to be used",
-        type=float,
-        default=10000
     )
 
 
@@ -118,6 +93,25 @@ def relax(args):
     return (inputset, output_dir)
 
 
+def supercell_add_args(parser):
+    """Setup parser arguments for supercell.
+    Args:
+      parser: subparser
+    """
+    parser.help = "Create supercell from input (rescaling k-points)"
+    parser.set_defaults(func_derive=supercell)
+    parser.add_argument(
+        "supercell_size",
+        help="Supercell size",
+        type=str)
+    parser.add_argument(
+        "--kpoint-density",
+        dest="kpoint_density",
+        help="K-point density to be used (default: 10000)",
+        type=float,
+        default=10000)
+
+
 def supercell(args):
     """Create supercell.
     Return (inputset, output_dir)
@@ -132,6 +126,23 @@ def supercell(args):
     return (inputset, output_dir)
 
 
+def functional_add_args(parser):
+    """Setup parser arguments for functional.
+    Args:
+      parser: subparser
+    """
+    parser.help = "Create input with a given functional"
+    parser.set_defaults(func_derive=functional)
+    parser.add_argument(
+        "functional_type",
+        help="Functional to be used",
+        choices=[
+            'PBE', 'PBEsol', 'PBE+D2', 'PBE+TS',
+            'vdW-DF', 'vdW-DF2',
+            'optB88-vdW', 'optB86b-vdW'],
+        type=str)
+
+
 def functional(args):
     """Create custom functional setup.
     Return (inputset, output_dir)
@@ -141,6 +152,20 @@ def functional(args):
         functional=args.functional_type)
     output_dir = args.functional_type
     return (inputset, output_dir)
+
+
+def incar_add_args(parser):
+    """Setup parser arguments for incar.
+    Args:
+      parser: subparser
+    """
+    parser.help = "Modify incar"
+    parser.set_defaults(func_derive=incar)
+    parser.add_argument(
+        "parameters",
+        nargs="*",
+        help="PARAM:VALUE to be set in the INCAR.",
+        type=str)
 
 
 def incar(args):
@@ -164,6 +189,21 @@ def incar(args):
     output_dir = ','.join(
         [f'{key}.{val}' for key, val in incar_overrides.items()])
     return (inputset, output_dir)
+
+
+def kpoints_add_args(parser):
+    """Setup parser arguments for kpoints.
+    Args:
+      parser: subparser
+    """
+    parser.help = "Create input with custom kpoints settings"
+    parser.set_defaults(func_derive=kpoints)
+    parser.add_argument(
+        "--density",
+        help="K-point density to be used",
+        type=float,
+        default=10000
+    )
 
 
 def kpoints(args):
