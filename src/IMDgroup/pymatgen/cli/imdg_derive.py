@@ -1,6 +1,8 @@
 """imdg sub-command to create new VASP inputs from existing.
 """
 import warnings
+import argparse
+import numpy as np
 from IMDgroup.pymatgen.io.vasp.sets import IMDDerivedInputSet
 from IMDgroup.pymatgen.io.vasp import sets
 
@@ -34,6 +36,103 @@ def add_args(parser):
 
     parser_kpoints = subparsers.add_parser("kpoints")
     kpoints_add_args(parser_kpoints)
+
+    parser_strain = subparsers.add_parser("strain")
+    strain_add_args(parser_strain)
+
+
+def _str_to_bool(value):
+    """Convert string value to boolean.
+    """
+    if value.lower() in ['true', '1', 'yes']:
+        return True
+    if value.lower() in ['false', '0', 'no']:
+        return False
+    raise argparse.ArgumentTypeError(f"Invalid boolean value: {value}")
+
+
+def strain_add_args(parser):
+    """Setup parser arguments for strain.
+    Args:
+      parser: subparser
+    """
+    parser.help = "Created strained input"
+    parser.set_defaults(func_derive=strain)
+    for name in ["a", "b", "c"]:
+        parser.add_argument(
+            name + "min",
+            help=f"Min value of {name} lattice parameter, %% of initial",
+            type=float,
+            default=100
+        )
+        parser.add_argument(
+            name + "max",
+            help=f"Max value of {name} lattice parameter, %% of initial",
+            type=float,
+            default=100
+        )
+        parser.add_argument(
+            name + "steps",
+            help=f"Number of strain steps along {name} (default: 1)",
+            type=int,
+            default=1
+        )
+    parser.add_rgument(
+        "--selective-dynamics",
+        dest="selective_dynamics",
+        help="Selective dynamics to be applied to the sites"
+        "(example: True, True, False)",
+        nargs=3,
+        type=_str_to_bool,
+        default=None
+    )
+
+
+def strain(args):
+    """Create strained input
+    Return (inputset, output_dir)
+    """
+    inputset = IMDDerivedInputSet(directory=args.input_directory)
+
+    if args.selective_dynamics is not None:
+        for site in inputset.structure:
+            site.properties['selective_dynamics'] =\
+                args.selective_dynamics
+
+    structure0 = inputset.structure
+
+    strainsa = np.linspace(
+        args.amin / 100.0 - 1.0,
+        args.amax / 100.0 - 1.0,
+        args.asteps
+    )
+    strainsb = np.linspace(
+        args.bmin / 100.0 - 1.0,
+        args.bmax / 100.0 - 1.0,
+        args.bsteps
+    )
+    strainsc = np.linspace(
+        args.cmin / 100.0 - 1.0,
+        args.cmax / 100.0 - 1.0,
+        args.csteps
+    )
+
+    strains = [[straina, strainb, strainc]
+               for straina in strainsa
+               for strainb in strainsb
+               for strainc in strainsc]
+
+    outputs = []
+    for strain in strains:
+        inputset_new = inputset.copy()
+        inputset_new.structure =\
+            structure0.apply_strain(strain, inplace=False)
+        output_dir = (f"strain.a.{strain[0]:.f2}"
+                      f".b.{strain[1]:.f2}"
+                      f".c.{strain[2]:.f2}")
+        outputs.append((inputset_new, output_dir))
+
+    return outputs
 
 
 def relax_add_args(parser):
@@ -221,8 +320,12 @@ def kpoints(args):
 def derive(args):
     """Main routine.
     """
-    inputset, output_dir = args.func_derive(args)
-
-    inputset.write_input(output_dir=output_dir)
+    value_or_values = args.func_derive(args)
+    try:
+        inputset, output_dir = value_or_values
+        inputset.write_input(output_dir=output_dir)
+    except TypeError:
+        for inputset, output_dir in value_or_values:
+            inputset.write_input(output_dir=output_dir)
 
     return 0
