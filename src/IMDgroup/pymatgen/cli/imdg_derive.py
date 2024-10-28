@@ -325,7 +325,7 @@ def derive(args):
     try:
         inputset, output_dir = value_or_values
         inputset.write_input(output_dir=output_dir)
-    except TypeError:
+    except ValueError:
         for inputset, output_dir in value_or_values:
             inputset.write_input(output_dir=output_dir)
 
