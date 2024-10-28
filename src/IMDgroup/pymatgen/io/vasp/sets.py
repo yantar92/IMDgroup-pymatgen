@@ -158,6 +158,17 @@ class IMDVaspInputSet(VaspInputSet):
     def poscar(self) -> Poscar:
         """Check structure and return POSCAR."""
         assert self.structure.is_valid()
+
+        # When using selective dynamics, detect bogus fully fixed atoms.
+        for site in self.structure:
+            if 'selective_dynamics' in site.properties and\
+               site.properties['selective_dynamics'] == [False, False, False]:
+                warnings.warn(
+                    "Bogus selective dynamics settings: site is fixed:"
+                    f"\n{site}",
+                    BadInputSetWarning,
+                )
+
         return super().poscar
 
     @property
