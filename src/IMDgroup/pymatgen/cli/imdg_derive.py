@@ -2,6 +2,7 @@
 """
 import warnings
 import argparse
+import dataclasses
 import numpy as np
 from IMDgroup.pymatgen.io.vasp.sets import IMDDerivedInputSet
 from IMDgroup.pymatgen.io.vasp import sets
@@ -124,7 +125,7 @@ def strain(args):
 
     outputs = []
     for strain in strains:
-        inputset_new = inputset.copy()
+        inputset_new = dataclasses.replace(inputset)  # copy
         inputset_new.structure =\
             structure0.apply_strain(strain, inplace=False)
         output_dir = (f"strain.a.{strain[0]:.f2}"
