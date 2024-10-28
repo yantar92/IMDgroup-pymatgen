@@ -2,7 +2,8 @@
 """
 import warnings
 from IMDgroup.pymatgen.io.vasp.sets import IMDDerivedInputSet
-import IMDgroup.pymatgen.io.vasp.sets as sets
+from IMDgroup.pymatgen.io.vasp import sets
+
 
 def add_args(parser):
     """Setup parser arguments.
@@ -148,7 +149,9 @@ def incar(args):
     """
     incar_overrides = {}
     if args.parameters is None:
-        warnings.warn("No INCAR settings provided.  Creating a copy of the inputs.")
+        warnings.warn(
+            "No INCAR settings provided.  Creating a copy of the inputs."
+        )
     else:
         for str_val in args.parameters:
             key, val = str_val.split(":")
@@ -158,7 +161,8 @@ def incar(args):
         directory=args.input_directory,
         user_incar_settings=incar_overrides,
     )
-    output_dir = ','.join([f'{key}.{val}' for key, val in incar_overrides.items()])
+    output_dir = ','.join(
+        [f'{key}.{val}' for key, val in incar_overrides.items()])
     return (inputset, output_dir)
 
 
