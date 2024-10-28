@@ -117,6 +117,30 @@ class IMDVaspInputSet(VaspInputSet):
             incar['SYSTEM'] = f'{formula}.{mpid}{lattice_type}.{space_group}'
 
         incar.check_params()
+
+        if incar['ENCUT'] < 500.0:
+            warnings.warn(
+                "ENCUT parameter in lower than default 500/550."
+                f" ({incar['ENCUT']} < 500eV)"
+                "\nI hope that you know what you are doing.",
+                BadInputSetWarning,
+            )
+        # Volume/shape relaxation is requested.  Demand increased ENCUT.
+        # 550eV recommended for _volume/shape_ relaxation During
+        # volume/shape relaxation, initial automatic k-point grid
+        # calculated for original volume becomes slightly less accurate
+        # unless we increase ENCUT
+        elif 'ISIF' in incar and incar['ENCUT'] < 550.0 and\
+             incar['ISIF'] in [ISIF_RELAX_POS_SHAPE, ISIF_RELAX_SHAPE,
+                               ISIF_RELAX_SHAPE_VOL, ISIF_RELAX_VOL,
+                               ISIF_RELAX_POS_VOL]:
+            warnings.warn(
+                "ENCUT parameter is too low for volume/shape relaxation."
+                f" ({incar['ENCUT']} < 550eV)"
+                "\nI hope that you know what you are doing.",
+                BadInputSetWarning,
+            )
+
         NCORE = incar['NCORE'] if 'NCORE' in incar else None
         if 'NPAR' in incar:
             # https://www.vasp.at/wiki/index.php/KPAR
