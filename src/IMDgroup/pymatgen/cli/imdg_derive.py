@@ -123,7 +123,7 @@ def supercell(args):
     """
     inputset = IMDDerivedInputSet(
         directory=args.input_directory,
-        user_kpoints_settings={'grid_density': args.kpoints_density})
+        user_kpoints_settings={'grid_density': args.kpoint_density})
     # supercell: N1xN2xN3 string
     scaling = [int(x) for x in args.supercell_size.split("x")]
     inputset.structure.make_supercell(scaling)
