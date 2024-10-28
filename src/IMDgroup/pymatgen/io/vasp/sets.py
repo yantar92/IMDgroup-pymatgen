@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from monty.serialization import loadfn
 import numpy as np
 from pymatgen.io.vasp.sets import VaspInputSet, BadInputSetWarning
-from pymatgen.io.vasp.inputs import VaspInput, Potcar, Kpoints, Incar, Poscar
+from pymatgen.io.vasp.inputs import Potcar, Kpoints, Incar, Poscar
 from pymatgen.util.due import Doi, due
 from pymatgen.core import Structure
 from pymatgen.ext.matproj import MPRester
@@ -221,17 +221,27 @@ class IMDDerivedInputSet(IMDVaspInputSet):
             # However, as it turns out vasprun.xml may not have all
             # the incar parameters. For example, it does not store NCORE.
             # Force using the actual INCAR file.
-            vasp_input = VaspInput.from_directory(self.directory)
-            self.prev_incar = vasp_input['INCAR']
+            incar = Incar.from_file(os.path.join(self.directory, "INCAR"))
+            self.prev_incar = incar
         except ValueError:
             # No VASP output found.  Try to ingest VASP input.
-            vasp_input = VaspInput.from_directory(self.directory)
-            self.structure = vasp_input['POSCAR'].structure
+            poscar = Poscar.from_file(
+                os.path.join(self.directory, "POSCAR"),
+                # https://github.com/materialsproject/pymatgen/issues/4140
+                # We do not care about consistency between POSCAR and
+                # POTCAR here.  POTCAR will be re-generated anyway.
+                check_for_potcar=False,
+            )
+            self.structure = poscar.structure
 
             super().__post_init__()
 
-            self.prev_incar = vasp_input['INCAR']
-            self.prev_kpoints = vasp_input['KPOINTS']
+            incar = Incar.from_file(os.path.join(self.directory, "INCAR"))
+            self.prev_incar = incar
+            kpoints = Kpoints.from_file(
+                os.path.join(self.directory, "KPOINTS")
+            )
+            self.prev_kpoints = kpoints
 
         # self.override_from_prev_calc does not inherit POTCAR.  Force it.
         if potcars := sorted(glob(str(Path(self.directory) / "POTCAR*"))):
