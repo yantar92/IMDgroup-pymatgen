@@ -3,9 +3,12 @@
 import warnings
 import argparse
 import dataclasses
+import logging
 import numpy as np
 from IMDgroup.pymatgen.io.vasp.sets import IMDDerivedInputSet
 from IMDgroup.pymatgen.io.vasp import sets
+
+logger = logging.getLogger(__name__)
 
 
 def add_args(parser):
@@ -124,13 +127,13 @@ def strain(args):
                for strainc in strainsc]
 
     outputs = []
-    for strain in strains:
+    for strn in strains:
         inputset_new = dataclasses.replace(inputset)  # copy
         inputset_new.structure =\
-            structure0.apply_strain(strain, inplace=False)
-        output_dir = (f"strain.a.{strain[0]:.2f}"
-                      f".b.{strain[1]:.2f}"
-                      f".c.{strain[2]:.2f}")
+            structure0.apply_strain(strn, inplace=False)
+        output_dir = (f"strain.a.{strn[0]:.2f}"
+                      f".b.{strn[1]:.2f}"
+                      f".c.{strn[2]:.2f}")
         outputs.append((inputset_new, output_dir))
 
     return outputs
@@ -181,8 +184,10 @@ def relax(args):
     if args.isif in [sets.ISIF_RELAX_POS_SHAPE, sets.ISIF_RELAX_SHAPE,
                      sets.ISIF_RELAX_SHAPE_VOL, sets.ISIF_RELAX_VOL,
                      sets.ISIF_RELAX_POS_VOL]:
+        logger.info("Shape/volume relaxation.  Setting ENCUT=550.0")
         relax_overrides['ENCUT'] = 550.0
     else:
+        logger.info("Shape and volume are fixed.  Setting ENCUT=500.0")
         relax_overrides['ENCUT'] = 500.0
 
     inputset = IMDDerivedInputSet(
