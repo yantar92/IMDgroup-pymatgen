@@ -24,6 +24,7 @@ class InsertMoleculeTransformation(AbstractTransformation):
             self,
             molecule: Molecule | SpeciesLike | str,
             step: float,
+            step_noise: float | None = None,
             anglestep: float | None = None,
             proximity_threshold: float = 0.75,
             label: str | None = "insert",
@@ -40,6 +41,10 @@ class InsertMoleculeTransformation(AbstractTransformation):
         step (float or None):
                 step, in ans, when searching for insertion sites
                 Default: 0.5 ans
+        step_noise (float or None):
+                standard deviation (as a fraction of step) for
+                randomness added to the scan grid.
+                Default: None (no randomness)
         anglestep (float or None):
                 angle step, in radians, when trying different molecule
                 rotations.  Must be None when inserting an atom
@@ -80,6 +85,7 @@ class InsertMoleculeTransformation(AbstractTransformation):
                 "Cannot rotate non-molecule or molecule with a single atom."
         self.molecule = molecule
         self.step = step
+        self.step_noise = step_noise
         self.anglestep = anglestep
         self.proximity_threshold = proximity_threshold
         self.label = label
@@ -123,7 +129,24 @@ class InsertMoleculeTransformation(AbstractTransformation):
         zrange = np.arange(
             0.0, reduced_structure.lattice.c/structure.lattice.c,
             self.step/structure.lattice.c)
-        return [[x, y, z] for x in xrange for y in yrange for z in zrange]
+
+        def _random(scale):
+            if self.step_noise is None:
+                return 0
+            return self.step_noise * scale\
+                * np.random.standard_normal()
+
+        def xrandom():
+            return _random(self.step/structure.lattice.a)
+
+        def yrandom():
+            return _random(self.step/structure.lattice.b)
+
+        def zrandom():
+            return _random(self.step/structure.lattice.c)
+
+        return [[x + xrandom(), y + yrandom(), z + zrandom()]
+                for x in xrange for y in yrange for z in zrange]
 
     def _get_angle_grid(self):
         """Generate a list of candidate Euler angles to rotate molecule.
