@@ -44,6 +44,8 @@ class InsertMoleculeTransformation(AbstractTransformation):
         step_noise (float or None):
                 standard deviation (as a fraction of step) for
                 randomness added to the scan grid.
+                When negative number, make the grid fully random, with
+                the number of grid points equal to int(abs(step_noise)).
                 Default: None (no randomness)
         anglestep (float or None):
                 angle step, in radians, when trying different molecule
@@ -120,6 +122,22 @@ class InsertMoleculeTransformation(AbstractTransformation):
             )
         else:
             reduced_structure = structure
+
+        # Fully random grid requested.
+        if self.step_noise is not None and self.step_noise < 0:
+            return [
+                [np.random.uniform(
+                    low=0.0,
+                    high=reduced_structure.lattice.a/structure.lattice.a),
+                 np.random.uniform(
+                     low=0.0,
+                     high=reduced_structure.lattice.b/structure.lattice.b),
+                 np.random.uniform(
+                     low=0.0,
+                     high=reduced_structure.lattice.c/structure.lattice.c)]
+                for _ in range(int(abs(self.step_noise)))
+            ]
+
         xrange = np.arange(
             0.0, reduced_structure.lattice.a/structure.lattice.a,
             self.step/structure.lattice.a)
