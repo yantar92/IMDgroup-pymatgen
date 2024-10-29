@@ -6,10 +6,23 @@ import argparse
 import logging
 import os
 import sys
+import warnings
+from termcolor import colored
 import IMDgroup.pymatgen.cli.imdg_create
 import IMDgroup.pymatgen.cli.imdg_derive
 
 logger = logging.getLogger(__name__)
+
+
+def _showwarning(message, category, _filename, _lineno, file=None, _line=None):
+    """Print warning in nicer way."""
+    output = colored(
+        f"{category.__name__}: ", "yellow", attrs=['bold']) +\
+        f"{message}"
+    print(output, file=file or sys.stderr)
+
+
+warnings.showwarning = _showwarning
 
 
 def setup_logger(args):
