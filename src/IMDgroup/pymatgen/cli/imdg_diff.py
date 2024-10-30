@@ -95,8 +95,11 @@ def _copy_structures_to(structures, directory):
     """
     if directory == os.getcwd():
         raise ValueError(f"Target directory {directory} cannot be current")
+    print(f"Copying unique structures to {directory}...", end='', flush=True)
     for s in structures:
         shutil.copytree(s.properties['source_dir'], directory)
+    print(f"\rCopying unique structures to {directory}...",
+          colored('done', 'green'))
 
 
 def structure(args):
