@@ -95,6 +95,7 @@ def _copy_structures_to(structures, directory):
     """
     source_dirs = [s.properties['source_dir'] for s in structures]
     subdirs = []
+    print(f"Copying unique structures to '{directory}'...", end='', flush=True)
     for idx, source in enumerate(source_dirs):
         if os.path.isabs(source):
             target_subdir = os.path.basename(source)
@@ -104,7 +105,7 @@ def _copy_structures_to(structures, directory):
         if target_subdir in subdirs:
             target_subdir = target_subdir + f".{idx + 1}"
         shutil.copytree(source, os.path.join(directory, target_subdir))
-    print(f"\rCopying unique structures to {directory}...",
+    print(f"\rCopying unique structures to '{directory}'...",
           colored('done', 'green'))
 
 
