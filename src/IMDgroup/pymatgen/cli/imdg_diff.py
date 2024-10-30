@@ -114,8 +114,9 @@ def structure(args):
     for s in structures:
         _add_to_groups(s)
 
-    print(colored("List of structures grouped by similarity", attrs=['bold']))
-    print()
+    print(colored(
+        "List of structures grouped by similarity",
+        'blue', attrs=['bold']))
 
     for idx, group in enumerate(groups):
         print(colored(f"Group {idx}: ", attrs=['bold']), end='')
