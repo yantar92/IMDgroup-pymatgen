@@ -94,10 +94,12 @@ def structure(args):
             in_group = False
             for group_structure in group:
                 if matcher.fit(structure, group_structure):
+                    logger.info('Appending to existing group')
                     group.append(structure)
                     in_group = True
                     break
             if not in_group:
+                logger.info('Creating a new group')
                 # pylint: disable=modified-iterating-list
                 groups.append([structure])
                 break
