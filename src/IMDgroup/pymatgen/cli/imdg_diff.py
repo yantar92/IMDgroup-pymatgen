@@ -90,8 +90,8 @@ def structure(args):
         create a separate group.
         Modifies "groups" by side effect.
         """
+        in_group = False
         for group in groups:
-            in_group = False
             for group_structure in group:
                 if matcher.fit(structure, group_structure):
                     logger.debug(
@@ -101,14 +101,15 @@ def structure(args):
                     group.append(structure)
                     in_group = True
                     break
-            if not in_group:
-                logger.debug(
-                    'Creating a new group for %s',
-                    structure.properties['source_dir']
-                )
-                # pylint: disable=modified-iterating-list
-                groups.append([structure])
+            if in_group:
                 break
+        if not in_group:
+            logger.debug(
+                'Creating a new group for %s',
+                structure.properties['source_dir']
+            )
+            # pylint: disable=modified-iterating-list
+            groups.append([structure])
 
     for s in structures:
         _add_to_groups(s)
