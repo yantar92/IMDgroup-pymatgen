@@ -118,7 +118,7 @@ def perturb(args):
     inputset = IMDDerivedInputSet(directory=args.input_directory)
 
     inputset.structure.perturb(args.distance)
-    output_dir = f"PERTURB.{args.perturb}"
+    output_dir = f"PERTURB.{args.distance}"
 
     return (inputset, output_dir)
 
