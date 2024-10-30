@@ -95,9 +95,8 @@ def _copy_structures_to(structures, directory):
     """
     if directory == os.getcwd():
         raise ValueError(f"Target directory {directory} cannot be current")
-    os.makedirs(directory, exist_ok=True)
     for s in structures:
-        shutil.copy(s.properties['source_dir'], directory)
+        shutil.copytree(s.properties['source_dir'], directory)
 
 
 def structure(args):
