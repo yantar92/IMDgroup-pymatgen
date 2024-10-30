@@ -18,7 +18,7 @@ def structure_add_args(parser):
     parser.help = "Compare VASP structures from VASP outputs or from POSCARs"
     parser.set_defaults(func_derive=structure)
 
-    group = parser.add_mutually_exclusive_group(required=True)
+    group = parser.add_mutually_exclusive_group(required=False)
     group.add_argument(
         "--poscar",
         action='store_true',
