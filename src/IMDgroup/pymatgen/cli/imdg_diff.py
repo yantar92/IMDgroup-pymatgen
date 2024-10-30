@@ -2,6 +2,7 @@
 """
 import logging
 import os
+import shutil
 from termcolor import colored
 from pymatgen.io.vasp.outputs import Vasprun
 from pymatgen.io.vasp.inputs import Poscar
@@ -28,6 +29,13 @@ def structure_add_args(parser):
         "--vasprun",
         action='store_true',
         help="Force comparing VASP outputs"
+    )
+
+    parser.add_argument(
+        "--copy-to",
+        dest="copy_to",
+        help="Copy the unique structures to specified directory",
+        type=str
     )
 
 
@@ -74,6 +82,22 @@ def _read_structures(dir_list, force_poscar=False, force_vasprun=False):
                 structures.append(read_poscar(vaspdir))
                 used_poscar_output = True
     return structures
+
+
+def _copy_structures_to(structures, directory):
+    """Copy directories containing STRUCTURES to DIRECTORY.
+    Args:
+      structures (list[Structure]):
+        List of structures.  Each member of the list must have its
+        'source_dir' propety set.
+      directory (str):
+        Directory to copy source dirs to.
+    """
+    if directory == os.getcwd():
+        raise ValueError(f"Target directory {directory} cannot be current")
+    os.makedirs(directory, exist_ok=True)
+    for s in structures:
+        shutil.copy(s.properties['source_dir'], directory)
 
 
 def structure(args):
@@ -123,6 +147,9 @@ def structure(args):
         for s in group:
             print(s.properties['source_dir'], ' ', end='')
         print()
+
+    if args.copy_to is not None:
+        _copy_structures_to([group[0] for group in groups], args.copy_to)
 
 
 def add_args(parser):
