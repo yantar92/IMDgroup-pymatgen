@@ -28,7 +28,7 @@ warnings.showwarning = _showwarning
 
 def setup_logger(args):
     """Setup logging according to command line args."""
-    log_file = os.path.join(args.output_dir, "imdg.log")
+    log_file = os.path.join("imdg.log")
 
     file_handler = logging.FileHandler(filename=log_file)
     stdout_handler = logging.StreamHandler(stream=sys.stdout)
