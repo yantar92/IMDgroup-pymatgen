@@ -394,6 +394,8 @@ class InsertMoleculeTransformation(AbstractTransformation):
         candidate_coords = self._get_site_grid(structure)
         candidate_angles = self._candidate_angles
         structure_inserts = []
+        # Inserted positions.  To be used for sorting.
+        structure_inserts_positions = []
         known_inserts = []
 
         cutoff = max([self._get_largest_radius(structure),
@@ -447,6 +449,9 @@ class InsertMoleculeTransformation(AbstractTransformation):
                                     break
                         if self.matcher is None or not previous_matches:
                             structure_inserts.append(insert)
+                            structure_inserts_positions.append(
+                                [coords, euler_angle]
+                            )
                             if euler_angle is None:
                                 log_message =\
                                     f"#{len(structure_inserts)} " +\
@@ -479,7 +484,14 @@ class InsertMoleculeTransformation(AbstractTransformation):
 
         logger.info("Found %d candidates", len(structure_inserts))
 
-        return structure_inserts
+        result = structure_inserts
+        sorted_idx =\
+            [i[0] for i in sorted(
+                enumerate(structure_inserts_positions),
+                key=lambda x: x[1])]
+        for i, idx in enumerate(sorted_idx):
+            result[i] = structure_inserts[idx]
+        return result
 
     def all_inserts(
             self,
