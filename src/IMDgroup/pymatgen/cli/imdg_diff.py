@@ -116,10 +116,10 @@ def structure(args):
 
     print(colored(
         "List of structures grouped by similarity",
-        'blue', attrs=['bold']))
+        'magenta', attrs=['bold']))
 
     for idx, group in enumerate(groups):
-        print(colored(f"Group {idx}: ", attrs=['bold']), end='')
+        print(colored(f"Group {idx + 1}: ", attrs=['bold']), end='')
         for s in group:
             print(s.properties['source_dir'], ' ', end='')
         print()
