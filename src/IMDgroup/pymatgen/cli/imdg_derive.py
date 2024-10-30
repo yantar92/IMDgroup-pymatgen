@@ -45,7 +45,7 @@ def add_args(parser):
     strain_add_args(parser_strain)
 
     parser_perturb = subparsers.add_parser("perturb")
-    strain_add_args(parser_perturb)
+    perturb_add_args(parser_perturb)
 
 
 def _str_to_bool(value):
