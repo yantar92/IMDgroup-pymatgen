@@ -44,6 +44,9 @@ def add_args(parser):
     parser_strain = subparsers.add_parser("strain")
     strain_add_args(parser_strain)
 
+    parser_perturb = subparsers.add_parser("perturb")
+    strain_add_args(parser_perturb)
+
 
 def _str_to_bool(value):
     """Convert string value to boolean.
@@ -90,6 +93,34 @@ def strain_add_args(parser):
         type=_str_to_bool,
         default=None
     )
+
+
+def perturb_add_args(parser):
+    """Setup parser arguments for perturb.
+    Args:
+      parser: subparser
+    """
+    parser.help = "Created perturbed input"
+    parser.set_defaults(func_derive=perturb)
+
+    parser.add_argument(
+        "--distance",
+        help="Perturbation distance in ans (default: 0.1ans)",
+        type=float,
+        default=0.1
+    )
+
+
+def perturb(args):
+    """Create perturbed input
+    Return (inputset, output_dir)
+    """
+    inputset = IMDDerivedInputSet(directory=args.input_directory)
+
+    inputset.structure.perturb(args.distance)
+    output_dir = f"PERTURB.{args.perturb}"
+
+    return (inputset, output_dir)
 
 
 def strain(args):
