@@ -10,6 +10,7 @@ import warnings
 from termcolor import colored
 import IMDgroup.pymatgen.cli.imdg_create
 import IMDgroup.pymatgen.cli.imdg_derive
+import IMDgroup.pymatgen.cli.imdg_diff
 
 logger = logging.getLogger(__name__)
 
@@ -75,9 +76,13 @@ def main():
     IMDgroup.pymatgen.cli.imdg_create.add_args(parser_create)
     parser_create.set_defaults(func=IMDgroup.pymatgen.cli.imdg_create.create)
 
-    parser_create = subparsers.add_parser("derive")
-    IMDgroup.pymatgen.cli.imdg_derive.add_args(parser_create)
-    parser_create.set_defaults(func=IMDgroup.pymatgen.cli.imdg_derive.derive)
+    parser_derive = subparsers.add_parser("derive")
+    IMDgroup.pymatgen.cli.imdg_derive.add_args(parser_derive)
+    parser_derive.set_defaults(func=IMDgroup.pymatgen.cli.imdg_derive.derive)
+
+    parser_diff = subparsers.add_parser("diff")
+    IMDgroup.pymatgen.cli.imdg_diff.add_args(parser_diff)
+    parser_diff.set_defaults(func=IMDgroup.pymatgen.cli.imdg_diff.diff)
 
     args = parser.parse_args()
 
