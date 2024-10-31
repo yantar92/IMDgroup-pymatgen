@@ -82,7 +82,8 @@ def create(args):
             r'([A-Z][a-z]) +([0-9]+)x([0-9]+)x([0-9]+)',
             args.what):
         structure = create_from_atom_name(
-            match[1], [match[2], match[3], match[4]])
+            match[1],
+            [float(match[2]), float(match[3]), float(match[4])])
     else:
         structure = create_from_mpid(args.what)
 
