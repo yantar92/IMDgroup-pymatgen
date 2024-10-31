@@ -90,7 +90,7 @@ class IMDVaspInputSet(VaspInputSet):
         kpoints = super().kpoints
 
         kpts = kpoints.kpts
-        if kpoints.num_kpts == 0 and len(kpts) == 1\
+        if kpoints.num_kpts == 0 and len(kpts) != 1\
            and not kpts[0] == [1, 1, 1]:
             n_atoms = len(self.structure)
             n_kpoints = math.prod(kpts[0]) * n_atoms
