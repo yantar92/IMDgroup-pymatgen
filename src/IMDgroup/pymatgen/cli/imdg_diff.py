@@ -42,9 +42,9 @@ def structure_add_args(parser):
     parser.add_argument(
         "--energy-tol",
         dest="energy_tol",
-        help="Energy tolerance when comparing structures",
-        default=1e-3,
-        type=str
+        help="Energy tolerance when comparing structures (number of digits after dot)",
+        default=3,
+        type=int
     )
 
 
@@ -146,7 +146,7 @@ def structure(args):
                 if (structure_energy is None or
                     math.isclose(
                         structure_energy, group_energy,
-                        abs_tol=args.energy_tol))\
+                        abs_tol=math.pow(10, -args.energy_tol)))\
                    and matcher.fit(structure, group_structure):
                     logger.debug(
                         'Appending %s to existing group',
@@ -174,7 +174,10 @@ def structure(args):
 
     for idx, group in enumerate(groups):
         print(colored(f"Group {idx + 1}: ", attrs=['bold']), end='')
-        print(f"Energy={group[0].properties['final_energy']}", end='')
+        final_energy = round(
+            group[0].properties['final_energy'],
+            args.energy_tol)
+        print(f"Energy={final_energy}", end='')
         for s in group:
             print(s.properties['source_dir'], ' ', end='')
         print()
