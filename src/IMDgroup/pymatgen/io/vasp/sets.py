@@ -3,6 +3,7 @@ group research.
 """
 
 import os
+import math
 import warnings
 from glob import glob
 from pathlib import Path
@@ -89,10 +90,10 @@ class IMDVaspInputSet(VaspInputSet):
         kpoints = super().kpoints
 
         kpts = kpoints.kpts
-        if kpoints.num_kpts == 0 and not kpts[0] == [1, 1, 1]:
+        if kpoints.num_kpts == 0 and len(kpts) == 1\
+           and not kpts[0] == [1, 1, 1]:
             n_atoms = len(self.structure)
-            print(kpts)
-            n_kpoints = kpts[0][0] * kpts[0][1] * kpts[0][2] * n_atoms
+            n_kpoints = math.reduce(kpts[0]) * n_atoms
             # 5-10k kpoints/atom is a reasonable number
             # Note that the number is always approximate wrt the
             # target kpoint density because of discretization
