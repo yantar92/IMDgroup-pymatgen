@@ -3,6 +3,7 @@
 import logging
 import os
 import shutil
+import math
 from termcolor import colored
 from pymatgen.io.vasp.outputs import Vasprun
 from pymatgen.io.vasp.inputs import Poscar
@@ -38,6 +39,14 @@ def structure_add_args(parser):
         type=str
     )
 
+    parser.add_argument(
+        "--energy-tol",
+        dest="energy_tol",
+        help="Energy tolerance when comparing structures",
+        default=1e-3,
+        type=str
+    )
+
 
 def _read_structures(dir_list, force_poscar=False, force_vasprun=False):
     """Read structures from DIR_LIST.
@@ -51,12 +60,15 @@ def _read_structures(dir_list, force_poscar=False, force_vasprun=False):
     Returns: list[Structure]
       List of structures.  Each structure will have its 'source_dir'
       property set to its origin directory.
+      When a structure is read from vasprun.xml, it will also have
+      'final_energy' property set to the final structure energy.
     """
     def read_vasprun(vaspdir):
         logger.info("Reading vasprun.xml from %s", vaspdir)
         run = Vasprun(os.path.join(vaspdir, "vasprun.xml"))
         res_structure = run.final_structure
         res_structure.properties['source_dir'] = vaspdir
+        res_structure.properties['final_energy'] = run.final_energy
         return res_structure
 
     def read_poscar(vaspdir):
@@ -126,7 +138,16 @@ def structure(args):
         in_group = False
         for group in groups:
             for group_structure in group:
-                if matcher.fit(structure, group_structure):
+                structure_energy = None
+                group_energy = None
+                if 'final_energy' in structure.properties:
+                    structure_energy = structure.properties['final_energy']
+                    group_energy = group_structure.properties['final_energy']
+                if (structure_energy is None or
+                    math.isclose(
+                        structure_energy, group_energy,
+                        abs_tol=args.energy_tol))\
+                   and matcher.fit(structure, group_structure):
                     logger.debug(
                         'Appending %s to existing group',
                         structure.properties['source_dir']
@@ -153,6 +174,7 @@ def structure(args):
 
     for idx, group in enumerate(groups):
         print(colored(f"Group {idx + 1}: ", attrs=['bold']), end='')
+        print(f"Energy={group[0].properties['final_energy']}", end='')
         for s in group:
             print(s.properties['source_dir'], ' ', end='')
         print()
