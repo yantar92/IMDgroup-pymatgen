@@ -124,7 +124,7 @@ def _copy_structures_to(structures, directory):
 def structure(args):
     """Compare structures.
     """
-    structures = _read_structures(args.dirs, args.poscar, args.vasprun)
+    structures = _read_structures(sorted(args.dirs), args.poscar, args.vasprun)
     groups = []
 
     matcher = StructureMatcher()
