@@ -1,8 +1,9 @@
 """imdg sub-command to create new VASP inputs from scratch.
 """
+import os
+import re
 import logging
 import pymatgen.core as pmg
-import os
 from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
 from IMDgroup.pymatgen.io.vasp.sets import IMDStandardVaspInputSet
 
@@ -64,11 +65,24 @@ def create_from_file(path):
     return structure
 
 
+def create_from_atom_name(name, size):
+    """Return periodic structure with atom NAME in the middle.
+    Structure dimentions are defined in SIZE vector.
+    """
+    molecule = pmg.Molecule([name], [[0, 0, 0]])
+    return molecule.get_boxed_structure(*size)
+
+
 def create(args):
     """Main routine.
     """
     if os.path.isfile(args.what):
         structure = create_from_file(args.what)
+    elif match := re.match(
+            r'([A-Z][a-z]) +([0-9]+)x([0-9]+)x([0-9]+)',
+            args.what):
+        structure = create_from_atom_name(
+            match[1], [match[2], match[3], match[4]])
     else:
         structure = create_from_mpid(args.what)
 
