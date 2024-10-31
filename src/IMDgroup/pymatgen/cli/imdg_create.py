@@ -2,6 +2,7 @@
 """
 import logging
 import pymatgen.core as pmg
+import os
 from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
 from IMDgroup.pymatgen.io.vasp.sets import IMDStandardVaspInputSet
 
@@ -15,38 +16,28 @@ def add_args(parser):
     """
     parser.help = """Create new VASP inputs from scratch."""
 
-    group = parser.add_mutually_exclusive_group(required=True)
-    group.add_argument(
-        "--file",
-        help="Input structure file (any file that can be read by pymatgen)",
-        type=str
+    parser.add_argument(
+        "what",
+        help="""What to create (atom name+cell, mp-XXX, or file)
+- Atom name+cell is atom name and cell size (in ans).
+  Example: Li 20x20x20
+- mp-XXX is material project id of the structure to be fetched
+  Example: mp-48
+- file is a path to structure file that can be read by pymatgen
+  Example: ./structure.cif
+""",
+        type=str)
+
+
+def create_from_mpid(mpid):
+    """Return structure from materials project id.
+    Structure will have property 'mpid' set to its id."""
+    structure = pmg.Structure.from_id(mpid)
+    structure.properties['mpid'] = mpid
+    logger.info(
+        "Downloaded structure %s from Materials Project db:\n%s",
+        mpid, structure
     )
-    group.add_argument(
-        "--mpid",
-        help="Materials Project structure id",
-        type=str
-    )
-
-
-def create(args):
-    """Main routine.
-    """
-    if args.mpid is not None:
-        structure = pmg.Structure.from_id(args.mpid)
-        structure.properties['mpid'] = args.mpid
-        logger.info(
-            "Downloaded structure from Materials Project db:\n%s",
-            structure
-        )
-    elif args.file is not None:
-        structure = pmg.Structure.from_file(args.file)
-        logger.info(
-            "Loaded structure from %s:\n%s",
-            args.file, structure
-        )
-    else:
-        raise AttributeError("This should not happen.")
-
     # Sometimes, Materials Project does not return standardized structure
     # Force it
     analyzer = SpacegroupAnalyzer(structure)
@@ -58,6 +49,28 @@ def create(args):
             "Non-standardized structure converted:\n%s",
             standard_structure
         )
+
+    return structure
+
+
+def create_from_file(path):
+    """Return structure created from file.
+    """
+    structure = pmg.Structure.from_file(path)
+    logger.info(
+        "Loaded structure from %s:\n%s",
+        path, structure
+    )
+    return structure
+
+
+def create(args):
+    """Main routine.
+    """
+    if os.path.isfile(args.what):
+        structure = create_from_file(args.what)
+    else:
+        structure = create_from_mpid(args.what)
 
     inputset = IMDStandardVaspInputSet(structure)
     inputset.write_input(output_dir=inputset.incar['SYSTEM'])
