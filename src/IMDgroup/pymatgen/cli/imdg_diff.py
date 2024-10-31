@@ -177,7 +177,7 @@ def structure(args):
         final_energy = round(
             group[0].properties['final_energy'],
             args.energy_tol)
-        print(f"Energy={final_energy}", end='')
+        print(f"Energy={final_energy} ", end='')
         for s in group:
             print(s.properties['source_dir'], ' ', end='')
         print()
