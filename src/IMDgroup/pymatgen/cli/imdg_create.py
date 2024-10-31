@@ -71,7 +71,7 @@ def create_from_atom_name(name, size):
     """
     logger.info(
         "Creating %fx%fx%f supercell for %s",
-        name, size[0], size[1], size[2])
+        size[0], size[1], size[2], name)
     molecule = pmg.Molecule([name], [[0, 0, 0]])
     return molecule.get_boxed_structure(size[0], size[1], size[2])
 
