@@ -70,7 +70,7 @@ def create_from_atom_name(name, size):
     Structure dimentions are defined in SIZE vector.
     """
     molecule = pmg.Molecule([name], [[0, 0, 0]])
-    return molecule.get_boxed_structure(*size)
+    return molecule.get_boxed_structure(size[0], size[1], size[2])
 
 
 def create(args):
