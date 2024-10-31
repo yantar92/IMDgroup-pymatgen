@@ -93,7 +93,7 @@ class IMDVaspInputSet(VaspInputSet):
         if kpoints.num_kpts == 0 and len(kpts) == 1\
            and not kpts[0] == [1, 1, 1]:
             n_atoms = len(self.structure)
-            n_kpoints = math.reduce(kpts[0]) * n_atoms
+            n_kpoints = math.prod(kpts[0]) * n_atoms
             # 5-10k kpoints/atom is a reasonable number
             # Note that the number is always approximate wrt the
             # target kpoint density because of discretization
