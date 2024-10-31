@@ -69,6 +69,9 @@ def create_from_atom_name(name, size):
     """Return periodic structure with atom NAME in the middle.
     Structure dimentions are defined in SIZE vector.
     """
+    logger.info(
+        "Creating %fx%fx%f supercell for %s",
+        name, size[0], size[1], size[2])
     molecule = pmg.Molecule([name], [[0, 0, 0]])
     return molecule.get_boxed_structure(size[0], size[1], size[2])
 
