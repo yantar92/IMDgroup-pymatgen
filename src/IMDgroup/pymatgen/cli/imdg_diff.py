@@ -174,10 +174,13 @@ def structure(args):
 
     for idx, group in enumerate(groups):
         print(colored(f"Group {idx + 1}: ", attrs=['bold']), end='')
-        final_energy = round(
-            group[0].properties['final_energy'],
-            args.energy_tol)
-        print(f"Energy={final_energy}eV ", end='')
+        if 'final_energy' in group[0].properties:
+            final_energy = round(
+                group[0].properties['final_energy'],
+                args.energy_tol)
+            print(f"Energy={final_energy}eV ", end='')
+        else:
+            print("Energy=N/A ", end='')
         for s in group:
             print(s.properties['source_dir'], ' ', end='')
         print()
