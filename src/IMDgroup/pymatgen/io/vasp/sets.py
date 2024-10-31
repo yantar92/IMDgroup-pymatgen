@@ -333,6 +333,14 @@ class IMDStandardVaspInputSet(IMDVaspInputSet):
               'POTCAR_FUNCTIONAL': 'PBE_64',
               'POTCAR': POTCAR_RECOMMENDED}
 
+    def __post_init__(self) -> None:
+
+        if self.structure is not None:
+            if len(self.structure) < self.CONFIG['INCAR']['NCORE']:
+                self.CONFIG['INCAR']['NCORE'] = len(self.structure)
+
+        super().__post_init__()
+
 
 @due.dcite(
     Doi("10.1007/s10570-024-05754-7"),
