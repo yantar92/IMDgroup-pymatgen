@@ -47,6 +47,9 @@ def add_args(parser):
     parser_perturb = subparsers.add_parser("perturb")
     perturb_add_args(parser_perturb)
 
+    parser_scf = subparsers.add_parser("scf")
+    scf_add_args(parser_scf)
+
 
 def _str_to_bool(value):
     """Convert string value to boolean.
@@ -351,6 +354,27 @@ def kpoints(args):
         user_kpoints_settings={'grid_density': args.density},
     )
     output_dir = f"KPOINTS.{args.density}"
+    return (inputset, output_dir)
+
+
+def scf_add_args(parser):
+    """Setup parser arguments for SCF calculation.
+    Args:
+      parser: subparser
+    """
+    parser.help = "Create input for SCF calculation"
+    parser.set_defaults(func_derive=scf)
+
+
+def scf(args):
+    """Create SCF setup.
+    Return (inputset, output_dir)
+    """
+    inputset = IMDDerivedInputSet(
+        directory=args.input_directory,
+        user_incar_settings={'NSW': 0, 'IBRION': -1},
+    )
+    output_dir = "SCF"
     return (inputset, output_dir)
 
 
