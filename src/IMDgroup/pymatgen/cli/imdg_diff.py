@@ -132,7 +132,7 @@ def diff_structures(args):
     structures = _read_structures(sorted(args.dirs), args.poscar, args.vasprun)
     groups = []
 
-    matcher = StructureMatcher(ltol=0.1, stol=0.2)
+    matcher = StructureMatcher(ltol=0.1, stol=0.1, angle_tol=3)
 
     def _add_to_groups(structure):
         """Add STRUCTURE to groups.
