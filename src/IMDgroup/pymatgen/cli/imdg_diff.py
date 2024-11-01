@@ -286,7 +286,10 @@ def diff_incar(args):
     for idx, group in enumerate(groups):
         print(colored(f"Group {idx + 1}: ", attrs=['bold']), end='')
         print(' '.join(_incar_name(incar) for incar in group))
-        print(' '.join(f"{key}:{val}" for key, val in group[0].items()))
+        print(
+            ' '.join(
+                f"{key}:{val}" if key not in common_incar else ""
+                for key, val in group[0].items()))
 
     return 0
 
