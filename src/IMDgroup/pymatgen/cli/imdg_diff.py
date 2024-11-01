@@ -6,7 +6,7 @@ import shutil
 import math
 from alive_progress import alive_bar
 from termcolor import colored
-from pymatgen.io.vasp.outputs import Vasprun
+from IMDgroup.pymatgen.io.vasp.outputs import Vasprun
 from pymatgen.io.vasp.inputs import Poscar
 from pymatgen.analysis.structure_matcher import StructureMatcher
 

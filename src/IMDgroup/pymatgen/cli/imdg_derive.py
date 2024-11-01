@@ -7,7 +7,7 @@ import dataclasses
 import logging
 import numpy as np
 from IMDgroup.pymatgen.io.vasp.sets import IMDDerivedInputSet
-from IMDgroup.pymatgen.io.vasp import sets
+from IMDgroup.pymatgen.io.vasp.inputs import Incar
 
 logger = logging.getLogger(__name__)
 
@@ -214,8 +214,8 @@ def relax(args):
         # 500 steps because 100 suggested in some online resources
         # may not be enough in complex supercells.
         "NSW": 500,
-        "IBRION": sets.IBRION_IONIC_RELAX_CGA,
-        'ISIF': vars(sets)["ISIF_" + args.isif],
+        "IBRION": Incar.IBRION_IONIC_RELAX_CGA,
+        'ISIF': vars(Incar)["ISIF_" + args.isif],
         'EDIFF': 1e-06,
         'EDIFFG': -0.01
     }
@@ -223,9 +223,7 @@ def relax(args):
     # volume/shape relaxation, initial automatic k-point grid
     # calculated for original volume becomes slightly less accurate
     # unless we increase ENCUT
-    if args.isif in [sets.ISIF_RELAX_POS_SHAPE, sets.ISIF_RELAX_SHAPE,
-                     sets.ISIF_RELAX_SHAPE_VOL, sets.ISIF_RELAX_VOL,
-                     sets.ISIF_RELAX_POS_VOL]:
+    if args.isif != Incar.ISIF_FIX_SHAPE_VOL:
         logger.info("Shape/volume relaxation.  Setting ENCUT=550.0")
         relax_overrides['ENCUT'] = 550.0
     else:
