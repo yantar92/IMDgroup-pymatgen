@@ -260,7 +260,7 @@ def diff_incar(args):
         """
         difference = incar1.diff(incar2)
         return difference["Different"] is None\
-            or difference["Different"].keys() == ["SYSTEM"]
+            or list(difference["Different"].keys()) == ["SYSTEM"]
 
     def _incar_name(incar):
         """Get INCAR name.
