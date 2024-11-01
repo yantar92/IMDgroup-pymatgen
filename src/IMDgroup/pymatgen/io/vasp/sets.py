@@ -8,10 +8,9 @@ import warnings
 from glob import glob
 from pathlib import Path
 from dataclasses import dataclass
-from monty.serialization import loadfn
 import numpy as np
 from pymatgen.io.vasp.sets import VaspInputSet, BadInputSetWarning
-from IMDgroup.pymatgen.io.vasp.inputs import Incar
+from IMDgroup.pymatgen.io.vasp.inputs import Incar, _load_yaml_config
 from pymatgen.io.vasp.inputs import Potcar, Kpoints, Poscar
 from pymatgen.util.due import Doi, due
 from pymatgen.core import Structure
@@ -39,22 +38,6 @@ def _load_mp(name):
         structure = m.get_structure_by_material_id(name)  # carbon
         assert structure.is_valid()
     return structure
-
-
-# We copy this over from pymatgen.io.vasp.sets because we need our own
-# MODULE_DIR
-def _load_yaml_config(fname):
-    config = loadfn(f"{MODULE_DIR}/{fname}.yaml")
-    if "PARENT" in config:
-        parent_config = _load_yaml_config(config["PARENT"])
-        for k, v in parent_config.items():
-            if k not in config:
-                config[k] = v
-            elif isinstance(v, dict):
-                v_new = config.get(k, {})
-                v_new.update(v)
-                config[k] = v_new
-    return config
 
 
 @dataclass

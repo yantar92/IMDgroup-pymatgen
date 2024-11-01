@@ -3,9 +3,29 @@ pymatgen.io.vasp.inputs module.
 """
 
 import warnings
+import os
+from monty.serialization import loadfn
 from pymatgen.io.vasp.inputs import Incar as pmgIncar
 from pymatgen.io.vasp.inputs import BadIncarWarning
-from IMDgroup.pymatgen.io.vasp.sets import _load_yaml_config
+
+
+MODULE_DIR = os.path.dirname(__file__)
+
+
+# We copy this over from pymatgen.io.vasp.sets because we need our own
+# MODULE_DIR
+def _load_yaml_config(fname):
+    config = loadfn(f"{MODULE_DIR}/{fname}.yaml")
+    if "PARENT" in config:
+        parent_config = _load_yaml_config(config["PARENT"])
+        for k, v in parent_config.items():
+            if k not in config:
+                config[k] = v
+            elif isinstance(v, dict):
+                v_new = config.get(k, {})
+                v_new.update(v)
+                config[k] = v_new
+    return config
 
 
 class Incar(pmgIncar):
