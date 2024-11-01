@@ -288,7 +288,9 @@ def diff_incar(args):
         print(' '.join(_incar_name(incar) for incar in group))
         print(
             ' '.join(
-                f"{key}:{val}" if key not in common_incar else ""
+                f"{key}:{val}"
+                if key not in common_incar and key != "SYSTEM"
+                else ""
                 for key, val in group[0].items()))
 
     return 0
