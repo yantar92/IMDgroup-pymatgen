@@ -6,9 +6,10 @@ import shutil
 import math
 from alive_progress import alive_bar
 from termcolor import colored
-from IMDgroup.pymatgen.io.vasp.outputs import Vasprun
 from pymatgen.io.vasp.inputs import Poscar
 from pymatgen.analysis.structure_matcher import StructureMatcher
+from IMDgroup.pymatgen.io.vasp.outputs import Vasprun
+from IMDgroup.pymatgen.io.vasp.inputs import Incar
 
 logger = logging.getLogger(__name__)
 
@@ -227,6 +228,69 @@ def diff_structures(args):
         _copy_structures_to([group[0] for group in groups], args.copy_to)
 
 
+def incar_add_args(parser):
+    """Setup parser arguments for incar comparison.
+    Args:
+      parser: subparser
+    """
+    parser.help = "Compare INCARs from VASP dirs"
+    parser.set_defaults(func_diff=diff_incar)
+
+
+def diff_incar(args):
+    """Handle diff commands.
+
+    Args:
+        args: Args from command.
+    """
+
+    incars = []
+    with alive_bar(len(args.dirs), title='Reading INCARs') as abar:
+        for vaspdir in args.dirs:
+            abar.text = f'{vaspdir}'
+            incar = Incar.from_file(os.path.join(vaspdir, "INCAR"))
+            # Abuse unused SYSTEM parameter to store directory name.
+            incar['SYSTEM'] = vaspdir
+            incars.append(incar)
+            abar()  # pylint: disable=not-callable
+
+    def _incar_eq(incar1, incar2):
+        """Return True when INCAR1 is equal to INCAR2.
+        SYSTEM keyword is ignored.
+        """
+        difference = incar1.diff(incar2)
+        return difference["Different"] is None\
+            or difference["Different"].keys() == ["SYSTEM"]
+
+    def _incar_name(incar):
+        """Get INCAR name.
+        Assume that name is stored in SYSTEM parameter.
+        """
+        return incar['SYSTEM']
+
+    groups = _groupby_cmp(incars, _incar_eq, _incar_name)
+
+    common_incar = None
+    for group in groups:
+        if common_incar is None:
+            common_incar = group[0].copy()
+            common_incar.pop('SYSTEM')
+        else:
+            for key, val in group[0].items():
+                if common_incar.get(key, None) != val:
+                    common_incar.pop(key)
+
+    print(colored("Common INCAR parameters", attrs=['bold']))
+    print(common_incar.get_str(pretty=True))
+
+    for idx, group in enumerate(groups):
+        print(colored(f"Group {idx + 1}: ", attrs=['bold']), end='')
+        print(' '.join(_incar_name(incar) for incar in group))
+        print(' '.join(f"{key}:{val}" for key, val in group[0].items()))
+
+    return 0
+
+
 def add_args(parser):
     """Setup parser arguments.
     Args:
@@ -245,6 +309,9 @@ def add_args(parser):
 
     parser_structure = subparsers.add_parser("structure")
     structure_add_args(parser_structure)
+
+    parser_incar = subparsers.add_parser("incar")
+    incar_add_args(parser_incar)
 
 
 def diff(args):
