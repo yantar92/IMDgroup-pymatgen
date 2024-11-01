@@ -128,9 +128,9 @@ def _read_structures(dir_list, force_poscar=False, force_vasprun=False):
     used_vasp_output = False
     used_poscar_output = False
     structures = []
-    with alive_bar(len(dir_list), title='Reading VASP dirs') as bar:
+    with alive_bar(len(dir_list), title='Reading VASP dirs') as abar:
         for vaspdir in dir_list:
-            bar.text = f'{vaspdir}'
+            abar.text = f'{vaspdir}'
             if force_poscar:
                 structures.append(read_poscar(vaspdir))
             else:
@@ -142,7 +142,7 @@ def _read_structures(dir_list, force_poscar=False, force_vasprun=False):
                         raise
                     structures.append(read_poscar(vaspdir))
                     used_poscar_output = True
-            bar()  # pylint: disable=not-callable
+            abar()  # pylint: disable=not-callable
     return structures
 
 
