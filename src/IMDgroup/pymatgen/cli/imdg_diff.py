@@ -13,6 +13,51 @@ from pymatgen.analysis.structure_matcher import StructureMatcher
 logger = logging.getLogger(__name__)
 
 
+def _groupby_cmp(lst, cmp_eq, title_function=None):
+    """Group elements of list LST comparing them using CMP_EQ function.
+    CMP_EQ should take two elements of the list as arguments and
+    return True iff they are equal.
+    Optional TITLE_FUNCTION argument is a function used to generate
+    item name in the logs.
+    Return a list of grouped lists.
+    """
+    groups = []
+
+    def _add_to_groups(item):
+        """Add ITEM to groups.
+        If ITEM is not the same with all items in groups,
+        create a separate group.
+        Modifies "groups" by side effect.
+        """
+        in_group = False
+        for group in groups:
+            for group_item in group:
+                if cmp_eq(item, group_item):
+                    logger.debug(
+                        'Appending %s to existing group',
+                        title_function(item) if title_function is not None
+                        else "??"
+                    )
+                    group.append(item)
+                    in_group = True
+                    break
+            if in_group:
+                break
+        if not in_group:
+            logger.debug(
+                'Creating a new group for %s',
+                title_function(item) if title_function is not None
+                else "??"
+            )
+            # pylint: disable=modified-iterating-list
+            groups.append([item])
+
+    for item in lst:
+        _add_to_groups(item)
+
+    return groups
+
+
 def structure_add_args(parser):
     """Setup parser arguments for structure comparison.
     Args:
@@ -130,8 +175,6 @@ def diff_structures(args):
     """Compare structures.
     """
     structures = _read_structures(sorted(args.dirs), args.poscar, args.vasprun)
-    groups = []
-
     # 2x tigher tolerance compared to the defaults.
     # With defaults, structures different by ~0.1eV could be matched
     # according to tests.
@@ -139,44 +182,29 @@ def diff_structures(args):
     # actual energy from VASP to distinguish structures.
     matcher = StructureMatcher(ltol=0.1, stol=0.15, angle_tol=2.5)
 
-    def _add_to_groups(structure):
-        """Add STRUCTURE to groups.
-        If STRUCTURE is not the same with all structure in groups,
-        create a separate group.
-        Modifies "groups" by side effect.
+    def _structures_eq(str1, str2):
+        """Compare structures STR1 and STR2 for equality.
+        Return True when they are equal.
         """
-        in_group = False
-        for group in groups:
-            for group_structure in group:
-                structure_energy = None
-                group_energy = None
-                if 'final_energy' in structure.properties:
-                    structure_energy = structure.properties['final_energy']
-                    group_energy = group_structure.properties['final_energy']
-                if (structure_energy is None or
-                    math.isclose(
-                        structure_energy, group_energy,
-                        abs_tol=math.pow(10, -args.energy_tol)))\
-                   and matcher.fit(structure, group_structure):
-                    logger.debug(
-                        'Appending %s to existing group',
-                        structure.properties['source_dir']
-                    )
-                    group.append(structure)
-                    in_group = True
-                    break
-            if in_group:
-                break
-        if not in_group:
-            logger.debug(
-                'Creating a new group for %s',
-                structure.properties['source_dir']
-            )
-            # pylint: disable=modified-iterating-list
-            groups.append([structure])
+        str1_energy = str1.properties.get('final_energy', None)
+        str2_energy = None
+        if str1_energy:
+            # Err if energy is available in one structure, but not
+            # another.
+            str2_energy = str2.properties['final_energy']
+        if (str1_energy is None or
+            math.isclose(
+                str1_energy, str2_energy,
+                abs_tol=math.pow(10, -args.energy_tol))):
+            if matcher.fit(str1, str2):
+                return True
+        return False
 
-    for s in structures:
-        _add_to_groups(s)
+    def _structure_name(struct):
+        """Get directory."""
+        return struct.properties['source_dir']
+
+    groups = _groupby_cmp(structures, _structures_eq, _structure_name)
 
     print(colored(
         "List of structures grouped by similarity",
