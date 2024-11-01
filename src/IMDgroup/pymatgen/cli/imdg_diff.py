@@ -4,6 +4,7 @@ import logging
 import os
 import shutil
 import math
+from alive_progress import alive_bar
 from termcolor import colored
 from pymatgen.io.vasp.outputs import Vasprun
 from pymatgen.io.vasp.inputs import Poscar
@@ -42,7 +43,8 @@ def structure_add_args(parser):
     parser.add_argument(
         "--energy-tol",
         dest="energy_tol",
-        help="Energy tolerance when comparing structures (number of digits after dot)",
+        help="Energy tolerance when comparing structures"
+        " (number of digits after dot)",
         default=3,
         type=int
     )
@@ -82,17 +84,20 @@ def _read_structures(dir_list, force_poscar=False, force_vasprun=False):
     used_poscar_output = False
     structures = []
     for vaspdir in dir_list:
-        if force_poscar:
-            structures.append(read_poscar(vaspdir))
-        else:
-            try:
-                structures.append(read_vasprun(vaspdir))
-                used_vasp_output = True
-            except FileNotFoundError:
-                if used_vasp_output or used_poscar_output or force_vasprun:
-                    raise
+        with alive_bar(vaspdir) as bar:
+            bar.text(f'{vaspdir}')
+            if force_poscar:
                 structures.append(read_poscar(vaspdir))
-                used_poscar_output = True
+            else:
+                try:
+                    structures.append(read_vasprun(vaspdir))
+                    used_vasp_output = True
+                except FileNotFoundError:
+                    if used_vasp_output or used_poscar_output or force_vasprun:
+                        raise
+                    structures.append(read_poscar(vaspdir))
+                    used_poscar_output = True
+            bar()  # pylint: disable=not-callable
     return structures
 
 
