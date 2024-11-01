@@ -5,6 +5,7 @@ pymatgen.io.vasp.inputs module.
 import warnings
 from pymatgen.io.vasp.inputs import Incar as pmgIncar
 from pymatgen.io.vasp.inputs import BadIncarWarning
+from IMDgroup.pymatgen.io.vasp.sets import _load_yaml_config
 
 
 class Incar(pmgIncar):
@@ -13,6 +14,7 @@ class Incar(pmgIncar):
     1. Readable constants for Incar values.
     2. Warn when IBRION=-1 and NSW>0 (see
        https://www.vasp.at/wiki/index.php/IBRION)
+    3. Add methods to retreieve standard setting combinations
     """
 
     # ISIF values
@@ -56,3 +58,22 @@ class Incar(pmgIncar):
                 f" with IBRION = {cls.IBRION_NONE}",
                 BadIncarWarning)
         return result
+
+    @staticmethod
+    def get_recipe(setup: str, name: str):
+        """Retrieve INCAR settings for SETUP with NAME.
+        setup can be:
+        1. "functional" to retrieve functional setup from names
+           PBE, PBEsol, PBE+D2, PBE+TS, vdW-DF, vdW-DF2, optB88-vdW,
+           optB86b-vdW .
+        """
+        if setup == "functional":
+            functional_config = _load_yaml_config("functionals")
+            if name not in functional_config:
+                raise KeyError(
+                    "Invalid or unsupported functional. " +
+                    "Supported functionals are " +
+                    ', '.join(functional_config) + "."
+                )
+            return functional_config.get(name)
+        raise ValueError(f"Unknown setup: {setup}")

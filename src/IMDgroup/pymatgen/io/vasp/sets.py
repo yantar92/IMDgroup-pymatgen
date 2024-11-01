@@ -112,15 +112,8 @@ class IMDVaspInputSet(VaspInputSet):
         if isinstance(self.functional, str):
             self.functional = self.functional.lower()
         if self.functional:
-            functional_config = _load_yaml_config("functionals")
-            if params := functional_config.get(self.functional):
-                incar_updates.update(params)
-            else:
-                raise KeyError(
-                    "Invalid or unsupported functional. " +
-                    "Supported functionals are " +
-                    ', '.join(functional_config) + "."
-                )
+            params = Incar.get_recipe("functional", self.functional)
+            incar_updates.update(params)
         return incar_updates
 
     @property
