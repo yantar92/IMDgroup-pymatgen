@@ -278,7 +278,7 @@ def diff_incar(args):
         else:
             for key, val in group[0].items():
                 if common_incar.get(key, None) != val:
-                    common_incar.pop(key)
+                    common_incar.pop(key, None)
 
     print(colored("Common INCAR parameters", attrs=['bold']))
     print(common_incar.get_str(pretty=True))
