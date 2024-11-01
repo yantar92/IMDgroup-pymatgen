@@ -61,22 +61,22 @@ class Incar(pmgIncar):
     # FIXME: This should better be contributed upstream as I cannot
     # override the checks in the Incar instances used from pymatgen
     # internals.
-    def proc_val(self, key: str, val: str) -> list | bool | float | int | str:
-        """Helper method to convert INCAR parameters to proper types
-        like ints, floats, lists, etc.
+    # def proc_val(self, key: str, val: str) -> list | bool | float | int | str:
+    #     """Helper method to convert INCAR parameters to proper types
+    #     like ints, floats, lists, etc.
 
-        Args:
-            key (str): INCAR parameter key.
-            val (str): Value of INCAR parameter.
-        """
-        result = pmgIncar.proc_val(key, val)
-        if self.get("IBRION", None) == self.IBRION_NONE and\
-           self.get("NSW", 0) > 0:
-            warnings.warn(
-                f"NSW ({self.get('NSW', "N/A")}) > 0 is useless"
-                f" with IBRION = {self.IBRION_NONE}",
-                BadIncarWarning)
-        return result
+    #     Args:
+    #         key (str): INCAR parameter key.
+    #         val (str): Value of INCAR parameter.
+    #     """
+    #     result = pmgIncar.proc_val(key, val)
+    #     if self.get("IBRION", None) == self.IBRION_NONE and\
+    #        self.get("NSW", 0) > 0:
+    #         warnings.warn(
+    #             f"NSW ({self.get('NSW', "N/A")}) > 0 is useless"
+    #             f" with IBRION = {self.IBRION_NONE}",
+    #             BadIncarWarning)
+    #     return result
 
     @staticmethod
     def get_recipe(setup: str, name: str):
