@@ -289,10 +289,8 @@ def diff_incar(args):
         print(
             colored(f"Group {idx + 1} params: ", attrs=['bold']),
             ' '.join(
-                f"{key}:{val}"
-                if key not in common_incar and key != "SYSTEM"
-                else ""
-                for key, val in group[0].items()))
+                f"{key}:{val}" for key, val in group[0].items()
+                if key not in common_incar and key != "SYSTEM"))
 
     return 0
 
