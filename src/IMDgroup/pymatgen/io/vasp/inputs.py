@@ -70,7 +70,7 @@ class Incar(pmgIncar):
             key (str): INCAR parameter key.
             val (str): Value of INCAR parameter.
         """
-        result = super().proc_val(key, val)
+        result = pmgIncar.proc_val(key, val)
         if cls.get("IBRION", None) == cls.IBRION_NONE and\
            cls.get("NSW", 0) > 0:
             warnings.warn(
