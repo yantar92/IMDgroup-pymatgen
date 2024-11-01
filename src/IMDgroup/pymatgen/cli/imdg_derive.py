@@ -399,7 +399,7 @@ def derive(args):
 
     for inputset, output_dir_suffix in value_or_values:
         if args.output is None:
-            output_dir = output_dir_prefix + output_dir_suffix
+            output_dir = output_dir_prefix + "." + output_dir_suffix
         inputset.write_input(output_dir=output_dir)
 
     return 0
