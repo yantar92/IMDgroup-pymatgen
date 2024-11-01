@@ -61,8 +61,7 @@ class Incar(pmgIncar):
     # FIXME: This should better be contributed upstream as I cannot
     # override the checks in the Incar instances used from pymatgen
     # internals.
-    @classmethod
-    def proc_val(cls, key: str, val: str) -> list | bool | float | int | str:
+    def proc_val(self, key: str, val: str) -> list | bool | float | int | str:
         """Helper method to convert INCAR parameters to proper types
         like ints, floats, lists, etc.
 
@@ -71,11 +70,11 @@ class Incar(pmgIncar):
             val (str): Value of INCAR parameter.
         """
         result = pmgIncar.proc_val(key, val)
-        if cls.get("IBRION", None) == cls.IBRION_NONE and\
-           cls.get("NSW", 0) > 0:
+        if self.get("IBRION", None) == self.IBRION_NONE and\
+           self.get("NSW", 0) > 0:
             warnings.warn(
-                f"NSW ({cls.get('NSW', "N/A")}) > 0 is useless"
-                f" with IBRION = {cls.IBRION_NONE}",
+                f"NSW ({self.get('NSW', "N/A")}) > 0 is useless"
+                f" with IBRION = {self.IBRION_NONE}",
                 BadIncarWarning)
         return result
 
