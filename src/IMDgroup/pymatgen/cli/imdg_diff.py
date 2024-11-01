@@ -287,6 +287,7 @@ def diff_incar(args):
         print(colored(f"Group {idx + 1}: ", attrs=['bold']), end='')
         print(' '.join(_incar_name(incar) for incar in group))
         print(
+            colored(f"Group {idx + 1} params: ", attrs=['bold']),
             ' '.join(
                 f"{key}:{val}"
                 if key not in common_incar and key != "SYSTEM"
