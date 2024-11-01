@@ -1,5 +1,6 @@
 """imdg sub-command to create new VASP inputs from existing.
 """
+import os
 import warnings
 import argparse
 import dataclasses
@@ -22,6 +23,12 @@ def add_args(parser):
         "input_directory",
         default=".",
         help="VASP directory to read system"
+    )
+
+    parser.add_argument(
+        "--output",
+        help="Directory to write the mutated VASP input"
+        "(default: <old-name>.<suffix>)."
     )
 
     subparsers = parser.add_subparsers(required=True)
@@ -116,19 +123,19 @@ def perturb_add_args(parser):
 
 def perturb(args):
     """Create perturbed input
-    Return (inputset, output_dir)
+    Return (inputset, output_dir_suffix)
     """
     inputset = IMDDerivedInputSet(directory=args.input_directory)
 
     inputset.structure.perturb(args.distance)
-    output_dir = f"PERTURB.{args.distance}"
+    output_dir_suffix = f"PERTURB.{args.distance}"
 
-    return (inputset, output_dir)
+    return (inputset, output_dir_suffix)
 
 
 def strain(args):
     """Create strained input
-    Return (inputset, output_dir)
+    Return (inputset, output_dir_suffix)
     """
     inputset = IMDDerivedInputSet(directory=args.input_directory)
 
@@ -165,10 +172,11 @@ def strain(args):
         inputset_new = dataclasses.replace(inputset)  # copy
         inputset_new.structure =\
             structure0.apply_strain(strn, inplace=False)
-        output_dir = (f"strain.a.{strn[0]:.2f}"
-                      f".b.{strn[1]:.2f}"
-                      f".c.{strn[2]:.2f}")
-        outputs.append((inputset_new, output_dir))
+        output_dir_suffix = (
+            f"strain.a.{strn[0]:.2f}"
+            f".b.{strn[1]:.2f}"
+            f".c.{strn[2]:.2f}")
+        outputs.append((inputset_new, output_dir_suffix))
 
     return outputs
 
@@ -198,7 +206,7 @@ def relax_add_args(parser):
 
 def relax(args):
     """Create relaxation setup.
-    Return (inputset, output_dir)
+    Return (inputset, output_dir_suffix)
     """
     relax_overrides = {
         "ISTART": 0,
@@ -228,8 +236,8 @@ def relax(args):
         directory=args.input_directory,
         user_incar_settings=relax_overrides,
     )
-    output_dir = f"relax.{args.isif}"
-    return (inputset, output_dir)
+    output_dir_suffix = f"relax.{args.isif}"
+    return (inputset, output_dir_suffix)
 
 
 def supercell_add_args(parser):
@@ -253,7 +261,7 @@ def supercell_add_args(parser):
 
 def supercell(args):
     """Create supercell.
-    Return (inputset, output_dir)
+    Return (inputset, output_dir_suffix)
     """
     inputset = IMDDerivedInputSet(
         directory=args.input_directory,
@@ -261,8 +269,8 @@ def supercell(args):
     # supercell: N1xN2xN3 string
     scaling = [int(x) for x in args.supercell_size.split("x")]
     inputset.structure.make_supercell(scaling)
-    output_dir = args.supercell_size
-    return (inputset, output_dir)
+    output_dir_suffix = args.supercell_size
+    return (inputset, output_dir_suffix)
 
 
 def functional_add_args(parser):
@@ -284,13 +292,13 @@ def functional_add_args(parser):
 
 def functional(args):
     """Create custom functional setup.
-    Return (inputset, output_dir)
+    Return (inputset, output_dir_suffix)
     """
     inputset = IMDDerivedInputSet(
         directory=args.input_directory,
         functional=args.functional_type)
-    output_dir = args.functional_type
-    return (inputset, output_dir)
+    output_dir_suffix = args.functional_type
+    return (inputset, output_dir_suffix)
 
 
 def incar_add_args(parser):
@@ -309,7 +317,7 @@ def incar_add_args(parser):
 
 def incar(args):
     """Create custom incar setup.
-    Return (inputset, output_dir)
+    Return (inputset, output_dir_suffix)
     """
     incar_overrides = {}
     if args.parameters is None:
@@ -325,9 +333,9 @@ def incar(args):
         directory=args.input_directory,
         user_incar_settings=incar_overrides,
     )
-    output_dir = ','.join(
+    output_dir_suffix = ','.join(
         [f'{key}.{val}' for key, val in incar_overrides.items()])
-    return (inputset, output_dir)
+    return (inputset, output_dir_suffix)
 
 
 def kpoints_add_args(parser):
@@ -347,14 +355,14 @@ def kpoints_add_args(parser):
 
 def kpoints(args):
     """Create custom kpoints setup.
-    Return (inputset, output_dir)
+    Return (inputset, output_dir_suffix)
     """
     inputset = IMDDerivedInputSet(
         directory=args.input_directory,
         user_kpoints_settings={'grid_density': args.density},
     )
-    output_dir = f"KPOINTS.{args.density}"
-    return (inputset, output_dir)
+    output_dir_suffix = f"KPOINTS.{args.density}"
+    return (inputset, output_dir_suffix)
 
 
 def scf_add_args(parser):
@@ -368,25 +376,30 @@ def scf_add_args(parser):
 
 def scf(args):
     """Create SCF setup.
-    Return (inputset, output_dir)
+    Return (inputset, output_dir_suffix)
     """
     inputset = IMDDerivedInputSet(
         directory=args.input_directory,
         user_incar_settings={'NSW': 0, 'IBRION': -1},
     )
-    output_dir = "SCF"
-    return (inputset, output_dir)
+    output_dir_suffix = "SCF"
+    return (inputset, output_dir_suffix)
 
 
 def derive(args):
     """Main routine.
     """
     value_or_values = args.func_derive(args)
-    try:
-        inputset, output_dir = value_or_values
+    if isinstance(value_or_values, tuple):
+        value_or_values = [value_or_values]
+
+    output_dir_prefix = os.path.basename(
+        os.path.abspath(args.input_directory))
+    output_dir = args.output
+
+    for inputset, output_dir_suffix in value_or_values:
+        if args.output is None:
+            output_dir = output_dir_prefix + output_dir_suffix
         inputset.write_input(output_dir=output_dir)
-    except ValueError:
-        for inputset, output_dir in value_or_values:
-            inputset.write_input(output_dir=output_dir)
 
     return 0
