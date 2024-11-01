@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from monty.serialization import loadfn
 import numpy as np
 from pymatgen.io.vasp.sets import VaspInputSet, BadInputSetWarning
-from IMDgroup.io.vasp.inputs import Incar
+from IMDgroup.pymatgen.io.vasp.inputs import Incar
 from pymatgen.io.vasp.inputs import Potcar, Kpoints, Poscar
 from pymatgen.util.due import Doi, due
 from pymatgen.core import Structure
