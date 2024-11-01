@@ -19,7 +19,7 @@ def structure_add_args(parser):
       parser: subparser
     """
     parser.help = "Compare VASP structures from VASP outputs or from POSCARs"
-    parser.set_defaults(func_diff=structure)
+    parser.set_defaults(func_diff=diff_structures)
 
     group = parser.add_mutually_exclusive_group(required=False)
     group.add_argument(
@@ -126,7 +126,7 @@ def _copy_structures_to(structures, directory):
           colored('done', 'green'))
 
 
-def structure(args):
+def diff_structures(args):
     """Compare structures.
     """
     structures = _read_structures(sorted(args.dirs), args.poscar, args.vasprun)
