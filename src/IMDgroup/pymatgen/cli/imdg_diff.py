@@ -84,7 +84,7 @@ def _read_structures(dir_list, force_poscar=False, force_vasprun=False):
     used_poscar_output = False
     structures = []
     for vaspdir in dir_list:
-        with alive_bar(vaspdir) as bar:
+        with alive_bar(len(dir_list), title='Reading VASP dirs') as bar:
             bar()  # pylint: disable=not-callable
             bar.text = f'{vaspdir}'
             if force_poscar:
