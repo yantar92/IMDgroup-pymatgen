@@ -87,6 +87,11 @@ def main():
     args = parser.parse_args()
 
     setup_logger(args)
+    logger.info(
+        "Running from %s with the following args: %s",
+        os.getcwd(),
+        args
+    )
 
     return args.func(args)
 
