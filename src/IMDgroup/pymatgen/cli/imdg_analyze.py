@@ -14,7 +14,7 @@ SAVE_FILE = "vasp_data.gz"
 logger = logging.getLogger(__name__)
 
 
-def _read_vaspruns(rootdir, reanalyze):
+def read_vaspruns(rootdir, reanalyze):
     """Read all vaspruns in directory (nested).
 
     Args:
@@ -109,7 +109,7 @@ a, b, c, alpha, beta, gamma: Lattice parameters
 def analyze(args):
     """Main routine.
     """
-    entries = _read_vaspruns(args.dir, args.reanalyze)
+    entries = read_vaspruns(args.dir, args.reanalyze)
     entries = sorted(entries, key=lambda x: x.data["filename"])
     all_data = {}
     for field, header in [
