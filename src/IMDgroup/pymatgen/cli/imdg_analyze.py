@@ -136,6 +136,16 @@ def analyze(args):
                 for incar in group:
                     file_groups[incar['SYSTEM'].upper()] = idx
 
+    def _energy_reliable_p(entry):
+        """Return True when ENTRY's energy is reliable.
+        Energy is not very reliable when using volume relaxation.
+        """
+        incar = entry.data['incar']
+        if incar.get('IBRION') in Incar.IBRION_IONIC_RELAX_values and\
+           incar.get('ISIF') != Incar.ISIF_FIX_SHAPE_VOL:
+            return False
+        return True
+
     for e in entries:
         for field, field_val in all_data.items():
             val = None
@@ -147,9 +157,15 @@ def analyze(args):
                 val = file_groups[e.data['filename'].upper()]\
                     if len(file_groups) > 0 else 0
             elif field == 'energy':
-                val = f"{e.energy:.5f}"
+                if _energy_reliable_p(e):
+                    val = f"{e.energy:.5f}"
+                else:
+                    val = "unreliable"
             elif field == 'e_per_atom':
-                val = f"{e.energy_per_atom:.5f}"
+                if _energy_reliable_p(e):
+                    val = f"{e.energy_per_atom:.5f}"
+                else:
+                    val = "unreliable"
             elif field == '%vol':
                 vol0 = e.data["initial_structure"].volume
                 val = e.structure.volume/vol0 - 1
