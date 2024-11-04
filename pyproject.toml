@@ -43,7 +43,8 @@ where = ["src/"]
 include = [
 	"IMDgroup.pymatgen.transformations",
         "IMDgroup.pymatgen.io.vasp",
-        "IMDgroup.pymatgen.cli"
+        "IMDgroup.pymatgen.cli",
+        "IMDgroup",
         ]
 
 [tool.setuptools.package-data]
