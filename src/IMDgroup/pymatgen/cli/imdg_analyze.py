@@ -130,7 +130,7 @@ def analyze(args):
             incar = e.data["incar"]
             incar['SYSTEM'] = e.data['filename']
             incars.append(incar)
-        groups = Incar.group_incars(incars)
+        _, groups = Incar.group_incars(incars)
         if len(groups) > 1:
             for idx, group in enumerate(groups):
                 for incar in group:
