@@ -117,6 +117,7 @@ def analyze(args):
 
             if field == 'dir':
                 val = os.path.dirname(e.data['filename'])
+                val = val.replace("./", "")
             elif field == 'energy':
                 val = f"{e.energy:.5f}"
             elif field == 'e_per_atom':
