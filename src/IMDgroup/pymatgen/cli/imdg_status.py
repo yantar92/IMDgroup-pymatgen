@@ -54,7 +54,7 @@ def add_args(parser):
 def status(args):
     """Main routine.
     """
-    entries = read_vaspruns(args.dir, args.reanalyze)
+    entries = read_vaspruns(args.dir, True)
     entries_dict = {os.path.dirname(e.data['filename']): e for e in entries}
 
     for wdir, _, _ in os.walk(args.dir):
