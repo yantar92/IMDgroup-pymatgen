@@ -38,6 +38,11 @@ def add_args(parser):
         help="Directory prefix to write the mutated VASP input",
         type=str
     )
+    parser.add_argument(
+        "--subdir",
+        help="Write VASP input into a subdir instead of top level",
+        type=str
+    )
 
     subparsers = parser.add_subparsers(required=True)
 
@@ -495,6 +500,10 @@ def derive(args):
                 output_dir = output_dir_prefix + "." + output_dir_suffix
             else:
                 output_dir = output_dir_suffix
+        else:
+            output_dir = args.output
+        if args.subdir:
+            output_dir = os.path.join(output_dir, args.subdir)
         inputset.write_input(output_dir=output_dir)
 
     return 0
