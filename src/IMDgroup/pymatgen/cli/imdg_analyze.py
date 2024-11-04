@@ -71,6 +71,12 @@ def add_args(parser):
         action="store_true"
     )
 
+    all_fileds = [
+        'energy', 'e_per_atom', '%vol',
+        'a', 'b', 'c', '%a', '%b', '%c',
+        'alpha', 'beta', 'gamma',
+        '%alpha', '%beta', '%gamma'
+    ]
     parser.add_argument(
         "--fields",
         help="""List of fields to report
@@ -81,18 +87,16 @@ a, b, c, alpha, beta, gamma: Lattice parameters
 %a, %b, %c, %alpa, %beta, %gamma: Change before/after the run
 """,
         nargs="+",
-        choices=[
-            'energy', 'e_per_atom', '%vol',
-            'a', 'b', 'c', '%a', '%b', '%c',
-            'alpha', 'beta', 'gamma',
-            '%alpha', '%beta', '%gamma'
-        ],
-        default=[
-            'energy', 'e_per_atom', '%vol',
-            'a', '%a', 'b', '%b', 'c', '%c',
-            'alpha', '%alpha',
-            'beta', '%beta',
-            'gamma', '%gamma']
+        choices=all_fileds,
+        default=all_fileds
+        )
+    parser.add_argument(
+        "--exclude-fields",
+        dest='exclude_fields',
+        help="""List of fields to NOT report""",
+        nargs="+",
+        choices=all_fileds,
+        default=[]
         )
 
 
@@ -108,7 +112,8 @@ def analyze(args):
             ('%a', '%a'), ('%b', '%b'), ('%c', '%c'),
             ('alpha', 'α'), ('beta', 'β'), ('gamma', 'γ'),
             ('%alpha', '%α'), ('%beta', '%β'), ('%gamma', '%γ')]:
-        if field == 'dir' or field in args.fields:
+        if field == 'dir' or\
+           (field in args.fields and field not in args.exclude_fields):
             all_data[field] = {'header': header, 'data': []}
 
     for e in entries:
