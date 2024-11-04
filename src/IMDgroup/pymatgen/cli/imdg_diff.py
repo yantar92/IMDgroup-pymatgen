@@ -279,7 +279,7 @@ def diff_incar(args):
             for key, val in group[0].items():
                 if common_incar.get(key, None) != val:
                     common_incar.pop(key, None)
-            for key, val in common_incar.items():
+            for key, val in common_incar.copy().items():
                 if group[0].get(key, None) != val:
                     common_incar.pop(key, None)
 
