@@ -164,6 +164,7 @@ def analyze(args):
 
             field_val['data'].append(val)
 
+    print(all_data)
     if len(all_data) > 0 and len(entries) > 0:
         print(tabulate(
             [[val['data'][idx] for _, val in all_data.items()]
