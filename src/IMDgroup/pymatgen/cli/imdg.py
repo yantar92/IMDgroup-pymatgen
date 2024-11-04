@@ -84,6 +84,11 @@ def main():
     IMDgroup.pymatgen.cli.imdg_diff.add_args(parser_diff)
     parser_diff.set_defaults(func=IMDgroup.pymatgen.cli.imdg_diff.diff)
 
+    parser_analyze = subparsers.add_parser("analyze")
+    IMDgroup.pymatgen.cli.imdg_analyze.add_args(parser_analyze)
+    parser_analyze.set_defaults(
+        func=IMDgroup.pymatgen.cli.imdg_analyze.analyze)
+
     args = parser.parse_args()
 
     setup_logger(args)
