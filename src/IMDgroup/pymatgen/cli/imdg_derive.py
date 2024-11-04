@@ -240,7 +240,7 @@ def relax(args):
     # volume/shape relaxation, initial automatic k-point grid
     # calculated for original volume becomes slightly less accurate
     # unless we increase ENCUT
-    if args.isif != Incar.ISIF_FIX_SHAPE_VOL:
+    if relax_overrides['ISIF'] != Incar.ISIF_FIX_SHAPE_VOL:
         logger.info("Shape/volume relaxation.  Setting ENCUT=550.0")
         relax_overrides['ENCUT'] = 550.0
     else:
