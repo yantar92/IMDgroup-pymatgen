@@ -134,7 +134,7 @@ def analyze(args):
         if len(groups) > 1:
             for idx, group in enumerate(groups):
                 for incar in group:
-                    file_groups[incar['SYSTEM']] = idx
+                    file_groups[incar['SYSTEM'].upper()] = idx
 
     for e in entries:
         for field, field_val in all_data.items():
@@ -144,7 +144,7 @@ def analyze(args):
                 val = os.path.dirname(e.data['filename'])
                 val = val.replace("./", "")
             elif field == 'incar_group' and args.group:
-                val = file_groups[e.data['filename']]\
+                val = file_groups[e.data['filename'].upper()]\
                     if len(file_groups) > 0 else 0
             elif field == 'energy':
                 val = f"{e.energy:.5f}"
