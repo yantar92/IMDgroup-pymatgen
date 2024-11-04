@@ -185,8 +185,8 @@ def strain(args):
             structure0.apply_strain(strn, inplace=False)
         output_dir_suffix = (
             "strain" +
-            f".a.{strn[0]:.2f}" if strn[0] != 0 else "" +
-            f".b.{strn[1]:.2f}" if strn[1] != 0 else "" +
+            (f".a.{strn[0]:.2f}" if strn[0] != 0 else "") +
+            (f".b.{strn[1]:.2f}" if strn[1] != 0 else "") +
             f".c.{strn[2]:.2f}")
         outputs.append((inputset_new, output_dir_suffix))
 
