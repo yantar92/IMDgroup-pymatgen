@@ -57,7 +57,9 @@ def status(args):
     entries = read_vaspruns(args.dir, True)
     entries_dict = {os.path.dirname(e.data['filename']): e for e in entries}
 
-    for wdir, _, _ in os.walk(args.dir):
+    for wdir, _, files in os.walk(args.dir):
+        if 'vasprun.xml' not in files:
+            continue
         run_status = colored("unknown", "red")
         if slurm_runningp(wdir):
             run_status = colored("running", "yellow")
