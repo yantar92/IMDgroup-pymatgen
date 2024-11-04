@@ -143,7 +143,7 @@ def analyze(args):
             if field == 'dir':
                 val = os.path.dirname(e.data['filename'])
                 val = val.replace("./", "")
-            elif field == 'incar_group':
+            elif field == 'incar_group' and args.group:
                 val = file_groups[e.data['filename']]\
                     if len(file_groups) > 0 else 0
             elif field == 'energy':
