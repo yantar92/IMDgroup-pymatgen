@@ -132,9 +132,7 @@ class IMDVaspInputSet(VaspInputSet):
         # unless we increase ENCUT
         elif 'ISIF' in incar:
             if incar['ENCUT'] < 550.0 and\
-               incar['ISIF'] in [ISIF_RELAX_POS_SHAPE, ISIF_RELAX_SHAPE,
-                                 ISIF_RELAX_SHAPE_VOL, ISIF_RELAX_VOL,
-                                 ISIF_RELAX_POS_VOL]:
+               incar['ISIF'] != Incar.ISIF_FIX_SHAPE_VOL:
                 warnings.warn(
                     "ENCUT parameter is too low for volume/shape relaxation."
                     f" ({incar['ENCUT']} < 550eV)"
