@@ -112,7 +112,7 @@ def analyze(args):
             all_data[field] = {'header': header, 'data': []}
 
     for e in entries:
-        for field in all_data.items():
+        for field, field_val in all_data.items():
             val = None
 
             if field == 'dir':
@@ -162,7 +162,7 @@ def analyze(args):
                 val = e.structure.lattice.gamma/gamma0 - 1
                 val = f"{val * 100:.2f}"
 
-            all_data[field]['data'].append(val)
+            field_val['data'].append(val)
 
     if len(all_data) > 0 and len(entries) > 0:
         print(tabulate(
