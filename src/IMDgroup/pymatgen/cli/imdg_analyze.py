@@ -200,6 +200,7 @@ def analyze(args):
         if args.group:
             group_idx = None
             for idx, field in enumerate(all_data.keys()):
+                print(idx, field)
                 if field == "incar_group":
                     group_idx = idx
                     break
