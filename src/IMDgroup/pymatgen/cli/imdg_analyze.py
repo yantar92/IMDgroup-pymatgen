@@ -119,7 +119,7 @@ def analyze(args):
             ('%a', '%a'), ('%b', '%b'), ('%c', '%c'),
             ('alpha', 'α'), ('beta', 'β'), ('gamma', 'γ'),
             ('%alpha', '%α'), ('%beta', '%β'), ('%gamma', '%γ')]:
-        if field == 'dir' or\
+        if field == 'dir' or field == 'incar_group' or\
            (field in args.fields and field not in args.exclude_fields):
             all_data[field] = {'header': header, 'data': []}
 
