@@ -2,11 +2,10 @@
 pymatgen.io.vasp.inputs module.
 """
 
-import warnings
 import os
 from monty.serialization import loadfn
 from pymatgen.io.vasp.inputs import Incar as pmgIncar
-from pymatgen.io.vasp.inputs import BadIncarWarning
+from IMDgroup.common import groupby_cmp
 
 
 MODULE_DIR = os.path.dirname(__file__)
@@ -96,3 +95,39 @@ class Incar(pmgIncar):
                 )
             return functional_config.get(name)
         raise ValueError(f"Unknown setup: {setup}")
+
+    @staticmethod
+    def group_incars(incars):
+        """Group similar incars together.
+        Returns: (common_incar, [[group1] [group2] ...]).
+        """
+        def _incar_eq(incar1, incar2):
+            """Return True when INCAR1 is equal to INCAR2.
+            SYSTEM keyword is ignored.
+            """
+            difference = incar1.diff(incar2)
+            return difference["Different"] is None\
+                or list(difference["Different"].keys()) == ["SYSTEM"]
+
+        def _incar_name(incar):
+            """Get INCAR name.
+            Assume that name is stored in SYSTEM parameter.
+            """
+            return incar['SYSTEM']
+
+        groups = groupby_cmp(incars, _incar_eq, _incar_name)
+
+        common_incar = None
+        for group in groups:
+            if common_incar is None:
+                common_incar = group[0].copy()
+                common_incar.pop('SYSTEM')
+            else:
+                for key, val in group[0].items():
+                    if common_incar.get(key, None) != val:
+                        common_incar.pop(key, None)
+                for key, val in common_incar.copy().items():
+                    if group[0].get(key, None) != val:
+                        common_incar.pop(key, None)
+
+        return (common_incar, groups)
