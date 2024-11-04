@@ -24,7 +24,7 @@ def read_vaspruns(rootdir, reanalyze):
     """
     drone = VaspToComputedEntryDrone(
         inc_structure=True,
-        data=["filename", "initial_structure", "incar"])
+        data=["filename", "initial_structure", "incar", 'converged'])
 
     n_cpus = multiprocessing.cpu_count()
     logger.info("Detected %d cpus", n_cpus)
