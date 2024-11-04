@@ -482,7 +482,7 @@ def derive(args):
 
     output_dir_prefix = os.path.basename(
         os.path.abspath(args.input_directory))
-    if args.output_prefix:
+    if args.output_prefix is not None:
         output_dir_prefix = args.output_prefix
 
     output_dir = args.output
