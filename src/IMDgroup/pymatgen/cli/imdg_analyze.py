@@ -168,7 +168,7 @@ def analyze(args):
         print(tabulate(
             [[val['data'][idx] for _, val in all_data.items()]
              for idx in range(len(all_data['dir']['data']))],
-            headers=[x['header'] for x in all_data],
+            headers=[val['header'] for _, val in all_data.items()],
             tablefmt="orgtbl"))
 
     return 0
