@@ -34,7 +34,8 @@ def add_args(parser):
     parser.add_argument(
         "--output-prefix",
         dest="output_prefix",
-        help="Directory prefix to write the mutated VASP input"
+        help="Directory prefix to write the mutated VASP input",
+        type=str
     )
 
     subparsers = parser.add_subparsers(required=True)
