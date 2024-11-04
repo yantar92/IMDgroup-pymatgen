@@ -8,7 +8,8 @@ import logging
 import numpy as np
 from IMDgroup.pymatgen.io.vasp.sets import IMDDerivedInputSet
 from IMDgroup.pymatgen.io.vasp.inputs import Incar
-from IMDgroup.pymatgen.transformations.insert_molecule import InsertMoleculeTransformation
+from IMDgroup.pymatgen.transformations.insert_molecule\
+    import InsertMoleculeTransformation
 
 logger = logging.getLogger(__name__)
 
