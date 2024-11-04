@@ -33,7 +33,7 @@ def slurm_runningp(path):
     result = subprocess.check_output(
         "squeue -u $USER -o %Z | tail -n +2",
         shell=True).split()
-    if path in [s.decode('utf-8') for s in result]:
+    if os.path.abspath(path) in [s.decode('utf-8') for s in result]:
         return True
     return False
 
