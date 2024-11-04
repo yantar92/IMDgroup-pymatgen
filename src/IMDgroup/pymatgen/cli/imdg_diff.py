@@ -10,7 +10,7 @@ from pymatgen.io.vasp.inputs import Poscar
 from pymatgen.analysis.structure_matcher import StructureMatcher
 from IMDgroup.pymatgen.io.vasp.outputs import Vasprun
 from IMDgroup.pymatgen.io.vasp.inputs import Incar
-from IMDGroup.common import groupby_cmp
+from IMDgroup.common import groupby_cmp
 
 logger = logging.getLogger(__name__)
 
