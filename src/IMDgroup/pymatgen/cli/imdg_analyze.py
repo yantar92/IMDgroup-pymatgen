@@ -8,6 +8,7 @@ from tabulate import tabulate
 
 from pymatgen.apps.borg.hive import VaspToComputedEntryDrone
 from pymatgen.apps.borg.queen import BorgQueen
+from IMDgroup.pymatgen.io.vasp.inputs  import Incar
 
 SAVE_FILE = "vasp_data.gz"
 logger = logging.getLogger(__name__)
@@ -98,6 +99,11 @@ a, b, c, alpha, beta, gamma: Lattice parameters
         choices=all_fileds,
         default=[]
         )
+    parser.add_argument(
+        "--group",
+        help="""Group by similar INCARs""",
+        action="store_true"
+        )
 
 
 def analyze(args):
@@ -107,7 +113,7 @@ def analyze(args):
     entries = sorted(entries, key=lambda x: x.data["filename"])
     all_data = {}
     for field, header in [
-            ('dir', 'Directory'),
+            ('dir', 'Directory'), ('incar_group', 'INCAR type'),
             ('energy', 'Energy'), ('e_per_atom', 'E/Atom'),
             ('a', 'a'), ('b', 'b'), ('c', 'c'),
             ('%a', '%a'), ('%b', '%b'), ('%c', '%c'),
@@ -117,13 +123,28 @@ def analyze(args):
            (field in args.fields and field not in args.exclude_fields):
             all_data[field] = {'header': header, 'data': []}
 
+    file_groups = {}
+    if args.group:
+        incars = []
+        for e in entries:
+            incar = e.incar
+            incar['SYSTEM'] = e.filename
+            incars.append(incar)
+        groups = Incar.group_incars(incars)
+        if len(groups) > 1:
+            for idx, group in enumerate(groups):
+                for incar in group:
+                    file_groups[incar['SYSTEM']] = idx
+
     for e in entries:
         for field, field_val in all_data.items():
             val = None
 
             if field == 'dir':
-                val = os.path.dirname(e.data['filename'])
+                val = os.path.dirname(e.filename)
                 val = val.replace("./", "")
+            elif field == 'incar_group':
+                val = file_groups[e.filename] if len(file_groups) > 0 else 0
             elif field == 'energy':
                 val = f"{e.energy:.5f}"
             elif field == 'e_per_atom':
@@ -172,10 +193,16 @@ def analyze(args):
             field_val['data'].append(val)
 
     if len(all_data) > 0 and len(entries) > 0:
-        print(tabulate(
-            [[val['data'][idx] for _, val in all_data.items()]
-             for idx in range(len(all_data['dir']['data']))],
-            headers=[val['header'] for _, val in all_data.items()],
-            tablefmt="orgtbl"))
+        data = [[val['data'][idx] for _, val in all_data.items()]
+                for idx in range(len(all_data['dir']['data']))]
+        headers = [val['header'] for _, val in all_data.items()]
+        if args.group:
+            group_idx = None
+            for idx, field in enumerate(all_data.keys()):
+                if field == "incar_group":
+                    group_idx = idx
+                    break
+            data = sorted(data, key=lambda x: x[group_idx])
+        print(tabulate(data, headers=headers, tablefmt="orgtbl"))
 
     return 0
