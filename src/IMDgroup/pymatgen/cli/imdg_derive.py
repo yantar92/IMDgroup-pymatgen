@@ -8,6 +8,7 @@ import logging
 import numpy as np
 from IMDgroup.pymatgen.io.vasp.sets import IMDDerivedInputSet
 from IMDgroup.pymatgen.io.vasp.inputs import Incar
+from IMDgroup.pymatgen.transformations.insert_molecule import InsertMoleculeTransformation
 
 logger = logging.getLogger(__name__)
 
@@ -61,6 +62,9 @@ def add_args(parser):
 
     parser_scf = subparsers.add_parser("scf")
     scf_add_args(parser_scf)
+
+    parser_insert = subparsers.add_parser("ins")
+    insert_add_args(parser_insert)
 
 
 def _str_to_bool(value):
@@ -387,6 +391,85 @@ def scf(args):
     )
     output_dir_suffix = "SCF"
     return (inputset, output_dir_suffix)
+
+
+def insert_add_args(parser):
+    """Setup parser arguments for inserting an atom/molecule.
+    Args:
+      parser: subparser
+    """
+    parser.help = \
+        """Create possible structures with a given atom/molecule inserted.
+When the original structure sets selective dynamics, the inserted
+structure will not be constrained.
+"""
+    parser.set_defaults(func_derive=insert)
+
+    parser.add_argument(
+        "atom",
+        help="Atom name to be inserted"
+    )
+    parser.add_argument(
+        "--limit",
+        help="Number of structures (negative to randomize search)",
+        type=int)
+    parser.add_argument(
+        "--step",
+        help="Scan step, ans",
+        type=float)
+    parser.add_argument(
+        "--threshold",
+        help=("Threshold multiplier for atom proximity"
+              " (default: 0.75 [x atomic radii sum])"),
+        type=float,
+        default=0.75)
+    parser.add_argument(
+        "--no-matcher",
+        dest="no_matcher",
+        help=("do not compare the candidates by symmetry"
+              "(will save generation time)"),
+        action="store_true")
+    parser.add_argument(
+        "--count",
+        help="do not write output, just print count",
+        action="store_true")
+
+
+def insert(args):
+    """Create setup for inserted molecules/atoms.
+    Return (inputset, output_dir_suffix)
+    """
+    inputset = IMDDerivedInputSet(
+        directory=args.input_directory,
+        user_incar_settings={'NSW': 0, 'IBRION': -1},
+    )
+
+    if args.no_matcher:
+        transformer = InsertMoleculeTransformation(
+            args.atom,
+            step=args.step,
+            proximity_threshold=args.threshold,
+            selective_dynamics=[True, True, True],
+            matcher=None)
+    else:
+        transformer = InsertMoleculeTransformation(
+            args.atom,
+            step=args.step,
+            proximity_threshold=args.threshold,
+            selective_dynamics=[True, True, True])
+    structures = transformer.all_inserts(inputset.structure, limit=args.limit)
+
+    results = []
+    if args.count:
+        print(len(structures))
+    else:
+        for idx, structure in enumerate(structures):
+            suffix = f"ins.{args.atom}.{idx}"
+            inputset2 = dataclasses.replace(inputset)
+            inputset2.structure = structure
+            results.append((inputset2, suffix))
+
+    return results
 
 
 def derive(args):
