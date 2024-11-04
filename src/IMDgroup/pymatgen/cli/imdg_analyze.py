@@ -8,7 +8,7 @@ from tabulate import tabulate
 
 from pymatgen.apps.borg.hive import VaspToComputedEntryDrone
 from pymatgen.apps.borg.queen import BorgQueen
-from IMDgroup.pymatgen.io.vasp.inputs  import Incar
+from IMDgroup.pymatgen.io.vasp.inputs import Incar
 
 SAVE_FILE = "vasp_data.gz"
 logger = logging.getLogger(__name__)
@@ -128,7 +128,7 @@ def analyze(args):
         incars = []
         for e in entries:
             incar = e.data["incar"]
-            incar['SYSTEM'] = e.filename
+            incar['SYSTEM'] = e.data['filename']
             incars.append(incar)
         groups = Incar.group_incars(incars)
         if len(groups) > 1:
@@ -141,10 +141,11 @@ def analyze(args):
             val = None
 
             if field == 'dir':
-                val = os.path.dirname(e.filename)
+                val = os.path.dirname(e.data['filename'])
                 val = val.replace("./", "")
             elif field == 'incar_group':
-                val = file_groups[e.filename] if len(file_groups) > 0 else 0
+                val = file_groups[e.data['filename']]\
+                    if len(file_groups) > 0 else 0
             elif field == 'energy':
                 val = f"{e.energy:.5f}"
             elif field == 'e_per_atom':
