@@ -127,7 +127,7 @@ def analyze(args):
     if args.group:
         incars = []
         for e in entries:
-            incar = e.incar
+            incar = e.data["incar"]
             incar['SYSTEM'] = e.filename
             incars.append(incar)
         groups = Incar.group_incars(incars)
