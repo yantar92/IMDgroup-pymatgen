@@ -66,7 +66,7 @@ def status(args):
         else:
             try:
                 if wdir in entries_dict:
-                    converged = entries_dict[wdir].converged
+                    converged = entries_dict[wdir].data['converged']
                 else:
                     run = Vasprun(
                         os.path.join(wdir, 'vasprun.xml'),
