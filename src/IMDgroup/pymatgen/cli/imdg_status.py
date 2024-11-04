@@ -49,6 +49,11 @@ def add_args(parser):
         "dir",
         help="""Directory to read (recusrively)""",
         type=str)
+    parser.add_argument(
+        "--reanalyze", "-r",
+        help="Force re-reading VASP sources",
+        action="store_true"
+    )
 
 
 def status(args):
