@@ -104,6 +104,7 @@ def analyze(args):
     """Main routine.
     """
     entries = _read_vaspruns(args.dir, args.reanalyze)
+    entries = sorted(entries, key=lambda x: x.data["filename"])
     all_data = {}
     for field, header in [
             ('dir', 'Directory'),
