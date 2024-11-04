@@ -30,6 +30,11 @@ def add_args(parser):
         help="Directory to write the mutated VASP input"
         "(default: <old-name>.<suffix>)."
     )
+    parser.add_argument(
+        "--output-prefix",
+        dest="output_prefix",
+        help="Directory prefix to write the mutated VASP input"
+    )
 
     subparsers = parser.add_subparsers(required=True)
 
@@ -393,6 +398,9 @@ def derive(args):
 
     output_dir_prefix = os.path.basename(
         os.path.abspath(args.input_directory))
+    if args.output_prefix:
+        output_dir_prefix = args.output_prefix
+
     output_dir = args.output
 
     for inputset, output_dir_suffix in value_or_values:
