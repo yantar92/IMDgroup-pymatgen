@@ -108,7 +108,7 @@ def analyze(args):
             ('%a', '%a'), ('%b', '%b'), ('%c', '%c'),
             ('alpha', 'α'), ('beta', 'β'), ('gamma', 'γ'),
             ('%alpha', '%α'), ('%beta', '%β'), ('%gamma', '%γ')]:
-        if field in args.fields:
+        if field == 'dir' or field in args.fields:
             all_data[field] = {'header': header, 'data': []}
 
     for e in entries:
@@ -164,7 +164,6 @@ def analyze(args):
 
             field_val['data'].append(val)
 
-    print(all_data)
     if len(all_data) > 0 and len(entries) > 0:
         print(tabulate(
             [[val['data'][idx] for _, val in all_data.items()]
