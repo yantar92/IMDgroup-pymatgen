@@ -11,6 +11,7 @@ from termcolor import colored
 import IMDgroup.pymatgen.cli.imdg_create
 import IMDgroup.pymatgen.cli.imdg_derive
 import IMDgroup.pymatgen.cli.imdg_diff
+import IMDgroup.pymatgen.cli.imdg_analyze
 
 logger = logging.getLogger(__name__)
 
