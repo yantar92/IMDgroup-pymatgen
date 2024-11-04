@@ -77,6 +77,6 @@ def status(args):
                     else colored("unconverged", "red")
             except ParseError:
                 run_status = colored("incomplete vasprun.xml", "red")
-        print(colored("wdir: ", attrs=['bold']) + run_status)
+        print(colored(f"{wdir}: ", attrs=['bold']) + run_status)
 
     return 0
