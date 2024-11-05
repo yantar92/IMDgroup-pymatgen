@@ -173,7 +173,9 @@ def status(args):
     """Main routine.
     """
     entries_dict = {}
-    entries = read_vaspruns(args.dir, True)
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", category=UserWarning)
+        entries = read_vaspruns(args.dir, True)
     if entries is not None:
         entries_dict = {os.path.dirname(e.data['filename']): e for e in entries}
 
