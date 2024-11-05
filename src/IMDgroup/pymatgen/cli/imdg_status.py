@@ -108,8 +108,8 @@ def slurm_log_file(path):
     """Return slurm log file in PATH.
     Return None, if the log file is not found.
     """
-    files = [f for f in os.listdir(path) if os.path.isfile(f)]
-    print(os.listdir(path))
+    files = [f for f in os.listdir(path)
+             if os.path.isfile(os.path.join(path, f))]
     logger.debug("Searching slurm logs in %s across %s", path, files)
     matching = []
     for f in files:
