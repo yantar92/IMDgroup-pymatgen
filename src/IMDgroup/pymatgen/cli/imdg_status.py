@@ -149,13 +149,14 @@ def get_vasp_logs(log_file, log_matchers):
         text = f.read()
         for warn_name, matchers in log_matchers.items():
             for matcher in matchers:
-                num = len(re.findall(matcher, text))
+                matches = re.findall(matcher, text)
+                num = len(matches)
                 if num > 0:
                     if warn_name in result:
                         result[warn_name]['count'] += num
                     else:
                         result[warn_name] = {
-                            'message': matcher,
+                            'message': matches[-1],
                             'count': num
                         }
     return result
