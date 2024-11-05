@@ -508,7 +508,10 @@ def delete(args):
     Return (inputset, output_dir_suffix)
     """
     inputset = IMDDerivedInputSet(directory=args.input_directory)
+    len_before = len(inputset.structure)
     inputset.structure.remove_species(args.what)
+    if len(inputset.structure) == len_before:
+        warnings.warn("Nothing was deleted")
     output_dir_suffix = ",".join(args.what)
     return (inputset, output_dir_suffix)
 
