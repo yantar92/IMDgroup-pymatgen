@@ -201,6 +201,7 @@ def diff_incar(args):
         args: Args from command.
     """
 
+    args.dirs = [d for d in args.dirs if os.path.isdir(d)]
     incars = []
     with alive_bar(len(args.dirs), title='Reading INCARs') as abar:
         for vaspdir in args.dirs:

@@ -12,8 +12,11 @@ from pymatgen.io.vasp.outputs import Vasprun
 from IMDgroup.pymatgen.cli.imdg_analyze import read_vaspruns
 
 logger = logging.getLogger(__name__)
-# Taken from custodian/src/custodian/vasp/handlers.py
+# Adapted (and modified) from custodian/src/custodian/vasp/handlers.py
 VASP_WARNINGS = {
+    "electron_convergance": [
+        "The electronic self-consistency was not achieved in the given"
+    ],
     "tet": [
         "Tetrahedron method fails",
         "tetrahedron method fails",
