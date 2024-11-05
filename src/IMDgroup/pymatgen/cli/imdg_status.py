@@ -172,10 +172,10 @@ def add_args(parser):
 def status(args):
     """Main routine.
     """
+    entries_dict = {}
     entries = read_vaspruns(args.dir, True)
-    if entries is None:
-        raise FileNotFoundError(f"No VASP runs found in {args.dir}")
-    entries_dict = {os.path.dirname(e.data['filename']): e for e in entries}
+    if entries is not None:
+        entries_dict = {os.path.dirname(e.data['filename']): e for e in entries}
 
     paths = []
     for wdir, _, files in os.walk(args.dir):
