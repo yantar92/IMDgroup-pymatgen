@@ -85,6 +85,7 @@ class Incar(pmgIncar):
            PBE, PBEsol, PBE+D2, PBE+TS, vdW-DF, vdW-DF2, optB88-vdW,
            optB86b-vdW .
         """
+        settings = None
         if setup == "functional":
             functional_config = _load_yaml_config("functionals")
             if name not in functional_config:
@@ -93,7 +94,12 @@ class Incar(pmgIncar):
                     "Supported functionals are " +
                     ', '.join(functional_config) + "."
                 )
-            return functional_config.get(name)
+            settings = functional_config.get(name)
+        if settings:
+            for key, val in settings:
+                if val == "None":
+                    settings[key] = None
+            return settings
         raise ValueError(f"Unknown setup: {setup}")
 
     @staticmethod

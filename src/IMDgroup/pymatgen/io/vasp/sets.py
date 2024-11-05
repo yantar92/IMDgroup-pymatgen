@@ -99,7 +99,6 @@ class IMDVaspInputSet(VaspInputSet):
             incar_updates.update(default_params)
             params = Incar.get_recipe("functional", self.functional)
             incar_updates.update(params)
-        print(incar_updates)
         return incar_updates
 
     @property
