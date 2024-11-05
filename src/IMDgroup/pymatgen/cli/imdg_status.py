@@ -212,7 +212,7 @@ def status(args):
         if log_file := slurm_log_file(wdir):
             logger.debug("Found slurm logs in %s: %s", wdir, log_file)
             progress_data = get_vasp_logs(log_file, VASP_PROGRESS)
-            progress = " | " + progress_data.values()[-1]['message']
+            progress = " | " + list(progress_data.values())[-1]['message']
             warn_data = get_vasp_logs(log_file, VASP_WARNINGS)
             warning_list = ""
             for _, data in warn_data.items():
