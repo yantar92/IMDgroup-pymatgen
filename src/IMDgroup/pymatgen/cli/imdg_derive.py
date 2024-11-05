@@ -172,17 +172,12 @@ def strain(args):
     for name in ["a", "b", "c"]:
         for suffix in ["max", "max"]:
             attr_name = name + suffix
-            value = args.getattr(attr_name)
+            value = getattr(args, attr_name)
             if "%" in value:
-                args.setattr(
-                    attr_name,
-                    float(re.sub("%", "", value)/100.0 - 1.0)
-                )
+                new_val = float(re.sub("%", "", value)/100.0 - 1.0)
             else:
-                args.setattr(
-                    attr_name,
-                    float(value) / structure0.lattice.getattr(name) - 1.0
-                )
+                new_val = float(value) / structure0.lattice.getattr(name) - 1.0
+            setattr(args, attr_name, new_val)
 
     strainsa = np.linspace(args.amin, args.amax, args.asteps)
     strainsb = np.linspace(args.bmin, args.bmax, args.bsteps)
