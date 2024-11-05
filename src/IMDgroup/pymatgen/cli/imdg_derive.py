@@ -73,6 +73,9 @@ def add_args(parser):
     parser_insert = subparsers.add_parser("ins")
     insert_add_args(parser_insert)
 
+    parser_delete = subparsers.add_parser("del")
+    delete_add_args(parser_delete)
+
 
 def _str_to_bool(value):
     """Convert string value to boolean.
@@ -484,6 +487,30 @@ def insert(args):
             results.append((inputset2, suffix))
 
     return results
+
+
+def delete_add_args(parser):
+    """Setup parser arguments for deleting a site.
+    Args:
+      parser: subparser
+    """
+    parser.help = "Delete sites/atoms from structure"
+    parser.set_defaults(func_derive=delete)
+    parser.add_argument(
+        "what",
+        nargs="+",
+        help="Specie names (e.g. Na) to be removed",
+        type=str)
+
+
+def delete(args):
+    """Delete a site/sites from structure.
+    Return (inputset, output_dir_suffix)
+    """
+    inputset = IMDDerivedInputSet(directory=args.input_directory)
+    inputset.structure.remove_species(args.what)
+    output_dir_suffix = ",".join(args.what)
+    return (inputset, output_dir_suffix)
 
 
 def derive(args):
