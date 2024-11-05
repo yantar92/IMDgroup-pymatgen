@@ -139,13 +139,14 @@ def get_vasp_warnings(log_file):
         text = f.read()
         for warn_name, matchers in VASP_WARNINGS.items():
             for matcher in matchers:
-                if text.find(matcher) != -1:
+                num = text.count(matcher)
+                if num > 0:
                     if warn_name in result:
-                        result[warn_name]['count'] += 1
+                        result[warn_name]['count'] += num
                     else:
                         result[warn_name] = {
                             'message': matcher,
-                            'count': 1
+                            'count': num
                         }
     return result
 
