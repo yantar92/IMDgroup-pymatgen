@@ -10,7 +10,7 @@ from pymatgen.apps.borg.hive import VaspToComputedEntryDrone
 from pymatgen.apps.borg.queen import BorgQueen
 from IMDgroup.pymatgen.io.vasp.inputs import Incar
 
-SAVE_FILE = "vasp_data.gz"
+SAVE_FILE = "vasp_data_imdg.gz"
 logger = logging.getLogger(__name__)
 
 
