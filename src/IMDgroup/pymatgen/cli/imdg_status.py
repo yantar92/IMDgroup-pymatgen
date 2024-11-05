@@ -191,6 +191,7 @@ def status(args):
             except ParseError:
                 run_status = colored("incomplete vasprun.xml", "red")
         if log_file := slurm_log_file(wdir):
+            logger.debug("Found slurm logs: %s", log_file)
             warn_data = get_vasp_warnings(log_file)
             warning_list = ""
             for _, data in warn_data.items():
@@ -198,6 +199,7 @@ def status(args):
                     colored(f"Warning ({data['count']}x): ", "yellow") +\
                     data['message']
         else:
+            logger.debug("Slurm log file not found")
             warning_list = ""
         print(colored(
             f"{wdir.replace("./", "")}: ", attrs=['bold'])
