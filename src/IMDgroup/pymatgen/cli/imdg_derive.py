@@ -178,11 +178,11 @@ def strain(args):
             else:
                 new_val = float(value)/getattr(structure0.lattice, name) - 1.0
             logger.debug("%s: %s -> %f", attr_name, value, new_val)
-            locals[attr_name] = new_val
+            setattr(args, attr_name + "_proc", new_val)
 
-    strainsa = np.linspace(amin, amax, args.asteps)
-    strainsb = np.linspace(bmin, bmax, args.bsteps)
-    strainsc = np.linspace(cmin, cmax, args.csteps)
+    strainsa = np.linspace(args.amin_proc, args.amax_proc, args.asteps)
+    strainsb = np.linspace(args.bmin_proc, args.bmax_proc, args.bsteps)
+    strainsc = np.linspace(args.cmin_proc, args.cmax_proc, args.csteps)
 
     strains = [[straina, strainb, strainc]
                for straina in strainsa
