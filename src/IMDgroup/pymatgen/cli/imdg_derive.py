@@ -242,9 +242,15 @@ def relax(args):
     # unless we increase ENCUT
     if relax_overrides['ISIF'] != Incar.ISIF_FIX_SHAPE_VOL:
         logger.info("Shape/volume relaxation.  Setting ENCUT=550.0")
+        warnings.warn(
+            "Shape/volume relaxation.  Setting ENCUT=550.0"
+        )
         relax_overrides['ENCUT'] = 550.0
     else:
         logger.info("Shape and volume are fixed.  Setting ENCUT=500.0")
+        warnings.warn(
+            "Shape and volume are fixed.  Setting ENCUT=500.0"
+        )
         relax_overrides['ENCUT'] = 500.0
 
     inputset = IMDDerivedInputSet(
