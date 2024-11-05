@@ -174,7 +174,7 @@ def strain(args):
             attr_name = name + suffix
             value = getattr(args, attr_name)
             if "%" in value:
-                new_val = float(re.sub("%", "", value)/100.0 - 1.0)
+                new_val = float(re.sub("%", "", value))/100.0 - 1.0
             else:
                 new_val = float(value)/getattr(structure0.lattice, name) - 1.0
             logger.debug("%s: %s -> %f", attr_name, value, new_val)
