@@ -493,6 +493,8 @@ def derive(args):
         output_dir_prefix = args.output_prefix
 
     output_dir = args.output
+    if args.output == "":
+        raise ValueError("--output cannot be empty")
 
     for inputset, output_dir_suffix in value_or_values:
         if args.output is None:
