@@ -131,6 +131,7 @@ def _copy_structures_to(structures, directory):
 def diff_structures(args):
     """Compare structures.
     """
+    args.dirs = [d for d in args.dirs if os.path.isdir(d)]
     structures = _read_structures(sorted(args.dirs), args.poscar, args.vasprun)
     # 2x tigher tolerance compared to the defaults.
     # With defaults, structures different by ~0.1eV could be matched
