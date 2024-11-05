@@ -63,8 +63,10 @@ def add_args(parser):
 
     parser.add_argument(
         "dir",
-        help="""Directory to read (recusrively)""",
-        type=str)
+        help="""Directory to read (recusrively); defaults to current dir""",
+        type=str,
+        nargs="?",
+        default=".")
 
     parser.add_argument(
         "--reanalyze", "-r",
