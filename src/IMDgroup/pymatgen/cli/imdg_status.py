@@ -208,7 +208,7 @@ def status(args):
             warning_list = ""
             for _, data in warn_data.items():
                 warning_list += "\n" +\
-                    colored(f"Warning ({data['count']}x): ", "yellow") +\
+                    colored(f"⮤Warning ({data['count']}x): ", "yellow") +\
                     data['message']
         else:
             logger.debug("Slurm log file not found in %s", wdir)
