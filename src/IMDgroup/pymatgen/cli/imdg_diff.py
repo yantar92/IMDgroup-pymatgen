@@ -169,13 +169,22 @@ def diff_structures(args):
         "List of structures grouped by similarity",
         'magenta', attrs=['bold']))
 
+    # Sort groups by energy
+    groups = sorted(
+        groups,
+        key=lambda group: group[0].properties.get(
+            'final_energy', 0))
+    prev_energy = None
     for idx, group in enumerate(groups):
         print(colored(f"Group {idx + 1}: ", attrs=['bold']), end='')
         if 'final_energy' in group[0].properties:
             final_energy = round(
                 group[0].properties['final_energy'],
                 args.energy_tol)
-            print(f"Energy={final_energy}eV ", end='')
+            energy_diff = (final_energy - prev_energy)\
+                if prev_energy is not None else 0
+            prev_energy = final_energy
+            print(f"Energy={final_energy}eV ({energy_diff:+})", end='')
         else:
             print("Energy=N/A ", end='')
         for s in group:
