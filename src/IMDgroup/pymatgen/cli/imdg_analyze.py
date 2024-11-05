@@ -80,11 +80,11 @@ def add_args(parser):
     ]
     parser.add_argument(
         "--fields",
-        help="""List of fields to report\n
-energy: Final energy\n
-e_per_atom: Final energy per atom\n
-%%vol: Volume change before/after the run\n
-a, b, c, alpha, beta, gamma: Lattice parameters\n
+        help="""List of fields to report
+energy: Final energy
+e_per_atom: Final energy per atom
+%%vol: Volume change before/after the run
+a, b, c, alpha, beta, gamma: Lattice parameters
 %%a, %%b, %%c, %%alpa, %%beta, %%gamma: Change before/after the run
 """,
         nargs="+",
