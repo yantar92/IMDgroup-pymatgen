@@ -83,9 +83,9 @@ def add_args(parser):
         help="""List of fields to report
 energy: Final energy
 e_per_atom: Final energy per atom
-%vol: Volume change before/after the run
+%%vol: Volume change before/after the run
 a, b, c, alpha, beta, gamma: Lattice parameters
-%a, %b, %c, %alpa, %beta, %gamma: Change before/after the run
+%%a, %%b, %%c, %%alpa, %%beta, %%gamma: Change before/after the run
 """,
         nargs="+",
         choices=all_fileds,
