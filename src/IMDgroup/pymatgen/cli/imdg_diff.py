@@ -184,7 +184,7 @@ def diff_structures(args):
             energy_diff = (final_energy - prev_energy)\
                 if prev_energy is not None else 0
             prev_energy = final_energy
-            print(f"Energy={final_energy}eV ({energy_diff:+})", end='')
+            print(f"Energy={final_energy}eV ({energy_diff:+.3f})", end='')
         else:
             print("Energy=N/A ", end='')
         for s in group:
