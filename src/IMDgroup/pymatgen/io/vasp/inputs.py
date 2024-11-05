@@ -96,7 +96,7 @@ class Incar(pmgIncar):
                 )
             settings = functional_config.get(name)
         if settings:
-            for key, val in settings:
+            for key, val in settings.items():
                 if val == "None":
                     settings[key] = None
             return settings
