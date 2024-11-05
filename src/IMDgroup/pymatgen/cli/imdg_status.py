@@ -193,23 +193,6 @@ def status(args):
             paths.append(wdir)
     paths = sorted(paths)
     for wdir in paths:
-        run_status = colored("unknown", "red")
-        if slurm_runningp(wdir):
-            run_status = colored("running", "yellow")
-        else:
-            try:
-                if wdir in entries_dict:
-                    converged = entries_dict[wdir].data['converged']
-                else:
-                    run = Vasprun(
-                        os.path.join(wdir, 'vasprun.xml'),
-                        parse_dos=False,
-                        parse_eigen=False)
-                    converged = run.converged
-                run_status = colored("converged", "green") if converged\
-                    else colored("unconverged", "red")
-            except ParseError:
-                run_status = colored("incomplete vasprun.xml", "red")
         if log_file := slurm_log_file(wdir):
             logger.debug("Found slurm logs in %s: %s", wdir, log_file)
             progress_data = get_vasp_logs(log_file, VASP_PROGRESS)
@@ -227,6 +210,25 @@ def status(args):
             logger.debug("Slurm log file not found in %s", wdir)
             progress = ""
             warning_list = ""
+
+        run_status = colored("unknown", "red")
+        if slurm_runningp(wdir):
+            run_status = colored("running", "yellow")
+        else:
+            try:
+                if wdir in entries_dict:
+                    converged = entries_dict[wdir].data['converged']
+                    progress = ""
+                else:
+                    run = Vasprun(
+                        os.path.join(wdir, 'vasprun.xml'),
+                        parse_dos=False,
+                        parse_eigen=False)
+                    converged = run.converged
+                run_status = colored("converged", "green") if converged\
+                    else colored("unconverged", "red")
+            except ParseError:
+                run_status = colored("incomplete vasprun.xml", "red")
         print(colored(
             f"{wdir.replace("./", "")}: ", attrs=['bold'])
               + run_status + progress + warning_list)
