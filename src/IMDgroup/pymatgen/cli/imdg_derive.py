@@ -177,7 +177,7 @@ def strain(args):
                 new_val = float(re.sub("%", "", value))/100.0 - 1.0
             else:
                 new_val = float(value)/getattr(structure0.lattice, name) - 1.0
-            logger.debug("%s: %s -> %f", attr_name, value, new_val)
+            logger.info("%s: %s -> %f", attr_name, value, new_val)
             setattr(args, attr_name, new_val)
 
     strainsa = np.linspace(args.amin, args.amax, args.asteps)
