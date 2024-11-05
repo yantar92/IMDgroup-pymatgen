@@ -1,6 +1,7 @@
 """imdg sub-command to create new VASP inputs from existing.
 """
 import os
+import re
 import warnings
 import argparse
 import dataclasses
@@ -87,43 +88,6 @@ def _str_to_bool(value):
     raise argparse.ArgumentTypeError(f"Invalid boolean value: {value}")
 
 
-def strain_add_args(parser):
-    """Setup parser arguments for strain.
-    Args:
-      parser: subparser
-    """
-    parser.help = "Created strained input"
-    parser.set_defaults(func_derive=strain)
-    for name in ["a", "b", "c"]:
-        parser.add_argument(
-            "--" + name + "min",
-            help=f"Min value of {name} lattice parameter, %% of initial",
-            type=float,
-            default=100
-        )
-        parser.add_argument(
-            "--" + name + "max",
-            help=f"Max value of {name} lattice parameter, %% of initial",
-            type=float,
-            default=100
-        )
-        parser.add_argument(
-            "--" + name + "steps",
-            help=f"Number of strain steps along {name} (default: 1)",
-            type=int,
-            default=1
-        )
-    parser.add_argument(
-        "--selective-dynamics",
-        dest="selective_dynamics",
-        help="Selective dynamics to be applied to the sites"
-        "(example: True, True, False)",
-        nargs=3,
-        type=_str_to_bool,
-        default=None
-    )
-
-
 def perturb_add_args(parser):
     """Setup parser arguments for perturb.
     Args:
@@ -152,6 +116,45 @@ def perturb(args):
     return (inputset, output_dir_suffix)
 
 
+def strain_add_args(parser):
+    """Setup parser arguments for strain.
+    Args:
+      parser: subparser
+    """
+    parser.help = "Created strained input"
+    parser.set_defaults(func_derive=strain)
+    for name in ["a", "b", "c"]:
+        parser.add_argument(
+            "--" + name + "min",
+            help=f"Min value of {name} lattice parameter, "
+            "in ans (10.0) or %% of initial (10%%)",
+            type=str,
+            default="100%"
+        )
+        parser.add_argument(
+            "--" + name + "max",
+            help=f"Max value of {name} lattice parameter, "
+            "in ans (10.0) %% of initial (10%%)",
+            type=str,
+            default="100%"
+        )
+        parser.add_argument(
+            "--" + name + "steps",
+            help=f"Number of strain steps along {name} (default: 1)",
+            type=int,
+            default=1
+        )
+    parser.add_argument(
+        "--selective-dynamics",
+        dest="selective_dynamics",
+        help="Selective dynamics to be applied to the sites"
+        "(example: True, True, False)",
+        nargs=3,
+        type=_str_to_bool,
+        default=None
+    )
+
+
 def strain(args):
     """Create strained input
     Return (inputset, output_dir_suffix)
@@ -165,21 +168,25 @@ def strain(args):
 
     structure0 = inputset.structure
 
-    strainsa = np.linspace(
-        args.amin / 100.0 - 1.0,
-        args.amax / 100.0 - 1.0,
-        args.asteps
-    )
-    strainsb = np.linspace(
-        args.bmin / 100.0 - 1.0,
-        args.bmax / 100.0 - 1.0,
-        args.bsteps
-    )
-    strainsc = np.linspace(
-        args.cmin / 100.0 - 1.0,
-        args.cmax / 100.0 - 1.0,
-        args.csteps
-    )
+    # 10% -> 0.1; 1.3 -> 1.3/lattice constant
+    for name in ["a", "b", "c"]:
+        for suffix in ["max", "max"]:
+            attr_name = name + suffix
+            value = args.getattr(attr_name)
+            if "%" in value:
+                args.setattr(
+                    attr_name,
+                    float(re.sub("%", "", value)/100.0 - 1.0)
+                )
+            else:
+                args.setattr(
+                    attr_name,
+                    float(value) / structure0.lattice.getattr(name) - 1.0
+                )
+
+    strainsa = np.linspace(args.amin, args.amax, args.asteps)
+    strainsb = np.linspace(args.bmin, args.bmax, args.bsteps)
+    strainsc = np.linspace(args.cmin, args.cmax, args.csteps)
 
     strains = [[straina, strainb, strainc]
                for straina in strainsa
