@@ -165,6 +165,7 @@ def add_args(parser):
         "dir",
         help="""Directory to read (recusrively).  Defaults to current dir.""",
         type=str,
+        required=False,
         default=".")
 
 
