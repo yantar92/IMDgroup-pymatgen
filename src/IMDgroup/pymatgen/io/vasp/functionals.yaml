@@ -1,4 +1,13 @@
 PMG-PARENT: "vdW_parameters"
+__defaults:
+  GGA: None
+  IVDW: None
+  LASPH: None
+  AGGAC: None
+  LUSE_VDW: None
+  ZAB_VDW: None
+  PARAM1: None
+  PARAM2: None
 pbe:
   GGA: PE
 pbesol:

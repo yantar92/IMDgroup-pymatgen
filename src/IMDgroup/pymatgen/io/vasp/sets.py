@@ -95,6 +95,8 @@ class IMDVaspInputSet(VaspInputSet):
         if isinstance(self.functional, str):
             self.functional = self.functional.lower()
         if self.functional:
+            default_params = Incar.get_recipe("functional", "__defaults")
+            incar_updates.update(default_params)
             params = Incar.get_recipe("functional", self.functional)
             incar_updates.update(params)
         return incar_updates
