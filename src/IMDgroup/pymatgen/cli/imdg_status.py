@@ -2,6 +2,7 @@
 """
 import sys
 import os
+import re
 import logging
 import warnings
 import subprocess
@@ -81,6 +82,12 @@ VASP_WARNINGS = {
     "auto_nbands": ["The number of bands has been changed"],
 }
 
+VASP_PROGRESS = {
+    "relax": [
+        r"step: +[0-9.]+(harm= +[0-9.]+) +dis= +[0-9.]+ +next Energy= +[0-9.-]+ +(dE=[0-9.E+-]+)"
+    ]
+}
+
 
 def custom_showwarning(
         message, category, filename, lineno, file=None, line=None):
@@ -130,17 +137,17 @@ def slurm_log_file(path):
     return None
 
 
-def get_vasp_warnings(log_file):
-    """Return VASP warnings logged in LOG_FILE.
+def get_vasp_logs(log_file, log_matchers):
+    """Return VASP logs in LOG_FILE matching LOG_MATCHERS.
     Returns: Dict of
-     {warning_type :
+     {log_type :
        {'message': <message text>,
         'count': <number of occurances>}}
     """
     result = {}
     with zopen(log_file, mode="rt") as f:
         text = f.read()
-        for warn_name, matchers in VASP_WARNINGS.items():
+        for warn_name, matchers in log_matchers.items():
             for matcher in matchers:
                 num = text.count(matcher)
                 if num > 0:
@@ -204,7 +211,9 @@ def status(args):
                 run_status = colored("incomplete vasprun.xml", "red")
         if log_file := slurm_log_file(wdir):
             logger.debug("Found slurm logs in %s: %s", wdir, log_file)
-            warn_data = get_vasp_warnings(log_file)
+            progress_data = get_vasp_logs(log_file, VASP_PROGRESS)
+            progress = " | " + progress_data.values()[-1]['message']
+            warn_data = get_vasp_logs(log_file, VASP_WARNINGS)
             warning_list = ""
             for _, data in warn_data.items():
                 warning_list += "\n" +\
@@ -212,9 +221,10 @@ def status(args):
                     data['message']
         else:
             logger.debug("Slurm log file not found in %s", wdir)
+            progress = ""
             warning_list = ""
         print(colored(
             f"{wdir.replace("./", "")}: ", attrs=['bold'])
-              + run_status + warning_list)
+              + run_status + progress + warning_list)
 
     return 0
