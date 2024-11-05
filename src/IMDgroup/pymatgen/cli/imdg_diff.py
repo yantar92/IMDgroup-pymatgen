@@ -4,6 +4,7 @@ import logging
 import os
 import shutil
 import math
+import warnings
 from alive_progress import alive_bar
 from termcolor import colored
 from pymatgen.io.vasp.inputs import Poscar
@@ -206,10 +207,15 @@ def diff_incar(args):
     with alive_bar(len(args.dirs), title='Reading INCARs') as abar:
         for vaspdir in args.dirs:
             abar.text = f'{vaspdir}'
-            incar = Incar.from_file(os.path.join(vaspdir, "INCAR"))
-            # Abuse unused SYSTEM parameter to store directory name.
-            incar['SYSTEM'] = vaspdir
-            incars.append(incar)
+            try:
+                incar = Incar.from_file(os.path.join(vaspdir, "INCAR"))
+                # Abuse unused SYSTEM parameter to store directory name.
+                incar['SYSTEM'] = vaspdir
+                incars.append(incar)
+            except FileNotFoundError:
+                warnings.warn(
+                    f"No INCAR found in {vaspdir}"
+                )
             abar()  # pylint: disable=not-callable
 
     def _incar_name(incar):
