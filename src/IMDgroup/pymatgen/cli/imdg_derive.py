@@ -173,6 +173,7 @@ def strain(args):
         for suffix in ["max", "max"]:
             attr_name = name + suffix
             value = getattr(args, attr_name)
+            logger.debug("%s: %s", attr_name, value)
             if "%" in value:
                 new_val = float(re.sub("%", "", value)/100.0 - 1.0)
             else:
