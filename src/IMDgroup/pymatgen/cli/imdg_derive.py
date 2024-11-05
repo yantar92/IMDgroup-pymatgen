@@ -176,7 +176,7 @@ def strain(args):
             if "%" in value:
                 new_val = float(re.sub("%", "", value)/100.0 - 1.0)
             else:
-                new_val = float(value) / structure0.lattice.getattr(name) - 1.0
+                new_val = float(value) / getattr(structure0.lattice, name) - 1.0
             setattr(args, attr_name, new_val)
 
     strainsa = np.linspace(args.amin, args.amax, args.asteps)
