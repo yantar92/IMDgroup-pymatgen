@@ -111,13 +111,14 @@ class IMDGVaspToComputedEnrgyDrone(VaspToComputedEntryDrone):
         """
         computed_entry = super().assimilate(path)
 
-        outcar_path = os.path.join(path, "OUTCAR")
-        try:
-            outcar = Outcar(outcar_path)
-            computed_entry.data['outcar'] = outcar
-        except Exception as exc:
-            logger.debug("error reading %s: %s", outcar_path, exc)
-            return None
+        if computed_entry is not None:
+            outcar_path = os.path.join(path, "OUTCAR")
+            try:
+                outcar = Outcar(outcar_path)
+                computed_entry.data['outcar'] = outcar
+            except Exception as exc:
+                logger.debug("error reading %s: %s", outcar_path, exc)
+                return None
 
         return computed_entry
 
