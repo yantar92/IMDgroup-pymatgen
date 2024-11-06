@@ -229,9 +229,9 @@ def status(args):
                     outcar = Outcar(os.path.join(wdir, "OUTCAR"))
                 run_status = colored("converged", "green") if converged\
                     else colored("unconverged", "red")
-                cpu_time_sec = outcar.run_stats['Total CPU time used (sec)']
+                cpu_time_sec = outcar['run_stats']['Total CPU time used (sec)']
                 cpu_time = str(datetime.timedelta(seconds=round(cpu_time_sec)))
-                n_cores = outcar.run_stats['cores']
+                n_cores = outcar['run_stats']['cores']
                 progress = f" | CPU time: {cpu_time} ({n_cores} cores)"
             except ParseError:
                 run_status = colored("incomplete vasprun.xml", "red")
