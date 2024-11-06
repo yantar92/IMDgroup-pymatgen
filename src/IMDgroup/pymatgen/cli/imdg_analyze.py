@@ -56,7 +56,7 @@ class IMDGBorgQueen (BorgQueen):
             else:
                 logger.debug("Reading data from %s", path)
                 data = self._drone.assimilate(path)
-            return (h, data)
+            return {h: data}
 
         def get_valid_paths(self, path):
             """Call drone.get_valid_paths."""
@@ -97,7 +97,7 @@ class IMDGBorgQueen (BorgQueen):
 
     def get_data(self):
         """Get an list of assimilated objects."""
-        return [val for _, val in self._data]
+        return [val[1] for val in self._data]
 
 
 class IMDGVaspToComputedEnrgyDrone(VaspToComputedEntryDrone):
