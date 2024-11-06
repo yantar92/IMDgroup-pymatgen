@@ -6,10 +6,11 @@ import re
 import logging
 import warnings
 import subprocess
+import datetime
 from xml.etree.ElementTree import ParseError
 from monty.io import zopen
 from termcolor import colored
-from pymatgen.io.vasp.outputs import Vasprun
+from pymatgen.io.vasp.outputs import (Vasprun, Outcar)
 from IMDgroup.pymatgen.cli.imdg_analyze import read_vaspruns
 
 logger = logging.getLogger(__name__)
@@ -218,7 +219,6 @@ def status(args):
             try:
                 if wdir in entries_dict:
                     converged = entries_dict[wdir].data['converged']
-                    progress = ""
                 else:
                     run = Vasprun(
                         os.path.join(wdir, 'vasprun.xml'),
@@ -227,6 +227,11 @@ def status(args):
                     converged = run.converged
                 run_status = colored("converged", "green") if converged\
                     else colored("unconverged", "red")
+                outcar = Outcar(os.path.join(wdir, "OUTCAR"))
+                cpu_time_sec = outcar.run_stats['Total CPU time used (sec)']
+                cpu_time = str(datetime.timedelta(seconds=cpu_time_sec))
+                n_cores = outcar.run_stats['cores']
+                progress = f"CPU time: {cpu_time} ({n_cores} cores)"
             except ParseError:
                 run_status = colored("incomplete vasprun.xml", "red")
         print(colored(
