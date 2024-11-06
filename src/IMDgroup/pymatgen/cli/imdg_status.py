@@ -189,7 +189,7 @@ def status(args):
         warnings.filterwarnings("ignore", category=UserWarning)
         entries = read_vaspruns(args.dir)
     if entries is not None:
-        entries_dict = {os.path.dirname(e.data['filename']): e for e in entries}
+        entries_dict = {os.path.dirname(e['data']['filename']): e for e in entries}
 
     paths = []
     for wdir, _, files in os.walk(args.dir):
