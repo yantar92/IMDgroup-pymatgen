@@ -4,6 +4,7 @@ Based on pymatgen's pymatgen.cli.pmg_analyze
 import logging
 import multiprocessing
 import os
+import hashlib
 from tabulate import tabulate
 
 from pymatgen.apps.borg.hive import VaspToComputedEntryDrone
@@ -13,6 +14,90 @@ from IMDgroup.pymatgen.io.vasp.inputs import Incar
 
 SAVE_FILE = "vasp_data_imdg.gz"
 logger = logging.getLogger(__name__)
+
+
+class IMDGBorgQueen (BorgQueen):
+    """The Borg Queen controls the drones to assimilate data in an entire
+    directory tree. Uses multiprocessing to speed up things considerably. It
+    also contains convenience methods to save and load data between sessions.
+    """
+
+    class _DroneWithCache:
+
+        def __init__(self, drone, cache):
+            self._drone = drone
+            logger.debug("Setting up cache %s", cache.keys())
+            self._cache = cache
+
+        @staticmethod
+        def _get_file_hash(filename):
+            """Get hash of FILENAME."""
+            with open(filename, 'rb', buffering=0) as f:
+                return str(hashlib.file_digest(f, 'sha256').hexdigest())
+
+        def _get_dir_hash(self, path):
+            """Get hash of all files in path."""
+            files = [os.path.join(path, f) for f in os.listdir(path)
+                     if os.path.isfile(os.path.join(path, f))]
+            hashes = map(self._get_file_hash, files)
+            combined_hash =\
+                hashlib.md5("".join(hashes).encode('utf-8')).hexdigest()
+            return str(combined_hash)
+
+        def assimilate(self, path):
+            """Call _drone.assimulate with caching.
+            """
+
+            h = self._get_dir_hash(path)
+            logger.debug("Assimulating %s [%s]", path, h)
+            if self._cache.get(h):
+                logger.debug("Using cached data for %s", path)
+                data = self._cache.get(h)
+            else:
+                logger.debug("Reading data from %s", path)
+                data = self._drone.assimilate(path)
+            return (h, data)
+
+        def get_valid_paths(self, path):
+            """Call drone.get_valid_paths."""
+            return self._drone.get_valid_paths(path)
+
+    def __init__(
+            self, drone,
+            rootpath=None,
+            number_of_drones=1,
+            dump_file=None):
+        """
+        Args:
+            drone (Drone): An implementation of
+                pymatgen.apps.borg.hive.AbstractDrone to use for
+                assimilation.
+            rootpath (str): The root directory to start assimilation. Leave it
+                as None if you want to do assimilation later, or is using the
+                BorgQueen to load previously assimilated data.
+            number_of_drones (int): Number of drones to parallelize over.
+                Typical machines today have up to four processors. Note that you
+                won't see a 100% improvement with two drones over one, but you
+                will definitely see a significant speedup of at least 50% or so.
+                If you are running this over a server with far more processors,
+                the speedup will be even greater.
+            dump_file (PathLike): File containing previously stored data.
+        """
+        old_data: list = []
+        if dump_file and os.path.isfile(dump_file):
+            self.load_data(dump_file)
+            old_data = self._data
+        cache = {}
+        for h, val in old_data:
+            cache[h] = val
+        super().__init__(
+            self._DroneWithCache(drone, cache),
+            rootpath,
+            number_of_drones)
+
+    def get_data(self):
+        """Get an list of assimilated objects."""
+        return [val for _, val in self._data]
 
 
 class IMDGVaspToComputedEnrgyDrone(VaspToComputedEntryDrone):
@@ -36,12 +121,11 @@ class IMDGVaspToComputedEnrgyDrone(VaspToComputedEntryDrone):
         return computed_entry
 
 
-def read_vaspruns(rootdir, reanalyze):
+def read_vaspruns(rootdir):
     """Read all vaspruns in directory (nested).
 
     Args:
         rootdir (str): Root directory.
-        reanalyze (bool): Whether to ignore saved results and reanalyze
     Returns: List of Vasprun objects.
     """
     drone = IMDGVaspToComputedEnrgyDrone(
@@ -50,28 +134,18 @@ def read_vaspruns(rootdir, reanalyze):
 
     n_cpus = multiprocessing.cpu_count()
     logger.info("Detected %d cpus", n_cpus)
-    queen = BorgQueen(drone, number_of_drones=n_cpus)
-    if os.path.isfile(SAVE_FILE) and not reanalyze:
-        msg = (f"Using previously assimilated data from {SAVE_FILE}. "
-               "Use -r to force re-analysis.")
-        print(msg)
-        queen.load_data(SAVE_FILE)
-    else:
-        if n_cpus > 1:
-            queen.parallel_assimilate(rootdir)
-        else:
-            queen.serial_assimilate(rootdir)
-        msg = (f"Analysis results saved to {SAVE_FILE} "
-               "for faster subsequent loading.")
-        queen.save_data(SAVE_FILE)
+    queen = IMDGBorgQueen(
+        drone,
+        rootpath=rootdir,
+        number_of_drones=n_cpus,
+        dump_file=SAVE_FILE)
+    queen.save_data(SAVE_FILE)
 
     entries = queen.get_data()
 
     if len(entries) > 0:
-        logger.info(msg)
         return entries
 
-    logger.info("No valid VASP run found.")
     os.unlink(SAVE_FILE)
     return None
 
@@ -89,12 +163,6 @@ def add_args(parser):
         type=str,
         nargs="?",
         default=".")
-
-    parser.add_argument(
-        "--reanalyze", "-r",
-        help="Force re-reading VASP sources",
-        action="store_true"
-    )
 
     all_fileds = [
         'energy', 'e_per_atom', 'total_mag', '%vol',
@@ -133,7 +201,7 @@ a, b, c, alpha, beta, gamma: Lattice parameters
 def analyze(args):
     """Main routine.
     """
-    entries = read_vaspruns(args.dir, args.reanalyze)
+    entries = read_vaspruns(args.dir)
     entries = sorted(entries, key=lambda x: x.data["filename"])
     all_data = {}
     for field, header in [

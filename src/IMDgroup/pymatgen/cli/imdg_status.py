@@ -6,6 +6,7 @@ import re
 import logging
 import warnings
 import subprocess
+import shutil
 import datetime
 from xml.etree.ElementTree import ParseError
 from monty.io import zopen
@@ -107,6 +108,8 @@ warnings.showwarning = custom_showwarning
 def slurm_runningp(path):
     """Is slurm running in DIR?
     """
+    if shutil.which("squeue") is None:
+        return False
     result = subprocess.check_output(
         "squeue -u $USER -o %Z | tail -n +2",
         shell=True).split()
