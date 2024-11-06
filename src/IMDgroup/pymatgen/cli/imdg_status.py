@@ -219,15 +219,16 @@ def status(args):
             try:
                 if wdir in entries_dict:
                     converged = entries_dict[wdir].data['converged']
+                    outcar = entries_dict[wdir].data['outcar']
                 else:
                     run = Vasprun(
                         os.path.join(wdir, 'vasprun.xml'),
                         parse_dos=False,
                         parse_eigen=False)
                     converged = run.converged
+                    outcar = Outcar(os.path.join(wdir, "OUTCAR"))
                 run_status = colored("converged", "green") if converged\
                     else colored("unconverged", "red")
-                outcar = Outcar(os.path.join(wdir, "OUTCAR"))
                 cpu_time_sec = outcar.run_stats['Total CPU time used (sec)']
                 cpu_time = str(datetime.timedelta(seconds=round(cpu_time_sec)))
                 n_cores = outcar.run_stats['cores']
