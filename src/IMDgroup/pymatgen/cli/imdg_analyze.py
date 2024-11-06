@@ -8,10 +8,32 @@ from tabulate import tabulate
 
 from pymatgen.apps.borg.hive import VaspToComputedEntryDrone
 from pymatgen.apps.borg.queen import BorgQueen
+from pymatgen.io.vasp.outputs import Outcar
 from IMDgroup.pymatgen.io.vasp.inputs import Incar
 
 SAVE_FILE = "vasp_data_imdg.gz"
 logger = logging.getLogger(__name__)
+
+
+class IMDGVaspToComputedEnrgyDrone(VaspToComputedEntryDrone):
+    """Assimilate directories, as VaspToComputedEntryDrone, but
+    also put parsed Outcar into result.data['outcar'].
+    """
+    def assimilate(self, path):
+        """Assimilate Vasprun and Outcar from PATH.
+        Return ComputedEntry object.
+        """
+        computed_entry = super().assimilate(path)
+
+        outcar_path = os.path.join(path, "OUTCAR")
+        try:
+            outcar = Outcar(outcar_path)
+            computed_entry.data['outcar'] = outcar
+        except Exception as exc:
+            logger.debug("error reading %s: %s", outcar_path, exc)
+            return None
+
+        return computed_entry
 
 
 def read_vaspruns(rootdir, reanalyze):
@@ -22,7 +44,7 @@ def read_vaspruns(rootdir, reanalyze):
         reanalyze (bool): Whether to ignore saved results and reanalyze
     Returns: List of Vasprun objects.
     """
-    drone = VaspToComputedEntryDrone(
+    drone = IMDGVaspToComputedEnrgyDrone(
         inc_structure=True,
         data=["filename", "initial_structure", "incar", 'converged'])
 
@@ -75,7 +97,7 @@ def add_args(parser):
     )
 
     all_fileds = [
-        'energy', 'e_per_atom', '%vol',
+        'energy', 'e_per_atom', 'total_mag', '%vol',
         'a', 'b', 'c', '%a', '%b', '%c',
         'alpha', 'beta', 'gamma',
         '%alpha', '%beta', '%gamma'
@@ -117,6 +139,7 @@ def analyze(args):
     for field, header in [
             ('dir', 'Directory'), ('incar_group', 'INCAR type'),
             ('energy', 'Energy'), ('e_per_atom', 'E/Atom'),
+            ('total_mag', 'Magnetization'),
             ('a', 'a'), ('b', 'b'), ('c', 'c'),
             ('%a', '%a'), ('%b', '%b'), ('%c', '%c'),
             ('alpha', 'α'), ('beta', 'β'), ('gamma', 'γ'),
@@ -168,6 +191,10 @@ def analyze(args):
                     val = f"{e.energy_per_atom:.5f}"
                 else:
                     val = "unreliable"
+            elif field == 'total_mag':
+                val = e.data['outcar']['total_magnetization']
+                if val is None:
+                    val = "None"
             elif field == '%vol':
                 vol0 = e.data["initial_structure"].volume
                 val = e.structure.volume/vol0 - 1
