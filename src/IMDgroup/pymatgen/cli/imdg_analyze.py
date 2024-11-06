@@ -88,8 +88,9 @@ class IMDGBorgQueen (BorgQueen):
             self.load_data(dump_file)
             old_data = self._data
         cache = {}
-        for h, val in old_data:
-            cache[h] = val
+        for item in old_data:
+            for h, val in item.items():
+                cache[h] = val
         super().__init__(
             self._DroneWithCache(drone, cache),
             rootpath,
@@ -97,7 +98,7 @@ class IMDGBorgQueen (BorgQueen):
 
     def get_data(self):
         """Get an list of assimilated objects."""
-        return [val[1] for val in self._data]
+        return list(self._data.values())
 
 
 class IMDGVaspToComputedEnrgyDrone(VaspToComputedEntryDrone):
