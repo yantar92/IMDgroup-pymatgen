@@ -98,7 +98,7 @@ class IMDGBorgQueen (BorgQueen):
 
     def get_data(self):
         """Get an list of assimilated objects."""
-        return [x.values()[0] for x in self._data]
+        return [list(x.values())[0] for x in self._data]
 
 
 class IMDGVaspToComputedEnrgyDrone(VaspToComputedEntryDrone):
