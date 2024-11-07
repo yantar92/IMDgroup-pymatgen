@@ -114,7 +114,7 @@ class IMDGVaspToComputedEnrgyDrone(VaspToComputedEntryDrone):
             outcar_path = os.path.join(path, "OUTCAR")
             try:
                 outcar = Outcar(outcar_path)
-                computed_entry.data['outcar'] = outcar
+                computed_entry.data['outcar'] = outcar.as_dict()
             except Exception as exc:
                 logger.debug("error reading %s: %s", outcar_path, exc)
                 return None

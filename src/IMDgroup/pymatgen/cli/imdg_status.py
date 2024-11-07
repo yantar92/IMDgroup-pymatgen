@@ -229,7 +229,7 @@ def status(args):
                         parse_dos=False,
                         parse_eigen=False)
                     converged = run.converged
-                    outcar = Outcar(os.path.join(wdir, "OUTCAR"))
+                    outcar = Outcar(os.path.join(wdir, "OUTCAR")).as_dict()
                 run_status = colored("converged", "green") if converged\
                     else colored("unconverged", "red")
                 cpu_time_sec = outcar['run_stats']['Total CPU time used (sec)']
