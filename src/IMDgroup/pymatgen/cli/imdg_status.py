@@ -17,6 +17,9 @@ from IMDgroup.pymatgen.cli.imdg_analyze import read_vaspruns
 logger = logging.getLogger(__name__)
 # Adapted (and modified) from custodian/src/custodian/vasp/handlers.py
 VASP_WARNINGS = {
+    "slurm_error": [
+        "slurmstepd: error.+"
+    ],
     "electron_convergance": [
         "The electronic self-consistency was not achieved in the given"
     ],
