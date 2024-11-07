@@ -2,7 +2,6 @@
 Based on pymatgen's pymatgen.cli.pmg_analyze
 """
 import logging
-import multiprocessing
 import os
 import hashlib
 from tabulate import tabulate
@@ -134,12 +133,9 @@ def read_vaspruns(rootdir):
         inc_structure=True,
         data=["filename", "initial_structure", "incar", 'converged'])
 
-    n_cpus = multiprocessing.cpu_count()
-    logger.info("Detected %d cpus", n_cpus)
     queen = IMDGBorgQueen(
         drone,
         rootpath=rootdir,
-        number_of_drones=n_cpus,
         dump_file=SAVE_FILE)
     queen.save_data(SAVE_FILE)
 
