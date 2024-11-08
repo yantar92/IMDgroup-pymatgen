@@ -326,7 +326,10 @@ class IMDNEBVaspInputSet(IMDDerivedInputSet):
     # According to Henkelman et al JCP 2000 (10.1063/1.1329672),
     # the typical number of images is 4-20.  We take smaller number as
     # the default here.
-    CONFIG = {'INCAR': {"NIMAGES": 4, "SPRING": -5}}
+    CONFIG = {
+        'INCAR': {"NIMAGES": 4, "SPRING": -5},
+        'POTCAR_FUNCTIONAL': "PBE_64"
+    }
 
     def __post_init__(self) -> None:
         # Refuse to accept unconverged VASP runs.
