@@ -548,7 +548,7 @@ def neb(args):
     inputset = IMDNEBVaspInputSet(
         directory=args.input_directory,
         target_directory=args.target,
-        user_incar_settings={'NIMAGES', args.nimages})
+        user_incar_settings={'NIMAGES': args.nimages})
     output_dir_suffix = "NEB"
     return (inputset, output_dir_suffix)
 
