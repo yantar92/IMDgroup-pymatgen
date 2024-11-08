@@ -358,8 +358,8 @@ class IMDNEBVaspInputSet(IMDDerivedInputSet):
         """
         # Sort structures, making sure that sites are ordered
         # according to their coordinates.
-        beg = structure1.copy().sort(key=lambda n: n.frac_coords)
-        end = structure2.copy().sort(key=lambda n: n.frac_coords)
+        beg = structure1.copy().sort(key=lambda n: list(n.frac_coords))
+        end = structure2.copy().sort(key=lambda n: list(n.frac_coords))
 
         # Sanity checks.  Cannot create NEB input for structures that
         # differ by more than simply site positions.
