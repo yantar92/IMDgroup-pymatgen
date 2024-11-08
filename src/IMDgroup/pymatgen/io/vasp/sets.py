@@ -381,7 +381,7 @@ class IMDNEBVaspInputSet(IMDDerivedInputSet):
 
     def write_input(self, output_dir, **kwargs) -> None:
         """Write a set of VASP input to OUTPUT_DIR."""
-        self.write_input(output_dir, **kwargs)
+        super().write_input(output_dir, **kwargs)
         nimages = self.incar["NIMAGES"]
         images = self.get_images(
             self.structure, self.target_structure, nimages)
