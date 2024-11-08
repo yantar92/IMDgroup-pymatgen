@@ -11,6 +11,7 @@ from dataclasses import dataclass
 import numpy as np
 from pymatgen.io.vasp.sets import VaspInputSet, BadInputSetWarning
 from pymatgen.io.vasp.inputs import Potcar, Kpoints, Poscar
+from pymatgen.io.vasp.outputs import Vasprun
 from pymatgen.util.due import Doi, due
 from pymatgen.core import Structure
 from pymatgen.ext.matproj import MPRester

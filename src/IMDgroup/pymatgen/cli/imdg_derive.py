@@ -7,7 +7,8 @@ import argparse
 import dataclasses
 import logging
 import numpy as np
-from IMDgroup.pymatgen.io.vasp.sets import IMDDerivedInputSet
+from IMDgroup.pymatgen.io.vasp.sets\
+    import (IMDDerivedInputSet, IMDNEBVaspInputSet)
 from IMDgroup.pymatgen.io.vasp.inputs import Incar
 from IMDgroup.pymatgen.transformations.insert_molecule\
     import InsertMoleculeTransformation
@@ -76,6 +77,9 @@ def add_args(parser):
 
     parser_delete = subparsers.add_parser("del")
     delete_add_args(parser_delete)
+
+    parser_neb = subparsers.add_parser("neb")
+    neb_add_args(parser_neb)
 
 
 def _str_to_bool(value):
@@ -511,6 +515,40 @@ def delete(args):
     Return (inputset, output_dir_suffix)
     """
     inputset = IMDDerivedInputSet(directory=args.input_directory)
+    len_before = len(inputset.structure)
+    inputset.structure.remove_species(args.what)
+    if len(inputset.structure) == len_before:
+        warnings.warn("Nothing was deleted")
+    output_dir_suffix = ",".join(args.what)
+    return (inputset, output_dir_suffix)
+
+
+def neb_add_args(parser):
+    """Setup parser arguments for NEB input.
+    Args:
+      parser: subparser
+    """
+    parser.help = "Create NEB input between two VASP runs"
+    parser.set_defaults(func_derive=neb)
+    parser.add_argument(
+        "target",
+        help="VASP output dir containing the target NEB point",
+        type=str)
+    parser.add_argument(
+        "--nimages",
+        help="Number of NEB images (default: 4)",
+        type=int,
+        default=4)
+
+
+def neb(args):
+    """Create NEB input.
+    Return (inputset, output_dir_suffix)
+    """
+    inputset = IMDNEBVaspInputSet(
+        directory=args.input_directory,
+        target_directory=args.target,
+        user_incar_settings={'NIMAGES', args.nimages})
     len_before = len(inputset.structure)
     inputset.structure.remove_species(args.what)
     if len(inputset.structure) == len_before:
