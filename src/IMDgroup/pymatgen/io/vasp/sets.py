@@ -387,10 +387,9 @@ class IMDNEBVaspInputSet(IMDDerivedInputSet):
         # Remove POSCAR written in the top dir.  It is not needed for
         # NEB calculations.
         os.remove(os.path.join(output_dir, 'POSCAR'))
-        nimages = self.incar["IMAGES"]
         images = self.get_images(
-            self.structure, self.target_structure, nimages)
-        for image_idx in range(nimages):
+            self.structure, self.target_structure, self.incar["IMAGES"])
+        for image_idx in range(len(images)):
             sub_dir = Path(os.path.join(output_dir, f"{image_idx:02d}"))
             if not sub_dir.exists():
                 sub_dir.mkdir()
