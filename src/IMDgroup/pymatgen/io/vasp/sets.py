@@ -357,7 +357,8 @@ class IMDNEBVaspInputSet(IMDDerivedInputSet):
     def get_images(structure1, structure2, nimages):
         """Return list of NIMAGES spanning between structures.
         The list will include STRUCTURE1 as the first element and
-        STRUCTURE2 as the last.
+        STRUCTURE2 as the last, in addition to the intermediate
+        NIMAGES.
         """
         beg = structure1
         end = structure2
@@ -369,7 +370,8 @@ class IMDNEBVaspInputSet(IMDDerivedInputSet):
 
         beg_coords = np.array([node.frac_coords for node in beg])
         end_coords = np.array([node.frac_coords for node in end])
-        diffs = np.linspace(beg_coords, end_coords, nimages) - beg_coords
+        # total number of points is nimages + 2
+        diffs = np.linspace(beg_coords, end_coords, 2 + nimages) - beg_coords
 
         result = []
         for diff in diffs:
