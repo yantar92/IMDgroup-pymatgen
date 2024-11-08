@@ -10,7 +10,6 @@ from pathlib import Path
 from dataclasses import dataclass
 import numpy as np
 from pymatgen.io.vasp.sets import VaspInputSet, BadInputSetWarning
-from IMDgroup.pymatgen.io.vasp.inputs import Incar, _load_yaml_config
 from pymatgen.io.vasp.inputs import Potcar, Kpoints, Poscar
 from pymatgen.util.due import Doi, due
 from pymatgen.core import Structure
@@ -18,6 +17,7 @@ from pymatgen.ext.matproj import MPRester
 from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
 from ase.calculators.vasp.setups \
     import setups_defaults as ase_potential_defaults
+from IMDgroup.pymatgen.io.vasp.inputs import Incar, _load_yaml_config
 
 # ase uses pairs of 'Si': '_suffix'.  Convert them into 'Si': 'Si_suffix'
 POTCAR_RECOMMENDED = dict(
