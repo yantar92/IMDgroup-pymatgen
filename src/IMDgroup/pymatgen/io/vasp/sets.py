@@ -345,7 +345,7 @@ class IMDNEBVaspInputSet(IMDDerivedInputSet):
         diff = self.incar.diff(target_incar)
         if len(diff['Different']) > 0:
             raise ValueError(
-                f"INCARs in {self.start_dir} and {self.end_dir}"
+                f"INCARs in {self.directory} and {self.target_directory}"
                 f" are inconsistent: {diff['Different']}")
 
     @staticmethod
