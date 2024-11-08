@@ -389,8 +389,7 @@ class IMDNEBVaspInputSet(IMDDerivedInputSet):
         images = self.get_images(
             self.structure, self.target_structure, nimages)
         for image_idx in range(nimages):
-            # VASP expects 1-based index
-            sub_dir = Path(os.path.join(output_dir, f"{1 + image_idx:02d}"))
+            sub_dir = Path(os.path.join(output_dir, f"{image_idx:02d}"))
             if not sub_dir.exists():
                 sub_dir.mkdir()
             images[image_idx].to_file(os.path.join(sub_dir, 'POSCAR'))
