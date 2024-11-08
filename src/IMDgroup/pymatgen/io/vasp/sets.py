@@ -328,10 +328,16 @@ class IMDNEBVaspInputSet(IMDDerivedInputSet):
     CONFIG = {'INCAR': {"NIMAGES": 4, "SPRING": -5}}
 
     def __post_init__(self) -> None:
+        # Refuse to accept unconverged VASP runs.
+        beg_run = Vasprun(os.path.join(self.directory, 'vasprun.xml'))
+        end_run = Vasprun(os.path.join(self.target_directory, 'vasprun.xml'))
+        assert beg_run.converged and end_run.converged
+
         super().__post_init__()
 
         target_inputset = IMDDerivedInputSet(directory=self.target_directory)
         self.target_structure = target_inputset.structure
+
         # Make sure that INCARs for start_dir and end_dir are
         # consistent.
         target_incar = target_inputset.incar
