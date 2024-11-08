@@ -382,6 +382,9 @@ class IMDNEBVaspInputSet(IMDDerivedInputSet):
     def write_input(self, output_dir, **kwargs) -> None:
         """Write a set of VASP input to OUTPUT_DIR."""
         super().write_input(output_dir, **kwargs)
+        # Remove POSCAR written in the top dir.  It is not needed for
+        # NEB calculations.
+        os.remove(os.path.join(output_dir, 'POSCAR'))
         nimages = self.incar["IMAGES"]
         images = self.get_images(
             self.structure, self.target_structure, nimages)
