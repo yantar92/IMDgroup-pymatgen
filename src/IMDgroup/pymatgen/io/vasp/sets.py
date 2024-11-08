@@ -327,7 +327,7 @@ class IMDNEBVaspInputSet(IMDDerivedInputSet):
     # the typical number of images is 4-20.  We take smaller number as
     # the default here.
     CONFIG = {
-        'INCAR': {"NIMAGES": 4, "SPRING": -5},
+        'INCAR': {"IMAGES": 4, "SPRING": -5},
         'POTCAR_FUNCTIONAL': "PBE_64"
     }
 
@@ -382,7 +382,7 @@ class IMDNEBVaspInputSet(IMDDerivedInputSet):
     def write_input(self, output_dir, **kwargs) -> None:
         """Write a set of VASP input to OUTPUT_DIR."""
         super().write_input(output_dir, **kwargs)
-        nimages = self.incar["NIMAGES"]
+        nimages = self.incar["IMAGES"]
         images = self.get_images(
             self.structure, self.target_structure, nimages)
         for image_idx in range(nimages):
