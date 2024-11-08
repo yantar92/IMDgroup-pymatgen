@@ -549,11 +549,7 @@ def neb(args):
         directory=args.input_directory,
         target_directory=args.target,
         user_incar_settings={'NIMAGES', args.nimages})
-    len_before = len(inputset.structure)
-    inputset.structure.remove_species(args.what)
-    if len(inputset.structure) == len_before:
-        warnings.warn("Nothing was deleted")
-    output_dir_suffix = ",".join(args.what)
+    output_dir_suffix = "NEB"
     return (inputset, output_dir_suffix)
 
 
