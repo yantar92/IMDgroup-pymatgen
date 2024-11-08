@@ -312,6 +312,77 @@ class IMDStandardVaspInputSet(IMDVaspInputSet):
         super().__post_init__()
 
 
+@dataclass
+class IMDNEBVaspInputSet(IMDDerivedInputSet):
+    """Input set for NEB calculations.
+    Accepts two mandatory arguments directory and target_directory for
+    the VASP outputs containing the initial and final structures.  We
+    demand VASP outputs as the structures have to be well-converged
+    for accurate NEB calculations.
+    """
+    target_directory: str | None = None
+
+    # According to Henkelman et al JCP 2000 (10.1063/1.1329672),
+    # the typical number of images is 4-20.  We take smaller number as
+    # the default here.
+    CONFIG = {'INCAR': {"NIMAGES": 4, "SPRING": -5}}
+
+    def __post_init__(self) -> None:
+        super().__post_init__()
+
+        target_inputset = IMDDerivedInputSet(directory=self.target_directory)
+        self.target_structure = target_inputset.structure
+        # Make sure that INCARs for start_dir and end_dir are
+        # consistent.
+        target_incar = target_inputset.incar
+        diff = self.incar.diff(target_incar)
+        if len(diff['Different']) > 0:
+            raise ValueError(
+                f"INCARs in {self.start_dir} and {self.end_dir}"
+                f" are inconsistent: {diff['Different']}")
+
+    @staticmethod
+    def get_images(structure1, structure2, nimages):
+        """Return list of NIMAGES spanning between structures.
+        The list will include STRUCTURE1 as the first element and
+        STRUCTURE2 as the last.
+        """
+        # Sort structures, making sure that sites are ordered
+        # according to their coordinates.
+        beg = structure1.copy().sort(key=lambda n: n.frac_coords)
+        end = structure2.copy().sort(key=lambda n: n.frac_coords)
+
+        # Sanity checks.  Cannot create NEB input for structures that
+        # differ by more than simply site positions.
+        assert beg.lattice == end.lattice
+        assert len(beg) == len(end)
+        assert beg.species == end.species
+
+        beg_coords = np.array([node.frac_coords for node in beg])
+        end_coords = np.array([node.frac_coords for node in end])
+        diffs = np.linspace(beg_coords, end_coords, nimages) - beg_coords
+
+        result = []
+        for diff in diffs:
+            image = structure1.copy()
+            for idx in range(len(image)):
+                image.translate_sites(idx, diff[idx])
+            result.append(image)
+        return result
+
+    def write_input(self, output_dir, **kwargs) -> None:
+        """Write a set of VASP input to OUTPUT_DIR."""
+        self.write_input(output_dir, **kwargs)
+        nimages = self.incar["NIMAGES"]
+        images = self.get_images(
+            self.structure, self.target_structure, nimages)
+        for image_idx in range(nimages):
+            sub_dir = os.path.join(output_dir, f"{image_idx:02d}")
+            if not sub_dir.exists():
+                os.mkdir(sub_dir)
+            images[image_idx].to_file(os.path.join(sub_dir, 'POSCAR'))
+
+
 @due.dcite(
     Doi("10.1007/s10570-024-05754-7"),
     description="Understanding of dielectric properties of cellulose",
