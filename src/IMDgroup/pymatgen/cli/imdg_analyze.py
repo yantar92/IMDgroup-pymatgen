@@ -50,10 +50,10 @@ class IMDGBorgQueen (BorgQueen):
             h = self._get_dir_hash(path)
             logger.debug("Assimulating %s [%s]", path, h)
             if self._cache.get(h):
-                logger.debug("Using cached data for %s", path)
+                logger.info("Using cached data for %s", path)
                 data = self._cache.get(h)
             else:
-                logger.debug("Reading data from %s", path)
+                logger.info("Reading data from %s", path)
                 data = self._drone.assimilate(path)
             return {h: data}
 
