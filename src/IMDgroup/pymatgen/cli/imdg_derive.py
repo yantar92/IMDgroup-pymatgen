@@ -435,7 +435,7 @@ structure will not be constrained.
     )
     parser.add_argument(
         "--limit",
-        help="Number of structures (negative to randomize search)",
+        help="""Number of structures (negative to randomize search: not recommended because of input repro problems)""",
         type=int)
     parser.add_argument(
         "--step",
