@@ -369,9 +369,16 @@ class IMDNEBVaspInputSet(IMDDerivedInputSet):
         assert beg.species == end.species
 
         beg_coords = np.array([node.frac_coords for node in beg])
+        beg_center_of_mass = np.average(beg_coords)
         end_coords = np.array([node.frac_coords for node in end])
+        end_center_of_mass = np.average(end_coords)
         # total number of points is nimages + 2
-        diffs = np.linspace(beg_coords, end_coords, 2 + nimages) - beg_coords
+        diffs = np.linspace(
+            beg_coords,
+            # See https://www.vasp.at/wiki/index.php/Collective_jumps_of_a_Pt_adatom_on_fcc-Pt_(001):_Nudged_Elastic_Band_Calculation
+            end_coords - end_center_of_mass + beg_center_of_mass,
+            2 + nimages)\
+            - beg_coords
 
         result = []
         for diff in diffs:
