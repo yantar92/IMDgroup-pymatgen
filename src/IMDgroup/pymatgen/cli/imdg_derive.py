@@ -561,7 +561,7 @@ def derive(args):
         value_or_values = [value_or_values]
 
     output_dir_prefix = os.path.basename(
-        os.path.abspath(args.input_directory))
+        os.path.abspath(args.input_directory)) + "."
     if args.output_prefix is not None:
         output_dir_prefix = args.output_prefix
 
