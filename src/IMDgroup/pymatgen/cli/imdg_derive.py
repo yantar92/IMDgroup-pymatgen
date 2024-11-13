@@ -575,8 +575,10 @@ def derive(args):
                 output_dir = output_dir_prefix + output_dir_suffix
             else:
                 output_dir = output_dir_suffix
-        else:
+        elif len(value_or_values) == 1:
             output_dir = args.output
+        else:
+            output_dir = os.path.join(args.output, output_dir_suffix)
         if args.subdir:
             output_dir = os.path.join(output_dir, args.subdir)
         inputset.write_input(output_dir=output_dir)
