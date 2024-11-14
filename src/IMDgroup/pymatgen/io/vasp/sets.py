@@ -300,9 +300,6 @@ class IMDStandardVaspInputSet(IMDVaspInputSet):
                   # https://www.vasp.at/wiki/index.php/ISMEAR
                   'ISMEAR': 0,
                   'SIGMA': 0.04,
-                  # FIXME: May we calculate it automatically, from
-                  # POTCAR + INCAR data?
-                  'NCORE': 16,
                   # By default, do not write WAVECAR and CHGCAR - save space
                   'LWAVE': False,
                   'LCHARG': False,
@@ -315,7 +312,18 @@ class IMDStandardVaspInputSet(IMDVaspInputSet):
 
         if self.structure is not None:
             if len(self.structure) < self.CONFIG['INCAR']['NCORE']:
-                self.CONFIG['INCAR']['NCORE'] = min(2, len(self.structure))
+                self.CONFIG['INCAR']['NCORE'] = max(
+                    2,
+                    min(
+                        # https://www.vasp.at/wiki/index.php/NCORE
+                        # suggests NCORE = 4 for 100 atoms
+                        # NCORE = 12-16 for 400 atoms
+                        int(len(self.structure)/25),
+                        # Never go beyond 16 as it may not fit number
+                        # of CPUs in a given node
+                        16
+                    )
+                )
 
         super().__post_init__()
 
