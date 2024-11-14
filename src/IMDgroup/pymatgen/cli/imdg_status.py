@@ -11,7 +11,6 @@ import datetime
 from xml.etree.ElementTree import ParseError
 from monty.io import zopen
 from termcolor import colored
-from pymatgen.io.vasp.outputs import (Vasprun, Outcar)
 from IMDgroup.pymatgen.cli.imdg_analyze import read_vaspruns
 
 logger = logging.getLogger(__name__)
@@ -95,7 +94,7 @@ VASP_PROGRESS = {
 
 
 def custom_showwarning(
-        message, category, filename, lineno, file=None, line=None):
+        message, category, _filename, _lineno, file=None, _line=None):
     """Print warning in nicer way.
     """
     output = colored(
@@ -187,17 +186,20 @@ def add_args(parser):
 def status(args):
     """Main routine.
     """
-    entries_dict = {}
-    with warnings.catch_warnings():
-        warnings.filterwarnings("ignore", category=UserWarning)
-        entries = read_vaspruns(args.dir)
-    if entries is not None:
-        entries_dict = {
-            os.path.dirname(e.data['filename']): e
-            for e in entries
-        }
+    def _read_entries_dict():
+        entries_dict = {}
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", category=UserWarning)
+            entries = read_vaspruns(args.dir)
+            if entries is not None:
+                entries_dict = {
+                    os.path.dirname(e.data['filename']): e
+                    for e in entries
+                }
+        return entries_dict
 
     paths = []
+    entries_dict = None
     for wdir, _, files in os.walk(args.dir):
         if 'vasprun.xml' in files:
             paths.append(wdir)
@@ -225,25 +227,22 @@ def status(args):
         if slurm_runningp(wdir):
             run_status = colored("running", "yellow")
         else:
-            try:
-                if wdir in entries_dict:
+            if entries_dict is None:
+                entries_dict = _read_entries_dict()
+            if wdir in entries_dict:
+                try:
                     converged = entries_dict[wdir].data['converged']
                     outcar = entries_dict[wdir].data['outcar']
-                else:
-                    run = Vasprun(
-                        os.path.join(wdir, 'vasprun.xml'),
-                        parse_dos=False,
-                        parse_eigen=False)
-                    converged = run.converged
-                    outcar = Outcar(os.path.join(wdir, "OUTCAR")).as_dict()
-                run_status = colored("converged", "green") if converged\
-                    else colored("unconverged", "red")
-                cpu_time_sec = outcar['run_stats']['Total CPU time used (sec)']
-                cpu_time = str(datetime.timedelta(seconds=round(cpu_time_sec)))
-                n_cores = outcar['run_stats']['cores']
-                progress = f" | CPU time: {cpu_time} ({n_cores} cores)"
-            except ParseError:
-                run_status = colored("incomplete vasprun.xml", "red")
+                    run_status = colored("converged", "green") if converged\
+                        else colored("unconverged", "red")
+                    cpu_time_sec =\
+                        outcar['run_stats']['Total CPU time used (sec)']
+                    cpu_time =\
+                        str(datetime.timedelta(seconds=round(cpu_time_sec)))
+                    n_cores = outcar['run_stats']['cores']
+                    progress = f" | CPU time: {cpu_time} ({n_cores} cores)"
+                except ParseError:
+                    run_status = colored("incomplete vasprun.xml", "red")
         print(colored(
             f"{wdir.replace("./", "")}: ", attrs=['bold'])
               + run_status + progress + warning_list)
