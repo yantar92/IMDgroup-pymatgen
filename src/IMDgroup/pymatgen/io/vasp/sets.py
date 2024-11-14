@@ -142,8 +142,8 @@ class IMDVaspInputSet(VaspInputSet):
                     "\nI hope that you know what you are doing.",
                     BadInputSetWarning,
                 )
-            elif incar['ENCUT'] > 500.0 and\
-                 incar['ISIF'] == Incar.ISIF_FIX_SHAPE_VOL:
+            elif (incar['ENCUT'] > 500.0 and
+                  incar['ISIF'] == Incar.ISIF_FIX_SHAPE_VOL):
                 warnings.warn(
                     "ENCUT parameter is too high for position relaxation."
                     f" ({incar['ENCUT']} > 500eV)"
