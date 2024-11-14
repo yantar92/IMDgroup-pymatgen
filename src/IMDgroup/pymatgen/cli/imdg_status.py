@@ -229,6 +229,7 @@ def status(args):
             if wdir in entries_dict:
                 converged = entries_dict[wdir].data['converged']
                 outcar = entries_dict[wdir].data['outcar']
+                final_energy = entries_dict[wdir].energy_per_atom
             else:
                 try:
                     run = Vasprun(
@@ -237,6 +238,7 @@ def status(args):
                         parse_eigen=False)
                     converged = run.converged
                     outcar = Outcar(os.path.join(wdir, "OUTCAR")).as_dict()
+                    final_energy = run.final_energy
                 except ParseError:
                     run_status = colored("incomplete vasprun.xml", "red")
             cpu_time_sec =\
@@ -244,7 +246,6 @@ def status(args):
             cpu_time =\
                 str(datetime.timedelta(seconds=round(cpu_time_sec)))
             n_cores = outcar['run_stats']['cores']
-            final_energy = outcar['final_energy']
             progress = f" | {final_energy}eV" +\
                 f"CPU time: {cpu_time} ({n_cores} cores)"
             run_status = colored("converged", "green")\
