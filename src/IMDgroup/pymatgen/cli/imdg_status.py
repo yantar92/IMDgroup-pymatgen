@@ -229,7 +229,7 @@ def status(args):
             if wdir in entries_dict:
                 converged = entries_dict[wdir].data['converged']
                 outcar = entries_dict[wdir].data['outcar']
-                final_energy = entries_dict[wdir].energy_per_atom
+                final_energy = entries_dict[wdir].energy
             else:
                 try:
                     run = Vasprun(
