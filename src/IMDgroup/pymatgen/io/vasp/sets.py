@@ -156,7 +156,13 @@ class IMDVaspInputSet(VaspInputSet):
             # https://www.vasp.at/wiki/index.php/KPAR
             KPAR = incar['KPAR'] if 'KPAR' in incar else 1
             NCORE = incar['NPAR'] * KPAR
-        if NCORE is not None and NCORE > len(self.structure):
+        if NCORE == 1:
+            warnings.warn(
+                "NCORE = 1 is only useful for up to 8 cores. "
+                "See https://www.vasp.at/wiki/index.php/NCORE",
+                BadInputSetWarning,
+            )
+        if NCORE is not None and NCORE > 2 and NCORE > len(self.structure):
             warnings.warn(
                 "NCORE/NPAR parameter in the input set is too large"
                 f" ({NCORE} > {len(self.structure)} atoms)",
@@ -308,7 +314,7 @@ class IMDStandardVaspInputSet(IMDVaspInputSet):
 
         if self.structure is not None:
             if len(self.structure) < self.CONFIG['INCAR']['NCORE']:
-                self.CONFIG['INCAR']['NCORE'] = len(self.structure)
+                self.CONFIG['INCAR']['NCORE'] = min(2, len(self.structure))
 
         super().__post_init__()
 
