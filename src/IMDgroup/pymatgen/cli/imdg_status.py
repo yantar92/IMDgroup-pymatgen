@@ -8,7 +8,6 @@ import warnings
 import subprocess
 import shutil
 import datetime
-from xml.etree.ElementTree import ParseError
 from monty.io import zopen
 from termcolor import colored
 from IMDgroup.pymatgen.cli.imdg_analyze import read_vaspruns
@@ -225,19 +224,18 @@ def status(args):
             run_status = colored("running", "yellow")
         else:
             if wdir in entries_dict:
-                try:
-                    converged = entries_dict[wdir].data['converged']
-                    outcar = entries_dict[wdir].data['outcar']
-                    run_status = colored("converged", "green") if converged\
-                        else colored("unconverged", "red")
-                    cpu_time_sec =\
-                        outcar['run_stats']['Total CPU time used (sec)']
-                    cpu_time =\
-                        str(datetime.timedelta(seconds=round(cpu_time_sec)))
-                    n_cores = outcar['run_stats']['cores']
-                    progress = f" | CPU time: {cpu_time} ({n_cores} cores)"
-                except ParseError:
-                    run_status = colored("incomplete vasprun.xml", "red")
+                converged = entries_dict[wdir].data['converged']
+                outcar = entries_dict[wdir].data['outcar']
+                cpu_time_sec =\
+                    outcar['run_stats']['Total CPU time used (sec)']
+                cpu_time =\
+                    str(datetime.timedelta(seconds=round(cpu_time_sec)))
+                n_cores = outcar['run_stats']['cores']
+                progress = f" | CPU time: {cpu_time} ({n_cores} cores)"
+                run_status = colored("converged", "green")\
+                    if converged else colored("unconverged", "red")
+            else:
+                run_status = colored("incomplete vasprun.xml", "red")
         print(colored(
             f"{wdir.replace("./", "")}: ", attrs=['bold'])
               + run_status + progress + warning_list)
