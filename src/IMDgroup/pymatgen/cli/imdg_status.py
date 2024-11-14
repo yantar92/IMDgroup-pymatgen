@@ -244,7 +244,9 @@ def status(args):
             cpu_time =\
                 str(datetime.timedelta(seconds=round(cpu_time_sec)))
             n_cores = outcar['run_stats']['cores']
-            progress = f" | CPU time: {cpu_time} ({n_cores} cores)"
+            final_energy = outcar['final_energy']
+            progress = f" | {final_energy}eV" +\
+                f"CPU time: {cpu_time} ({n_cores} cores)"
             run_status = colored("converged", "green")\
                 if converged else colored("unconverged", "red")
         print(colored(
