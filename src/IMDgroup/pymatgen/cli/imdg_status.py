@@ -186,20 +186,17 @@ def add_args(parser):
 def status(args):
     """Main routine.
     """
-    def _read_entries_dict():
-        entries_dict = {}
-        with warnings.catch_warnings():
-            warnings.filterwarnings("ignore", category=UserWarning)
-            entries = read_vaspruns(args.dir)
-            if entries is not None:
-                entries_dict = {
-                    os.path.dirname(e.data['filename']): e
-                    for e in entries
-                }
-        return entries_dict
+    entries_dict = {}
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", category=UserWarning)
+        entries = read_vaspruns(args.dir, path_filter=slurm_runningp)
+        if entries is not None:
+            entries_dict = {
+                os.path.dirname(e.data['filename']): e
+                for e in entries
+            }
 
     paths = []
-    entries_dict = None
     for wdir, _, files in os.walk(args.dir):
         if 'vasprun.xml' in files:
             paths.append(wdir)
@@ -227,8 +224,6 @@ def status(args):
         if slurm_runningp(wdir):
             run_status = colored("running", "yellow")
         else:
-            if entries_dict is None:
-                entries_dict = _read_entries_dict()
             if wdir in entries_dict:
                 try:
                     converged = entries_dict[wdir].data['converged']

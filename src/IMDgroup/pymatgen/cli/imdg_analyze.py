@@ -23,10 +23,11 @@ class IMDGBorgQueen (BorgQueen):
 
     class _DroneWithCache:
 
-        def __init__(self, drone, cache):
+        def __init__(self, drone, cache, path_filter=None):
             self._drone = drone
             logger.debug("Setting up cache %s", cache.keys())
             self._cache = cache
+            self.path_filter = path_filter
 
         @staticmethod
         def _get_file_hash(filename):
@@ -61,13 +62,17 @@ class IMDGBorgQueen (BorgQueen):
 
         def get_valid_paths(self, path):
             """Call drone.get_valid_paths."""
-            return self._drone.get_valid_paths(path)
+            paths = self._drone.get_valid_paths(path)
+            return [p for p in paths
+                    if self.path_filter is None
+                    or self.path_filter(p)]
 
     def __init__(
             self, drone,
             rootpath=None,
             number_of_drones=1,
-            dump_file=None):
+            dump_file=None,
+            path_filter=None):
         """
         Args:
             drone (Drone): An implementation of
@@ -83,6 +88,8 @@ class IMDGBorgQueen (BorgQueen):
                 If you are running this over a server with far more processors,
                 the speedup will be even greater.
             dump_file (PathLike): File containing previously stored data.
+            path_filter (function(PathLike)): Function filtering paths
+            to be read.  It must return True when path should be included.
         """
         old_data: list = []
         if dump_file and os.path.isfile(dump_file):
@@ -93,7 +100,7 @@ class IMDGBorgQueen (BorgQueen):
             for h, val in item.items():
                 cache[h] = val
         super().__init__(
-            self._DroneWithCache(drone, cache),
+            self._DroneWithCache(drone, cache, path_filter),
             rootpath,
             number_of_drones)
 
@@ -124,11 +131,13 @@ class IMDGVaspToComputedEnrgyDrone(VaspToComputedEntryDrone):
         return computed_entry
 
 
-def read_vaspruns(rootdir):
+def read_vaspruns(rootdir, path_filter=None):
     """Read all vaspruns in directory (nested).
 
     Args:
         rootdir (str): Root directory.
+        path_filter(function(PathLike): Function returning True for
+        paths that should be read.
     Returns: List of Vasprun objects.
     """
     drone = IMDGVaspToComputedEnrgyDrone(
@@ -138,7 +147,8 @@ def read_vaspruns(rootdir):
     queen = IMDGBorgQueen(
         drone,
         rootpath=rootdir,
-        dump_file=SAVE_FILE)
+        dump_file=SAVE_FILE,
+        path_filter=path_filter)
     queen.save_data(SAVE_FILE)
 
     entries = queen.get_data()
