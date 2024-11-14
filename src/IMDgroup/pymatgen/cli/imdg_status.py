@@ -10,6 +10,8 @@ import shutil
 import datetime
 from monty.io import zopen
 from termcolor import colored
+from xml.etree.ElementTree import ParseError
+from pymatgen.io.vasp.outputs import (Vasprun, Outcar)
 from IMDgroup.pymatgen.cli.imdg_analyze import read_vaspruns
 
 logger = logging.getLogger(__name__)
@@ -227,16 +229,24 @@ def status(args):
             if wdir in entries_dict:
                 converged = entries_dict[wdir].data['converged']
                 outcar = entries_dict[wdir].data['outcar']
-                cpu_time_sec =\
-                    outcar['run_stats']['Total CPU time used (sec)']
-                cpu_time =\
-                    str(datetime.timedelta(seconds=round(cpu_time_sec)))
-                n_cores = outcar['run_stats']['cores']
-                progress = f" | CPU time: {cpu_time} ({n_cores} cores)"
-                run_status = colored("converged", "green")\
-                    if converged else colored("unconverged", "red")
             else:
-                run_status = colored("incomplete vasprun.xml", "red")
+                try:
+                    run = Vasprun(
+                        os.path.join(wdir, 'vasprun.xml'),
+                        parse_dos=False,
+                        parse_eigen=False)
+                    converged = run.converged
+                    outcar = Outcar(os.path.join(wdir, "OUTCAR")).as_dict()
+                except ParseError:
+                    run_status = colored("incomplete vasprun.xml", "red")
+            cpu_time_sec =\
+                outcar['run_stats']['Total CPU time used (sec)']
+            cpu_time =\
+                str(datetime.timedelta(seconds=round(cpu_time_sec)))
+            n_cores = outcar['run_stats']['cores']
+            progress = f" | CPU time: {cpu_time} ({n_cores} cores)"
+            run_status = colored("converged", "green")\
+                if converged else colored("unconverged", "red")
         print(colored(
             f"{wdir.replace("./", "")}: ", attrs=['bold'])
               + run_status + progress + warning_list)
