@@ -188,7 +188,8 @@ def status(args):
     entries_dict = {}
     with warnings.catch_warnings():
         warnings.filterwarnings("ignore", category=UserWarning)
-        entries = read_vaspruns(args.dir, path_filter=slurm_runningp)
+        entries = read_vaspruns(
+            args.dir, path_filter=lambda p: not slurm_runningp(p))
         if entries is not None:
             entries_dict = {
                 os.path.dirname(e.data['filename']): e
