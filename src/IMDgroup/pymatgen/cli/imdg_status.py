@@ -241,11 +241,15 @@ def status(args):
                     final_energy = run.final_energy
                 except ParseError:
                     run_status = colored("incomplete vasprun.xml", "red")
-            cpu_time_sec =\
-                outcar['run_stats']['Total CPU time used (sec)']
-            cpu_time =\
-                str(datetime.timedelta(seconds=round(cpu_time_sec)))
-            n_cores = outcar['run_stats']['cores']
+            if outcar:
+                cpu_time_sec =\
+                    outcar['run_stats']['Total CPU time used (sec)']
+                cpu_time =\
+                    str(datetime.timedelta(seconds=round(cpu_time_sec)))
+                n_cores = outcar['run_stats']['cores']
+            else:
+                cpu_time = "N/A"
+                n_cores = "N/A"
             progress = f" | {final_energy:.2f}eV" +\
                 f" CPU time: {cpu_time} ({n_cores} cores)"
             run_status = colored("converged", "green")\
