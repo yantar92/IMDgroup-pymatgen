@@ -241,7 +241,7 @@ def status(args):
                     final_energy = run.final_energy
                 except ParseError:
                     run_status = colored("incomplete vasprun.xml", "red")
-            if outcar:
+            if outcar is not None:
                 cpu_time_sec =\
                     outcar['run_stats']['Total CPU time used (sec)']
                 cpu_time =\
