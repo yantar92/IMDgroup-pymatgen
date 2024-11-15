@@ -253,7 +253,7 @@ def status(args):
                         f" CPU time: {cpu_time} ({n_cores} cores)"
                     run_status = colored("converged", "green")\
                         if converged else colored("unconverged", "red")
-            except ParseError:
+            except (ParseError, FileNotFoundError):
                 run_status = colored("incomplete vasprun.xml", "red")
         print(colored(
             f"{wdir.replace("./", "")}: ", attrs=['bold'])
