@@ -202,6 +202,11 @@ def status(args):
     for wdir, _, files in os.walk(args.dir):
         if 'vasprun.xml' in files:
             paths.append(wdir)
+        else:
+            for f in files:
+                if re.match('slurm-[0-9]+.out', f):
+                    paths.append(wdir)
+                    break
     paths = sorted(paths)
     for wdir in paths:
         if log_file := slurm_log_file(wdir):
