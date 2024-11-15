@@ -240,6 +240,7 @@ def status(args):
                     outcar = Outcar(os.path.join(wdir, "OUTCAR")).as_dict()
                     final_energy = run.final_energy
                 except ParseError:
+                    outcar = None
                     run_status = colored("incomplete vasprun.xml", "red")
             if outcar is not None:
                 cpu_time_sec =\
