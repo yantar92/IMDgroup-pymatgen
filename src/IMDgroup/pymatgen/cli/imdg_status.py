@@ -56,7 +56,8 @@ VASP_WARNINGS = {
     "zbrent": [
         "ZBRENT: fatal internal in", "ZBRENT: fatal error in bracketing",
         "ZBRENT:  can not reach accuracy",
-        "ZBRENT: can't locate minimum, use default step"],
+        # "ZBRENT: can't locate minimum, use default step"
+    ],
     # Note that PSSYEVX and PDSYEVX errors are identical up to LAPACK routine:
     # P<prec>SYEVX uses <prec> = S(ingle) or D(ouble) precision
     "pssyevx": ["ERROR in subspace rotation PSSYEVX"],
