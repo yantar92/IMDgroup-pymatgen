@@ -226,12 +226,12 @@ def status(args):
         if slurm_runningp(wdir):
             run_status = colored("running", "yellow")
         else:
-            if wdir in entries_dict:
-                converged = entries_dict[wdir].data['converged']
-                outcar = entries_dict[wdir].data['outcar']
-                final_energy = entries_dict[wdir].energy
-            else:
-                try:
+            try:
+                if wdir in entries_dict:
+                    converged = entries_dict[wdir].data['converged']
+                    outcar = entries_dict[wdir].data['outcar']
+                    final_energy = entries_dict[wdir].energy
+                else:
                     run = Vasprun(
                         os.path.join(wdir, 'vasprun.xml'),
                         parse_dos=False,
@@ -239,24 +239,17 @@ def status(args):
                     converged = run.converged
                     outcar = Outcar(os.path.join(wdir, "OUTCAR")).as_dict()
                     final_energy = run.final_energy
-                except ParseError:
-                    outcar = None
-                    final_energy = 0
-                    converged = False
-                    run_status = colored("incomplete vasprun.xml", "red")
-            if outcar is not None:
-                cpu_time_sec =\
-                    outcar['run_stats']['Total CPU time used (sec)']
-                cpu_time =\
-                    str(datetime.timedelta(seconds=round(cpu_time_sec)))
-                n_cores = outcar['run_stats']['cores']
-            else:
-                cpu_time = "N/A"
-                n_cores = "N/A"
-            progress = f" | {final_energy:.2f}eV" +\
-                f" CPU time: {cpu_time} ({n_cores} cores)"
-            run_status = colored("converged", "green")\
-                if converged else colored("unconverged", "red")
+                    cpu_time_sec =\
+                        outcar['run_stats']['Total CPU time used (sec)']
+                    cpu_time =\
+                        str(datetime.timedelta(seconds=round(cpu_time_sec)))
+                    n_cores = outcar['run_stats']['cores']
+                    progress = f" | {final_energy:.2f}eV" +\
+                        f" CPU time: {cpu_time} ({n_cores} cores)"
+                    run_status = colored("converged", "green")\
+                        if converged else colored("unconverged", "red")
+            except ParseError:
+                run_status = colored("incomplete vasprun.xml", "red")
         print(colored(
             f"{wdir.replace("./", "")}: ", attrs=['bold'])
               + run_status + progress + warning_list)
