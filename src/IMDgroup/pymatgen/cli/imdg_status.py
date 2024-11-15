@@ -241,6 +241,8 @@ def status(args):
                     final_energy = run.final_energy
                 except ParseError:
                     outcar = None
+                    final_energy = "N/A"
+                    converged = False
                     run_status = colored("incomplete vasprun.xml", "red")
             if outcar is not None:
                 cpu_time_sec =\
