@@ -247,15 +247,15 @@ def status(args):
                     converged = run.converged
                     outcar = Outcar(os.path.join(wdir, "OUTCAR")).as_dict()
                     final_energy = run.final_energy
-                    cpu_time_sec =\
-                        outcar['run_stats']['Total CPU time used (sec)']
-                    cpu_time =\
-                        str(datetime.timedelta(seconds=round(cpu_time_sec)))
-                    n_cores = outcar['run_stats']['cores']
-                    progress = f" | {final_energy:.2f}eV" +\
-                        f" CPU time: {cpu_time} ({n_cores} cores)"
-                    run_status = colored("converged", "green")\
-                        if converged else colored("unconverged", "red")
+                cpu_time_sec =\
+                    outcar['run_stats']['Total CPU time used (sec)']
+                cpu_time =\
+                    str(datetime.timedelta(seconds=round(cpu_time_sec)))
+                n_cores = outcar['run_stats']['cores']
+                progress = f" | {final_energy:.2f}eV" +\
+                    f" CPU time: {cpu_time} ({n_cores} cores)"
+                run_status = colored("converged", "green")\
+                    if converged else colored("unconverged", "red")
             except (ParseError, FileNotFoundError):
                 run_status = colored("incomplete vasprun.xml", "red")
         print(colored(
