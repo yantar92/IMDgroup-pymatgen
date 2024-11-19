@@ -62,8 +62,13 @@ class SymmetryCloneTransformation(AbstractTransformation):
             tmp_structure = clean_structure.copy()
             tmp_structure.apply_operation(op)
             for site in tmp_structure:
-                filled_structure.append(
-                    site.species, site.coords,
-                    properties=site.properties.update({'symop': op}))
-        filled_structure = filled_structure.merge_sites(mode='average')
+                props = site.properties
+                props.update({'symop': op})
+                try:
+                    filled_structure.append(
+                        site.species, site.coords,
+                        properties=props, validate_proximity=True)
+                except ValueError:
+                    # Too close, skip.
+                    pass
         return filled_structure
