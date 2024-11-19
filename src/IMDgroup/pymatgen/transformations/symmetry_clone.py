@@ -40,7 +40,7 @@ class SymmetryCloneTransformation(AbstractTransformation):
             self,
             structure: Structure | str,
             _return_ranked_list: bool | int = False):
-        """Transform structure, adding a single molecule.
+        """Transform structure, filling symmetrically equivalent sites.
 
         Args:
           structure (Structure or filename):
