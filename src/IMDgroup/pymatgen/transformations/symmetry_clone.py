@@ -49,7 +49,9 @@ class SymmetryCloneTransformation(AbstractTransformation):
             Unused (this is one-to-one transformation).
 
         Returns:
-          Transformed structure.
+          Transformed structure.  Each cloned site will have its
+          property 'symop' be set to symmetry operation used to
+          generate the clone.
         """
         all_elements = map(Element, structure.species)
         elements_to_remove = set(all_elements) - self.element_set
@@ -61,6 +63,7 @@ class SymmetryCloneTransformation(AbstractTransformation):
             tmp_structure.apply_operation(op)
             for site in tmp_structure:
                 filled_structure.append(
-                    site.species, site.coords, properties=site.properties)
+                    site.species, site.coords,
+                    properties=site.properties.update({'symop': op}))
         filled_structure = filled_structure.merge_sites(mode='average')
         return filled_structure
