@@ -56,6 +56,8 @@ class SymmetryCloneTransformation(AbstractTransformation):
         all_elements = map(Element, structure.species)
         elements_to_remove = set(all_elements) - self.element_set
         filled_structure = structure.copy()
+        for site in filled_structure:
+            site.properties.update({'symop': None})
         clean_structure = structure.copy()
         clean_structure.remove_species(list(elements_to_remove))
         for op in self.sym_operations:
