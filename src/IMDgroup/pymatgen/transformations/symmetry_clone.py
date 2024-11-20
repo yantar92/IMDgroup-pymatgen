@@ -20,14 +20,16 @@ class SymmetryCloneTransformation(AbstractTransformation):
             element_list: list[SpeciesLike]):
         """Create structure with sites cloned according to symmetry.
         Args:
-         sym_operations: List of SymmOp operations to be applied or a
-           reference Structure to be used to generate the operations.
+         sym_operations: List of SymmOp *fractional* operations to be
+           applied or a reference Structure to be used to generate the
+           operations.
          species_list: List of species to be cloned.
         """
         self.element_set = set(map(Element, element_list))
 
         if isinstance(sym_operations, Structure):
             analyzer = SpacegroupAnalyzer(sym_operations)
+            # Fractional
             self.sym_operations = analyzer.get_symmetry_operations()
         elif (isinstance(sym_operations, list) and
               isinstance(sym_operations[0], SymmOp)):
@@ -63,13 +65,14 @@ class SymmetryCloneTransformation(AbstractTransformation):
         clean_structure.remove_species(list(elements_to_remove))
         for op in self.sym_operations:
             tmp_structure = clean_structure.copy()
-            tmp_structure.apply_operation(op)
+            tmp_structure.apply_operation(op, fractional=True)
             for site in tmp_structure:
                 props = site.properties
                 props.update({'symop': op})
                 try:
                     filled_structure.append(
                         site.species, site.coords,
+                        coords_are_cartesian=True,
                         properties=props, validate_proximity=True)
                 except ValueError:
                     # Too close, skip.
