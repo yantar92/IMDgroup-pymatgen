@@ -368,49 +368,14 @@ class IMDNEBVaspInputSet(IMDDerivedInputSet):
                 f"INCARs in {self.directory} and {self.target_directory}"
                 f" are inconsistent: {diff['Different']}")
 
-    @staticmethod
-    def get_images(structure1, structure2, nimages):
-        """Return list of NIMAGES spanning between structures.
-        The list will include STRUCTURE1 as the first element and
-        STRUCTURE2 as the last, in addition to the intermediate
-        NIMAGES.
-        """
-        beg = structure1
-        end = structure2
-        # Sanity checks.  Cannot create NEB input for structures that
-        # differ by more than simply site positions.
-        assert beg.lattice == end.lattice
-        assert len(beg) == len(end)
-        assert beg.species == end.species
-
-        beg_coords = np.array([node.frac_coords for node in beg])
-        beg_center_of_mass = np.average(beg_coords)
-        end_coords = np.array([node.frac_coords for node in end])
-        end_center_of_mass = np.average(end_coords)
-        # total number of points is nimages + 2
-        diffs = np.linspace(
-            beg_coords,
-            # See https://www.vasp.at/wiki/index.php/Collective_jumps_of_a_Pt_adatom_on_fcc-Pt_(001):_Nudged_Elastic_Band_Calculation
-            end_coords - end_center_of_mass + beg_center_of_mass,
-            2 + nimages)\
-            - beg_coords
-
-        result = []
-        for diff in diffs:
-            image = structure1.copy()
-            for idx in range(len(image)):
-                image.translate_sites(idx, diff[idx])
-            result.append(image)
-        return result
-
     def write_input(self, output_dir, **kwargs) -> None:
         """Write a set of VASP input to OUTPUT_DIR."""
         super().write_input(output_dir, **kwargs)
         # Remove POSCAR written in the top dir.  It is not needed for
         # NEB calculations.
         os.remove(os.path.join(output_dir, 'POSCAR'))
-        images = self.get_images(
-            self.structure, self.target_structure, self.incar["IMAGES"])
+        images = self.structure.interpolate(
+            self.target_structure, self.incar["IMAGES"])
         for image_idx in range(len(images)):
             sub_dir = Path(os.path.join(output_dir, f"{image_idx:02d}"))
             if not sub_dir.exists():
