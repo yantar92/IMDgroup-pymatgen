@@ -88,7 +88,7 @@ VASP_WARNINGS = {
     "set_core_wf": ["internal error in SET_CORE_WF"],
     "read_error": ["Error reading item", "Error code was IERR= 5"],
     "auto_nbands": ["The number of bands has been changed"],
-    "unclassified": ["error"],
+    "unclassified": [".*error.*"],
 }
 
 VASP_PROGRESS = {
