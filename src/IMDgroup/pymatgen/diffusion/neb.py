@@ -1,6 +1,5 @@
 """NEB pair generator for diffusion paths.
 """
-from multiprocessing import Pool
 from pymatgen.core import Structure
 from pymatgen.analysis.structure_matcher import StructureMatcher
 from IMDgroup.pymatgen.core.structure import merge_structures
@@ -17,10 +16,8 @@ def _struct_is_equiv(
     matcher = StructureMatcher(attempt_supercell=True, scale=False)
     if len(known_structs) == 1 and matcher.fit(struct, known_structs[0]):
         return True
-    with Pool() as pool:
-        matches = pool.starmap(
-            matcher.fit, [(struct, known) for known in known_structs])
-        if any(matches):
+    for known in known_structs:
+        if matcher.fit(struct, known):
             return True
     return False
 
@@ -70,16 +67,12 @@ class _struct_filter():
         dist = dist_fn(self.origin, clone)
         if dist > self.cutoff or dist < self.tol:
             return False
-        with Pool() as pool:
-            dists = pool.starmap(
-                SymmetryCloneTransformation.structure_distance,
-                [(clone, rej) for rej in self.rejected])
-            if any(dist < self.tol for dist in dists):
+        for rej in self.rejected:
+            dist = SymmetryCloneTransformation.structure_distance(clone, rej)
+            if dist < self.tol:
                 return False
-        with Pool() as pool:
-            equiv = pool.starmap(
-                self.is_equiv, [(clone, o) for o in clones])
-            if True in equiv:
+        for other in clones:
+            if self.is_equiv(clone, other):
                 self.rejected.append(clone)
                 return False
         return True

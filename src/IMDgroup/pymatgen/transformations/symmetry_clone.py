@@ -2,7 +2,6 @@
 """
 
 import logging
-from multiprocessing import Pool
 from pymatgen.transformations.transformation_abc import AbstractTransformation
 from pymatgen.core import (SymmOp, Structure, Element)
 from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
@@ -148,11 +147,9 @@ class SymmetryCloneTransformation(AbstractTransformation):
             """Return True when STRUCTURE is in CLONES.
             Return False otherwise.
             """
-            with Pool() as pool:
-                dists = pool.starmap(
-                    self.structure_distance,
-                    [(structure, clone) for clone in clones])
-                if any(dist < self.tol for dist in dists):
+            for clone in clones:
+                dist = self.structure_distance(structure, clone)
+                if dist < self.tol:
                     return True
             return False
 
