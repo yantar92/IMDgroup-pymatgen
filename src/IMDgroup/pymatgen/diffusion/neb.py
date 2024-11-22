@@ -97,7 +97,7 @@ def get_neb_pairs_1(
         prototype,
         filter_cls=_struct_filter(origin, cutoff))
     clones = trans.get_all_clones(target)
-    logger.debug('Found %d clones', len(clones))
+    logger.debug('Found %d pairs', len(clones))
     return list((origin, clone) for clone in clones)
 
 
