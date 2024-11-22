@@ -96,7 +96,8 @@ def get_neb_pairs_1(
     trans = SymmetryCloneTransformation(
         prototype,
         filter_cls=_struct_filter(origin, cutoff))
-    return trans.get_all_clones(target)
+    clones = trans.get_all_clones(target)
+    return list((origin, clone) for clone in clones)
 
 
 def get_neb_pairs(
