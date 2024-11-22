@@ -46,7 +46,8 @@ class _struct_filter():
     def is_equiv(self, end1, end2):
         """Return True when END1 and END2 form equivalent pairs with ORIGIN.
         """
-        if _struct_is_equiv(
+        matcher = StructureMatcher(attempt_supercell=True, scale=False)
+        if matcher.fit(
                 merge_structures([self.origin, end1]),
                 merge_structures([self.origin, end2])):
             return True
