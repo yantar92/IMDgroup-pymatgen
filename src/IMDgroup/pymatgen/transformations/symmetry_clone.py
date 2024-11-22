@@ -119,11 +119,13 @@ class SymmetryCloneTransformation(AbstractTransformation):
 
     @staticmethod
     def structure_distance(
-            structure1: Structure, structure2: Structure) -> float:
+            structure1: Structure, structure2: Structure,
+            tol: float = 0.1) -> float:
         """Return distance between two similar structures.
         The structures must have the same number of sites and species.
         The returned value is a sum of distances between the nearest
-        lattice sites.
+        lattice sites.  Distances below TOL do not contribute to the
+        sum.
         """
         str1 = structure1
         # interpolate knows how to match similar sites, spitting out
@@ -136,7 +138,8 @@ class SymmetryCloneTransformation(AbstractTransformation):
 
         diffs = str2_coords - str1_coords
 
-        return sum(np.linalg.norm(diff) for diff in diffs)
+        return sum(x for x in [np.linalg.norm(diff) for diff in diffs]
+                   if x > tol)
 
     def get_all_clones(self, structure):
         """Generate a list of all clones for STRUCTURE.
