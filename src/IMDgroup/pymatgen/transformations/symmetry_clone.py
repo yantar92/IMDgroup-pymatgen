@@ -161,7 +161,8 @@ class SymmetryCloneTransformation(AbstractTransformation):
                 # Operation might change the lattice vectors.
                 # Force them back into STRUCTURE by enforcing periodic
                 # conditions
-                clone = Structure(structure.lattice, [], [])  # empty
+                clone = structure.copy()
+                clone.remove_sites()  # empty
                 for site in tmp:
                     clone.append(
                         site.species, site.coords,
