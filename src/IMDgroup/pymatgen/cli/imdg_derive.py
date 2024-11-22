@@ -571,9 +571,10 @@ def neb_diffusion_add_args(parser):
         help="VASP output dir containing the target NEB point",
         type=str)
     parser.add_argument(
-        "diffusion_points",
+        "--diffusion_points",
         help="VASP output dirs containing the stable, "
         "converged diffusion sites",
+        required=True,
         nargs="+",
         type=str)
     parser.add_argument(
