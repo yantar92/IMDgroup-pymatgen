@@ -1,10 +1,14 @@
 """NEB pair generator for diffusion paths.
 """
+import logging
 from pymatgen.core import Structure
 from pymatgen.analysis.structure_matcher import StructureMatcher
 from IMDgroup.pymatgen.core.structure import merge_structures
 from IMDgroup.pymatgen.transformations.symmetry_clone\
     import SymmetryCloneTransformation
+
+
+logger = logging.getLogger(__name__)
 
 
 def _struct_is_equiv(
@@ -118,13 +122,17 @@ def get_neb_pairs(
     Returns a list of tuples containing begin/end structures.
     """
     uniq_structures = []
+    logger.debug("gen_neb_pairs: removing duplicates...")
     for struct in structures:
         if not _struct_is_equiv(struct, uniq_structures):
             uniq_structures.append(struct)
+    logger.debug("gen_neb_pairs: removing duplicates... done")
 
     pairs = []
     for idx, origin in enumerate(uniq_structures):
+        logger.debug("gen_neb_pairs: searching pairs %d -> ...", idx)
         for target in uniq_structures[idx:]:
             pairs += get_neb_pairs_1(
                 origin, target, prototype, cutoff)
+        logger.debug("gen_neb_pairs: searching pairs %d -> ... done", idx)
     return pairs
