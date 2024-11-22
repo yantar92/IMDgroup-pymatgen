@@ -138,7 +138,7 @@ def get_neb_pairs(
         for idx2, target in enumerate(uniq_structures[idx:]):
             logger.debug(
                 "gen_neb_pairs: searching pairs %d -> %d ...",
-                idx, idx2)
+                idx, idx2+idx)
             pairs += get_neb_pairs_1(
                 origin, target, prototype, cutoff)
     return pairs
