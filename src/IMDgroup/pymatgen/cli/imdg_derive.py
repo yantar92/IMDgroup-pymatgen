@@ -592,12 +592,12 @@ def neb_diffusion(args):
     """Create NEB input.
     Return (inputset, output_dir_suffix)
     """
-    prototype_run = Vasprun(os.path.join(args.input_directory), 'vasprun.xml')
+    prototype_run = Vasprun(os.path.join(args.input_directory, 'vasprun.xml'))
     prototype = prototype_run.final_structure
 
     structures = []
     for struct_path in args.diffusion_points:
-        structure_run = Vasprun(os.path.join(struct_path), 'vasprun.xml')
+        structure_run = Vasprun(os.path.join(struct_path, 'vasprun.xml'))
         assert structure_run.converged
         structure = structure_run.final_structure
         structure.properties['origin_path'] = struct_path
