@@ -162,7 +162,7 @@ class SymmetryCloneTransformation(AbstractTransformation):
                 # Force them back into STRUCTURE by enforcing periodic
                 # conditions
                 clone = structure.copy()
-                clone.remove_sites()  # empty
+                clone.remove_sites(indices=range(len(clone)))  # empty
                 for site in tmp:
                     clone.append(
                         site.species, site.coords,
