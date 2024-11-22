@@ -122,11 +122,15 @@ def get_neb_pairs(
     Returns a list of tuples containing begin/end structures.
     """
     uniq_structures = []
-    logger.debug("gen_neb_pairs: removing duplicates...")
+    logger.debug(
+        "gen_neb_pairs: removing duplicates among %d structures...",
+        len(structures))
     for struct in structures:
         if not _struct_is_equiv(struct, uniq_structures):
             uniq_structures.append(struct)
-    logger.debug("gen_neb_pairs: removing duplicates... done")
+    logger.debug(
+        "gen_neb_pairs: removing duplicates... done (removed %d)",
+        len(structures)-len(uniq_structures))
 
     pairs = []
     for idx, origin in enumerate(uniq_structures):
