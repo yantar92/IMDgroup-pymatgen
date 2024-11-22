@@ -14,8 +14,6 @@ def _struct_is_equiv(
     Otherwise, return False.
     """
     matcher = StructureMatcher(attempt_supercell=True, scale=False)
-    if len(known_structs) == 1 and matcher.fit(struct, known_structs[0]):
-        return True
     for known in known_structs:
         if matcher.fit(struct, known):
             return True
