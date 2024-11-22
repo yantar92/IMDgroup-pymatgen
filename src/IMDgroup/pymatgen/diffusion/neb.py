@@ -141,7 +141,4 @@ def get_neb_pairs(
                 idx, idx2)
             pairs += get_neb_pairs_1(
                 origin, target, prototype, cutoff)
-            logger.debug(
-                "gen_neb_pairs: searching pairs %d -> %d ... done",
-                idx, idx2)
     return pairs
