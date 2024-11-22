@@ -7,6 +7,8 @@ import argparse
 import dataclasses
 import logging
 import numpy as np
+from pymatgen.io.vasp.outputs import Vasprun
+from IMDgroup.pymatgen.diffusion.neb import get_neb_pairs
 from IMDgroup.pymatgen.io.vasp.sets\
     import (IMDDerivedInputSet, IMDNEBVaspInputSet)
 from IMDgroup.pymatgen.io.vasp.inputs import Incar
@@ -80,6 +82,9 @@ def add_args(parser):
 
     parser_neb = subparsers.add_parser("neb")
     neb_add_args(parser_neb)
+
+    parser_neb_diffusion = subparsers.add_parser("neb_diffusion")
+    neb_diffusion_add_args(parser_neb_diffusion)
 
 
 def _str_to_bool(value):
@@ -551,6 +556,66 @@ def neb(args):
         user_incar_settings={'IMAGES': args.nimages})
     output_dir_suffix = "NEB"
     return (inputset, output_dir_suffix)
+
+
+def neb_diffusion_add_args(parser):
+    """Setup parser arguments for diffusion NEB input.
+    Args:
+      parser: subparser
+    """
+    parser.help =\
+        "Create NEB input between multiple VASP runs derived from prototype"
+    parser.set_defaults(func_derive=neb_diffusion)
+    parser.add_argument(
+        "target",
+        help="VASP output dir containing the target NEB point",
+        type=str)
+    parser.add_argument(
+        "diffusion_points",
+        help="VASP output dirs containing the stable, "
+        "converged diffusion sites",
+        nargs="+",
+        type=str)
+    parser.add_argument(
+        "--nimages",
+        help="Number of NEB images (default: 4)",
+        type=int,
+        default=4)
+    parser.add_argument(
+        "--cutoff",
+        help="Distance cutoff between diffusion points.",
+        type=float,
+        default=5)
+
+
+def neb_diffusion(args):
+    """Create NEB input.
+    Return (inputset, output_dir_suffix)
+    """
+    prototype_run = Vasprun(os.path.join(args.input_directory), 'vasprun.xml')
+    prototype = prototype_run.final_structure
+
+    structures = []
+    for struct_path in args.diffusion_points:
+        structure_run = Vasprun(os.path.join(struct_path), 'vasprun.xml')
+        assert structure_run.converged
+        structure = structure_run.final_structure
+        structure.properties['origin_path'] = struct_path
+        structures.append(structure)
+
+    pairs = get_neb_pairs(structures, prototype, args.cutoff)
+
+    result = []
+    for idx, (beg, end) in enumerate(pairs):
+        inputset = IMDNEBVaspInputSet(
+            directory=beg.properties['origin_path'],
+            target_directory=end.properties['origin_path'],
+            user_incar_settings={'IMAGES': args.nimages})
+        inputset.structure = end
+        inputset.target_structure = end
+        output_dir_suffix = f"NEB.{idx}"
+        result.append((inputset, output_dir_suffix))
+    return result
 
 
 def derive(args):

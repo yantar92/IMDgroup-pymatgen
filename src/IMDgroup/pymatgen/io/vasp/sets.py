@@ -18,6 +18,7 @@ from pymatgen.ext.matproj import MPRester
 from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
 from ase.calculators.vasp.setups \
     import setups_defaults as ase_potential_defaults
+from IMDgroup.pymatgen.core.structure import merge_structures
 from IMDgroup.pymatgen.io.vasp.inputs import Incar, _load_yaml_config
 
 # ase uses pairs of 'Si': '_suffix'.  Convert them into 'Si': 'Si_suffix'
@@ -151,7 +152,7 @@ class IMDVaspInputSet(VaspInputSet):
                     BadInputSetWarning,
                 )
 
-        NCORE = incar['NCORE'] if 'NCORE' in incar else None
+        NCORE = incar['NCORE'] if 'NCORE' in incar else None  # pylint:disable invalid-name
         if 'NPAR' in incar:
             # https://www.vasp.at/wiki/index.php/KPAR
             KPAR = incar['KPAR'] if 'KPAR' in incar else 1
@@ -162,7 +163,8 @@ class IMDVaspInputSet(VaspInputSet):
                 "See https://www.vasp.at/wiki/index.php/NCORE",
                 BadInputSetWarning,
             )
-        if NCORE is not None and NCORE > 2 and NCORE * 25 > len(self.structure):
+        if NCORE is not None and NCORE > 2 and\
+           NCORE * 25 > len(self.structure):
             warnings.warn(
                 "NCORE/NPAR parameter in the input set is too large"
                 f" ({NCORE} * 25 > {len(self.structure)} atoms)"
@@ -376,7 +378,10 @@ class IMDNEBVaspInputSet(IMDDerivedInputSet):
         os.remove(os.path.join(output_dir, 'POSCAR'))
         images = self.structure.interpolate(
             self.target_structure, self.incar["IMAGES"])
-        for image_idx in range(len(images)):
+        # Store NEB path snapshot
+        trajectory = merge_structures(images)
+        trajectory.to_file(os.path.join(output_dir, 'NEB_trajectory.cif'))
+        for image_idx, _ in enumerate(images):
             sub_dir = Path(os.path.join(output_dir, f"{image_idx:02d}"))
             if not sub_dir.exists():
                 sub_dir.mkdir()
