@@ -377,7 +377,7 @@ class IMDNEBVaspInputSet(IMDDerivedInputSet):
         # NEB calculations.
         os.remove(os.path.join(output_dir, 'POSCAR'))
         images = self.structure.interpolate(
-            self.target_structure, self.incar["IMAGES"])
+            self.target_structure, self.incar["IMAGES"]+1)
         # Store NEB path snapshot
         trajectory = merge_structures(images)
         trajectory.to_file(os.path.join(output_dir, 'NEB_trajectory.cif'))
