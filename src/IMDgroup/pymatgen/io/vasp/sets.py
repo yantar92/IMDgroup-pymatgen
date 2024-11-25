@@ -167,7 +167,7 @@ class IMDVaspInputSet(VaspInputSet):
            NCORE * 25 > len(self.structure):
             warnings.warn(
                 "NCORE/NPAR parameter in the input set is too large"
-                f" ({NCORE} * 25 > {len(self.structure)} atoms)"
+                f" ({NCORE} (NCORE) * 25 > {len(self.structure)} atoms)"
                 "\n See https://www.vasp.at/wiki/index.php/NCORE",
                 BadInputSetWarning,
             )
