@@ -81,8 +81,8 @@ class _struct_filter():
             """
             return vec if np.norm(vec) > self.tol else np.array([0, 0, 0])
 
-        v1 = np.array(map(zero_small_vec, v1))
-        v2 = np.array(map(zero_small_vec, v2))
+        v1 = np.array([zero_small_vec(vec) for vec in v1])
+        v2 = np.array([zero_small_vec(vec) for vec in v2])
 
         frac_vec = v2/v1
         frac = int(frac_vec[0])
