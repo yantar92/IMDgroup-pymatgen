@@ -68,8 +68,6 @@ class _struct_filter():
     # certain simple systems.
     def is_multiple(self, end1: Structure, end2: Structure) -> bool:
         """Return True when END2 path is a multiple of END1 path wrt ORIGIN.
-        TOL is tolerance - ORIGIN->END vector components smaller than
-        TOL are ignored.
         """
         v1 = np.array(end1.frac_coords) - np.array(self.origin.frac_coords)
         v2 = np.array(end2.frac_coords) - np.array(self.origin.frac_coords)
@@ -93,13 +91,11 @@ class _struct_filter():
         multiplier = None
         for vec1, vec2 in zip(v1, v2):
             for x, y in zip(vec1, vec2):
-                if np.isclose(x, 0, atol=self.tol) and\
-                   np.isclose(y, 0, atol=self.tol):
+                if np.isclose(x, 0) and np.isclose(y, 0):
                     pass
-                elif np.isclose(x, 0, atol=self.tol) or\
-                     np.isclose(y, 0, atol=self.tol):
+                elif np.isclose(x, 0) or np.isclose(y, 0):
                     return False
-                elif np.isclose(y/x, int(y/x), atol=self.tol):
+                elif np.isclose(y/x, int(y/x)):
                     if multiplier is None:
                         logger.debug(
                             "Setting multiplier to %dx: %f",
