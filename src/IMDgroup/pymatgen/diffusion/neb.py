@@ -6,7 +6,7 @@ from pymatgen.analysis.structure_matcher import StructureMatcher
 from IMDgroup.pymatgen.core.structure import merge_structures
 from IMDgroup.pymatgen.transformations.symmetry_clone\
     import SymmetryCloneTransformation
-
+import numpy as np
 
 logger = logging.getLogger(__name__)
 
@@ -57,6 +57,43 @@ class _struct_filter():
             return True
         return False
 
+    # Repeated diffusion paths are 100% equivalent
+    # A natural extension of this approach would be checking if a new
+    # diffusion path is a linear combination (via natural
+    # coefficients) of known paths, but that may, in general, miss
+    # some physically non-equivalent paths. Consider, for example,
+    # 1-3 vs 1-2-3 path. 1-2 and 2-3 barrier may, in some cases be
+    # higher than 1-3, especially for more complex structures. So,
+    # such an approach would only be approximation applicable to
+    # certain simple systems.
+    def is_multiple(self, end1, end2):
+        """Return True when END2 path is a multiple of END1 path wrt ORIGIN.
+        TOL is tolerance - ORIGIN->END vector components smaller than
+        TOL are ignored.
+        """
+        v1 = np.array(end1.frac_coords) - np.array(self.origin.frac_coords)
+        v2 = np.array(end2.frac_coords) - np.array(self.origin.frac_coords)
+        # Remove small displacements according to TOL
+
+        def zero_small_vec(vec):
+            """When norm of VEC is less than TOL, return 0.
+            Otherwise, return VEC.
+            """
+            return vec if np.norm(vec) > self.tol else np.array([0, 0, 0])
+
+        v1 = np.array(map(zero_small_vec, v1))
+        v2 = np.array(map(zero_small_vec, v2))
+
+        frac_vec = v2[0]/v1[0]
+        frac = int(frac_vec[0])
+        for vec1, vec2 in zip(v1, v2):
+            frac2 = vec2/vec1
+            if not (np.isclose(frac2[0], frac2[1]) and
+                    np.isclose(frac2[1], frac2[2]) and
+                    np.isclose(frac2[0], frac)):
+                return False
+        return True
+
     def filter(self, clone, clones):
         """Return False if CLONE should be rejected.
         Return True otherwise.
@@ -65,6 +102,8 @@ class _struct_filter():
         (2) It is too close to any of CLONES
         (3) Its diffusion pair with ORIGIN is symmetrically equivalent
             to ORIGIN + any of CLONES.
+        (4) Its diffusion path can be formed by repeating another
+            known diffusion path.
         """
         dist_fn = SymmetryCloneTransformation.structure_distance
         dist = dist_fn(self.origin, clone)
@@ -77,6 +116,9 @@ class _struct_filter():
         for other in clones:
             if self.is_equiv(clone, other):
                 self.rejected.append(clone)
+                return False
+        for other in clones + self.rejected:
+            if self.is_multiple(other, clone):
                 return False
         return True
 
