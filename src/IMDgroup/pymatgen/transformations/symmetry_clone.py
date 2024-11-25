@@ -100,6 +100,9 @@ class SymmetryCloneTransformation(AbstractTransformation):
            arguments: trial structure and list of structure clones
            known so far.  When function returns False, the trial
            structure is rejected.
+           In addition, the class may have final_filter method
+           accepting a list of structure clones.  It must return the
+           filtered structure.
          tol: Tolerance when comparing equivalent clones.
            If sum of distances between all site positions in two
            clones is less than tol, they are considered the same.
@@ -176,6 +179,11 @@ class SymmetryCloneTransformation(AbstractTransformation):
                    and (self.filter_cls is None
                         or self.filter_cls.filter(clone, clones)):
                     clones.append(clone)
+
+        # Apply additional filters
+        if self.filter_cls is not None and\
+           getattr(self.filter_cls, "final_filter"):
+            clones = self.filter_cls.final_filter(clones)
 
         # Sort structures by distance from reference STRUCTURE
         clones = sorted(

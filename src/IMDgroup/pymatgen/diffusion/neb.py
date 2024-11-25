@@ -120,8 +120,6 @@ class _struct_filter():
         (2) It is too close to any of CLONES
         (3) Its diffusion pair with ORIGIN is symmetrically equivalent
             to ORIGIN + any of CLONES.
-        (4) Its diffusion path can be formed by repeating another
-            known diffusion path.
         """
         dist_fn = SymmetryCloneTransformation.structure_distance
         dist = dist_fn(self.origin, clone)
@@ -131,14 +129,25 @@ class _struct_filter():
             dist = SymmetryCloneTransformation.structure_distance(clone, rej)
             if dist < self.tol:
                 return False
-        for other in clones + self.rejected:
-            if self.is_multiple(other, clone):
-                return False
         for other in clones:
             if self.is_equiv(clone, other):
                 self.rejected.append(clone)
                 return False
         return True
+
+    def final_filter(self, clones):
+        """Filter out diffusion paths that are multiples of other paths.
+        """
+        filtered = []
+        for clone in clones:
+            uniq = True
+            for other in clones + self.rejected:
+                if clone != other and self.is_multiple(clone, other):
+                    uniq = False
+                    break
+                if uniq:
+                    filtered.append(clone)
+        return filtered
 
 
 def get_neb_pairs_1(
@@ -153,20 +162,10 @@ def get_neb_pairs_1(
     End points that are further than CUTOFF are discarded.
     Return a list of tuples representing begin/end structure pairs.
     """
-    filter_cls = _struct_filter(origin, cutoff)
     trans = SymmetryCloneTransformation(
         prototype,
-        filter_cls=filter_cls)
-    clones_tmp = trans.get_all_clones(target)
-    clones = []
-    for clone in clones_tmp:
-        uniq = True
-        for other in clones_tmp:
-            if clone != other and filter_cls.is_multiple(clone, other):
-                uniq = False
-                break
-        if uniq:
-            clones.append(clone)
+        filter_cls=_struct_filter(origin, cutoff))
+    clones = trans.get_all_clones(target)
 
     logger.debug('Found %d pairs', len(clones))
     logger.debug(
