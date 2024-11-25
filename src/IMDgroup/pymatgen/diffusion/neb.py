@@ -71,8 +71,12 @@ class _struct_filter():
         TOL is tolerance - ORIGIN->END vector components smaller than
         TOL are ignored.
         """
-        v1 = np.array(end1.coords) - np.array(self.origin.coords)
-        v2 = np.array(end2.coords) - np.array(self.origin.coords)
+        v1 = np.array(end1.frac_coords) - np.array(self.origin.frac_coords)
+        v2 = np.array(end2.frac_coords) - np.array(self.origin.frac_coords)
+
+        # Convert to Certesian
+        v1 = v1 * v1.lattice.abc
+        v2 = v2 * v2.lattice.abc
 
         # Remove small displacements according to TOL
 
