@@ -106,7 +106,7 @@ class _struct_filter():
                         if multiplier != int(y/x):
                             logger.debug(
                                 "Multiplier miscmatch: %dx != %dx)",
-                                multiplier, int(y/x))
+                                multiplier, y/x)
                             return False
                 else:
                     return False
