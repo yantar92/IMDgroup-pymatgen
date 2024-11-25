@@ -79,7 +79,7 @@ class _struct_filter():
             """When norm of VEC is less than TOL, return 0.
             Otherwise, return VEC.
             """
-            return vec if np.norm(vec) > self.tol else np.array([0, 0, 0])
+            return vec if np.linalg.norm(vec) > self.tol else np.array([0, 0, 0])
 
         v1 = np.array([zero_small_vec(vec) for vec in v1])
         v2 = np.array([zero_small_vec(vec) for vec in v2])
