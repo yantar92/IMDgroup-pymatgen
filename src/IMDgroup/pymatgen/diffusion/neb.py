@@ -84,7 +84,7 @@ class _struct_filter():
         v1 = np.array(map(zero_small_vec, v1))
         v2 = np.array(map(zero_small_vec, v2))
 
-        frac_vec = v2[0]/v1[0]
+        frac_vec = v2/v1
         frac = int(frac_vec[0])
         for vec1, vec2 in zip(v1, v2):
             frac2 = vec2/vec1
