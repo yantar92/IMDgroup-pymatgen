@@ -567,10 +567,6 @@ def neb_diffusion_add_args(parser):
         "Create NEB input between multiple VASP runs derived from prototype"
     parser.set_defaults(func_derive=neb_diffusion)
     parser.add_argument(
-        "target",
-        help="VASP output dir containing the target NEB point",
-        type=str)
-    parser.add_argument(
         "--diffusion_points",
         help="VASP output dirs containing the stable, "
         "converged diffusion sites",
