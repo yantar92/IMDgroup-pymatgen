@@ -145,8 +145,8 @@ class _struct_filter():
                 if clone != other and self.is_multiple(clone, other):
                     uniq = False
                     break
-                if uniq:
-                    filtered.append(clone)
+            if uniq:
+                filtered.append(clone)
         return filtered
 
 
