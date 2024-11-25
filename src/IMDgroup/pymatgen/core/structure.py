@@ -3,9 +3,13 @@
 from pymatgen.core import Structure
 
 
-def merge_structures(structs: list[Structure]) -> Structure:
+def merge_structures(
+        structs: list[Structure],
+        tol: float = 0.01,
+        ) -> Structure:
     """Merge all STRUCTS into a single Structure.
     Return structure.
+    tol is tolerance passed to Structure.merge_sites method.
     """
     assert len(structs) > 0
     for struct in structs[1:]:
@@ -18,5 +22,5 @@ def merge_structures(structs: list[Structure]) -> Structure:
                 site.species,
                 site.frac_coords,
                 properties=site.properties)
-    merged.merge_sites(mode='average')
+    merged.merge_sites(mode='average', tol=tol)
     return merged
