@@ -106,7 +106,7 @@ class _struct_filter():
                             return False
                 else:
                     return False
-        logger.debug("Found a multiple")
+        logger.debug("Found a multiple (%dx)", multiplier)
         return True
 
     def filter(self, clone, clones):
