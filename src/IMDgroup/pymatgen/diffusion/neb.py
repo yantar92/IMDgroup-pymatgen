@@ -71,28 +71,33 @@ class _struct_filter():
         TOL is tolerance - ORIGIN->END vector components smaller than
         TOL are ignored.
         """
-        v1 = np.array(end1.frac_coords) - np.array(self.origin.frac_coords)
-        v2 = np.array(end2.frac_coords) - np.array(self.origin.frac_coords)
+        v1 = np.array(end1.coords) - np.array(self.origin.coords)
+        v2 = np.array(end2.coords) - np.array(self.origin.coords)
+
         # Remove small displacements according to TOL
 
         def zero_small_vec(vec):
             """When norm of VEC is less than TOL, return 0.
             Otherwise, return VEC.
             """
-            return vec if np.linalg.norm(vec) > self.tol else np.array([0, 0, 0])
+            return vec if np.linalg.norm(vec) > self.tol\
+                else np.array([0, 0, 0])
 
         v1 = np.array([zero_small_vec(vec) for vec in v1])
         v2 = np.array([zero_small_vec(vec) for vec in v2])
 
-        frac_vec = v2[0]/v1[0]
-        frac = int(frac_vec[0])
+        fracs = []
         for vec1, vec2 in zip(v1, v2):
-            frac2 = vec2/vec1
-            if not (np.isclose(frac2[0], frac2[1]) and
-                    np.isclose(frac2[1], frac2[2]) and
-                    np.isclose(frac2[0], frac)):
-                return False
-        return True
+            frac = []
+            for x, y in zip(vec1, vec2):
+                if np.isclose(x, 0, atol=self.tol) and\
+                   np.isclose(y, 0, atol=self.tol):
+                    frac.append(True)
+                elif np.isclose(y/x, int(y/x), atol=self.tol):
+                    frac.append(y/x)
+                else:
+                    return False
+        return np.all(np.isclose(fracs, fracs[0], atol=self.tol))
 
     def filter(self, clone, clones):
         """Return False if CLONE should be rejected.
