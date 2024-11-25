@@ -96,6 +96,8 @@ class _struct_filter():
                 if np.isclose(x, 0, atol=self.tol) and\
                    np.isclose(y, 0, atol=self.tol):
                     pass
+                elif np.isclose(x, 0, atol=self.tol):
+                    return False
                 elif np.isclose(y/x, int(y/x), atol=self.tol):
                     if multiplier is None:
                         multiplier = int(y/x)
