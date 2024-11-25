@@ -66,7 +66,7 @@ class _struct_filter():
     # higher than 1-3, especially for more complex structures. So,
     # such an approach would only be approximation applicable to
     # certain simple systems.
-    def is_multiple(self, end1, end2):
+    def is_multiple(self, end1: Structure, end2: Structure) -> bool:
         """Return True when END2 path is a multiple of END1 path wrt ORIGIN.
         TOL is tolerance - ORIGIN->END vector components smaller than
         TOL are ignored.
@@ -86,18 +86,21 @@ class _struct_filter():
         v1 = np.array([zero_small_vec(vec) for vec in v1])
         v2 = np.array([zero_small_vec(vec) for vec in v2])
 
-        fracs = []
+        multiplier = None
         for vec1, vec2 in zip(v1, v2):
-            frac = []
             for x, y in zip(vec1, vec2):
                 if np.isclose(x, 0, atol=self.tol) and\
                    np.isclose(y, 0, atol=self.tol):
-                    frac.append(True)
+                    pass
                 elif np.isclose(y/x, int(y/x), atol=self.tol):
-                    frac.append(y/x)
+                    if multiplier is None:
+                        multiplier = int(y/x)
+                    else:
+                        if multiplier != int(y/x):
+                            return False
                 else:
                     return False
-        return np.all(np.isclose(fracs, fracs[0], atol=self.tol))
+        return True
 
     def filter(self, clone, clones):
         """Return False if CLONE should be rejected.
