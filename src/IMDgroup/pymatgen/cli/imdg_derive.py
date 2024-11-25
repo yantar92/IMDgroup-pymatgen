@@ -616,7 +616,7 @@ def neb_diffusion(args):
             user_incar_settings={'IMAGES': args.nimages})
         inputset.structure = beg
         inputset.target_structure = end
-        output_dir_suffix = f"NEB.{idx}"
+        output_dir_suffix = f"NEB.{idx:02}"
         result.append((inputset, output_dir_suffix))
     return result
 
