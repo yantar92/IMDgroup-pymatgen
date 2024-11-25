@@ -75,8 +75,8 @@ class _struct_filter():
         v2 = np.array(end2.frac_coords) - np.array(self.origin.frac_coords)
 
         # Convert to Certesian
-        v1 = v1 * v1.lattice.abc
-        v2 = v2 * v2.lattice.abc
+        v1 = v1 * end1.lattice.abc
+        v2 = v2 * end2.lattice.abc
 
         # Remove small displacements according to TOL
 
