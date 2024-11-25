@@ -128,12 +128,12 @@ class _struct_filter():
             dist = SymmetryCloneTransformation.structure_distance(clone, rej)
             if dist < self.tol:
                 return False
+        for other in clones + self.rejected:
+            if self.is_multiple(other, clone):
+                return False
         for other in clones:
             if self.is_equiv(clone, other):
                 self.rejected.append(clone)
-                return False
-        for other in clones + self.rejected:
-            if self.is_multiple(other, clone):
                 return False
         return True
 
