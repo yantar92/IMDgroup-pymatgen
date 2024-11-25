@@ -153,10 +153,21 @@ def get_neb_pairs_1(
     End points that are further than CUTOFF are discarded.
     Return a list of tuples representing begin/end structure pairs.
     """
+    filter_cls = _struct_filter(origin, cutoff)
     trans = SymmetryCloneTransformation(
         prototype,
-        filter_cls=_struct_filter(origin, cutoff))
-    clones = trans.get_all_clones(target)
+        filter_cls=filter_cls)
+    clones_tmp = trans.get_all_clones(target)
+    clones = []
+    for clone in clones_tmp:
+        uniq = True
+        for other in clones_tmp:
+            if clone != other and filter_cls.is_multiple(clone, other):
+                uniq = False
+                break
+        if uniq:
+            clones.append(clone)
+
     logger.debug('Found %d pairs', len(clones))
     logger.debug(
         'Distances: %s',
