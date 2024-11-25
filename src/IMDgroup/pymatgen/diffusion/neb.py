@@ -97,15 +97,15 @@ class _struct_filter():
                     return False
                 elif np.isclose(y/x, int(y/x)):
                     if multiplier is None:
-                        logger.debug(
-                            "Setting multiplier to %dx: %f",
-                            int(y/x), y/x)
+                        # logger.debug(
+                        #     "Setting multiplier to %dx: %f",
+                        #     int(y/x), y/x)
                         multiplier = int(y/x)
                     else:
                         if multiplier != int(y/x):
-                            logger.debug(
-                                "Multiplier mismatch: %dx != %fx)",
-                                multiplier, y/x)
+                            # logger.debug(
+                            #     "Multiplier mismatch: %dx != %fx)",
+                            #     multiplier, y/x)
                             return False
                 else:
                     return False
