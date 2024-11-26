@@ -53,7 +53,7 @@ class _StructFilter():
         matcher = StructureMatcher(attempt_supercell=True, scale=False)
         if matcher.fit(
                 merge_structures([self.origin, end1], tol=self.tol),
-                merge_structures([self.origin, end2]), tol=self.tol):
+                merge_structures([self.origin, end2], tol=self.tol)):
             return True
         return False
 
