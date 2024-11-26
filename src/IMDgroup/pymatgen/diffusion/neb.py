@@ -109,13 +109,13 @@ class _StructFilter():
                     else:
                         if multiplier != round(y/x):
                             logger.debug(
-                                "Multiplier mismatch: %dx != %fx (atol=%f)",
-                                multiplier, y/x, self.tol/x)
+                                "Multiplier mismatch: %dx != %fx",
+                                multiplier, y/x)
                             return False
                 else:
                     logger.debug(
-                        "Non-int multiplier: %dx != %fx)",
-                        round(y/x), y/x)
+                        "Non-int multiplier: %dx != %fx (atol=%f)",
+                        round(y/x), y/x, self.tol/x)
                     return False
         logger.debug("Found a multiple (%dx)", multiplier)
         return True
