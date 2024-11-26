@@ -174,6 +174,9 @@ class SymmetryCloneTransformation(AbstractTransformation):
                         site.species, site.coords,
                         coords_are_cartesian=True,
                         properties=site.properties)
+                # Make life easier for the collees.  Align sites
+                # between clone and structure
+                clone = structure.interpolate(clone, 2, autosort_tol=0.5)[2]
                 clone.properties['symop'] = op
                 if not _member(clone, clones)\
                    and (self.filter_cls is None
