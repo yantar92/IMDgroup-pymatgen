@@ -170,8 +170,9 @@ def get_neb_pairs_1(
     logger.info('Found %d pairs', len(clones))
     logger.info(
         'Distances: %s',
-        list(SymmetryCloneTransformation.structure_distance(origin, clone)
-             for clone in clones))
+        [(idx, list(float(
+            SymmetryCloneTransformation.structure_distance(origin, clone))))
+         for idx, clone in enumerate(clones)])
     return list((origin, clone) for clone in clones)
 
 
