@@ -14,7 +14,6 @@ def merge_structures(
     Return structure.
     tol is tolerance passed to Structure.merge_sites method.
     """
-    logger.debug("Merging %d structures...", len(structs))
     assert len(structs) > 0
     for struct in structs[1:]:
         assert struct.lattice == structs[0].lattice
@@ -29,6 +28,6 @@ def merge_structures(
     sites_before = len(merged)
     merged.merge_sites(mode='average', tol=tol)
     logger.debug(
-        "Merging %d structures... done (%d -> %d atoms)",
+        "Merged %d structures (%d -> %d atoms)",
         len(structs), sites_before, len(merged))
     return merged
