@@ -103,9 +103,9 @@ class _StructFilter():
                         multiplier = int(y/x)
                     else:
                         if multiplier != int(y/x):
-                            # logger.debug(
-                            #     "Multiplier mismatch: %dx != %fx)",
-                            #     multiplier, y/x)
+                            logger.debug(
+                                "Multiplier mismatch: %dx != %fx)",
+                                multiplier, y/x)
                             return False
                 else:
                     return False
