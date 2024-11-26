@@ -100,14 +100,14 @@ class _StructFilter():
                     pass
                 elif np.isclose(x, 0) or np.isclose(y, 0):
                     return False
-                elif np.isclose(y/x, int(y/x)):
+                elif np.isclose(y/x, round(y/x)):
                     if multiplier is None:
                         logger.debug(
                             "Setting multiplier to %dx: %f",
-                            int(y/x), y/x)
-                        multiplier = int(y/x)
+                            round(y/x), y/x)
+                        multiplier = round(y/x)
                     else:
-                        if multiplier != int(y/x):
+                        if multiplier != round(y/x):
                             logger.debug(
                                 "Multiplier mismatch: %dx != %fx)",
                                 multiplier, y/x)
