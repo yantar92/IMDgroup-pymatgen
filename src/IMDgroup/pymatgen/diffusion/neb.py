@@ -150,7 +150,8 @@ class _StructFilter():
         for idx1, clone in enumerate(clones):
             uniq = True
             for idx2, other in enumerate(clones + self.rejected):
-                if clone != other and self.is_multiple(other, clone):
+                if clone != other and not clone.matches(other) and\
+                   self.is_multiple(other, clone):
                     uniq = False
                     break
             if uniq:
