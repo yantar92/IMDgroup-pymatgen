@@ -100,7 +100,7 @@ class _StructFilter():
                     pass
                 elif np.isclose(x, 0) or np.isclose(y, 0):
                     return False
-                elif np.isclose(y/x, round(y/x), atol=self.tol/x):
+                elif np.isclose(y/x, round(y/x), atol=np.abs(self.tol/x)):
                     if multiplier is None:
                         logger.debug(
                             "Setting multiplier to %dx: %f",
@@ -115,7 +115,7 @@ class _StructFilter():
                 else:
                     logger.debug(
                         "Non-int multiplier: %dx != %fx (atol=%f)",
-                        round(y/x), y/x, self.tol/x)
+                        round(y/x), y/x, np.abs(self.tol/x))
                     return False
         logger.debug("Found a multiple (%dx)", multiplier)
         return True
