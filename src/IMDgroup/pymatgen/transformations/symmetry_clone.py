@@ -182,7 +182,7 @@ class SymmetryCloneTransformation(AbstractTransformation):
 
         # Apply additional filters
         if self.filter_cls is not None and\
-           getattr(self.filter_cls, "final_filter"):
+           getattr(self.filter_cls, "final_filter", False):
             clones = self.filter_cls.final_filter(clones)
 
         # Sort structures by distance from reference STRUCTURE
