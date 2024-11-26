@@ -113,6 +113,9 @@ class _StructFilter():
                                 multiplier, y/x)
                             return False
                 else:
+                    logger.debug(
+                        "Non-int multiplier: %dx != %fx)",
+                        round(y/x), y/x)
                     return False
         logger.debug("Found a multiple (%dx)", multiplier)
         return True
