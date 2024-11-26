@@ -100,7 +100,7 @@ class _StructFilter():
                     pass
                 elif np.isclose(x, 0) or np.isclose(y, 0):
                     return False
-                elif np.isclose(y/x, round(y/x)):
+                elif np.isclose(y/x, round(y/x), atol=self.tol/x):
                     if multiplier is None:
                         logger.debug(
                             "Setting multiplier to %dx: %f",
