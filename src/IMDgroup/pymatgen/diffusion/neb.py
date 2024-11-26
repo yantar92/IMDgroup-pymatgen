@@ -24,7 +24,7 @@ def _struct_is_equiv(
     return False
 
 
-class _struct_filter():
+class _StructFilter():
     """Structure filter that rejects equivalent diffusion pairs.
     Given a structure STRUCT and ORIGIN, STRUCT+ORIGIN combined will
     always be symmetrically non-equivalent if not rejected.
@@ -164,7 +164,7 @@ def get_neb_pairs_1(
     """
     trans = SymmetryCloneTransformation(
         prototype,
-        filter_cls=_struct_filter(origin, cutoff))
+        filter_cls=_StructFilter(origin, cutoff))
     clones = trans.get_all_clones(target)
 
     logger.debug('Found %d pairs', len(clones))
