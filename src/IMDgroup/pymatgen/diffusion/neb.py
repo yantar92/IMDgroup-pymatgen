@@ -167,8 +167,8 @@ def get_neb_pairs_1(
         filter_cls=_StructFilter(origin, cutoff))
     clones = trans.get_all_clones(target)
 
-    logger.debug('Found %d pairs', len(clones))
-    logger.debug(
+    logger.info('Found %d pairs', len(clones))
+    logger.info(
         'Distances: %s',
         list(SymmetryCloneTransformation.structure_distance(origin, clone)
              for clone in clones))
@@ -198,20 +198,20 @@ def get_neb_pairs(
     Returns a list of tuples containing begin/end structures.
     """
     uniq_structures = []
-    logger.debug(
+    logger.info(
         "gen_neb_pairs: removing duplicates among %d structures...",
         len(structures))
     for struct in structures:
         if not _struct_is_equiv(struct, uniq_structures):
             uniq_structures.append(struct)
-    logger.debug(
+    logger.info(
         "gen_neb_pairs: removing duplicates... done (removed %d)",
         len(structures)-len(uniq_structures))
 
     pairs = []
     for idx, origin in enumerate(uniq_structures):
         for idx2, target in enumerate(uniq_structures[idx:]):
-            logger.debug(
+            logger.info(
                 "gen_neb_pairs: searching pairs %d -> %d ...",
                 idx, idx2+idx)
             pairs += get_neb_pairs_1(
