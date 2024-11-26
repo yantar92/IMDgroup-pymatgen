@@ -97,9 +97,9 @@ class _StructFilter():
                     return False
                 elif np.isclose(y/x, int(y/x)):
                     if multiplier is None:
-                        # logger.debug(
-                        #     "Setting multiplier to %dx: %f",
-                        #     int(y/x), y/x)
+                        logger.debug(
+                            "Setting multiplier to %dx: %f",
+                            int(y/x), y/x)
                         multiplier = int(y/x)
                     else:
                         if multiplier != int(y/x):
