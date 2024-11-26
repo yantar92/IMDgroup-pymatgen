@@ -109,8 +109,8 @@ class _StructFilter():
                     else:
                         if multiplier != round(y/x):
                             logger.debug(
-                                "Multiplier mismatch: %dx != %fx)",
-                                multiplier, y/x)
+                                "Multiplier mismatch: %dx != %fx (atol=%f)",
+                                multiplier, y/x, self.tol/x)
                             return False
                 else:
                     logger.debug(
