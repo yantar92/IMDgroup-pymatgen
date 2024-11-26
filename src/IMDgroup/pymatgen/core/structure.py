@@ -19,14 +19,14 @@ def merge_structures(
         assert struct.lattice == structs[0].lattice
 
     merged = structs[0].copy()
+    sites_before = sum(len(s) for s in structs)
     for struct in structs[1:]:
         for site in struct:
             merged.append(
                 site.species,
                 site.frac_coords,
                 properties=site.properties)
-    sites_before = len(merged)
-    merged.merge_sites(mode='average', tol=tol)
+        merged.merge_sites(mode='average', tol=tol)
     logger.debug(
         "Merged %d structures (%d -> %d atoms)",
         len(structs), sites_before, len(merged))
