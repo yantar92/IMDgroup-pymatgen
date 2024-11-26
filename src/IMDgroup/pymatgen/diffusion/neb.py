@@ -147,10 +147,10 @@ class _StructFilter():
         """Filter out diffusion paths that are multiples of other paths.
         """
         filtered = []
-        for idx1, clone in enumerate(clones):
+        for clone in clones:
             uniq = True
-            for idx2, other in enumerate(clones + self.rejected):
-                if clone != other and not clone.matches(other) and\
+            for other in clones + self.rejected:
+                if clone != other and (not clone.matches(other)) and\
                    self.is_multiple(other, clone):
                     uniq = False
                     break
