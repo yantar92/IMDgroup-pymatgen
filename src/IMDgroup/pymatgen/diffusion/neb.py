@@ -88,6 +88,9 @@ class _StructFilter():
         v1 = np.array([zero_small_vec(vec) for vec in v1])
         v2 = np.array([zero_small_vec(vec) for vec in v2])
 
+        logger.debug("target: %s", [vec for vec in v2 if vec != np.array([0, 0, 0])])
+        logger.debug("source: %s", [vec for vec in v1 if vec != np.array([0, 0, 0])])
+
         multiplier = None
         for vec1, vec2 in zip(v1, v2):
             for x, y in zip(vec1, vec2):
