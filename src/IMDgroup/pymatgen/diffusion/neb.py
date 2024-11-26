@@ -90,7 +90,6 @@ class _StructFilter():
 
         multiplier = None
         for vec1, vec2 in zip(v1, v2):
-            logger.debug("%s %% %s", vec1, vec2)
             for x, y in zip(vec1, vec2):
                 if np.isclose(x, 0) and np.isclose(y, 0):
                     pass
@@ -140,10 +139,12 @@ class _StructFilter():
         """Filter out diffusion paths that are multiples of other paths.
         """
         filtered = []
-        for clone in clones:
+        for idx1, clone in enumerate(clones):
             uniq = True
-            for other in clones + self.rejected:
+            for idx2, other in enumerate(clones + self.rejected):
+                logger.debug("Multiple %d -> %d?", idx1, idx2)
                 if clone != other and self.is_multiple(clone, other):
+                    logger.debug("Multiple %d -> %d? yes", idx1, idx2)
                     uniq = False
                     break
             if uniq:
