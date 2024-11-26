@@ -3,10 +3,10 @@
 import logging
 from pymatgen.core import Structure
 from pymatgen.analysis.structure_matcher import StructureMatcher
+import numpy as np
 from IMDgroup.pymatgen.core.structure import merge_structures
 from IMDgroup.pymatgen.transformations.symmetry_clone\
     import SymmetryCloneTransformation
-import numpy as np
 
 logger = logging.getLogger(__name__)
 
