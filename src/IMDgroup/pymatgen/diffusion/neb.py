@@ -90,6 +90,7 @@ class _StructFilter():
 
         multiplier = None
         for vec1, vec2 in zip(v1, v2):
+            logger.debug("%f %% %f", vec1, vec2)
             for x, y in zip(vec1, vec2):
                 if np.isclose(x, 0) and np.isclose(y, 0):
                     pass
