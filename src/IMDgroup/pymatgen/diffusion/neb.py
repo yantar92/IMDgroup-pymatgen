@@ -85,7 +85,10 @@ class _StructFilter():
         v1 = np.array([zero_small(v) for v in v1])
         v2 = np.array([zero_small(v) for v in v2])
 
-        logger.debug("Multipe? %s -> %s", v1, v2)
+        logger.debug(
+            "Multipe? %s -> %s",
+            [v for v in v1 if v != [0, 0, 0]],
+            [v for v in v2 if v != [0, 0, 0]])
 
         max_mult = np.round(np.nanmax(v2/v1))
         min_mult = np.round(np.nanmin(v2/v1))
