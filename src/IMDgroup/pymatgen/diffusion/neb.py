@@ -74,8 +74,8 @@ class _StructFilter():
         v1 = structure_diff(self.origin, end1)
         v2 = structure_diff(self.origin, end2)
 
-        max_mult = round(np.nanmax(v2/v1))
-        min_mult = round(np.nanmin(v2/v1))
+        max_mult = np.round(np.nanmax(v2/v1))
+        min_mult = np.round(np.nanmin(v2/v1))
 
         logger.debug("Multipliers: %dx, %dx", min_mult, max_mult)
 
