@@ -85,10 +85,10 @@ class _StructFilter():
         v1 = np.array([zero_small(v) for v in v1])
         v2 = np.array([zero_small(v) for v in v2])
 
-        logger.debug(
-            "Multipe? %s -> %s",
-            [v for v in v1 if not np.array_equal(v, [0, 0, 0])],
-            [v for v in v2 if not np.array_equal(v, [0, 0, 0])])
+        # logger.debug(
+        #     "Multipe? %s -> %s",
+        #     [v for v in v1 if not np.array_equal(v, [0, 0, 0])],
+        #     [v for v in v2 if not np.array_equal(v, [0, 0, 0])])
 
         max_mult = np.round(np.nanmax(v2/v1))
         min_mult = np.round(np.nanmin(v2/v1))
@@ -101,7 +101,10 @@ class _StructFilter():
         end1_mult = self.origin.copy()
         for idx in range(len(end1_mult)):
             end1_mult.translate_sites([idx], v1[idx]*max_mult)
-        return structure_distance(end1_mult, end2, tol=self.tol)
+        if structure_distance(end1_mult, end2, tol=self.tol) == 0:
+            logger.debug("Found multiple (%d)", max_mult)
+            return True
+        return False
 
     def filter(self, clone, clones):
         """Return False if CLONE should be rejected.
