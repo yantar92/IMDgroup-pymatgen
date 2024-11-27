@@ -90,7 +90,7 @@ class _StructFilter():
             return False
 
         end1_mult = self.origin.copy()
-        for idx in len(end1_mult):
+        for idx in range(len(end1_mult)):
             end1_mult.translate_sites([idx], v1[idx]*max_mult)
         return structure_distance(end1_mult, end2, tol=self.tol)
 
