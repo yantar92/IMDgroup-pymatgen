@@ -7,6 +7,7 @@ import numpy as np
 from IMDgroup.pymatgen.core.structure import merge_structures
 from IMDgroup.pymatgen.transformations.symmetry_clone\
     import SymmetryCloneTransformation
+from IMDgroup.pymatgen.core.structure import structure_distance
 
 logger = logging.getLogger(__name__)
 
@@ -132,12 +133,11 @@ class _StructFilter():
         (3) Its diffusion pair with ORIGIN is symmetrically equivalent
             to ORIGIN + any of CLONES.
         """
-        dist_fn = SymmetryCloneTransformation.structure_distance
-        dist = dist_fn(self.origin, clone)
+        dist = structure_distance(self.origin, clone)
         if dist > self.cutoff or dist < self.tol:
             return False
         for rej in self.rejected:
-            dist = SymmetryCloneTransformation.structure_distance(clone, rej)
+            dist = structure_distance(clone, rej)
             if dist < self.tol:
                 return False
         for other in clones:
@@ -181,8 +181,7 @@ def get_neb_pairs_1(
     logger.info('Found %d pairs', len(clones))
     logger.info(
         'Distances: %s',
-        [(idx, float(SymmetryCloneTransformation.structure_distance(
-            origin, clone, tol=0.5)))
+        [(idx, float(structure_distance(origin, clone, tol=0.5)))
          for idx, clone in enumerate(clones)])
     return list((origin, clone) for clone in clones)
 

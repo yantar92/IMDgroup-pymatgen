@@ -6,8 +6,8 @@ from pymatgen.transformations.transformation_abc import AbstractTransformation
 from pymatgen.core import (SymmOp, Structure, Element)
 from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
 from pymatgen.util.typing import SpeciesLike
-import numpy as np
 from alive_progress import alive_bar
+from IMDgroup.pymatgen.core.structure import structure_distance
 
 __author__ = "Ihor Radchenko <yantar92@posteo.net>"
 logger = logging.getLogger(__name__)
@@ -120,30 +120,6 @@ class SymmetryCloneTransformation(AbstractTransformation):
             raise ValueError(
                 "sym_operations must be Structure of a list of SymmOp")
 
-    @staticmethod
-    def structure_distance(
-            structure1: Structure, structure2: Structure,
-            tol: float = 0.1) -> float:
-        """Return distance between two similar structures.
-        The structures must have the same number of sites and species.
-        The returned value is a sum of distances between the nearest
-        lattice sites.  Distances below TOL do not contribute to the
-        sum.
-        """
-        str1 = structure1
-        # interpolate knows how to match similar sites, spitting out
-        # re-ordered (to match structure1) final structure as output
-        str2 = structure1.interpolate(
-            structure2, 2, autosort_tol=0.5)[2]
-
-        str1_coords = np.array([node.coords for node in str1])
-        str2_coords = np.array([node.coords for node in str2])
-
-        diffs = str2_coords - str1_coords
-
-        return sum(x for x in [np.linalg.norm(diff) for diff in diffs]
-                   if x > tol)
-
     def get_all_clones(self, structure):
         """Generate a list of all clones for STRUCTURE.
         """
@@ -154,7 +130,7 @@ class SymmetryCloneTransformation(AbstractTransformation):
             Return False otherwise.
             """
             for clone in clones:
-                dist = self.structure_distance(structure, clone)
+                dist = structure_distance(structure, clone)
                 if dist < self.tol:
                     return True
             return False
@@ -191,7 +167,7 @@ class SymmetryCloneTransformation(AbstractTransformation):
         # Sort structures by distance from reference STRUCTURE
         clones = sorted(
             clones,
-            key=lambda clone: self.structure_distance(clone, structure))
+            key=lambda clone: structure_distance(clone, structure))
 
         return clones
 
