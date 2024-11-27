@@ -77,7 +77,7 @@ class _StructFilter():
         max_mult = np.round(np.nanmax(v2/v1))
         min_mult = np.round(np.nanmin(v2/v1))
 
-        logger.debug("Multipliers: %dx, %dx", min_mult, max_mult)
+        logger.debug("Multipliers: %sx, %sx", min_mult, max_mult)
 
         if max_mult != min_mult:
             return False
