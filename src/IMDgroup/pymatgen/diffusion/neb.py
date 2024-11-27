@@ -79,7 +79,7 @@ class _StructFilter():
             """
             norm = np.linalg.norm(self.origin.lattice.get_cartesian_coords(v))
             if norm > self.tol:
-                return norm
+                return v
             return np.array([0, 0, 0])
 
         v1 = np.array([zero_small(v) for v in v1])
