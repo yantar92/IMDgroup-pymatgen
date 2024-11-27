@@ -87,8 +87,8 @@ class _StructFilter():
 
         logger.debug(
             "Multipe? %s -> %s",
-            [v for v in v1 if v != [0, 0, 0]],
-            [v for v in v2 if v != [0, 0, 0]])
+            [v for v in v1 if not np.array_equal(v, [0, 0, 0])],
+            [v for v in v2 if not np.array_equal(v, [0, 0, 0])])
 
         max_mult = np.round(np.nanmax(v2/v1))
         min_mult = np.round(np.nanmin(v2/v1))
