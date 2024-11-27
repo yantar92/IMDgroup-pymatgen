@@ -96,7 +96,7 @@ class _StructFilter():
         max_mult = np.round(np.nanmax(fracs))
         min_mult = np.round(np.nanmin(fracs))
 
-        logger.debug("Multipliers: %sx, %sx", min_mult, max_mult)
+        logger.debug("Multipliers: %s...%s", min_mult, max_mult)
 
         if max_mult != min_mult:
             return False
@@ -105,7 +105,7 @@ class _StructFilter():
         for idx in range(len(end1_mult)):
             end1_mult.translate_sites([idx], v1[idx]*max_mult)
         if structure_distance(end1_mult, end2, tol=self.tol) == 0:
-            logger.debug("Found multiple (%d)", max_mult)
+            logger.debug("Found multiple: %dx", max_mult)
             return True
         return False
 
