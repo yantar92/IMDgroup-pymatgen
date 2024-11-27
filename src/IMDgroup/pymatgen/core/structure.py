@@ -3,7 +3,6 @@
 import logging
 import numpy as np
 from pymatgen.core import Structure
-from pymatgen.util.coord import pbc_shortest_vectors
 
 logger = logging.getLogger(__name__)
 
@@ -66,5 +65,11 @@ def structure_diff(
     str2 = structure1.interpolate(
         structure2, 2, autosort_tol=0.5)[2]
 
-    return pbc_shortest_vectors(
-        str1.lattice, str1.frac_coords, str2.frac_coords)
+    start_coords = np.array(str1.frac_coords)
+    end_coords = np.array(str2.frac_coords)
+
+    diff = end_coords - start_coords
+    # Account for periodic boundary conditions
+    diff -= np.round(diff)  # this works because fractional coordinates
+
+    return diff*str1.lattice
