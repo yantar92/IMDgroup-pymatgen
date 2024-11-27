@@ -74,10 +74,16 @@ class _StructFilter():
         v1 = structure_diff(self.origin, end1)
         v2 = structure_diff(self.origin, end2)
 
-        v1 = np.array([v for v in v1 if np.linalg.norm(
-            self.origin.lattice.get_cartesian_coords(v)) > self.tol])
-        v2 = np.array([v for v in v2 if np.linalg.norm(
-            self.origin.lattice.get_cartesian_coords(v)) > self.tol])
+        def zero_small(v):
+            """Return v when it is large. Return 0 vector otherwise.
+            """
+            norm = np.linalg.norm(self.origin.lattice.get_cartesian_coords(v))
+            if norm > self.tol:
+                return norm
+            return np.array([0, 0, 0])
+
+        v1 = np.array(zero_small(v) for v in v1)
+        v2 = np.array(zero_small(v) for v in v2)
 
         logger.debug("Multipe? %s -> %s", v1, v2)
 
