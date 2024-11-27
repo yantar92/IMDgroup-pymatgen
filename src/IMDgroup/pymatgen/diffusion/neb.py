@@ -74,10 +74,10 @@ class _StructFilter():
         v1 = structure_diff(self.origin, end1)
         v2 = structure_diff(self.origin, end2)
 
-        v1 = [v for v in v1 if np.linalg.norm(
-            self.origin.lattice.get_cartesian_coords(v)) > self.tol]
-        v2 = [v for v in v2 if np.linalg.norm(
-            self.origin.lattice.get_cartesian_coords(v)) > self.tol]
+        v1 = np.array([v for v in v1 if np.linalg.norm(
+            self.origin.lattice.get_cartesian_coords(v)) > self.tol])
+        v2 = np.array([v for v in v2 if np.linalg.norm(
+            self.origin.lattice.get_cartesian_coords(v)) > self.tol])
 
         logger.debug("Multipe? %s -> %s", v1, v2)
 
