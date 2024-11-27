@@ -43,15 +43,28 @@ def structure_distance(
     lattice sites.  Distances below TOL do not contribute to the
     sum.
     """
-    diffs = structure_diff(structure1, structure2)
+    str1 = structure1
+    # interpolate knows how to match similar sites, spitting out
+    # re-ordered (to match structure1) final structure as output
+    # This also performs the necessary assertions about structure
+    # similarity
+    str2 = structure1.interpolate(
+        structure2, 2, autosort_tol=0.5)[2]
 
-    return sum(x for x in [np.linalg.norm(diff) for diff in diffs]
-               if x > tol)
+    tot_distance = 0
+    for node1, node2 in zip(str1, str2):
+        distance = node1.distance(node2)
+        if distance > tol:
+            tot_distance += distance
+
+    return tot_distance
 
 
 def structure_diff(
         structure1: Structure, structure2: Structure) -> float:
     """Return difference between two similar structures as list of vectors.
+    The vectors are in fractional coordinates.
+
     The structures must have the same number of sites and species.
     The returned value is a list of vectors to be applied to the first
     structure nodes to obtain the second structure (after sorting to
@@ -72,4 +85,4 @@ def structure_diff(
     # Account for periodic boundary conditions
     diff -= np.round(diff)  # this works because fractional coordinates
 
-    return diff*str1.lattice
+    return diff
