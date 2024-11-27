@@ -75,9 +75,9 @@ class _StructFilter():
         v2 = structure_diff(self.origin, end2)
 
         v1 = [v for v in v1 if np.linalg.norm(
-            self.origin.lattice.get_cartesian_coordinates(v)) > self.tol]
+            self.origin.lattice.get_cartesian_coords(v)) > self.tol]
         v2 = [v for v in v2 if np.linalg.norm(
-            self.origin.lattice.get_cartesian_coordinates(v)) > self.tol]
+            self.origin.lattice.get_cartesian_coords(v)) > self.tol]
 
         logger.debug("Multipe? %s -> %s", v1, v2)
 
