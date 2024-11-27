@@ -7,7 +7,8 @@ import numpy as np
 from IMDgroup.pymatgen.core.structure import merge_structures
 from IMDgroup.pymatgen.transformations.symmetry_clone\
     import SymmetryCloneTransformation
-from IMDgroup.pymatgen.core.structure import structure_distance
+from IMDgroup.pymatgen.core.structure import\
+    (structure_distance, structure_diff)
 
 logger = logging.getLogger(__name__)
 
@@ -70,59 +71,21 @@ class _StructFilter():
     def is_multiple(self, end1: Structure, end2: Structure) -> bool:
         """Return True when END2 path is a multiple of END1 path wrt ORIGIN.
         """
-        v1 = np.array(end1.frac_coords) - np.array(self.origin.frac_coords)
-        v2 = np.array(end2.frac_coords) - np.array(self.origin.frac_coords)
+        v1 = structure_diff(self.origin, end1)
+        v2 = structure_diff(self.origin, end2)
 
-        # Convert to Certesian
-        v1 = v1 * end1.lattice.abc
-        v2 = v2 * end2.lattice.abc
+        max_mult = round(np.nanmax(v2/v1))
+        min_mult = round(np.nanmin(v2/v1))
 
-        # Remove small displacements according to TOL
+        logger.debug("Multipliers: %dx, %dx", min_mult, max_mult)
 
-        def zero_small_vec(vec):
-            """When norm of VEC is less than TOL, return 0.
-            Otherwise, return VEC.
-            """
-            return vec if np.linalg.norm(vec) > self.tol\
-                else np.array([0, 0, 0])
+        if max_mult != min_mult:
+            return False
 
-        v1 = np.array([zero_small_vec(vec) for vec in v1])
-        v2 = np.array([zero_small_vec(vec) for vec in v2])
-
-        logger.debug(
-            "%s -> %s",
-            v1[v1 != np.array([0, 0, 0])],
-            v2[v2 != np.array([0, 0, 0])])
-
-        multiplier = None
-        for vec1, vec2 in zip(v1, v2):
-            for x, y in zip(vec1, vec2):
-                if np.isclose(x, 0) and np.isclose(y, 0):
-                    pass
-                elif np.isclose(x, 0) or np.isclose(y, 0):
-                    return False
-                elif np.isclose(
-                        y/x, round(y/x),
-                        atol=self.tol/np.linalg.norm(vec1)):
-                    if multiplier is None:
-                        logger.debug(
-                            "Setting multiplier to %dx: %f",
-                            round(y/x), y/x)
-                        multiplier = round(y/x)
-                    else:
-                        if multiplier != round(y/x):
-                            logger.debug(
-                                "Multiplier mismatch: %dx != %fx",
-                                multiplier, y/x)
-                            return False
-                else:
-                    logger.debug(
-                        "Non-int multiplier: %dx != %fx (atol=%f)",
-                        round(y/x), y/x,
-                        self.tol/np.linalg.norm(vec1))
-                    return False
-        logger.debug("Found a multiple (%dx)", multiplier)
-        return True
+        end1_mult = self.origin.copy()
+        for idx in len(end1_mult):
+            end1_mult.translate_sites([idx], v1[idx]*max_mult)
+        return structure_distance(end1_mult, end2, tol=self.tol)
 
     def filter(self, clone, clones):
         """Return False if CLONE should be rejected.
