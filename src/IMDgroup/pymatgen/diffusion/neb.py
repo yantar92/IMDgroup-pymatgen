@@ -74,10 +74,12 @@ class _StructFilter():
         v1 = structure_diff(self.origin, end1)
         v2 = structure_diff(self.origin, end2)
 
-        logger.debug(
-            "Multipe? %s -> %s",
-            [v for v in v1 if np.linalg.norm(v) > 0.01],
-            [v for v in v2 if np.linalg.norm(v) > 0.01])
+        v1 = [v for v in v1 if np.linalg.norm(
+            self.origin.lattice.get_cartesian_coordinates(v)) > self.tol]
+        v2 = [v for v in v2 if np.linalg.norm(
+            self.origin.lattice.get_cartesian_coordinates(v)) > self.tol]
+
+        logger.debug("Multipe? %s -> %s", v1, v2)
 
         max_mult = np.round(np.nanmax(v2/v1))
         min_mult = np.round(np.nanmin(v2/v1))
