@@ -90,7 +90,9 @@ class _StructFilter():
             [v for v in v1 if not np.array_equal(v, [0, 0, 0])],
             [v for v in v2 if not np.array_equal(v, [0, 0, 0])])
 
-        fracs = np.divide(v2, v1)
+        # 0/0 would throw a warning.  We don't care about it here.
+        with np.errstate(divide='ignore'):
+            fracs = np.divide(v2, v1)
         max_mult = np.round(np.nanmax(fracs))
         min_mult = np.round(np.nanmin(fracs))
 
