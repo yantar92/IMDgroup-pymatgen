@@ -82,8 +82,8 @@ class _StructFilter():
                 return norm
             return np.array([0, 0, 0])
 
-        v1 = np.array(zero_small(v) for v in v1)
-        v2 = np.array(zero_small(v) for v in v2)
+        v1 = np.array([zero_small(v) for v in v1])
+        v2 = np.array([zero_small(v) for v in v2])
 
         logger.debug("Multipe? %s -> %s", v1, v2)
 
