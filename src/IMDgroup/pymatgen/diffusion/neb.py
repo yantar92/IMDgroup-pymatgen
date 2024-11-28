@@ -178,10 +178,12 @@ class _StructFilter():
         """
         filtered = []
 
-        # Sort structures by distance from reference STRUCTURE
+        # Sort structures inversely by distance from reference STRUCTURE
+        # This way, we will filter out longer paths first.
         clones = sorted(
             clones,
-            key=lambda clone: structure_distance(self.origin, clone))
+            key=lambda clone: structure_distance(self.origin, clone),
+            reverse=True)
 
         for clone in clones:
             uniq = True
