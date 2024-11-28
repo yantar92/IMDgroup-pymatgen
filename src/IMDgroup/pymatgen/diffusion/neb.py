@@ -4,7 +4,7 @@ import logging
 from pymatgen.core import Structure
 from pymatgen.analysis.structure_matcher import StructureMatcher
 import numpy as np
-# from pulp import LpProblem, LpVariable, lpSum, LpInteger, LpStatus
+from pulp import LpProblem, LpVariable, lpSum, LpInteger, LpStatus
 from IMDgroup.pymatgen.core.structure import merge_structures
 from IMDgroup.pymatgen.transformations.symmetry_clone\
     import SymmetryCloneTransformation
@@ -25,6 +25,43 @@ def _struct_is_equiv(
         if matcher.fit(struct, known):
             return True
     return False
+
+
+def find_linear_decomposition(basis, target_vector, tolerance=None):
+    """Find its integer decomposition of TARGET_VECTOR in BASIS.
+    TARGET_VECTOR and BASIS components must be 1-dimemtional.
+    TOLERANCE, when provided is comparison accuracy (within each dimetion).
+    Return a list of coefficients for BASIS or None if decomposition
+    is not possible.
+    """
+
+    model = LpProblem("LinearDecompositionWithAbs")
+
+    coeffs = [LpVariable(f"x{i}", cat=LpInteger) for i in range(len(basis))]
+
+    for j in range(target_vector.shape[0]):  # Iterate through each dimension
+        if tolerance is None:
+            model += (lpSum(coeffs[i] * basis[i][j]
+                            for i in range(len(basis))) ==
+                      target_vector[j],
+                      f"CombinationConstraint_{j}")
+        else:
+            model += (lpSum(coeffs[i] * basis[i][j]
+                            for i in range(len(basis))) <=
+                      target_vector[j] + tolerance,
+                      f"UpperBoundConstraint_{j}")
+            model += (lpSum(coeffs[i] * basis[i][j]
+                            for i in range(len(basis))) >=
+                      target_vector[j] - tolerance,
+                      f"LowerBoundConstraint_{j}")
+
+    # Solve the problem
+    model.solve()
+
+    if LpStatus[model.status] == 'Optimal':
+        return [coeff.varValue for coeff in coeffs]  # Return the coefficients
+    else:
+        return None  # No solution found
 
 
 class _StructFilter():
@@ -72,70 +109,41 @@ class _StructFilter():
             return v
         return np.array([0, 0, 0])
 
-    # def _is_linear_combination_1(self, vector, base, limit) -> bool:
-    #     """Return True if VECTOR is an integer linear combination of BASE.
-    #     VECTOR and elements of BASE are lists of 3-dimentional vectors.
-    #     """
-    #     if len(base) == 0:
-    #         return False
-    #     if np.array_equal(self._zero_small(vector), [0, 0, 0]):
-    #         return True
+    def is_linear_combination(
+            self, end: Structure, base: list[Structure]) -> bool:
+        """Return True when END structure is a linear combination of BASE.
+        Linear combination here implies only natural coefficients.
+        BASE is a list of structures.
 
-    #     model = LpProblem("LinearCombination")
-    #     coeffs = [LpVariable(f"x{i}", cat=LpInteger) for i in range(len(base))]
+        The idea of this filter is that diffusion path that can be
+        constructed from shorted paths will end up going exactly
+        through them.  Such idea is only an approximation that is
+        likely valid for very distant paths, but may not be valid for
+        shorter. Consider, for example, 1-3 vs 1-2-3 path. 1-2 and 2-3
+        barrier may, in some cases be higher than 1-3, especially for
+        more complex structures. So, such an approach would only be
+        approximation applicable to certain simple systems.
+        """
+        v1 = structure_diff(self.origin, end)
+        v_base = [structure_diff(self.origin, s) for s in base]
 
-    #     for node_idx in range(len(vector)):
-    #         for dim_idx in range(len(vector[0])):
-    #             def _getval():
-    #                 return lpSum(
-    #                     coeffs[i] * base[i][node_idx][dim_idx]
-    #                     for i in range(len(base))
-    #                 )
-    #             model += (_getval() - vector[node_idx][dim_idx] >= 0 and
-    #                       _getval() - vector[node_idx][dim_idx] <= 0.001) or (
-    #                       _getval() - vector[node_idx][dim_idx] <= 0 and
-    #                       _getval() - vector[node_idx][dim_idx] >= 0.001
-    #                       )
+        # Ignore too small displacement (according to self.tol)
+        v1 = np.array([self._zero_small(v) for v in v1])
+        v_base = [np.array([self._zero_small(v) for v in v2]) for v2 in v_base]
 
-    #     model.solve()
-    #     if LpStatus[model.status] == 'Optimal':
-    #         logger.debug([coeff.varValue for coeff in coeffs])
-    #         return True
-    #     return False
+        logger.debug(
+            "Linear combination? %s",
+            [v for v in v1 if not np.array_equal(v, [0, 0, 0])])
+        logger.debug(
+            "Basis: %s",
+            [[v for v in b if not np.array_equal(v, [0, 0, 0])]
+             for b in v_base])
 
-    # def is_linear_combination(
-    #         self, end: Structure, base: list[Structure]) -> bool:
-    #     """Return True when END structure is a linear combination of BASE.
-    #     Linear combination here implies only natural coefficients.
-    #     BASE is a list of structures.
-
-    #     The idea of this filter is that diffusion path that can be
-    #     constructed from shorted paths will end up going exactly
-    #     through them.  Such idea is only an approximation that is
-    #     likely valid for very distant paths, but may not be valid for
-    #     shorter. Consider, for example, 1-3 vs 1-2-3 path. 1-2 and 2-3
-    #     barrier may, in some cases be higher than 1-3, especially for
-    #     more complex structures. So, such an approach would only be
-    #     approximation applicable to certain simple systems.
-    #     """
-    #     v1 = structure_diff(self.origin, end)
-    #     v_base = [structure_diff(self.origin, s) for s in base]
-
-    #     # Ignore too small displacement (according to self.tol)
-    #     v1 = np.array([self._zero_small(v) for v in v1])
-    #     v_base = [np.array([self._zero_small(v) for v in v2]) for v2 in v_base]
-
-    #     logger.debug(
-    #         "Linear combination? %s",
-    #         [v for v in v1 if not np.array_equal(v, [0, 0, 0])])
-    #     logger.debug(
-    #         "Basis: %s",
-    #         [[v for v in b if not np.array_equal(v, [0, 0, 0])] for b in v_base])
-
-    #     # FIXME: limit=3 is necessary for reasonable speed, but it is
-    #     # simply because we use brute force algo to find combinations.
-    #     result = self._is_linear_combination_1(v1, v_base, limit=3)
-    #     return result
+        result = find_linear_decomposition(
+            v1.flatten(),
+            [v.flatten() for v in v_base],
+            tolerance=self.tol/np.max(self.origin.lattice.abc))
+        return result
 
     def is_multiple(self, end1: Structure, end2: Structure) -> bool:
         """Return True when END2 path is a multiple of END1 path wrt ORIGIN.
@@ -214,21 +222,21 @@ class _StructFilter():
                    self.is_multiple(other, clone):
                     uniq = False
                     break
-            # if uniq and self.discard_combinations:
-            #     base = []
-            #     # Remove already discarded combination from base
-            #     for c in clones + self.rejected:
-            #         if not self.is_equiv(c, clone) and\
-            #            all(not self.is_equiv(c, rej)
-            #                for rej in rejected_combinations):
-            #             base.append(c)
-            #     if len(base) > 0 and self.is_linear_combination(clone, base):
-            #         logger.info(
-            #             "Found linear combination (dist=%f)",
-            #             structure_distance(self.origin, clone)
-            #         )
-            #         rejected_combinations.append(clone)
-            #         uniq = False
+            if uniq and self.discard_combinations:
+                base = []
+                # Remove already discarded combination from base
+                for c in clones + self.rejected:
+                    if not self.is_equiv(c, clone) and\
+                       all(not self.is_equiv(c, rej)
+                           for rej in rejected_combinations):
+                        base.append(c)
+                if len(base) > 0 and self.is_linear_combination(clone, base):
+                    logger.info(
+                        "Found linear combination (dist=%f)",
+                        structure_distance(self.origin, clone)
+                    )
+                    rejected_combinations.append(clone)
+                    uniq = False
             if uniq:
                 filtered.append(clone)
         return filtered
