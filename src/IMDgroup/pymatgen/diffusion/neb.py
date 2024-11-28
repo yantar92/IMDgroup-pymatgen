@@ -130,7 +130,7 @@ class _StructFilter():
             [v for v in v1 if not np.array_equal(v, [0, 0, 0])])
         logger.debug(
             "Basis: %s",
-            [[v for v in b if not np.array_equal(v, [0, 0, 0])] for b in base])
+            [[v for v in b if not np.array_equal(v, [0, 0, 0])] for b in v_base])
 
         # FIXME: limit=3 is necessary for reasonable speed, but it is
         # simply because we use brute force algo to find combinations.
