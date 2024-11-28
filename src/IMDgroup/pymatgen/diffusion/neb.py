@@ -111,8 +111,6 @@ class _StructFilter():
             [v for v in v1 if not np.array_equal(v, [0, 0, 0])])
 
         result = self._is_linear_combination_1(v1, v_base, limit=10)
-        if result:
-            logger.debug("Found linear combination")
         return result
 
     def is_multiple(self, end1: Structure, end2: Structure) -> bool:
@@ -186,6 +184,10 @@ class _StructFilter():
             if uniq and self.is_linear_combination(
                     clone, [c for c in clones
                             if not self.is_equiv(c, clone)]):
+                logger.debug(
+                    "Found linear combination (dist=%f)",
+                    structure_distance(self.origin, clone)
+                )
                 uniq = False
             if uniq:
                 filtered.append(clone)
