@@ -51,13 +51,15 @@ def find_linear_decomposition(basis, target_vector, tolerance=None):
                       target_vector[j],
                       f"CombinationConstraint_{j}")
         else:
-            model += (lpSum(coeffs[i] * basis[i][j]
-                            for i in range(len(basis))) <=
-                      target_vector[j] + tolerance / lpSum(c for c in coeffs),
+            model += ((lpSum(coeffs[i] * basis[i][j]
+                             for i in range(len(basis))) -
+                      target_vector[j]) * lpSum(c for c in coeffs) <=
+                      tolerance,
                       f"UpperBoundConstraint_{j}")
-            model += (lpSum(coeffs[i] * basis[i][j]
-                            for i in range(len(basis))) >=
-                      target_vector[j] - tolerance / lpSum(c for c in coeffs),
+            model += ((lpSum(coeffs[i] * basis[i][j]
+                             for i in range(len(basis)))
+                       - target_vector[j]) * lpSum(c for c in coeffs) >=
+                      -tolerance,
                       f"LowerBoundConstraint_{j}")
 
     # Solve the problem
