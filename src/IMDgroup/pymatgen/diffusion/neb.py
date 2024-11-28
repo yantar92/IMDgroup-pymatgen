@@ -143,6 +143,8 @@ class _StructFilter():
             np.array([v.flatten() for v in v_base]),
             v1.flatten(),
             tolerance=self.tol/np.max(self.origin.lattice.abc))
+        if result is not None:
+            logger.debug("Coefficients: %s", result)
         return result
 
     def is_multiple(self, end1: Structure, end2: Structure) -> bool:
