@@ -113,9 +113,9 @@ class _StructFilter():
             "Linear combination? %s",
             [v for v in v1 if not np.array_equal(v, [0, 0, 0])])
 
-        # FIXME: limit=5 is necessary for reasonable speed, but it is
+        # FIXME: limit=3 is necessary for reasonable speed, but it is
         # simply because we use brute force algo to find combinations.
-        result = self._is_linear_combination_1(v1, v_base, limit=5)
+        result = self._is_linear_combination_1(v1, v_base, limit=3)
         return result
 
     def is_multiple(self, end1: Structure, end2: Structure) -> bool:
