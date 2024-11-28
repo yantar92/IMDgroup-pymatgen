@@ -4,6 +4,7 @@ import logging
 from pymatgen.core import Structure
 from pymatgen.analysis.structure_matcher import StructureMatcher
 import numpy as np
+from pulp import LpProblem, LpVariable, lpSum, LpInteger, LpStatus
 from IMDgroup.pymatgen.core.structure import merge_structures
 from IMDgroup.pymatgen.transformations.symmetry_clone\
     import SymmetryCloneTransformation
@@ -73,19 +74,32 @@ class _StructFilter():
 
     def _is_linear_combination_1(self, vector, base, limit) -> bool:
         """Return True if VECTOR is an integer linear combination of BASE.
+        VECTOR and elements of BASE are lists of 3-dimentional vectors.
         """
         if len(base) == 0:
             return False
         if np.array_equal(self._zero_small(vector), [0, 0, 0]):
             return True
-        for mult in range(limit):
-            if self._is_linear_combination_1(
-                    vector+mult*base[0], base[1:], limit):
-                return True
-            if mult != 0 and self._is_linear_combination_1(
-                    vector-mult*base[0], base[1:], limit):
-                return True
-        return False
+
+        model = LpProblem("LinearCombination")
+        coeffs = [LpVariable(f"x{i}", cat=LpInteger) for i in range(len(base))]
+
+        for node_idx in range(len(vector)):
+            for dim_idx in range(len(vector[0])):
+                def _getval():
+                    return lpSum(
+                        coeffs[i] * base[i][node_idx][dim_idx]
+                        for i in range(len(base))
+                    )
+                model += (_getval() - vector[dim_idx] >= 0 and
+                          _getval() - vector[dim_idx] <= 0.01) or (
+                          _getval() - vector[dim_idx] <= 0 and
+                          -_getval() + vector[dim_idx] <= 0.01
+                          )
+
+        model.solve()
+        logger.debug([coeff.varValue for coeff in coeffs])
+        return LpStatus[model.status] == 'Optimal'
 
     def is_linear_combination(
             self, end: Structure, base: list[Structure]) -> bool:
