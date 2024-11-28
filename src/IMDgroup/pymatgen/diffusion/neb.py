@@ -37,7 +37,11 @@ def find_linear_decomposition(basis, target_vector, tolerance=None):
 
     model = LpProblem("LinearDecompositionWithAbs")
 
-    coeffs = [LpVariable(f"x{i}", cat=LpInteger) for i in range(len(basis))]
+    # FIXME: Withoug limits, we may pretty much always make
+    # coefficients large enough to beat TOLERANCE, but what should be
+    # these limits?
+    coeffs = [LpVariable(f"x{i}", -100, 100, cat=LpInteger)
+              for i in range(len(basis))]
 
     for j in range(target_vector.shape[0]):  # Iterate through each dimension
         if tolerance is None:
