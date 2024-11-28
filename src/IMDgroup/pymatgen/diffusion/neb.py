@@ -77,7 +77,10 @@ class _StructFilter():
         """
         if len(base) == 0:
             return False
-        for coeffs in product(range(-limit, limit), repeat=len(base)):
+        coeffs_list = list(product(range(-limit, limit), repeat=len(base)))
+        tot = len(coeffs_list)
+        for idx, coeffs in enumerate(coeffs_list):
+            logger.debug(f"{idx/tot*100.0}%")
             val = sum(c * b for c, b in zip(coeffs, base))
             diff = vector - val
             if np.array_equal(self._zero_small(diff), [0, 0, 0]):
