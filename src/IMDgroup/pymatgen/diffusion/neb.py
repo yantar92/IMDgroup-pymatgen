@@ -4,7 +4,6 @@ import logging
 from pymatgen.core import Structure
 from pymatgen.analysis.structure_matcher import StructureMatcher
 import numpy as np
-from itertools import product
 from IMDgroup.pymatgen.core.structure import merge_structures
 from IMDgroup.pymatgen.transformations.symmetry_clone\
     import SymmetryCloneTransformation
@@ -77,21 +76,15 @@ class _StructFilter():
         """
         if len(base) == 0:
             return False
-        for coeffs in product(range(-limit, limit), repeat=len(base)):
-            val = sum(c * b for c, b in zip(coeffs, base))
-            diff = vector - val
-            if np.array_equal(self._zero_small(diff), [0, 0, 0]):
-                logger.debug("Coefficients: %s", coeffs)
+        if np.array_equal(self._zero_small(vector), [0, 0, 0]):
+            return True
+        for mult in range(limit):
+            if self._is_linear_combination_1(
+                    vector+mult*base[0], base[1:], limit):
                 return True
-        # if np.array_equal(self._zero_small(vector), [0, 0, 0]):
-        #     return True
-        # for mult in range(limit):
-        #     if self._is_linear_combination_1(
-        #             vector+mult*base[0], base[1:], limit):
-        #         return True
-        #     if mult != 0 and self._is_linear_combination_1(
-        #             vector-mult*base[0], base[1:], limit):
-        #         return True
+            if mult != 0 and self._is_linear_combination_1(
+                    vector-mult*base[0], base[1:], limit):
+                return True
         return False
 
     def is_linear_combination(
