@@ -91,10 +91,10 @@ class _StructFilter():
                         coeffs[i] * base[i][node_idx][dim_idx]
                         for i in range(len(base))
                     )
-                model += (_getval() - vector[dim_idx] >= 0 and
-                          _getval() - vector[dim_idx] <= 0.01) or (
-                          _getval() - vector[dim_idx] <= 0 and
-                          -_getval() + vector[dim_idx] <= 0.01
+                model += (_getval() - vector[node_idx][dim_idx] >= 0 and
+                          _getval() - vector[node_idx][dim_idx] <= 0.01) or (
+                          _getval() - vector[node_idx][dim_idx] <= 0 and
+                          -_getval() + vector[node_idx][dim_idx] <= 0.01
                           )
 
         model.solve()
