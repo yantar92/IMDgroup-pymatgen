@@ -92,9 +92,9 @@ class _StructFilter():
                         for i in range(len(base))
                     )
                 model += (_getval() - vector[node_idx][dim_idx] >= 0 and
-                          _getval() - vector[node_idx][dim_idx] <= 0.01) or (
+                          _getval() - vector[node_idx][dim_idx] <= 0.001) or (
                           _getval() - vector[node_idx][dim_idx] <= 0 and
-                          _getval() - vector[node_idx][dim_idx] >= 0.01
+                          _getval() - vector[node_idx][dim_idx] >= 0.001
                           )
 
         model.solve()
