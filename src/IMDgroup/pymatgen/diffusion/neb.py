@@ -110,7 +110,7 @@ class _StructFilter():
             "Linear combination? %s",
             [v for v in v1 if not np.array_equal(v, [0, 0, 0])])
 
-        result = self._is_linear_combination_1(v1, v_base, limit=50)
+        result = self._is_linear_combination_1(v1, v_base, limit=10)
         if result:
             logger.debug("Found linear combination")
         return result
