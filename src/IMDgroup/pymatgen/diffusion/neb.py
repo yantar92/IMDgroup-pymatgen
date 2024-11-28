@@ -185,7 +185,8 @@ class _StructFilter():
                    self.is_multiple(other, clone):
                     uniq = False
                     break
-            if uniq and self.is_linear_combination(
+            if uniq and self.discard_combinations and\
+               self.is_linear_combination(
                     clone, [c for c in clones
                             if not self.is_equiv(c, clone)]):
                 logger.debug(
@@ -193,7 +194,7 @@ class _StructFilter():
                     structure_distance(self.origin, clone)
                 )
                 uniq = False
-            if uniq and self.discard_combinations:
+            if uniq:
                 filtered.append(clone)
         return filtered
 
@@ -217,9 +218,7 @@ def get_neb_pairs_1(
     """
     trans = SymmetryCloneTransformation(
         prototype,
-        filter_cls=_StructFilter(
-            origin, cutoff,
-            discard_combinations=discard_combinations))
+        filter_cls=_StructFilter(origin, cutoff, discard_combinations))
     clones = trans.get_all_clones(target)
 
     logger.info('Found %d pairs', len(clones))
