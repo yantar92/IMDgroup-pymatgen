@@ -38,15 +38,19 @@ class _StructFilter():
             self,
             origin: Structure,
             cutoff: float,
+            discard_combinations=False,
             tol: float = 0.5) -> None:
         """Setup structure filter.
         ORIGIN is the beginning of diffusion pair (Structure).
         CUTOFF and TOL are the largest and smallest distances between
         ORIGIN and filtered structure for structure to be accepted.
+        DISCARD_COMBINATIONS, when True, filters out diffusion
+        paths are are combinations of multiple other paths (approximation).
         """
         self.rejected = []
         self.origin = origin
         self.cutoff = cutoff
+        self.discard_combinations = discard_combinations
         self.tol = tol
 
     def is_equiv(self, end1, end2):
@@ -189,7 +193,7 @@ class _StructFilter():
                     structure_distance(self.origin, clone)
                 )
                 uniq = False
-            if uniq:
+            if uniq and self.discard_combinations:
                 filtered.append(clone)
         return filtered
 
@@ -198,17 +202,24 @@ def get_neb_pairs_1(
         origin: Structure,
         target: Structure,
         prototype: Structure,
-        cutoff: float | None = None) -> list[tuple[Structure, Structure]]:
+        cutoff: float | None = None,
+        discard_combinations=False) -> list[tuple[Structure, Structure]]:
     """Construct all possible unique diffusion pairs between ORIGIN and TARGET.
     ORIGIN is always taken as beginning of diffusion.
     Diffusion end points are taken by applying all possible symmetry
     operations of PROTOTYPE onto TARGET.
     End points that are further than CUTOFF are discarded.
+    When DISCARD_COMBINATIONS is True, discard diffusion paths
+    that can be constructed as a combination of other paths. (This is
+    an approximation and thus disabled by default).
+
     Return a list of tuples representing begin/end structure pairs.
     """
     trans = SymmetryCloneTransformation(
         prototype,
-        filter_cls=_StructFilter(origin, cutoff))
+        filter_cls=_StructFilter(
+            origin, cutoff,
+            discard_combinations=discard_combinations))
     clones = trans.get_all_clones(target)
 
     logger.info('Found %d pairs', len(clones))
@@ -222,7 +233,8 @@ def get_neb_pairs_1(
 def get_neb_pairs(
         structures: list[Structure],
         prototype: Structure,
-        cutoff: float | None = None)\
+        cutoff: float | None = None,
+        discard_combinations=False)\
         -> list[tuple[Structure, Structure]]:
     """Construct all possible unique diffusion pairs from STRUCTURES.
     The STRUCTURES must all be derived from PROTOTYPE structure (have
@@ -238,6 +250,10 @@ def get_neb_pairs(
     that require moving atoms more than CUTOFF ans will be discarded.
     The exact criterion is: sum of all atom displacements to change
     one structure into another must be no larger than CUTOFF.
+
+    When DISCARD_COMBINATIONS is True, discard diffusion paths
+    that can be constructed as a combination of other paths. (This is
+    an approximation and thus disabled by default).
 
     Returns a list of tuples containing begin/end structures.
     """
@@ -259,5 +275,5 @@ def get_neb_pairs(
                 "gen_neb_pairs: searching pairs %d -> %d ...",
                 idx, idx2+idx)
             pairs += get_neb_pairs_1(
-                origin, target, prototype, cutoff)
+                origin, target, prototype, cutoff, discard_combinations)
     return pairs
