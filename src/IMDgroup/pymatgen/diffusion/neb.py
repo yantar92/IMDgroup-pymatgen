@@ -204,7 +204,7 @@ class _StructFilter():
                        all(not self.is_equiv(c, rej)
                            for rej in rejected_combinations):
                         base.append(c)
-                if self.is_linear_combination(clone, base):
+                if len(base) > 0 and self.is_linear_combination(clone, base):
                     logger.info(
                         "Found linear combination (dist=%f)",
                         structure_distance(self.origin, clone)
