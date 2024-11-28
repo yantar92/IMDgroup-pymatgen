@@ -184,7 +184,8 @@ class _StructFilter():
                     uniq = False
                     break
             if uniq and self.is_linear_combination(
-                    clone, clones + self.rejected):
+                    clone, [c for c in clones
+                            if not self.is_equiv(c, clone)]):
                 uniq = False
             if uniq:
                 filtered.append(clone)
