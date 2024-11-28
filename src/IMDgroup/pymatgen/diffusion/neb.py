@@ -185,6 +185,7 @@ class _StructFilter():
             key=lambda clone: structure_distance(self.origin, clone),
             reverse=True)
 
+        rejected_combinations = []
         for clone in clones:
             uniq = True
             for other in (clones + self.rejected):
@@ -196,11 +197,13 @@ class _StructFilter():
             if uniq and self.discard_combinations and\
                self.is_linear_combination(
                     clone, [c for c in clones
-                            if not self.is_equiv(c, clone)]):
+                            if c not in rejected_combinations and
+                            not self.is_equiv(c, clone)]):
                 logger.debug(
                     "Found linear combination (dist=%f)",
                     structure_distance(self.origin, clone)
                 )
+                rejected_combinations.append(clone)
                 uniq = False
             if uniq:
                 filtered.append(clone)
