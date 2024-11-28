@@ -201,7 +201,8 @@ class _StructFilter():
                 # Remove already discarded combination from base
                 for c in clones + self.rejected:
                     if not self.is_equiv(c, clone) and\
-                       not self.is_equiv(c, rejected_combinations):
+                       all(not self.is_equiv(c, rej)
+                           for rej in rejected_combinations):
                         base.append(c)
                 if self.is_linear_combination(clone, base):
                     logger.info(
