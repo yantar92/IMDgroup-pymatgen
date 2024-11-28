@@ -40,7 +40,9 @@ def find_linear_decomposition(basis, target_vector, tolerance=None):
     # FIXME: Withoug limits, we may pretty much always make
     # coefficients large enough to beat TOLERANCE, but what should be
     # these limits?
-    coeffs = [LpVariable(f"x{i}", -10, 10, cat=LpInteger)
+    limit = 10
+    tolerance = tolerance/limit
+    coeffs = [LpVariable(f"x{i}", -limit, limit, cat=LpInteger)
               for i in range(len(basis))]
 
     for j in range(target_vector.shape[0]):  # Iterate through each dimension
