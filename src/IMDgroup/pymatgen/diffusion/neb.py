@@ -94,12 +94,14 @@ class _StructFilter():
                 model += (_getval() - vector[node_idx][dim_idx] >= 0 and
                           _getval() - vector[node_idx][dim_idx] <= 0.01) or (
                           _getval() - vector[node_idx][dim_idx] <= 0 and
-                          -_getval() + vector[node_idx][dim_idx] <= 0.01
+                          _getval() - vector[node_idx][dim_idx] >= 0.01
                           )
 
         model.solve()
-        logger.debug([coeff.varValue for coeff in coeffs])
-        return LpStatus[model.status] == 'Optimal'
+        if LpStatus[model.status] == 'Optimal':
+            logger.debug([coeff.varValue for coeff in coeffs])
+            return True
+        return False
 
     def is_linear_combination(
             self, end: Structure, base: list[Structure]) -> bool:
@@ -126,6 +128,9 @@ class _StructFilter():
         logger.debug(
             "Linear combination? %s",
             [v for v in v1 if not np.array_equal(v, [0, 0, 0])])
+        logger.debug(
+            "Basis: %s",
+            [[v for v in b if not np.array_equal(v, [0, 0, 0])] for b in base])
 
         # FIXME: limit=3 is necessary for reasonable speed, but it is
         # simply because we use brute force algo to find combinations.
