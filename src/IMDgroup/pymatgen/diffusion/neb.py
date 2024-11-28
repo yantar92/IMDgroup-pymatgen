@@ -72,7 +72,7 @@ class _StructFilter():
         """
         if len(base) == 0:
             return False
-        if self._zero_small(vector):
+        if np.array_equal(self._zero_small(vector), [0, 0, 0]):
             logger.debug("Small vector is a linear combination of anything")
             return True
         for mult in range(limit):
