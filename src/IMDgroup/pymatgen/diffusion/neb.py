@@ -40,7 +40,8 @@ def find_linear_decomposition(basis, target_vector, tolerance=None):
     # FIXME: Withoug limits, we may pretty much always make
     # coefficients large enough to beat TOLERANCE, but what should be
     # these limits?
-    coeffs = [LpVariable(f"x{i}", -10, 10, cat=LpInteger)
+    limit = 10
+    coeffs = [LpVariable(f"x{i}", -limit, limit, cat=LpInteger)
               for i in range(len(basis))]
 
     for j in range(target_vector.shape[0]):  # Iterate through each dimension
@@ -52,11 +53,11 @@ def find_linear_decomposition(basis, target_vector, tolerance=None):
         else:
             model += (lpSum(coeffs[i] * basis[i][j]
                             for i in range(len(basis))) <=
-                      target_vector[j] + tolerance,
+                      target_vector[j] + tolerance / lpSum(c for c in coeffs),
                       f"UpperBoundConstraint_{j}")
             model += (lpSum(coeffs[i] * basis[i][j]
                             for i in range(len(basis))) >=
-                      target_vector[j] - tolerance,
+                      target_vector[j] - tolerance / lpSum(c for c in coeffs),
                       f"LowerBoundConstraint_{j}")
 
     # Solve the problem
