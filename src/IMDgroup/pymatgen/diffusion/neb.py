@@ -59,31 +59,71 @@ class _StructFilter():
             return True
         return False
 
-    # Repeated diffusion paths are 100% equivalent
-    # A natural extension of this approach would be checking if a new
-    # diffusion path is a linear combination (via natural
-    # coefficients) of known paths, but that may, in general, miss
-    # some physically non-equivalent paths. Consider, for example,
-    # 1-3 vs 1-2-3 path. 1-2 and 2-3 barrier may, in some cases be
-    # higher than 1-3, especially for more complex structures. So,
-    # such an approach would only be approximation applicable to
-    # certain simple systems.
+    def _zero_small(self, v):
+        """Return v when it is large. Return 0 vector otherwise.
+        """
+        norm = np.linalg.norm(self.origin.lattice.get_cartesian_coords(v))
+        if norm > self.tol:
+            return v
+        return np.array([0, 0, 0])
+
+    def _is_linear_combination_1(self, vector, base, limit) -> bool:
+        """Return True if VECTOR is an integer linear combination of BASE.
+        """
+        if len(base) == 0:
+            return False
+        if self._zero_small(vector):
+            logger.debug("Small vector is a linear combination of anything")
+            return True
+        for mult in range(limit):
+            if self._is_linear_combination_1(
+                    vector+mult*base[0], base[1:], limit):
+                return True
+            if mult != 0 and self._is_linear_combination_1(
+                    vector-mult*base[0], base[1:], limit):
+                return True
+        return False
+
+    def is_linear_combination(
+            self, end: Structure, base: list[Structure]) -> bool:
+        """Return True when END structure is a linear combination of BASE.
+        Linear combination here implies only natural coefficients.
+        BASE is a list of structures.
+
+        The idea of this filter is that diffusion path that can be
+        constructed from shorted paths will end up going exactly
+        through them.  Such idea is only an approximation that is
+        likely valid for very distant paths, but may not be valid for
+        shorter. Consider, for example, 1-3 vs 1-2-3 path. 1-2 and 2-3
+        barrier may, in some cases be higher than 1-3, especially for
+        more complex structures. So, such an approach would only be
+        approximation applicable to certain simple systems.
+        """
+        v1 = structure_diff(self.origin, end)
+        v_base = [structure_diff(self.origin, s) for s in base]
+
+        # Ignore too small displacement (according to self.tol)
+        v1 = np.array([self._zero_small(v) for v in v1])
+        v_base = [np.array([self._zero_small(v) for v in v2]) for v2 in v_base]
+
+        logger.debug(
+            "Linear combination? %s",
+            [v for v in v1 if not np.array_equal(v, [0, 0, 0])])
+
+        result = self._is_linear_combination_1(v1, v_base, limit=50)
+        if result:
+            logger.debug("Found linear combination")
+        return result
+
     def is_multiple(self, end1: Structure, end2: Structure) -> bool:
         """Return True when END2 path is a multiple of END1 path wrt ORIGIN.
         """
         v1 = structure_diff(self.origin, end1)
         v2 = structure_diff(self.origin, end2)
 
-        def zero_small(v):
-            """Return v when it is large. Return 0 vector otherwise.
-            """
-            norm = np.linalg.norm(self.origin.lattice.get_cartesian_coords(v))
-            if norm > self.tol:
-                return v
-            return np.array([0, 0, 0])
-
-        v1 = np.array([zero_small(v) for v in v1])
-        v2 = np.array([zero_small(v) for v in v2])
+        # Ignore too small displacement (according to self.tol)
+        v1 = np.array([self._zero_small(v) for v in v1])
+        v2 = np.array([self._zero_small(v) for v in v2])
 
         logger.debug(
             "Multipe? %s -> %s",
@@ -143,6 +183,9 @@ class _StructFilter():
                    self.is_multiple(other, clone):
                     uniq = False
                     break
+            if uniq and self.is_linear_combination(
+                    clone, clones + self.rejected):
+                uniq = False
             if uniq:
                 filtered.append(clone)
         return filtered
