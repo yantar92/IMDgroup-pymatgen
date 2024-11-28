@@ -147,7 +147,7 @@ class _StructFilter():
         for idx in range(len(end1_mult)):
             end1_mult.translate_sites([idx], v1[idx]*max_mult)
         if structure_distance(end1_mult, end2, tol=self.tol) == 0:
-            logger.debug("Found multiple: %dx", max_mult)
+            logger.info("Found multiple: %dx", max_mult)
             return True
         return False
 
@@ -199,7 +199,7 @@ class _StructFilter():
                     clone, [c for c in clones
                             if c not in rejected_combinations and
                             not self.is_equiv(c, clone)]):
-                logger.debug(
+                logger.info(
                     "Found linear combination (dist=%f)",
                     structure_distance(self.origin, clone)
                 )
