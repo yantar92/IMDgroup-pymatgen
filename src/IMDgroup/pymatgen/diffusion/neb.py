@@ -141,7 +141,7 @@ class _StructFilter():
 
         result = find_linear_decomposition(
             v1.flatten(),
-            [v.flatten() for v in v_base],
+            np.array([v.flatten() for v in v_base]),
             tolerance=self.tol/np.max(self.origin.lattice.abc))
         return result
 
