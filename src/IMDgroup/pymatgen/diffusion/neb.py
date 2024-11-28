@@ -196,17 +196,20 @@ class _StructFilter():
                    self.is_multiple(other, clone):
                     uniq = False
                     break
-            if uniq and self.discard_combinations and\
-               self.is_linear_combination(
-                    clone, [c for c in clones
-                            if c not in rejected_combinations and
-                            not self.is_equiv(c, clone)]):
-                logger.info(
-                    "Found linear combination (dist=%f)",
-                    structure_distance(self.origin, clone)
-                )
-                rejected_combinations.append(clone)
-                uniq = False
+            if uniq and self.discard_combinations:
+                base = []
+                # Remove already discarded combination from base
+                for c in clones + self.rejected:
+                    if not self.is_equiv(c, clone) and\
+                       not self.is_equiv(c, rejected_combinations):
+                        base.append(c)
+                if self.is_linear_combination(clone, base):
+                    logger.info(
+                        "Found linear combination (dist=%f)",
+                        structure_distance(self.origin, clone)
+                    )
+                    rejected_combinations.append(clone)
+                    uniq = False
             if uniq:
                 filtered.append(clone)
         return filtered
