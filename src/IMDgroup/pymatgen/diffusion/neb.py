@@ -177,6 +177,12 @@ class _StructFilter():
         """Filter out diffusion paths that are multiples of other paths.
         """
         filtered = []
+
+        # Sort structures by distance from reference STRUCTURE
+        clones = sorted(
+            clones,
+            key=lambda clone: structure_distance(self.origin, clone))
+
         for clone in clones:
             uniq = True
             for other in (clones + self.rejected):
