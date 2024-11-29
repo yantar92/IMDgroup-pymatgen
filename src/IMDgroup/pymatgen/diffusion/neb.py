@@ -109,9 +109,14 @@ class _StructFilter():
 
     def _zero_small(self, v):
         """Return v when it is large. Return 0 vector otherwise.
+        When v has small components, zero them out as well.
         """
-        norm = np.linalg.norm(self.origin.lattice.get_cartesian_coords(v))
+        cart = self.origin.lattice.get_cartesian_coords(v)
+        norm = np.linalg.norm(cart)
         if norm > self.tol:
+            for idx, coord in enumerate(cart):
+                if np.abs(coord) < self.tol/np.sqrt(3):
+                    v[idx] = 0
             return v
         return np.array([0, 0, 0])
 
