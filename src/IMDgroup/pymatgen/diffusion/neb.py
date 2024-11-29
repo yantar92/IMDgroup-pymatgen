@@ -114,11 +114,10 @@ class _StructFilter():
         cart = self.origin.lattice.get_cartesian_coords(v)
         norm = np.linalg.norm(cart)
         if norm > self.tol:
-            result = v.copy()
-            for idx, coord in enumerate(cart):
-                result[idx] =\
-                    v[idx] if np.abs(coord) > self.tol/np.sqrt(3) else 0
-            return result
+            for idx, coord in enumerate(v):
+                frac_tol = self.tol/self.origin.lattice.abc[idx]
+                v[idx] = v[idx] if np.abs(coord) > frac_tol else 0
+            return v
         return np.array([0, 0, 0])
 
     def is_linear_combination(
