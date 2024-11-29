@@ -44,6 +44,7 @@ include = [
 	"IMDgroup.pymatgen.transformations",
         "IMDgroup.pymatgen.io.vasp",
         "IMDgroup.pymatgen.cli",
+        "IMDgroup.pymatgen.diffusion",
         "IMDgroup",
         ]
 
