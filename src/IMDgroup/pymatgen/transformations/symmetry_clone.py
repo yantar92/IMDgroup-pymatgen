@@ -135,7 +135,8 @@ class SymmetryCloneTransformation(AbstractTransformation):
                     return True
             return False
 
-        with alive_bar(len(self.sym_operations)) as progress_bar:
+        with alive_bar(len(self.sym_operations), title='Searching clones')\
+             as progress_bar:
             for op in self.sym_operations:
                 progress_bar()  # pylint: disable=not-callable
                 tmp = structure.copy()

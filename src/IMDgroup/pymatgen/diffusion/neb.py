@@ -1,6 +1,7 @@
 """NEB pair generator for diffusion paths.
 """
 import logging
+from alive_progress import alive_bar
 from pymatgen.core import Structure
 from pymatgen.analysis.structure_matcher import StructureMatcher
 import numpy as np
@@ -227,31 +228,34 @@ class _StructFilter():
             reverse=True)
 
         rejected_combinations = []
-        for clone in clones:
-            uniq = True
-            for other in (clones + self.rejected):
-                if clone != other and\
-                   not self.is_equiv(clone, other) and\
-                   self.is_multiple(other, clone):
-                    uniq = False
-                    break
-            if uniq and self.discard_combinations:
-                base = []
-                # Remove already discarded combination from base
-                for c in clones + self.rejected:
-                    if not self.is_equiv(c, clone) and\
-                       all(not self.is_equiv(c, rej)
-                           for rej in rejected_combinations):
-                        base.append(c)
-                if len(base) > 0 and self.is_linear_combination(clone, base):
-                    logger.info(
-                        "Found linear combination (dist=%f)",
-                        structure_distance(self.origin, clone)
-                    )
-                    rejected_combinations.append(clone)
-                    uniq = False
-            if uniq:
-                filtered.append(clone)
+        with alive_bar(len(clones), title='Post-filtering') as progress_bar:
+            for clone in clones:
+                progress_bar()  # pylint: disable=not-callable
+                uniq = True
+                for other in (clones + self.rejected):
+                    if clone != other and\
+                       not self.is_equiv(clone, other) and\
+                       self.is_multiple(other, clone):
+                        uniq = False
+                        break
+                if uniq and self.discard_combinations:
+                    base = []
+                    # Remove already discarded combination from base
+                    for c in clones + self.rejected:
+                        if not self.is_equiv(c, clone) and\
+                           all(not self.is_equiv(c, rej)
+                               for rej in rejected_combinations):
+                            base.append(c)
+                    if len(base) > 0 and\
+                       self.is_linear_combination(clone, base):
+                        logger.info(
+                            "Found linear combination (dist=%f)",
+                            structure_distance(self.origin, clone)
+                        )
+                        rejected_combinations.append(clone)
+                        uniq = False
+                if uniq:
+                    filtered.append(clone)
         return filtered
 
 
