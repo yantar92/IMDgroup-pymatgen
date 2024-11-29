@@ -230,7 +230,6 @@ class _StructFilter():
         rejected_combinations = []
         with alive_bar(len(clones), title='Post-filtering') as progress_bar:
             for clone in clones:
-                progress_bar()  # pylint: disable=not-callable
                 uniq = True
                 for other in (clones + self.rejected):
                     if clone != other and\
@@ -254,6 +253,7 @@ class _StructFilter():
                         )
                         rejected_combinations.append(clone)
                         uniq = False
+                progress_bar()  # pylint: disable=not-callable
                 if uniq:
                     filtered.append(clone)
         return filtered
