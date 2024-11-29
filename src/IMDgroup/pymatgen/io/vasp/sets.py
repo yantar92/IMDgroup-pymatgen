@@ -379,6 +379,8 @@ class IMDNEBVaspInputSet(IMDDerivedInputSet):
         images = self.structure.interpolate(
             self.target_structure, self.incar["IMAGES"]+1,
             autosort_tol=0.5)
+        for image in images:
+            assert image.is_valid()  # no atoms aloser than 0.5ans
         # Store NEB path snapshot
         trajectory = merge_structures(images)
         trajectory.to_file(os.path.join(output_dir, 'NEB_trajectory.cif'))
