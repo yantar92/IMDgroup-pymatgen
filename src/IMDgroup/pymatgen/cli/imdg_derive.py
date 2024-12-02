@@ -32,6 +32,13 @@ def add_args(parser):
     )
 
     parser.add_argument(
+        "--overwrite_output",
+        help="Whether to overwrite non-empty output directories"
+        "(default: True).",
+        type=bool,
+        default=True
+    )
+    parser.add_argument(
         "--output",
         help="Directory to write the mutated VASP input"
         "(default: <old-name>.<suffix>)."
@@ -645,6 +652,14 @@ def derive(args):
                 output_dir = os.path.join(args.output, output_dir)
         if args.subdir:
             output_dir = os.path.join(output_dir, args.subdir)
-        inputset.write_input(output_dir=output_dir)
+        write_input = True
+        if os.path.isdir(output_dir) and not os.path.listdir(output_dir):
+            if args.overwrite_output:
+                warnings.warn(f"Overwriting non-empty dir: {output_dir}")
+            else:
+                warnings.warn(f"Skipping non-empty dir: {output_dir}")
+                write_input = False
+        if write_input:
+            inputset.write_input(output_dir=output_dir)
 
     return 0
