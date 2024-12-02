@@ -157,4 +157,5 @@ def structure_interpolate2(
                 nimages[idx + invalid_idx] = coord
         images = structure1.interpolate(structure2, nimages, **kwargs)
         invalid_idx = all_valid(images)
+    logger.info("Adjusted interpolation coordinates to %s", nimages)
     return images
