@@ -86,3 +86,61 @@ def structure_diff(
     diff -= np.round(diff)  # this works because fractional coordinates
 
     return diff
+
+
+def structure_interpolate2(
+        structure1: Structure, structure2: Structure,
+        nimages: int = 10,
+        **kwargs) -> list[Structure]:
+    """Like Structure.interpolate, but make sure that images are valid.
+    Valid means that no atoms in the images are very close
+    (Structure.is_valid).
+    NIMAGES can only be the number of images, not a list.
+    **KWARGS are the other arguments passed to Structure.interpolate,
+    which see.
+    Return a list of interpolated structures, possibly adjusted to
+    avoid atom collisions by changing distances between images.
+    """
+    assert structure1.is_valid()
+    assert structure2.is_valid()
+    images = structure1.interpolate(structure2, nimages=nimages, **kwargs)
+
+    def all_valid(images):
+        """Return True if all IMAGES are valid.
+        Otherwise, return invalid image index."""
+        for idx, image in enumerate(images):
+            if not image.is_valid():
+                return idx
+        return True
+
+    invalid_idx = all_valid(images)
+    # Normal interpolation works fine.  Return immediately.
+    if invalid_idx is True:
+        return images
+
+    # Otherwise, adjust the spacing manually to avoid collisions.
+    nimages = np.arange(nimages + 1) / nimages
+
+    def search_valid(valid_coord, invalid_coord, tol=1E-3):
+        """Find valid interpolation coordinate between VALID_COORD and INVALID_COORD.
+        Assume that INVALID_COORD is an invalid image and that
+        VALID_COORD is valid.
+        """
+        while np.abs(valid_coord - invalid_coord) > tol:
+            trial_coord = (valid_coord + invalid_coord) / 2.0
+            trial_image = structure1.interpolate(
+                structure2, nimages=[trial_coord], **kwargs)
+            if trial_image.is_valid():
+                valid_coord = trial_coord
+            else:
+                invalid_coord = trial_coord
+        return valid_coord
+
+    while invalid_idx is not True:
+        nimages[invalid_idx] = search_valid(
+            nimages[invalid_idx - 1], nimages[invalid_idx])
+        # There should be no images too close to each other.
+        assert np.abs(nimages[invalid_idx - 1] - nimages[invalid_idx]) > 1E-3
+        images = structure1.interpolate(structure2, nimages, **kwargs)
+        invalid_idx = all_valid(images)
+    return images
