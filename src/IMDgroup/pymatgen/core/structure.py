@@ -121,6 +121,11 @@ def structure_interpolate2(
     # Otherwise, adjust the spacing manually to avoid collisions.
     nimages = np.arange(nimages + 1) / nimages
 
+    def get_image(coord):
+        """Get image at COORD."""
+        return structure1.interpolate(
+            structure2, nimages=[coord], **kwargs)[0]
+
     def search_valid(valid_coord, invalid_coord, tol=1E-3):
         """Find valid interpolation coordinate between VALID_COORD and INVALID_COORD.
         Assume that INVALID_COORD is an invalid image and that
@@ -128,8 +133,7 @@ def structure_interpolate2(
         """
         while np.abs(valid_coord - invalid_coord) > tol:
             trial_coord = (valid_coord + invalid_coord) / 2.0
-            trial_image = structure1.interpolate(
-                structure2, nimages=[trial_coord], **kwargs)
+            trial_image = get_image(trial_coord)
             if trial_image.is_valid():
                 valid_coord = trial_coord
             else:
@@ -137,10 +141,20 @@ def structure_interpolate2(
         return valid_coord
 
     while invalid_idx is not True:
-        nimages[invalid_idx] = search_valid(
+        left_coord = search_valid(
             nimages[invalid_idx - 1], nimages[invalid_idx])
-        # There should be no images too close to each other.
-        assert np.abs(nimages[invalid_idx - 1] - nimages[invalid_idx]) > 1E-3
+        if np.abs(nimages[invalid_idx - 1] - left_coord) > 1E-3:
+            nimages[invalid_idx] = left_coord
+        else:  # No valid point to the left.  Search right.
+            next_valid_idx = invalid_idx + 1
+            while not get_image(nimages[next_valid_idx]).is_valid():
+                next_valid_idx += 1
+            right_coord = search_valid(
+                nimages[next_valid_idx], nimages[invalid_idx])
+            rescaled = np.linspace(
+                right_coord, nimages[-1], num=len(nimages[invalid_idx:]))
+            for idx, coord in enumerate(rescaled):
+                nimages[idx + invalid_idx] = coord
         images = structure1.interpolate(structure2, nimages, **kwargs)
         invalid_idx = all_valid(images)
     return images
