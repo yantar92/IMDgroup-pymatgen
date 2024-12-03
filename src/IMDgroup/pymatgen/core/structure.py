@@ -91,10 +91,11 @@ def structure_diff(
 def structure_interpolate2(
         structure1: Structure, structure2: Structure,
         nimages: int = 10,
+        tol: float = 1.0,
         **kwargs) -> list[Structure]:
     """Like Structure.interpolate, but make sure that images are valid.
     Valid means that no atoms in the images are very close
-    (Structure.is_valid).
+    (Structure.is_valid), no closer than TOL angstrem.
     NIMAGES can only be the number of images, not a list.
     **KWARGS are the other arguments passed to Structure.interpolate,
     which see.
@@ -109,7 +110,7 @@ def structure_interpolate2(
         """Return True if all IMAGES are valid.
         Otherwise, return invalid image index."""
         for idx, image in enumerate(images):
-            if not image.is_valid():
+            if not image.is_valid(tol):
                 return idx
         return True
 
@@ -134,7 +135,7 @@ def structure_interpolate2(
         while np.abs(valid_coord - invalid_coord) > tol:
             trial_coord = (valid_coord + invalid_coord) / 2.0
             trial_image = get_image(trial_coord)
-            if trial_image.is_valid():
+            if trial_image.is_valid(tol):
                 valid_coord = trial_coord
             else:
                 invalid_coord = trial_coord
@@ -147,7 +148,7 @@ def structure_interpolate2(
             nimages[invalid_idx] = left_coord
         else:  # No valid point to the left.  Search right.
             next_valid_idx = invalid_idx + 1
-            while not get_image(nimages[next_valid_idx]).is_valid():
+            while not get_image(nimages[next_valid_idx]).is_valid(tol):
                 next_valid_idx += 1
             right_coord = search_valid(
                 nimages[next_valid_idx], nimages[invalid_idx])
