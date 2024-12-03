@@ -660,6 +660,7 @@ def derive(args):
                 warnings.warn(f"Skipping non-empty dir: {output_dir}")
                 write_input = False
         if write_input:
+            logger.info("Writing inputset to %s", output_dir)
             inputset.write_input(output_dir=output_dir)
 
     return 0
