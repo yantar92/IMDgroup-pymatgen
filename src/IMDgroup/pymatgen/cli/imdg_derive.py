@@ -653,7 +653,7 @@ def derive(args):
         if args.subdir:
             output_dir = os.path.join(output_dir, args.subdir)
         write_input = True
-        if os.path.isdir(output_dir) and not os.path.listdir(output_dir):
+        if os.path.isdir(output_dir) and not os.listdir(output_dir):
             if args.overwrite_output:
                 warnings.warn(f"Overwriting non-empty dir: {output_dir}")
             else:
