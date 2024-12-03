@@ -344,8 +344,10 @@ class IMDNEBVaspInputSet(IMDDerivedInputSet):
     # According to Henkelman et al JCP 2000 (10.1063/1.1329672),
     # the typical number of images is 4-20.  We take smaller number as
     # the default here.
+    # POTIM is reduced as NEB tends to generate paths passing close to
+    # other atoms, causing problems with convergence
     CONFIG = {
-        'INCAR': {"IMAGES": 4, "SPRING": -5},
+        'INCAR': {"IMAGES": 4, "SPRING": -5, "POTIM": 0.25},
         'POTCAR_FUNCTIONAL': "PBE_64"
     }
 
