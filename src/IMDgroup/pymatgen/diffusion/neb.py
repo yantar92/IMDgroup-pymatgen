@@ -29,11 +29,13 @@ def _struct_is_equiv(
 
 
 def find_linear_decomposition(basis, target_vector, tolerance=None):
-    """Find its integer decomposition of TARGET_VECTOR in BASIS.
+    """Find its positive integer decomposition of TARGET_VECTOR in BASIS.
     TARGET_VECTOR and BASIS components must be 1-dimemtional.
     TOLERANCE, when provided is comparison accuracy (within each dimetion).
     Return a list of coefficients for BASIS or None if decomposition
     is not possible.
+
+    Decomposition coefficients will be 0 or positive integers.
     """
 
     model = LpProblem("LinearDecompositionWithAbs")
@@ -61,6 +63,8 @@ def find_linear_decomposition(basis, target_vector, tolerance=None):
                             for i in range(len(basis))) >=
                       target_vector[j] - tolerance,
                       f"LowerBoundConstraint_{j}")
+    for i in range(len(basis)):
+        model += coeffs[i] >= 0, f"Non-negative_coeff_{i}"
 
     # Solve the problem
     model.solve()
@@ -161,6 +165,8 @@ class _StructFilter():
 
     def is_multiple(self, end1: Structure, end2: Structure) -> bool:
         """Return True when END2 path is a multiple of END1 path wrt ORIGIN.
+        The multiplication coefficient must be positive (path in
+        opposite direction is a *different* path.
         """
         v1 = structure_diff(self.origin, end1)
         v2 = structure_diff(self.origin, end2)
@@ -183,6 +189,10 @@ class _StructFilter():
         logger.debug("Multipliers: %s...%s", min_mult, max_mult)
 
         if max_mult != min_mult:
+            return False
+
+        # Path in opposite direction is a *different* path
+        if max_mult < 0:
             return False
 
         end1_mult = self.origin.copy()
