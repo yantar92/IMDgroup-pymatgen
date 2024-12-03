@@ -91,7 +91,7 @@ def structure_diff(
 def structure_interpolate2(
         structure1: Structure, structure2: Structure,
         nimages: int = 10,
-        tol: float = 1.0,
+        tol: float = 0.5,
         **kwargs) -> list[Structure]:
     """Like Structure.interpolate, but make sure that images are valid.
     Valid means that no atoms in the images are very close
@@ -102,8 +102,8 @@ def structure_interpolate2(
     Return a list of interpolated structures, possibly adjusted to
     avoid atom collisions by changing distances between images.
     """
-    assert structure1.is_valid()
-    assert structure2.is_valid()
+    assert structure1.is_valid(tol)
+    assert structure2.is_valid(tol)
     images = structure1.interpolate(structure2, nimages=nimages, **kwargs)
 
     def all_valid(images):
