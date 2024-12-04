@@ -432,11 +432,11 @@ class IMDNEBVaspInputSet(IMDDerivedInputSet):
                np.array_equal(site.properties['selective_dynamics'],
                               [False, False, False]):
                 has_fixed = True
-                site.species = Species('H')  # fixed
+                site.species = Species('Fe')  # fixed
             elif False in site.properties['selective_dynamics']:
-                site.species = Species('O')  # partially fixed
+                site.species = Species('Co')  # partially fixed
             else:
-                site.species = Species('C')  # not fixed
+                site.species = Species('Ni')  # not fixed
         if has_fixed:
             trajectory.to_file(os.path.join(output_dir, 'NEB_fixed_sites.cif'))
         for image_idx, _ in enumerate(images):
