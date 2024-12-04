@@ -356,6 +356,24 @@ class IMDNEBVaspInputSet(IMDDerivedInputSet):
         'POTCAR_FUNCTIONAL': "PBE_64"
     }
 
+    @property
+    def incar(self) -> Incar:
+        """The INCAR.  Also, check POTIM and IMAGES."""
+        incar = super().incar
+        if incar['POTIM'] > 0.25:
+            warnings.warn(
+                f"POTIM={incar['POTIM']} parameter is higher than"
+                " the default 0.25 for NEB.\n"
+                "I hope that you know what you are doing",
+                BadInputSetWarning,
+            )
+        if incar['IMAGES'] == 0:
+            warnings.warn(
+                "IMAGES=0 makes no sense for NEB",
+                BadInputSetWarning,
+            )
+        return incar
+
     def __post_init__(self) -> None:
         # Refuse to accept unconverged VASP runs.
         beg_run = Vasprun(os.path.join(self.directory, 'vasprun.xml'))
