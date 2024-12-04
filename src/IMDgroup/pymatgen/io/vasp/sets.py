@@ -347,7 +347,7 @@ class IMDNEBVaspInputSet(IMDDerivedInputSet):
     # POTIM is reduced as NEB tends to generate paths passing close to
     # other atoms, causing problems with convergence
     CONFIG = {
-        'INCAR': {"IMAGES": 4, "SPRING": -5, "POTIM": 0.1},
+        'INCAR': {"IMAGES": 4, "SPRING": -5, "POTIM": 0.25},
         'POTCAR_FUNCTIONAL': "PBE_64"
     }
 
