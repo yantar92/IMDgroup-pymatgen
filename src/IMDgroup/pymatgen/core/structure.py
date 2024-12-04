@@ -127,12 +127,12 @@ def structure_interpolate2(
         return structure1.interpolate(
             structure2, nimages=[coord], **kwargs)[0]
 
-    def search_valid(valid_coord, invalid_coord, tol=1E-3):
+    def search_valid(valid_coord, invalid_coord):
         """Find valid interpolation coordinate between VALID_COORD and INVALID_COORD.
         Assume that INVALID_COORD is an invalid image and that
         VALID_COORD is valid.
         """
-        while np.abs(valid_coord - invalid_coord) > tol:
+        while np.abs(valid_coord - invalid_coord) > 1E-3:
             trial_coord = (valid_coord + invalid_coord) / 2.0
             trial_image = get_image(trial_coord)
             if trial_image.is_valid(tol):
