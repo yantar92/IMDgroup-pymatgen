@@ -403,11 +403,11 @@ class IMDNEBVaspInputSet(IMDDerivedInputSet):
         for image in images:
             for idx, site in enumerate(image):
                 if 'selective_dynamics' not in site.properties:
-                    site.add_site_property(
-                        'selective_dynamics', [True, True, True])
+                    site.properties['selective_dynamics'] =\
+                        [True, True, True]
                 if idx in idxs_to_fix:
-                    site.add_site_property(
-                        'selective_dynamics', [False, False, False])
+                    site.properties['selective_dynamics'] =\
+                        [False, False, False]
 
     def write_input(self, output_dir, **kwargs) -> None:
         """Write a set of VASP input to OUTPUT_DIR."""
