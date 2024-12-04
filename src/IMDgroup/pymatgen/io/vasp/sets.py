@@ -13,7 +13,7 @@ from pymatgen.io.vasp.sets import VaspInputSet, BadInputSetWarning
 from pymatgen.io.vasp.inputs import Potcar, Kpoints, Poscar
 from pymatgen.io.vasp.outputs import Vasprun
 from pymatgen.util.due import Doi, due
-from pymatgen.core import Structure, DummySpecies
+from pymatgen.core import Structure, Species
 from pymatgen.ext.matproj import MPRester
 from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
 from ase.calculators.vasp.setups \
@@ -432,9 +432,11 @@ class IMDNEBVaspInputSet(IMDDerivedInputSet):
                np.array_equal(site.properties['selective_dynamics'],
                               [False, False, False]):
                 has_fixed = True
-                site.species = DummySpecies('X')
+                site.species = Species('H')  # fixed
+            elif False in site.properties['selective_dynamics']:
+                site.species = Species('O')  # partially fixed
             else:
-                site.species = DummySpecies('Z')
+                site.species = Species('C')  # not fixed
         if has_fixed:
             trajectory.to_file(os.path.join(output_dir, 'NEB_fixed_sites.cif'))
         for image_idx, _ in enumerate(images):
