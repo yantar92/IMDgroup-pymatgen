@@ -13,7 +13,7 @@ from pymatgen.io.vasp.sets import VaspInputSet, BadInputSetWarning
 from pymatgen.io.vasp.inputs import Potcar, Kpoints, Poscar
 from pymatgen.io.vasp.outputs import Vasprun
 from pymatgen.util.due import Doi, due
-from pymatgen.core import Structure
+from pymatgen.core import Structure, DummySpecies
 from pymatgen.ext.matproj import MPRester
 from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
 from ase.calculators.vasp.setups \
@@ -388,6 +388,18 @@ class IMDNEBVaspInputSet(IMDDerivedInputSet):
         # Store NEB path snapshot
         trajectory = merge_structures(images)
         trajectory.to_file(os.path.join(output_dir, 'NEB_trajectory.cif'))
+        # Visualize information about fixed/not fixed sites, if any
+        has_fixed = False
+        for site in trajectory:
+            if 'selective_dynamics' in site.properties and\
+               np.array_equal(site.properties['selective_dynamics'],
+                              [True, True, True]):
+                has_fixed = True
+                site.specie = DummySpecies('X')
+            else:
+                site.specie = DummySpecies('Y')
+        if has_fixed:
+            trajectory.to_file(os.path.join(output_dir, 'NEB_fixed_sites.cif'))
         for image_idx, _ in enumerate(images):
             sub_dir = Path(os.path.join(output_dir, f"{image_idx:02d}"))
             if not sub_dir.exists():
