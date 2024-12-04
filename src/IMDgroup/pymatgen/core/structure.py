@@ -19,7 +19,31 @@ def merge_structures(
     for struct in structs[1:]:
         assert struct.lattice == structs[0].lattice
 
+    prop_values = {}
+
+    def store_array_props(struct):
+        """Convert array properties to strings.
+        This is to work around pymatgen bug#4197 where merging array
+        properties fails.
+        """
+        for site in struct:
+            for name, val in site.properties.items():
+                if isinstance(val, np.ndarray):
+                    site.properties[name] = str(val)
+                    prop_values[str(val)] = val
+
+    def restore_array_props(struct):
+        """Convert back strings to arrays.
+        This is to work around pymatgen bug#4197 where merging array
+        properties fails.
+        """
+        for site in struct:
+            for name, val in site.properties.items():
+                if isinstance(val, str) and val in prop_values:
+                    site.properties[name] = prop_values[val]
+
     merged = structs[0].copy()
+
     sites_before = sum(len(s) for s in structs)
     for struct in structs[1:]:
         for site in struct:
@@ -27,7 +51,9 @@ def merge_structures(
                 site.species,
                 site.frac_coords,
                 properties=site.properties)
+        store_array_props(merged)
         merged.merge_sites(mode='average', tol=tol)
+    restore_array_props(merged)
     logger.debug(
         "Merged %d structures (%d -> %d atoms)",
         len(structs), sites_before, len(merged))
