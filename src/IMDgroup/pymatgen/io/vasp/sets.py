@@ -338,8 +338,13 @@ class IMDNEBVaspInputSet(IMDDerivedInputSet):
     the VASP outputs containing the initial and final structures.  We
     demand VASP outputs as the structures have to be well-converged
     for accurate NEB calculations.
+
+    Optional argument FIX_CUTOFF prohibits relaxation of atoms that
+    are further away from atoms that move during NEB than FIX_CUTOFF
+    angstrom.
     """
     target_directory: str | None = None
+    fix_cutoff: float | None = None
 
     # According to Henkelman et al JCP 2000 (10.1063/1.1329672),
     # the typical number of images is 4-20.  We take smaller number as
@@ -373,18 +378,50 @@ class IMDNEBVaspInputSet(IMDDerivedInputSet):
                 f"INCARs in {self.directory} and {self.target_directory}"
                 f" are inconsistent: {diff['Different']}")
 
+    def _fix_atoms_maybe(self, images):
+        """Fix atoms further away than self.fix_cutoff from moving atoms.
+        Fixing is done by setting selective dynamics for each image in
+        IMAGES.  Modify IMAGES in place.
+        """
+        if self.fix_cutoff is None:
+            return None
+        moved_idxs = []
+        first = images[0]
+        last = images[-1]
+        for idx in range(len(images[0])):
+            dist = first[idx].distance(last[idx])
+            if dist >= 0.5:
+                moved_idxs.append(idx)
+        idxs_to_fix = []
+        for idx in moved_idxs:
+            for image in images:
+                for idx2, site in enumerate(image):
+                    dist = image[idx].distance(site)
+                    if dist > self.fix_cutoff:
+                        if idx2 not in idxs_to_fix:
+                            idxs_to_fix.append(idx2)
+        for image in images:
+            for idx, site in enumerate(image):
+                if 'selective_dynamics' not in site.properties:
+                    site.add_site_property(
+                        'selective_dynamics', [True, True, True])
+                if idx in idxs_to_fix:
+                    site.add_site_property(
+                        'selective_dynamics', [False, False, False])
+
     def write_input(self, output_dir, **kwargs) -> None:
         """Write a set of VASP input to OUTPUT_DIR."""
         super().write_input(output_dir, **kwargs)
         # Remove POSCAR written in the top dir.  It is not needed for
         # NEB calculations.
         os.remove(os.path.join(output_dir, 'POSCAR'))
-        tol = 1.0 # proximity tolerance
+        tol = 1.0  # proximity tolerance
         images = structure_interpolate2(
             self.structure, self.target_structure,
             nimages=self.incar["IMAGES"]+1, tol=tol, autosort_tol=0.5)
         for image in images:
             assert image.is_valid(tol=tol)  # no atoms aloser than tol
+        self._fix_atoms_maybe(images)  # modify by site effect
         # Store NEB path snapshot
         trajectory = merge_structures(images)
         trajectory.to_file(os.path.join(output_dir, 'NEB_trajectory.cif'))

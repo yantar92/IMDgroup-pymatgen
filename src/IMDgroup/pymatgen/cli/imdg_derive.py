@@ -590,6 +590,11 @@ def neb_diffusion_add_args(parser):
         help="Distance cutoff between diffusion points.",
         type=float,
         default=5)
+    parser.add_argument(
+        "--fix_dist",
+        help="Atoms further than fix_dist ans away will not be allowed to move (default: -1; no restrictions)",
+        type=float,
+        default=-1)
 
 
 def neb_diffusion(args):
@@ -616,6 +621,7 @@ def neb_diffusion(args):
         inputset = IMDNEBVaspInputSet(
             directory=beg.properties['origin_path'],
             target_directory=end.properties['origin_path'],
+            fix_cutoff=args.fix_dist if args.fix_dist > 0 else None,
             user_incar_settings={'IMAGES': args.nimages})
         inputset.structure = beg
         inputset.target_structure = end
