@@ -379,11 +379,12 @@ class IMDNEBVaspInputSet(IMDDerivedInputSet):
         # Remove POSCAR written in the top dir.  It is not needed for
         # NEB calculations.
         os.remove(os.path.join(output_dir, 'POSCAR'))
+        tol = 1.0 # proximity tolerance
         images = structure_interpolate2(
             self.structure, self.target_structure,
-            nimages=self.incar["IMAGES"]+1, tol=0.5, autosort_tol=0.5)
+            nimages=self.incar["IMAGES"]+1, tol=tol, autosort_tol=0.5)
         for image in images:
-            assert image.is_valid(tol=0.5)  # no atoms aloser than 1ans
+            assert image.is_valid(tol=tol)  # no atoms aloser than tol
         # Store NEB path snapshot
         trajectory = merge_structures(images)
         trajectory.to_file(os.path.join(output_dir, 'NEB_trajectory.cif'))
