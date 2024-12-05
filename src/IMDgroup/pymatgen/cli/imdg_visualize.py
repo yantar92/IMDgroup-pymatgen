@@ -2,6 +2,7 @@
 """
 import logging
 import os
+from termcolor import colored
 from pymatgen.io.vasp.inputs import Incar
 from IMDgroup.pymatgen.cli.imdg_analyze import read_vaspruns
 from IMDgroup.pymatgen.cli.imdg_status import (convergedp, nebp)
@@ -70,6 +71,9 @@ def neb(args):
         trajectory = merge_structures(neb_structures)
         output_cif = os.path.join(wdir, 'NEB_trajectory_converged.cif')
         logger.info("Saving final trajectory to %s", output_cif)
+        print(colored(f"{wdir.replace("./", "")}: ", attrs=['bold'])
+              + colored("NEB ", "magenta")
+              + f"Saved final trajectory for {wdir}")
         trajectory.to_file(output_cif)
     return 0
 
