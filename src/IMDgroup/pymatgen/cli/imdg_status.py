@@ -18,6 +18,10 @@ from IMDgroup.pymatgen.cli.imdg_analyze import read_vaspruns
 logger = logging.getLogger(__name__)
 # Adapted (and modified) from custodian/src/custodian/vasp/handlers.py
 VASP_WARNINGS = {
+    "__exclude": [
+        # false positives to be filtered out
+        "kinetic energy error for atom=.+",
+    ],
     "slurm_error": [
         "slurmstepd: error.+",
         "prterun noticed.+",
@@ -173,9 +177,22 @@ def get_vasp_logs(log_file, log_matchers):
     result = {}
     with zopen(log_file, mode="rt") as f:
         text = f.read()
+        excluded = []
+        if '__exclude' in log_matchers:
+            excluded = log_matchers['__exclude']
         for warn_name, matchers in log_matchers.items():
             for matcher in matchers:
                 matches = re.findall(matcher, text)
+                filtered_matches = []
+                for m in matches:
+                    valid = True
+                    for exclude_re in excluded:
+                        if re.matches(exclude_re, m):
+                            valid = False
+                            break
+                    if valid:
+                        filtered_matches.append(m)
+                matches = filtered_matches
                 num = len(matches)
                 if num > 0:
                     if warn_name in result:
