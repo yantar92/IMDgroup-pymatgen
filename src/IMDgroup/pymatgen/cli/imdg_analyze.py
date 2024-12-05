@@ -33,7 +33,7 @@ class IMDGBorgQueen (BorgQueen):
         def _get_file_hash(filename):
             """Get hash of FILENAME.
             The hash is simply modification time."""
-            return str(os.path.getmtime(filename) + filename)
+            return str(os.path.getmtime(filename)) + filename
             # with open(filename, 'rb', buffering=0) as f:
             #     return str(hashlib.file_digest(f, 'sha256').hexdigest())
 
