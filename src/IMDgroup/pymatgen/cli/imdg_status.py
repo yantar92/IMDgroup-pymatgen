@@ -187,7 +187,7 @@ def get_vasp_logs(log_file, log_matchers):
                 for m in matches:
                     valid = True
                     for exclude_re in excluded:
-                        if re.matches(exclude_re, m):
+                        if re.match(exclude_re, m):
                             valid = False
                             break
                     if valid:
