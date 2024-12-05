@@ -226,7 +226,10 @@ def status(args):
                     break
     paths = sorted(paths)
     for wdir in paths:
-        if log_file := slurm_log_file(wdir):
+        outcar_path = os.path.join(wdir, 'OUTCAR')
+        if not os.path.isfile(outcar_path):
+            outcar_path = False
+        if log_file := (slurm_log_file(wdir) or outcar_path):
             logger.debug("Found slurm logs in %s: %s", wdir, log_file)
             progress_data = get_vasp_logs(log_file, VASP_PROGRESS)
             if len(progress_data.values()) > 0:
