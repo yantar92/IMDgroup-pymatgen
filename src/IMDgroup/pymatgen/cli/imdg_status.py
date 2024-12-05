@@ -131,10 +131,13 @@ def nebp(path):
     return False
 
 
-def convergedp(path, entries_dict):
+def convergedp(path, entries_dict, reread=False):
     """Return False when PATH is unconverged.
     When PATH has vasprun.xml, return final energy when it is
     converged.
+    If PATH is not in ENTRIES_DICT, return False unless REREAD
+    argument is True.  For REREAD=True, try reading vasprun.xml even
+    if it is not present in the ENTRIES_DICT.
     """
     if nebp(path):
         incar = Incar.from_file(os.path.join(path, "INCAR"))
@@ -146,6 +149,12 @@ def convergedp(path, entries_dict):
         return True
     if path not in entries_dict:
         logger.debug("%s not found in ENTRIES_DICT", path)
+        if reread:
+            run = Vasprun(
+                os.path.join(path, 'vasprun.xml'),
+                parse_dos=False,
+                parse_eigen=False)
+            return run.final_energy if run.converged else False
         return False
     converged = entries_dict[path].data['converged']
     final_energy = entries_dict[path].energy
@@ -328,7 +337,7 @@ def status(args):
             run_status = colored("running", "yellow")
         else:
             try:
-                converged = convergedp(wdir, entries_dict)
+                converged = convergedp(wdir, entries_dict, reread=True)
                 if not isinstance(converged, bool):
                     final_energy = converged
                 else:
