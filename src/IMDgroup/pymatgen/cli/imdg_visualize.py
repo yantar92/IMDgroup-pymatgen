@@ -73,7 +73,7 @@ def neb(args):
         logger.info("Saving final trajectory to %s", output_cif)
         print(colored(f"{wdir.replace("./", "")}: ", attrs=['bold'])
               + colored("NEB ", "magenta")
-              + f"Saved final trajectory for {wdir}")
+              + "Saved final trajectory")
         trajectory.to_file(output_cif)
     return 0
 
