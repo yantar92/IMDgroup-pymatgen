@@ -33,7 +33,7 @@ class IMDGBorgQueen (BorgQueen):
         def _get_file_hash(filename):
             """Get hash of FILENAME.
             The hash is simply modification time."""
-            return str(os.path.getmtime(filename))
+            return str(os.path.getmtime(filename) + filename)
             # with open(filename, 'rb', buffering=0) as f:
             #     return str(hashlib.file_digest(f, 'sha256').hexdigest())
 
@@ -51,7 +51,7 @@ class IMDGBorgQueen (BorgQueen):
             """
 
             h = self._get_dir_hash(path)
-            logger.debug("Assimulating %s [%s]", path, h)
+            logger.debug("Assimilating %s [%s]", path, h)
             if self._cache.get(h):
                 logger.info("Using cached data for %s", path)
                 data = self._cache.get(h)
