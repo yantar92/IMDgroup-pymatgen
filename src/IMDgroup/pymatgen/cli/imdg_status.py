@@ -319,6 +319,7 @@ def status(args):
                     outcar = entries_dict[wdir].data['outcar']
                 elif nebp(wdir):
                     outcar = None
+                    progress = ""
                 else:
                     outcar = Outcar(os.path.join(wdir, "OUTCAR")).as_dict()
                 if outcar is not None:
