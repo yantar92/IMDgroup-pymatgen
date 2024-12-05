@@ -136,10 +136,6 @@ def convergedp(path, entries_dict):
     When PATH has vasprun.xml, return final energy when it is
     converged.
     """
-    if path in entries_dict:
-        converged = entries_dict[path].data['converged']
-        final_energy = entries_dict[path].energy
-        return final_energy if converged else False
     if nebp(path):
         incar = Incar.from_file(os.path.join(path, "INCAR"))
         nimages = incar['IMAGES']
@@ -148,11 +144,9 @@ def convergedp(path, entries_dict):
             if not convergedp(image_path, entries_dict):
                 return False
         return True
-    run = Vasprun(
-        os.path.join(path, 'vasprun.xml'),
-        parse_dos=False,
-        parse_eigen=False)
-    return run.final_energy if run.converged else False
+    converged = entries_dict[path].data['converged']
+    final_energy = entries_dict[path].energy
+    return final_energy if converged else False
 
 
 def slurm_runningp(path):

@@ -58,8 +58,6 @@ def neb(args):
     for wdir, _, _ in os.walk(args.dir):
         if not nebp(wdir):
             continue
-        if wdir not in entries_dict:
-            continue
         if not convergedp(wdir, entries_dict):
             logger.info("Skipping unconverged run at %s", wdir)
             continue
