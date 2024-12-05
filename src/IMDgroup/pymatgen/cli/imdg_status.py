@@ -144,6 +144,9 @@ def convergedp(path, entries_dict):
             if not convergedp(image_path, entries_dict):
                 return False
         return True
+    if path not in entries_dict:
+        logger.debug("%s not found in ENTRIES_DICT", path)
+        return False
     converged = entries_dict[path].data['converged']
     final_energy = entries_dict[path].energy
     return final_energy if converged else False
