@@ -69,11 +69,12 @@ def neb(args):
             neb_structures.append(
                 entries_dict[os.path.join(wdir, image)].structure)
         trajectory = merge_structures(neb_structures)
-        output_cif = os.path.join(wdir, 'NEB_trajectory_converged.cif')
+        cif_name = 'NEB_trajectory_converged.cif'
+        output_cif = os.path.join(wdir, cif_name)
         logger.info("Saving final trajectory to %s", output_cif)
         print(colored(f"{wdir.replace("./", "")}: ", attrs=['bold'])
               + colored("NEB ", "magenta")
-              + "Saved final trajectory")
+              + f"Saved final trajectory to {cif_name}")
         trajectory.to_file(output_cif)
     return 0
 
