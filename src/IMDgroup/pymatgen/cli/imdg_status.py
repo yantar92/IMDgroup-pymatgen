@@ -252,16 +252,35 @@ def add_args(parser):
         type=str,
         nargs="?",
         default=".")
+    parser.add_argument(
+        "--exclude",
+        help="Dirs matching this Python regexp pattern will be excluded",
+        type=str,
+    )
 
 
 def status(args):
     """Main routine.
     """
     entries_dict = {}
+
+    def exclude_dirp(p):
+        if args.exclude is not None and re.match(args.exclude, p):
+            return True
+        return False
+
     with warnings.catch_warnings():
         warnings.filterwarnings("ignore", category=UserWarning)
+
+        def read_dirp(p):
+            if exclude_dirp(p):
+                return False
+            if slurm_runningp(p):
+                return False
+            return True
+
         entries = read_vaspruns(
-            args.dir, path_filter=lambda p: not slurm_runningp(p))
+            args.dir, path_filter=read_dirp)
         if entries is not None:
             entries_dict = {
                 os.path.dirname(e.data['filename']): e
@@ -270,6 +289,8 @@ def status(args):
 
     paths = []
     for wdir, _, files in os.walk(args.dir):
+        if exclude_dirp(wdir):
+            continue
         if 'vasprun.xml' in files:
             paths.append(wdir)
         else:
