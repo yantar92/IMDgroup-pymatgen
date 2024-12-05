@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 VASP_WARNINGS = {
     "__exclude": [
         # false positives to be filtered out
-        "kinetic energy error for atom=.+",
+        " *kinetic energy error for atom=.+",
     ],
     "slurm_error": [
         "slurmstepd: error.+",
@@ -181,6 +181,8 @@ def get_vasp_logs(log_file, log_matchers):
         if '__exclude' in log_matchers:
             excluded = log_matchers['__exclude']
         for warn_name, matchers in log_matchers.items():
+            if warn_name == "__exclude":
+                continue
             for matcher in matchers:
                 matches = re.findall(matcher, text)
                 filtered_matches = []
