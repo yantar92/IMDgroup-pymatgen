@@ -131,6 +131,30 @@ def nebp(path):
     return False
 
 
+def convergedp(path, entries_dict):
+    """Return False when PATH is unconverged.
+    When PATH has vasprun.xml, return final energy when it is
+    converged.
+    """
+    if path in entries_dict:
+        converged = entries_dict[path].data['converged']
+        final_energy = entries_dict[path].energy
+        return final_energy if converged else False
+    if nebp(path):
+        incar = Incar.from_file(os.path.join(path, "INCAR"))
+        nimages = incar['IMAGES']
+        for image_path in [os.path.join(path, f"{n:02d}")
+                           for n in range(1, nimages + 1)]:
+            if not convergedp(image_path):
+                return False
+        return True
+    run = Vasprun(
+        os.path.join(path, 'vasprun.xml'),
+        parse_dos=False,
+        parse_eigen=False)
+    return run.final_energy if run.converged else False
+
+
 def slurm_runningp(path):
     """Is slurm running in DIR?
     """
@@ -277,28 +301,27 @@ def status(args):
             warning_list = ""
 
         run_status = colored("unknown", "red")
+        if nebp(wdir):
+            # NEB-like calculation
+            run_prefix = colored("NEB ", "magenta")
+        else:
+            run_prefix = ""
         if slurm_runningp(wdir):
             run_status = colored("running", "yellow")
         else:
             try:
-                if wdir in entries_dict:
-                    converged = entries_dict[wdir].data['converged']
-                    outcar = entries_dict[wdir].data['outcar']
-                    final_energy = entries_dict[wdir].energy
-                elif nebp(wdir):
-                    # NEB-like calculation
-                    run_status = colored("NEB", "magenta")
-                    converged = None
-                    outcar = None
-                    final_energy = None
+                run_prefix = ""
+                converged = convergedp(wdir, entries_dict)
+                if not isinstance(converged, bool):
+                    final_energy = converged
                 else:
-                    run = Vasprun(
-                        os.path.join(wdir, 'vasprun.xml'),
-                        parse_dos=False,
-                        parse_eigen=False)
-                    converged = run.converged
+                    final_energy = None
+                if wdir in entries_dict:
+                    outcar = entries_dict[wdir].data['outcar']
+                elif nebp(wdir):
+                    outcar = None
+                else:
                     outcar = Outcar(os.path.join(wdir, "OUTCAR")).as_dict()
-                    final_energy = run.final_energy
                 if outcar is not None:
                     cpu_time_sec =\
                         outcar['run_stats']['Total CPU time used (sec)']
@@ -313,7 +336,7 @@ def status(args):
             except (ParseError, FileNotFoundError):
                 run_status = colored("incomplete vasprun.xml", "red")
         print(colored(
-            f"{wdir.replace("./", "")}: ", attrs=['bold'])
-              + run_status + progress + warning_list)
+            f"{wdir.replace("./", "")}: ", attrs=['bold']) +
+              run_prefix + run_status + progress + warning_list)
 
     return 0
