@@ -303,7 +303,7 @@ def status(args):
         run_status = colored("unknown", "red")
         if nebp(wdir):
             # NEB-like calculation
-            run_prefix = colored("NEB ", "magenta")
+            run_prefix = colored("IMAGES ", "magenta")
         else:
             run_prefix = ""
         if slurm_runningp(wdir):
