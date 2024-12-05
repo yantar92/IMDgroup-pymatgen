@@ -145,7 +145,7 @@ def convergedp(path, entries_dict):
         nimages = incar['IMAGES']
         for image_path in [os.path.join(path, f"{n:02d}")
                            for n in range(1, nimages + 1)]:
-            if not convergedp(image_path):
+            if not convergedp(image_path, entries_dict):
                 return False
         return True
     run = Vasprun(
