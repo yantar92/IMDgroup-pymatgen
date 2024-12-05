@@ -310,7 +310,6 @@ def status(args):
             run_status = colored("running", "yellow")
         else:
             try:
-                run_prefix = ""
                 converged = convergedp(wdir, entries_dict)
                 if not isinstance(converged, bool):
                     final_energy = converged
