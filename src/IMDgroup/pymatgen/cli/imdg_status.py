@@ -95,7 +95,9 @@ VASP_WARNINGS = {
 
 VASP_PROGRESS = {
     "relax": [
-        r"step:.+harm=.+dis=.+next Energy=.+dE=.+"
+        r"step:.+harm=.+dis=.+next Energy=.+dE=.+",
+        r"opt step +=.+harmonic.+distance.+",
+        r"next E +=.+d E +=.+",
     ]
 }
 
