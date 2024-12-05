@@ -13,6 +13,7 @@ import IMDgroup.pymatgen.cli.imdg_derive
 import IMDgroup.pymatgen.cli.imdg_diff
 import IMDgroup.pymatgen.cli.imdg_analyze
 import IMDgroup.pymatgen.cli.imdg_status
+import IMDgroup.pymatgen.cli.imdg_visualize
 
 logger = logging.getLogger(__name__)
 
@@ -95,6 +96,11 @@ def main():
     IMDgroup.pymatgen.cli.imdg_status.add_args(parser_status)
     parser_status.set_defaults(
         func=IMDgroup.pymatgen.cli.imdg_status.status)
+
+    parser_visualize = subparsers.add_parser("visualize")
+    IMDgroup.pymatgen.cli.imdg_visualize.add_args(parser_visualize)
+    parser_visualize.set_defaults(
+        func=IMDgroup.pymatgen.cli.imdg_visualize.visualize)
 
     args = parser.parse_args()
 
