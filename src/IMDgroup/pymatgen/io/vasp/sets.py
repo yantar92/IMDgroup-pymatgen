@@ -43,6 +43,27 @@ def _load_mp(name):
     return structure
 
 
+def _write_selective_dynamics_summary_maybe(structure, fname):
+    """Visualize site constrains in STRUCTURE and write to FNAME.
+    Do nothing when STUCTURE does not have non-trivial constraints.
+    """
+    has_fixed = False
+    structure = structure.copy()
+    for site in structure:
+        if 'selective_dynamics' in site.properties and\
+           np.array_equal(site.properties['selective_dynamics'],
+                          [False, False, False]):
+            has_fixed = True
+            site.species = Species('Fe')  # fixed
+        elif False in site.properties['selective_dynamics']:
+            has_fixed = True
+            site.species = Species('Co')  # partially fixed
+        else:
+            site.species = Species('Ni')  # not fixed
+    if has_fixed:
+        structure.to_file(fname)
+
+
 @dataclass
 class IMDVaspInputSet(VaspInputSet):
     """IMDGroup variant of VaspInputSet.
@@ -58,6 +79,8 @@ class IMDVaspInputSet(VaspInputSet):
     4. Use the latest POTCAR_FUNCTIONAL PBE_64 by default.
     5. Complain when NCORE exceeds the number of sites in the system.
     6. Warn if KPOINT density is too high/low
+    7. Visualize non-trivial selective dynamic constrains, if any as
+       .cif file.
     """
     functional: str | None = None
 
@@ -209,6 +232,14 @@ class IMDVaspInputSet(VaspInputSet):
                     POTCAR_RECOMMENDED[element]\
                     if element in POTCAR_RECOMMENDED else element
         return super().potcar_symbols
+
+    def write_input(self, output_dir, **kwargs) -> None:
+        """Write a set of VASP input to OUTPUT_DIR."""
+        super().write_input(output_dir, **kwargs)
+        _write_selective_dynamics_summary_maybe(
+            self.structure,
+            os.path.join(output_dir, "selective_dynamics.cif")
+        )
 
 
 @dataclass
@@ -444,19 +475,10 @@ class IMDNEBVaspInputSet(IMDDerivedInputSet):
         trajectory = merge_structures(images)
         trajectory.to_file(os.path.join(output_dir, 'NEB_trajectory.cif'))
         # Visualize information about fixed/not fixed sites, if any
-        has_fixed = False
-        for site in trajectory:
-            if 'selective_dynamics' in site.properties and\
-               np.array_equal(site.properties['selective_dynamics'],
-                              [False, False, False]):
-                has_fixed = True
-                site.species = Species('Fe')  # fixed
-            elif False in site.properties['selective_dynamics']:
-                site.species = Species('Co')  # partially fixed
-            else:
-                site.species = Species('Ni')  # not fixed
-        if has_fixed:
-            trajectory.to_file(os.path.join(output_dir, 'NEB_fixed_sites.cif'))
+        _write_selective_dynamics_summary_maybe(
+            trajectory,
+            os.path.join(output_dir, 'NEB_fixed_sites.cif')
+        )
         for image_idx, _ in enumerate(images):
             sub_dir = Path(os.path.join(output_dir, f"{image_idx:02d}"))
             if not sub_dir.exists():
