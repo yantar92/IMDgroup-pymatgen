@@ -120,6 +120,17 @@ def custom_showwarning(
 warnings.showwarning = custom_showwarning
 
 
+def nebp(path):
+    """Return True when PATH is a NEB-like run.
+    """
+    incar_path = os.path.join(path, 'INCAR')
+    if os.path.isfile(incar_path):
+        incar = Incar.from_file(incar_path)
+        if 'IMAGES' in incar:
+            return True
+    return False
+
+
 def slurm_runningp(path):
     """Is slurm running in DIR?
     """
@@ -136,11 +147,8 @@ def slurm_runningp(path):
     # See https://www.vasp.at/wiki/index.php/IMAGES
     if re.match(r'[0-9]+', os.path.basename(path)):
         parent = os.path.dirname(path)
-        parent_incar = os.path.join(parent, 'INCAR')
-        if os.path.isfile(parent_incar):
-            incar = Incar.from_file(parent_incar)
-            if 'IMAGES' in incar:
-                return slurm_runningp(parent)
+        if nebp(parent):
+            return slurm_runningp(parent)
     return False
 
 
@@ -277,6 +285,9 @@ def status(args):
                     converged = entries_dict[wdir].data['converged']
                     outcar = entries_dict[wdir].data['outcar']
                     final_energy = entries_dict[wdir].energy
+                elif nebp(wdir):
+                    # NEB-like calculation
+                    run_status = colored("NEB", "magenta")
                 else:
                     run = Vasprun(
                         os.path.join(wdir, 'vasprun.xml'),
