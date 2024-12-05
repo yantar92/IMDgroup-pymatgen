@@ -12,6 +12,7 @@ from monty.io import zopen
 from termcolor import colored
 from xml.etree.ElementTree import ParseError
 from pymatgen.io.vasp.outputs import (Vasprun, Outcar)
+from pymatgen.io.vasp.inputs import Incar
 from IMDgroup.pymatgen.cli.imdg_analyze import read_vaspruns
 
 logger = logging.getLogger(__name__)
@@ -123,6 +124,17 @@ def slurm_runningp(path):
         shell=True).split()
     if os.path.abspath(path) in [s.decode('utf-8') for s in result]:
         return True
+    # For NEB and similar calculations, vasp might be running in parent dir.
+    # Then, current directory must be named as a number and parent
+    # INCAR should have IMAGES tag.
+    # See https://www.vasp.at/wiki/index.php/IMAGES
+    if re.match(r'[0-9]+', os.path.basename(path)):
+        parent = os.path.dirname(path)
+        parent_incar = os.path.join(parent, 'INCAR')
+        if os.path.isfile(parent_incar):
+            incar = Incar.from_file(parent_incar)
+            if 'IMAGES' in incar:
+                return slurm_runningp(parent)
     return False
 
 
