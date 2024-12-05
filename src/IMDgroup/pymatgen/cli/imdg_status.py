@@ -18,10 +18,11 @@ logger = logging.getLogger(__name__)
 # Adapted (and modified) from custodian/src/custodian/vasp/handlers.py
 VASP_WARNINGS = {
     "slurm_error": [
-        "slurmstepd: error.+"
+        "slurmstepd: error.+",
+        "prterun noticed.+",
     ],
     "electron_convergance": [
-        "The electronic self-consistency was not achieved in the given"
+        "The electronic self-consistency was not achieved in the given.+"
     ],
     "tet": [
         "Tetrahedron method fails",
