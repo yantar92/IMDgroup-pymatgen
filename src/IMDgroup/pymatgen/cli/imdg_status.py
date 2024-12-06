@@ -3,6 +3,7 @@
 import sys
 import os
 import re
+import datetime
 import logging
 import warnings
 import subprocess
@@ -131,6 +132,19 @@ def nebp(path):
     return False
 
 
+def _neb_dirs(path):
+    """Return a list of NEB dirs in PATH.
+    """
+    if nebp(path):
+        incar = Incar.from_file(os.path.join(path, "INCAR"))
+        nimages = incar['IMAGES']
+        paths = [os.path.join(path, f"{n:02d}")
+                 for n in range(1, nimages + 1)]
+        return paths
+        # return [p for p in paths if os.path.isdir(p)]
+    return None
+
+
 def convergedp(path, entries_dict, reread=False):
     """Return False when PATH is unconverged.
     When PATH has vasprun.xml, return final energy when it is
@@ -140,10 +154,7 @@ def convergedp(path, entries_dict, reread=False):
     if it is not present in the ENTRIES_DICT.
     """
     if nebp(path):
-        incar = Incar.from_file(os.path.join(path, "INCAR"))
-        nimages = incar['IMAGES']
-        for image_path in [os.path.join(path, f"{n:02d}")
-                           for n in range(1, nimages + 1)]:
+        for image_path in _neb_dirs(path):
             if not convergedp(image_path, entries_dict):
                 return False
         return True
@@ -265,6 +276,43 @@ def add_args(parser):
     )
 
 
+def print_seconds(seconds):
+    """Print SECONDS in human-readable form.
+    """
+    if seconds == 0:
+        return "now"
+    negative = seconds < 0
+    seconds = abs(seconds)
+    days, seconds = divmod(seconds, 86400)
+    hours, seconds = divmod(seconds, 3600)
+    minutes, seconds = divmod(seconds, 60)
+    output = []
+    if not negative:
+        output.append("in")
+    if days != 0:
+        output.append(f"{days} day" + ("s" if days != 1 else ""))
+    if hours != 0:
+        output.append(f"{hours} hour" + ("s" if hours != 1 else ""))
+    if minutes != 0:
+        output.append(f"{minutes} minute" + ("s" if minutes != 1 else ""))
+    if seconds != 0:
+        output.append(f"{seconds} second" + ("s" if seconds != 1 else ""))
+    if negative:
+        output.append("ago")
+    return " ".join(output)
+
+
+def vasp_output_time(path):
+    """Return last VASP output modification time in PATH.
+    """
+    if nebp(path):
+        return max([vasp_output_time(p) for p in _neb_dirs(path)])
+    outcar = os.path.join(path, 'OUTCAR')
+    if os.path.isfile(outcar):
+        return os.path.getmtime(outcar)
+    return None
+
+
 def status(args):
     """Main routine.
     """
@@ -362,8 +410,11 @@ def status(args):
                         if converged else colored("unconverged", "red")
             except (ParseError, FileNotFoundError):
                 run_status = colored("incomplete vasprun.xml", "red")
-        print(colored(
-            f"{wdir.replace("./", "")}: ", attrs=['bold']) +
-              run_prefix + run_status + progress + warning_list)
+        mtime = vasp_output_time(wdir)
+        delta = datetime.datetime.now().timestamp() - mtime
+        print(
+            colored(f"[{print_seconds(delta): >20}]", color="yellow")
+            colored(f"{wdir.replace("./", "")}:", attrs=['bold']),
+            run_prefix + run_status + progress + warning_list)
 
     return 0
