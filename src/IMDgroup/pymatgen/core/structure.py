@@ -202,6 +202,8 @@ def structure_is_valid2(structure: Structure, frac_tol: float = 0.5) -> bool:
     all_dists = structure.distance_matrix
     for i, dists in enumerate(all_dists):
         for j, dist in enumerate(dists):
+            if i == j:
+                continue
             max_dist = frac_tol * (
                 structure[i].specie.atomic_radius
                 + structure[j].specie.atomic_radius
