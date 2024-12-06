@@ -5,6 +5,7 @@ group research.
 import os
 import math
 import warnings
+import logging
 from glob import glob
 from pathlib import Path
 from dataclasses import dataclass
@@ -32,6 +33,7 @@ POTCAR_RECOMMENDED = dict(
 
 __author__ = "Ihor Radchenko <yantar92@posteo.net>"
 MODULE_DIR = os.path.dirname(__file__)
+logger = logging.getLogger(__name__)
 
 
 def _load_cif(fname):
@@ -447,6 +449,7 @@ class IMDNEBVaspInputSet(IMDDerivedInputSet):
         # NEB calculations.
         os.remove(os.path.join(output_dir, 'POSCAR'))
         frac_tol = 0.5  # proximity tolerance (fraction of sum of radiuses)
+        logger.debug("Interpolating NEB path in %s", output_dir)
         images = structure_interpolate2(
             self.structure, self.target_structure,
             nimages=self.incar["IMAGES"]+1,
@@ -456,6 +459,9 @@ class IMDNEBVaspInputSet(IMDDerivedInputSet):
         self._fix_atoms_maybe(images)  # modify by side effect
         # Store NEB path snapshot
         trajectory = merge_structures(images)
+        logger.debug(
+            "Writing trajectory file %s",
+            os.path.join(output_dir, 'NEB_trajectory.cif'))
         trajectory.to_file(os.path.join(output_dir, 'NEB_trajectory.cif'))
         # Visualize information about fixed/not fixed sites, if any
         write_selective_dynamics_summary_maybe(

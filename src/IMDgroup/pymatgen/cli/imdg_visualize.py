@@ -33,6 +33,10 @@ def write_selective_dynamics_summary_maybe(structure, fname):
         else:
             site.species = Species('Ni')  # not fixed
     if has_fixed:
+        logger.debug(
+            "Writing selective dynamics visualization to %s",
+            fname
+        )
         structure.to_file(fname)
         return True
     return False
