@@ -292,13 +292,13 @@ def print_seconds(seconds):
     if not negative:
         output.append("in")
     if days != 0:
-        output.append(f"{days} day" + ("s" if days != 1 else ""))
+        output.append(f"{days}d")
     if hours != 0:
-        output.append(f"{hours} hour" + ("s" if hours != 1 else ""))
+        output.append(f"{hours}h")
     if minutes != 0:
-        output.append(f"{minutes} minute" + ("s" if minutes != 1 else ""))
+        output.append(f"{minutes}m")
     # if seconds != 0:
-    #     output.append(f"{seconds} second" + ("s" if seconds != 1 else ""))
+    #     output.append(f"{seconds}s")
     if negative:
         output.append("ago")
     return " ".join(output)
@@ -413,7 +413,7 @@ def status(args):
             except (ParseError, FileNotFoundError):
                 run_status = colored("incomplete vasprun.xml", "red")
         mtime = vasp_output_time(wdir)
-        delta = datetime.datetime.now().timestamp() - mtime
+        delta = mtime - datetime.datetime.now().timestamp()
         print(
             colored(f"[{print_seconds(delta): >20}]", color="yellow"),
             colored(f"{wdir.replace("./", "")}:", attrs=['bold']),
