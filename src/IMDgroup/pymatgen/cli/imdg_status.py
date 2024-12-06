@@ -286,6 +286,8 @@ def print_seconds(seconds):
     days, seconds = divmod(seconds, 86400)
     hours, seconds = divmod(seconds, 3600)
     minutes, seconds = divmod(seconds, 60)
+    if days == 0 and hours == 0 and minutes == 0:
+        return "now"
     output = []
     if not negative:
         output.append("in")
@@ -295,8 +297,8 @@ def print_seconds(seconds):
         output.append(f"{hours} hour" + ("s" if hours != 1 else ""))
     if minutes != 0:
         output.append(f"{minutes} minute" + ("s" if minutes != 1 else ""))
-    if seconds != 0:
-        output.append(f"{seconds} second" + ("s" if seconds != 1 else ""))
+    # if seconds != 0:
+    #     output.append(f"{seconds} second" + ("s" if seconds != 1 else ""))
     if negative:
         output.append("ago")
     return " ".join(output)
