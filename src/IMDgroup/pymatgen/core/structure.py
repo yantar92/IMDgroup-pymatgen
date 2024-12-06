@@ -117,26 +117,26 @@ def structure_diff(
 def structure_interpolate2(
         structure1: Structure, structure2: Structure,
         nimages: int = 10,
-        tol: float = 0.5,
+        frac_tol: float = 0.5,
         **kwargs) -> list[Structure]:
     """Like Structure.interpolate, but make sure that images are valid.
     Valid means that no atoms in the images are very close
-    (Structure.is_valid), no closer than TOL angstrem.
+    (structure_is_valid2), no closer than FRAC_TOL*sum of specie radiuses.
     NIMAGES can only be the number of images, not a list.
     **KWARGS are the other arguments passed to Structure.interpolate,
     which see.
     Return a list of interpolated structures, possibly adjusted to
     avoid atom collisions by changing distances between images.
     """
-    assert structure1.is_valid(tol)
-    assert structure2.is_valid(tol)
+    assert structure_is_valid2(structure1, frac_tol)
+    assert structure_is_valid2(structure2, frac_tol)
     images = structure1.interpolate(structure2, nimages=nimages, **kwargs)
 
     def all_valid(images):
         """Return True if all IMAGES are valid.
         Otherwise, return invalid image index."""
         for idx, image in enumerate(images):
-            if not image.is_valid(tol):
+            if not structure_is_valid2(image, frac_tol):
                 return idx
         return True
 
@@ -161,7 +161,7 @@ def structure_interpolate2(
         while np.abs(valid_coord - invalid_coord) > 1E-3:
             trial_coord = (valid_coord + invalid_coord) / 2.0
             trial_image = get_image(trial_coord)
-            if trial_image.is_valid(tol):
+            if structure_is_valid2(trial_image, frac_tol):
                 valid_coord = trial_coord
             else:
                 invalid_coord = trial_coord
@@ -174,7 +174,8 @@ def structure_interpolate2(
             nimages[invalid_idx] = left_coord
         else:  # No valid point to the left.  Search right.
             next_valid_idx = invalid_idx + 1
-            while not get_image(nimages[next_valid_idx]).is_valid(tol):
+            while not structure_is_valid2(get_image(
+                    nimages[next_valid_idx]), frac_tol):
                 next_valid_idx += 1
             right_coord = search_valid(
                 nimages[next_valid_idx], nimages[invalid_idx])
@@ -186,3 +187,25 @@ def structure_interpolate2(
         invalid_idx = all_valid(images)
     logger.info("Adjusted interpolation coordinates to %s", nimages)
     return images
+
+
+def structure_is_valid2(structure: Structure, frac_tol: float = 0.5) -> bool:
+    """True if Structure does not contains atoms that are too close.
+
+    The atoms are considered too close when distance between the atoms
+    is less than sum of their radiuses times FRAC_TOL (default: 0.5).
+
+    Return True if STRUCTURE does not contain atoms that are too close.
+    """
+    if len(structure) == 1:
+        return True
+    all_dists = structure.distance_matrix[np.triu_indices(len(structure), 1)]
+    for i, dists in enumerate(all_dists):
+        for j, dist in enumerate(dists):
+            max_dist = frac_tol * (
+                structure[i].specie.atomic_radius
+                + structure[j].specie.atomic_radius
+            )
+            if dist > max_dist:
+                return False
+    return True

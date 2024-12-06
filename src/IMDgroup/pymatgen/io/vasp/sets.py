@@ -19,7 +19,7 @@ from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
 from ase.calculators.vasp.setups \
     import setups_defaults as ase_potential_defaults
 from IMDgroup.pymatgen.core.structure import\
-    merge_structures, structure_interpolate2
+    merge_structures, structure_interpolate2, structure_is_valid2
 from IMDgroup.pymatgen.io.vasp.inputs import Incar, _load_yaml_config
 
 # ase uses pairs of 'Si': '_suffix'.  Convert them into 'Si': 'Si_suffix'
@@ -465,12 +465,13 @@ class IMDNEBVaspInputSet(IMDDerivedInputSet):
         # Remove POSCAR written in the top dir.  It is not needed for
         # NEB calculations.
         os.remove(os.path.join(output_dir, 'POSCAR'))
-        tol = 1.0  # proximity tolerance
+        frac_tol = 0.5  # proximity tolerance (fraction of sum of radiuses)
         images = structure_interpolate2(
             self.structure, self.target_structure,
-            nimages=self.incar["IMAGES"]+1, tol=tol, autosort_tol=0.5)
+            nimages=self.incar["IMAGES"]+1,
+            frac_tol=frac_tol, autosort_tol=0.5)
         for image in images:
-            assert image.is_valid(tol=tol)  # no atoms closer than tol
+            assert structure_is_valid2(image, frac_tol)
         self._fix_atoms_maybe(images)  # modify by side effect
         # Store NEB path snapshot
         trajectory = merge_structures(images)
