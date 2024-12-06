@@ -282,7 +282,7 @@ def print_seconds(seconds):
     if seconds == 0:
         return "now"
     negative = seconds < 0
-    seconds = abs(seconds)
+    seconds = int(abs(seconds))
     days, seconds = divmod(seconds, 86400)
     hours, seconds = divmod(seconds, 3600)
     minutes, seconds = divmod(seconds, 60)
