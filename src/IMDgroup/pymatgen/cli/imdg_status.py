@@ -415,7 +415,7 @@ def status(args):
         mtime = vasp_output_time(wdir)
         delta = mtime - datetime.datetime.now().timestamp()
         print(
-            colored(f"[{print_seconds(delta): >20}]", color="yellow"),
+            colored(f"[{print_seconds(delta): >15}]", color="yellow"),
             colored(f"{wdir.replace("./", "")}:", attrs=['bold']),
             run_prefix + run_status + progress + warning_list)
 
