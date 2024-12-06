@@ -199,7 +199,7 @@ def structure_is_valid2(structure: Structure, frac_tol: float = 0.5) -> bool:
     """
     if len(structure) == 1:
         return True
-    all_dists = structure.distance_matrix[np.triu_indices(len(structure), 1)]
+    all_dists = structure.distance_matrix
     for i, dists in enumerate(all_dists):
         for j, dist in enumerate(dists):
             max_dist = frac_tol * (
