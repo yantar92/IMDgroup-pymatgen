@@ -2,13 +2,39 @@
 """
 import logging
 import os
+import numpy as np
 from termcolor import colored
+from pymatgen.core import Species, Structure
 from pymatgen.io.vasp.inputs import Incar
 from IMDgroup.pymatgen.cli.imdg_analyze import read_vaspruns
 from IMDgroup.pymatgen.cli.imdg_status import (convergedp, nebp)
 from IMDgroup.pymatgen.core.structure import merge_structures
 
 logger = logging.getLogger(__name__)
+
+
+def write_selective_dynamics_summary_maybe(structure, fname):
+    """Visualize site constrains in STRUCTURE and write to FNAME.
+    Do nothing when STUCTURE does not have non-trivial constraints.
+    Return True when FNAME has been produced.
+    """
+    has_fixed = False
+    structure = structure.copy()
+    for site in structure:
+        if 'selective_dynamics' in site.properties and\
+           np.array_equal(site.properties['selective_dynamics'],
+                          [False, False, False]):
+            has_fixed = True
+            site.species = Species('Fe')  # fixed
+        elif False in site.properties['selective_dynamics']:
+            has_fixed = True
+            site.species = Species('Co')  # partially fixed
+        else:
+            site.species = Species('Ni')  # not fixed
+    if has_fixed:
+        structure.to_file(fname)
+        return True
+    return False
 
 
 def add_args(parser):
@@ -29,6 +55,9 @@ def add_args(parser):
 
     parser_neb = subparsers.add_parser("neb")
     neb_add_args(parser_neb)
+
+    parser_selective_dynamics = subparsers.add_parser("selective_dynamics")
+    selective_dynamics_add_args(parser_selective_dynamics)
 
 
 def neb_add_args(parser):
@@ -77,6 +106,29 @@ def neb(args):
               + f"Saved final trajectory to {cif_name}")
         trajectory.to_file(output_cif)
     return 0
+
+
+def selective_dynamics_add_args(parser):
+    """Setup parser arguments for selective dynamics visualization.
+    Args:
+      parser: subparser
+    """
+    parser.help = "Visualize selective dynamics for POSCAR files"
+    parser.set_defaults(func_derive=selective_dynamics)
+
+
+def selective_dynamics(args):
+    """Visualize selective_dynamics.
+    """
+    for parent, _subdirs, files in os.walk(args.dir):
+        if 'POSCAR' in files:
+            structure = Structure.from_file(os.path.join(parent, 'POSCAR'))
+            cif_name = 'POSCAR.selective_dynamics.cif'
+            cif_path = os.path.join(parent, cif_name)
+            write_selective_dynamics_summary_maybe(structure, cif_path)
+            logger.info("Saving illustration to %s", cif_path)
+            print(colored(f"{parent.replace("./", "")}: ", attrs=['bold'])
+                  + f"Saved selective_dynamics to {cif_name}")
 
 
 def visualize(args):

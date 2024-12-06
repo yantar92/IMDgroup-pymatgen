@@ -13,7 +13,7 @@ from pymatgen.io.vasp.sets import VaspInputSet, BadInputSetWarning
 from pymatgen.io.vasp.inputs import Potcar, Kpoints, Poscar
 from pymatgen.io.vasp.outputs import Vasprun
 from pymatgen.util.due import Doi, due
-from pymatgen.core import Structure, Species
+from pymatgen.core import Structure
 from pymatgen.ext.matproj import MPRester
 from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
 from ase.calculators.vasp.setups \
@@ -21,6 +21,8 @@ from ase.calculators.vasp.setups \
 from IMDgroup.pymatgen.core.structure import\
     merge_structures, structure_interpolate2, structure_is_valid2
 from IMDgroup.pymatgen.io.vasp.inputs import Incar, _load_yaml_config
+from IMDgroup.pymatgen.cli.imdg_visualize import\
+    write_selective_dynamics_summary_maybe
 
 # ase uses pairs of 'Si': '_suffix'.  Convert them into 'Si': 'Si_suffix'
 POTCAR_RECOMMENDED = dict(
@@ -41,27 +43,6 @@ def _load_mp(name):
         structure = m.get_structure_by_material_id(name)  # carbon
         assert structure.is_valid()
     return structure
-
-
-def _write_selective_dynamics_summary_maybe(structure, fname):
-    """Visualize site constrains in STRUCTURE and write to FNAME.
-    Do nothing when STUCTURE does not have non-trivial constraints.
-    """
-    has_fixed = False
-    structure = structure.copy()
-    for site in structure:
-        if 'selective_dynamics' in site.properties and\
-           np.array_equal(site.properties['selective_dynamics'],
-                          [False, False, False]):
-            has_fixed = True
-            site.species = Species('Fe')  # fixed
-        elif False in site.properties['selective_dynamics']:
-            has_fixed = True
-            site.species = Species('Co')  # partially fixed
-        else:
-            site.species = Species('Ni')  # not fixed
-    if has_fixed:
-        structure.to_file(fname)
 
 
 @dataclass
@@ -236,7 +217,7 @@ class IMDVaspInputSet(VaspInputSet):
     def write_input(self, output_dir, **kwargs) -> None:
         """Write a set of VASP input to OUTPUT_DIR."""
         super().write_input(output_dir, **kwargs)
-        _write_selective_dynamics_summary_maybe(
+        write_selective_dynamics_summary_maybe(
             self.structure,
             os.path.join(output_dir, "selective_dynamics.cif")
         )
@@ -477,7 +458,7 @@ class IMDNEBVaspInputSet(IMDDerivedInputSet):
         trajectory = merge_structures(images)
         trajectory.to_file(os.path.join(output_dir, 'NEB_trajectory.cif'))
         # Visualize information about fixed/not fixed sites, if any
-        _write_selective_dynamics_summary_maybe(
+        write_selective_dynamics_summary_maybe(
             trajectory,
             os.path.join(output_dir, 'NEB_fixed_sites.cif')
         )
