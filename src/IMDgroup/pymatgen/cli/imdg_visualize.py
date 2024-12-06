@@ -123,7 +123,7 @@ def selective_dynamics(args):
     for parent, _subdirs, files in os.walk(args.dir):
         if 'POSCAR' in files:
             structure = Structure.from_file(os.path.join(parent, 'POSCAR'))
-            cif_name = 'POSCAR.selective_dynamics.cif'
+            cif_name = 'selective_dynamics.cif'
             cif_path = os.path.join(parent, cif_name)
             write_selective_dynamics_summary_maybe(structure, cif_path)
             logger.info("Saving illustration to %s", cif_path)
