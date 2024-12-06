@@ -21,6 +21,7 @@ def write_selective_dynamics_summary_maybe(structure, fname):
     has_fixed = False
     structure = structure.copy()
     for site in structure:
+        site.label = None
         if 'selective_dynamics' in site.properties and\
            np.array_equal(site.properties['selective_dynamics'],
                           [False, False, False]):
