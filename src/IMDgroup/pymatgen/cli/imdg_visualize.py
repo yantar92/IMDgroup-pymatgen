@@ -90,7 +90,8 @@ def neb(args):
     else:
         logger.info("No NEB runs found")
         return 0
-    for wdir, _, _ in os.walk(args.dir):
+    for wdir, subdirs, _ in os.walk(args.dir):
+        subdirs.sort()  # this will make loop go in order
         if not nebp(wdir):
             continue
         if not convergedp(wdir, entries_dict):
@@ -125,7 +126,8 @@ def selective_dynamics_add_args(parser):
 def selective_dynamics(args):
     """Visualize selective_dynamics.
     """
-    for parent, _subdirs, files in os.walk(args.dir):
+    for parent, subdirs, files in os.walk(args.dir):
+        subdirs.sort()  # this will make loop go in order
         if 'POSCAR' in files:
             structure = Structure.from_file(os.path.join(parent, 'POSCAR'))
             cif_name = 'selective_dynamics.cif'
