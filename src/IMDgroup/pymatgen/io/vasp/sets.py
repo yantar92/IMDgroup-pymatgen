@@ -457,6 +457,7 @@ class IMDNEBVaspInputSet(IMDDerivedInputSet):
                 if idx in idxs_to_fix:
                     site.properties['selective_dynamics'] =\
                         [False, False, False]
+        return None
 
     def write_input(self, output_dir, **kwargs) -> None:
         """Write a set of VASP input to OUTPUT_DIR."""
@@ -469,8 +470,8 @@ class IMDNEBVaspInputSet(IMDDerivedInputSet):
             self.structure, self.target_structure,
             nimages=self.incar["IMAGES"]+1, tol=tol, autosort_tol=0.5)
         for image in images:
-            assert image.is_valid(tol=tol)  # no atoms aloser than tol
-        self._fix_atoms_maybe(images)  # modify by site effect
+            assert image.is_valid(tol=tol)  # no atoms closer than tol
+        self._fix_atoms_maybe(images)  # modify by side effect
         # Store NEB path snapshot
         trajectory = merge_structures(images)
         trajectory.to_file(os.path.join(output_dir, 'NEB_trajectory.cif'))
