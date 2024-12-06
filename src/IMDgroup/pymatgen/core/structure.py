@@ -206,6 +206,6 @@ def structure_is_valid2(structure: Structure, frac_tol: float = 0.5) -> bool:
                 structure[i].specie.atomic_radius
                 + structure[j].specie.atomic_radius
             )
-            if dist > max_dist:
+            if dist < max_dist:
                 return False
     return True
