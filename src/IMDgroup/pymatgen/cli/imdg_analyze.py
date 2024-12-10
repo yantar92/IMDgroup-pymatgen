@@ -116,7 +116,7 @@ class IMDGBorgQueen (BorgQueen):
 
     def get_data(self):
         """Get an list of assimilated objects."""
-        if getattr(self._drone, '_barctx') is not None:
+        if getattr(self._drone, '_barctx', None) is not None:
             self._drone._barctx.__exit__(None, None, None)
         return [list(x.values())[0] for x in self._data]
 
