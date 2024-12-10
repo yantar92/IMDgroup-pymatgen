@@ -6,6 +6,7 @@ import os
 import hashlib
 from tabulate import tabulate
 
+from alive_progress import alive_bar
 from pymatgen.apps.borg.hive import VaspToComputedEntryDrone
 from pymatgen.apps.borg.queen import BorgQueen
 from pymatgen.io.vasp.outputs import Outcar
@@ -28,6 +29,8 @@ class IMDGBorgQueen (BorgQueen):
             logger.debug("Setting up cache %s", cache.keys())
             self._cache = cache
             self.path_filter = path_filter
+            self._ndirs = 0
+            self._bar = None
 
         @staticmethod
         def _get_file_hash(filename):
@@ -49,7 +52,9 @@ class IMDGBorgQueen (BorgQueen):
         def assimilate(self, path):
             """Call _drone.assimulate with caching.
             """
-
+            if self._bar is None and self._ndirs > 0:
+                self._bar = alive_bar(
+                    self._ndirs, title='Reading VASP outputs')
             h = self._get_dir_hash(path)
             logger.debug("Assimilating %s [%s]", path, h)
             if self._cache.get(h):
@@ -58,14 +63,18 @@ class IMDGBorgQueen (BorgQueen):
             else:
                 logger.info("Reading data from %s", path)
                 data = self._drone.assimilate(path)
+            if self._bar is not None:
+                self._bar()
             return {h: data}
 
         def get_valid_paths(self, path):
             """Call drone.get_valid_paths."""
             paths = self._drone.get_valid_paths(path)
-            return [p for p in paths
+            paths = [p for p in paths
                     if self.path_filter is None
                     or self.path_filter(p)]
+            self._ndirs += len(paths)
+            return paths
 
     def __init__(
             self, drone,
