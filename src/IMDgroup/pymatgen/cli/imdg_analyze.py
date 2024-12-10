@@ -167,6 +167,7 @@ def read_vaspruns(rootdir, path_filter=None):
     queen.save_data(SAVE_FILE)
 
     entries = queen.get_data()
+    del queen
     entries = [e for e in entries if e is not None]
 
     if len(entries) > 0:
