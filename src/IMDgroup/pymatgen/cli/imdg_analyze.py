@@ -53,8 +53,9 @@ class IMDGBorgQueen (BorgQueen):
             """Call _drone.assimulate with caching.
             """
             if self._bar is None and self._ndirs > 0:
-                self._bar = alive_bar(
+                self._barctx = alive_bar(
                     self._ndirs, title='Reading VASP outputs')
+                self._bar = self._barctx.__enter__()
             h = self._get_dir_hash(path)
             logger.debug("Assimilating %s [%s]", path, h)
             if self._cache.get(h):
@@ -65,14 +66,17 @@ class IMDGBorgQueen (BorgQueen):
                 data = self._drone.assimilate(path)
             if self._bar is not None:
                 self._bar()
+                self._ndirs -= 1
+                if self._ndirs <= 0:
+                    self._barctx.__exit__()
             return {h: data}
 
         def get_valid_paths(self, path):
             """Call drone.get_valid_paths."""
             paths = self._drone.get_valid_paths(path)
             paths = [p for p in paths
-                    if self.path_filter is None
-                    or self.path_filter(p)]
+                     if self.path_filter is None
+                     or self.path_filter(p)]
             self._ndirs += len(paths)
             return paths
 
