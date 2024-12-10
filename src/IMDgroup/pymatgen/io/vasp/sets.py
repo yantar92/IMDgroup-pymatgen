@@ -360,11 +360,11 @@ class IMDNEBVaspInputSet(IMDDerivedInputSet):
     Optional argument FRAC_TOL controls proximity threshold for
     generated images.  When a distance between some atoms in a
     generated image is less than sum of their radiuses times FRAC_TOL,
-    such image is avoided.  Default: 0.75
+    such image is avoided.  Default: 0.5
     """
     target_directory: str | None = None
     fix_cutoff: float | None = None
-    frac_tol: float = 0.75
+    frac_tol: float = 0.5
 
     # According to Henkelman et al JCP 2000 (10.1063/1.1329672),
     # the typical number of images is 4-20.  We take smaller number as
