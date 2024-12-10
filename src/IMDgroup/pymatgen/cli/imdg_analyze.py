@@ -4,6 +4,7 @@ Based on pymatgen's pymatgen.cli.pmg_analyze
 import logging
 import os
 import hashlib
+import weakref
 from tabulate import tabulate
 
 from alive_progress import alive_bar
@@ -56,6 +57,10 @@ class IMDGBorgQueen (BorgQueen):
                 self._barctx = alive_bar(
                     self._ndirs, title='Reading VASP outputs')
                 self._bar = self._barctx.__enter__()
+                weakref.finalize(
+                    self._barctx,
+                    self._barctx.__exit__,
+                    None, None, None)
             h = self._get_dir_hash(path)
             logger.debug("Assimilating %s [%s]", path, h)
             if self._cache.get(h):
@@ -66,9 +71,6 @@ class IMDGBorgQueen (BorgQueen):
                 data = self._drone.assimilate(path)
             if self._bar is not None:
                 self._bar()
-                self._ndirs -= 1
-                if self._ndirs <= 0:
-                    self._barctx.__exit__(None, None, None)
             return {h: data}
 
         def get_valid_paths(self, path):
