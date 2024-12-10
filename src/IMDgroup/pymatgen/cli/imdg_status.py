@@ -255,6 +255,7 @@ def get_vasp_logs(log_file, log_matchers):
                             'message': matches[-1],
                             'count': num
                         }
+        logger.debug("Finished processing")
     logger.debug("Done scanning log file %s", log_file)
     return result
 
