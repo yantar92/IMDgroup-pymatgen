@@ -360,7 +360,7 @@ def status(args):
         if not os.path.isfile(outcar_path):
             outcar_path = False
         if log_file := (slurm_log_file(wdir) or outcar_path):
-            logger.debug("Found slurm logs in %s: %s", wdir, log_file)
+            logger.debug("Found VASP logs in %s: %s", wdir, log_file)
             progress_data = get_vasp_logs(log_file, VASP_PROGRESS)
             if len(progress_data.values()) > 0:
                 progress = " | " + list(progress_data.values())[-1]['message']
