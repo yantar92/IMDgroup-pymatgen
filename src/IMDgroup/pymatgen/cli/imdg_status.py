@@ -95,7 +95,7 @@ VASP_WARNINGS = {
     "set_core_wf": ["internal error in SET_CORE_WF"],
     "read_error": ["Error reading item", "Error code was IERR= 5"],
     "auto_nbands": ["The number of bands has been changed"],
-    "unclassified": [".*error.*"],
+    "unclassified": ["^.*error.*$"],
 }
 
 VASP_PROGRESS = {
@@ -235,7 +235,7 @@ def get_vasp_logs(log_file, log_matchers):
             if warn_name == "__exclude":
                 continue
             for matcher in matchers:
-                matches = re.findall(matcher, text)
+                matches = re.findall(matcher, text, flags=re.MULTILINE)
                 filtered_matches = []
                 for m in matches:
                     valid = True
