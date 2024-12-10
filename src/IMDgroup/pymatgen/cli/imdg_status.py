@@ -398,6 +398,7 @@ def status(args):
                     outcar = None
                     progress = ""
                 else:
+                    logger.debug('Reading OUTCAR in %s', wdir)
                     outcar = Outcar(os.path.join(wdir, "OUTCAR")).as_dict()
                 if outcar is not None:
                     cpu_time_sec =\
