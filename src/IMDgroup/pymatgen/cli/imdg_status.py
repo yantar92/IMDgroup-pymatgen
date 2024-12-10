@@ -231,7 +231,9 @@ def get_vasp_logs(log_file, log_matchers):
         excluded = []
         if '__exclude' in log_matchers:
             excluded = log_matchers['__exclude']
-        for warn_name, matchers in log_matchers.items():
+        tot = len(log_matchers)
+        for idx, (warn_name, matchers) in enumerate(log_matchers.items()):
+            logger.debug('%d/%d', idx+1, tot)
             if warn_name == "__exclude":
                 continue
             for matcher in matchers:
