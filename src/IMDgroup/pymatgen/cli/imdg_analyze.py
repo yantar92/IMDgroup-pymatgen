@@ -68,7 +68,7 @@ class IMDGBorgQueen (BorgQueen):
                 self._bar()
                 self._ndirs -= 1
                 if self._ndirs <= 0:
-                    self._barctx.__exit__()
+                    self._barctx.__exit__(None, None, None)
             return {h: data}
 
         def get_valid_paths(self, path):
