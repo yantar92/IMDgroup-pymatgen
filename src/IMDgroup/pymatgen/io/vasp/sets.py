@@ -356,9 +356,15 @@ class IMDNEBVaspInputSet(IMDDerivedInputSet):
     Optional argument FIX_CUTOFF prohibits relaxation of atoms that
     are further away from atoms that move during NEB than FIX_CUTOFF
     angstrom.
+
+    Optional argument FRAC_TOL controls proximity threshold for
+    generated images.  When a distance between some atoms in a
+    generated image is less than sum of their radiuses times FRAC_TOL,
+    such image is avoided.  Default: 0.75
     """
     target_directory: str | None = None
     fix_cutoff: float | None = None
+    frac_tol: float = 0.75
 
     # According to Henkelman et al JCP 2000 (10.1063/1.1329672),
     # the typical number of images is 4-20.  We take smaller number as
@@ -448,14 +454,13 @@ class IMDNEBVaspInputSet(IMDDerivedInputSet):
         # Remove POSCAR written in the top dir.  It is not needed for
         # NEB calculations.
         os.remove(os.path.join(output_dir, 'POSCAR'))
-        frac_tol = 0.5  # proximity tolerance (fraction of sum of radiuses)
         logger.debug("Interpolating NEB path in %s", output_dir)
         images = structure_interpolate2(
             self.structure, self.target_structure,
             nimages=self.incar["IMAGES"]+1,
-            frac_tol=frac_tol, autosort_tol=0.5)
+            frac_tol=self.frac_tol, autosort_tol=0.5)
         for image in images:
-            assert structure_is_valid2(image, frac_tol)
+            assert structure_is_valid2(image, self.frac_tol)
         self._fix_atoms_maybe(images)  # modify by side effect
         # Store NEB path snapshot
         trajectory = merge_structures(images)

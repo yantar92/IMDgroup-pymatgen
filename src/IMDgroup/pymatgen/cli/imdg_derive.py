@@ -595,6 +595,11 @@ def neb_diffusion_add_args(parser):
         help="Atoms further than fix_dist ans away will not be allowed to move (default: -1; no restrictions)",
         type=float,
         default=-1)
+    parser.add_argument(
+        "--frac_tol",
+        help="NEB images with atoms less than frac_tol * sum of radiuses will not be generated",
+        type=float,
+        default=0.75)
 
 
 def neb_diffusion(args):
@@ -622,6 +627,7 @@ def neb_diffusion(args):
             directory=beg.properties['origin_path'],
             target_directory=end.properties['origin_path'],
             fix_cutoff=args.fix_dist if args.fix_dist > 0 else None,
+            frac_tol=args.frac_tol,
             user_incar_settings={'IMAGES': args.nimages})
         inputset.structure = beg
         inputset.target_structure = end
