@@ -224,8 +224,10 @@ def get_vasp_logs(log_file, log_matchers):
         'count': <number of occurances>}}
     """
     result = {}
+    logger.debug("Scanning log file %s", log_file)
     with zopen(log_file, mode="rt") as f:
         text = f.read()
+        logger.debug("Ingested log text")
         excluded = []
         if '__exclude' in log_matchers:
             excluded = log_matchers['__exclude']
