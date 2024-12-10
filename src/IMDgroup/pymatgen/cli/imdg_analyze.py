@@ -66,9 +66,6 @@ class IMDGBorgQueen (BorgQueen):
                 data = self._drone.assimilate(path)
             if self._bar is not None:
                 self._bar()
-                self._ndirs -= 1
-                if self._ndirs <= 0:
-                    self._barctx.__exit__(None, None, None)
             return {h: data}
 
         def get_valid_paths(self, path):
@@ -119,6 +116,8 @@ class IMDGBorgQueen (BorgQueen):
 
     def get_data(self):
         """Get an list of assimilated objects."""
+        if getattr(self._drone, '_barctx') is not None:
+            self._drone._barctx.__exit__()
         return [list(x.values())[0] for x in self._data]
 
 
