@@ -26,16 +26,16 @@ VASP_WARNINGS = {
         "slurmstepd: error.+",
         "prterun noticed.+",
     ],
-    "relaxation_step": [
-        # Very large atom displacement during relaxation
-        # >=0.06
-        "^.*dis= [1-9].*$",
-        "^.*dis= 0.[1-9].*$",
-        "^.*dis= 0.0[6-9].*$",
-        "^.*maximal distance =[1-9].*$",
-        "^.*maximal distance =0.[1-9].*$",
-        "^.*maximal distance =0.0[6-9].*$",
-    ],
+    # "relaxation_step": [
+    #     # Very large atom displacement during relaxation
+    #     # >=0.06
+    #     "^.*dis= [1-9].*$",
+    #     "^.*dis= 0.[1-9].*$",
+    #     "^.*dis= 0.0[6-9].*$",
+    #     "^.*maximal distance =[1-9].*$",
+    #     "^.*maximal distance =0.[1-9].*$",
+    #     "^.*maximal distance =0.0[6-9].*$",
+    # ],
     "electron_convergance": [
         "The electronic self-consistency was not achieved in the given.+"
     ],
