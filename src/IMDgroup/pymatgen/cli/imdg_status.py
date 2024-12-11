@@ -8,7 +8,6 @@ import logging
 import warnings
 import subprocess
 import shutil
-import datetime
 from monty.io import zopen
 from termcolor import colored
 from xml.etree.ElementTree import ParseError
@@ -322,7 +321,7 @@ def vasp_output_time(path):
     """Return last VASP output modification time in PATH.
     """
     if nebp(path):
-        return max([vasp_output_time(p) for p in _neb_dirs(path)])
+        return max(vasp_output_time(p) for p in _neb_dirs(path))
     outcar = os.path.join(path, 'OUTCAR')
     if os.path.isfile(outcar):
         return os.path.getmtime(outcar)
