@@ -298,6 +298,10 @@ class IMDDerivedInputSet(IMDVaspInputSet):
             # Force using the actual INCAR file.
             incar = Incar.from_file(os.path.join(self.directory, "INCAR"))
             self.prev_incar = incar
+        else:
+            # No INCAR at all.  Do not use the one from Vasprun - it
+            # will not work well when deriving from NEB sub-calculations
+            self.prev_incar = None
 
         # self.override_from_prev_calc does not inherit POTCAR.  Force it.
         if potcars := sorted(glob(str(Path(self.directory) / "POTCAR*"))):
