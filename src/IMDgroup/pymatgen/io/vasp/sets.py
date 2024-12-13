@@ -253,6 +253,8 @@ class IMDDerivedInputSet(IMDVaspInputSet):
 
     @property
     def incar(self):
+        """Return None when previous dir has no INCAR.
+        """
         if self.prev_incar is None:
             return None
         return super().incar
