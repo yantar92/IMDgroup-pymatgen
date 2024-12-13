@@ -260,6 +260,14 @@ class IMDDerivedInputSet(IMDVaspInputSet):
         return super().incar
 
     @property
+    def kpoints(self):
+        """Return None when previous dir has no KPOINTS.
+        """
+        if self.prev_kpoints is None:
+            return None
+        return super().kpoints
+
+    @property
     def kpoints_updates(self):
         """Call kpoints_updates from VaspInputSet, but prefer
         prev_kpoints unconditionally.
@@ -298,6 +306,8 @@ class IMDDerivedInputSet(IMDVaspInputSet):
                     os.path.join(self.directory, "KPOINTS")
                 )
                 self.prev_kpoints = kpoints
+            else:
+                self.prev_kpoints = None
 
         if os.path.isfile(os.path.join(self.directory, "INCAR")):
             # override_from_prev_calc uses vasprun.xml
