@@ -38,8 +38,10 @@ def nebp(path):
     return False
 
 
-def neb_dirs(path):
+def neb_dirs(path, include_ends = True):
     """Return a list of NEB dirs in PATH.
+    When optional argument INCLUDE_ENDS is False, do not include the
+    first and the last image.
     """
     if nebp(path):
         incar = Incar.from_file(os.path.join(path, "INCAR"))

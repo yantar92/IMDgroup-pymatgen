@@ -139,7 +139,7 @@ def convergedp(path, entries_dict, reread=False):
     if it is not present in the ENTRIES_DICT.
     """
     if nebp(path):
-        for image_path in neb_dirs(path):
+        for image_path in neb_dirs(path, include_ends=False):
             if not convergedp(image_path, entries_dict):
                 return False
         return True
