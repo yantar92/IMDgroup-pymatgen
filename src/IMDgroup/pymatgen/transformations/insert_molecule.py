@@ -2,6 +2,7 @@
 """
 
 import logging
+from multiprocessing import Pool
 from alive_progress import alive_bar
 import numpy as np
 from numpy.typing import ArrayLike
@@ -31,7 +32,8 @@ class InsertMoleculeTransformation(AbstractTransformation):
             selective_dynamics: ArrayLike | None = None,
             reduce_supercell: bool = True,
             matcher: StructureMatcher =
-            StructureMatcher(attempt_supercell=True, scale=False)
+            StructureMatcher(attempt_supercell=True, scale=False),
+            multithread = False
     ):
         """Add molecule to structure.
 
@@ -67,6 +69,8 @@ class InsertMoleculeTransformation(AbstractTransformation):
           primitive cell before searching for insertions.
         matcher (StructureMatcher or None):
           Additional matcher to be used to detect duplicates.
+        multithread (bool; default: False):
+          Whether to use multithreading.
         """
         if step is None:
             step = 0.5
@@ -97,6 +101,7 @@ class InsertMoleculeTransformation(AbstractTransformation):
             self._candidate_angles = self._get_angle_grid()
         self.reduce_supercell = reduce_supercell
         self.matcher = matcher
+        self.multithread = multithread
 
     def _get_site_grid(self, structure: Structure):
         """Generate a list of candidate fractional coordinates.
@@ -443,10 +448,19 @@ class InsertMoleculeTransformation(AbstractTransformation):
                             cutoff=cutoff)
                         previous_matches = False
                         if self.matcher:
-                            for x in structure_inserts:
-                                if insert != x and self.matcher.fit(insert, x):
-                                    previous_matches = True
-                                    break
+                            if self.multithread:
+                                with Pool() as pool:
+                                    equivs = pool.starmap(
+                                        self.matcher.fit,
+                                        [(insert, x)
+                                         for x in structure_inserts])
+                                    if True in equivs:
+                                        previous_matches = True
+                            else:
+                                for x in structure_inserts:
+                                    if insert != x and self.matcher.fit(insert, x):
+                                        previous_matches = True
+                                        break
                         if self.matcher is None or not previous_matches:
                             structure_inserts.append(insert)
                             structure_inserts_positions.append(
