@@ -12,7 +12,7 @@ from monty.io import zopen
 from termcolor import colored
 from xml.etree.ElementTree import ParseError
 from pymatgen.io.vasp.outputs import (Vasprun, Outcar)
-from pymatgen.io.vasp.inputs import Incar
+from IMDgroup.pymatgen.io.vasp.inputs import nebp, neb_dirs
 from IMDgroup.pymatgen.cli.imdg_analyze import read_vaspruns
 
 logger = logging.getLogger(__name__)
@@ -130,30 +130,6 @@ def custom_showwarning(
 warnings.showwarning = custom_showwarning
 
 
-def nebp(path):
-    """Return True when PATH is a NEB-like run.
-    """
-    incar_path = os.path.join(path, 'INCAR')
-    if os.path.isfile(incar_path):
-        incar = Incar.from_file(incar_path)
-        if 'IMAGES' in incar:
-            return True
-    return False
-
-
-def _neb_dirs(path):
-    """Return a list of NEB dirs in PATH.
-    """
-    if nebp(path):
-        incar = Incar.from_file(os.path.join(path, "INCAR"))
-        nimages = incar['IMAGES']
-        paths = [os.path.join(path, f"{n:02d}")
-                 for n in range(1, nimages + 1)]
-        return paths
-        # return [p for p in paths if os.path.isdir(p)]
-    return None
-
-
 def convergedp(path, entries_dict, reread=False):
     """Return False when PATH is unconverged.
     When PATH has vasprun.xml, return final energy when it is
@@ -163,7 +139,7 @@ def convergedp(path, entries_dict, reread=False):
     if it is not present in the ENTRIES_DICT.
     """
     if nebp(path):
-        for image_path in _neb_dirs(path):
+        for image_path in neb_dirs(path):
             if not convergedp(image_path, entries_dict):
                 return False
         return True
@@ -321,7 +297,7 @@ def vasp_output_time(path):
     """Return last VASP output modification time in PATH.
     """
     if nebp(path):
-        return max(vasp_output_time(p) for p in _neb_dirs(path))
+        return max(vasp_output_time(p) for p in neb_dirs(path))
     outcar = os.path.join(path, 'OUTCAR')
     if os.path.isfile(outcar):
         return os.path.getmtime(outcar)

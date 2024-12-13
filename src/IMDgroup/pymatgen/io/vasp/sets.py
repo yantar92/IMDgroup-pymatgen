@@ -21,7 +21,7 @@ from ase.calculators.vasp.setups \
     import setups_defaults as ase_potential_defaults
 from IMDgroup.pymatgen.core.structure import\
     merge_structures, structure_interpolate2, structure_is_valid2
-from IMDgroup.pymatgen.io.vasp.inputs import Incar, _load_yaml_config
+from IMDgroup.pymatgen.io.vasp.inputs import Incar, _load_yaml_config, nebp, neb_dirs
 from IMDgroup.pymatgen.cli.imdg_visualize import\
     write_selective_dynamics_summary_maybe
 
@@ -231,8 +231,23 @@ class IMDDerivedInputSet(IMDVaspInputSet):
     Accepts mandatory argument DIRECTORY.
     """
     directory: str | None = None
+    images = None
 
     CONFIG = {'INCAR': {}, 'POTCAR_FUNCTIONAL': "PBE_64"}
+
+    @property
+    def structure(self):
+        """Get set's structure.
+        """
+        if self.images is not None:
+            return self.images[0].structure
+        return self.structure
+
+    @structure.setter
+    def structure(self, new_structure):
+        if self.images is not None:
+            raise AttributeError("Cannot set structure for NEB inputset.")
+        self.structure = new_structure
 
     @property
     def kpoints_updates(self):
@@ -250,31 +265,37 @@ class IMDDerivedInputSet(IMDVaspInputSet):
         try:
             self.override_from_prev_calc(prev_calc_dir=self.directory)
             super().__post_init__()
+        except ValueError:
+            # No VASP output found.  Try to ingest VASP input.
+            if os.path.isfile(os.path.join(self.directory, "POSCAR")):
+                poscar = Poscar.from_file(
+                    os.path.join(self.directory, "POSCAR"),
+                    # https://github.com/materialsproject/pymatgen/issues/4140
+                    # We do not care about consistency between POSCAR and
+                    # POTCAR here.  POTCAR will be re-generated anyway.
+                    check_for_potcar=False,
+                )
+                self.structure = poscar.structure
+            elif nebp(self.directory):
+                self.images = []
+                for subdir in neb_dirs(self.directory):
+                    self.images.append(IMDDerivedInputSet(directory=subdir))
+
+            super().__post_init__()
+
+            if os.path.isfile(os.path.join(self.directory, "KPOINTS")):
+                kpoints = Kpoints.from_file(
+                    os.path.join(self.directory, "KPOINTS")
+                )
+                self.prev_kpoints = kpoints
+
+        if os.path.isfile(os.path.join(self.directory, "INCAR")):
             # override_from_prev_calc uses vasprun.xml
             # However, as it turns out vasprun.xml may not have all
             # the incar parameters. For example, it does not store NCORE.
             # Force using the actual INCAR file.
             incar = Incar.from_file(os.path.join(self.directory, "INCAR"))
             self.prev_incar = incar
-        except ValueError:
-            # No VASP output found.  Try to ingest VASP input.
-            poscar = Poscar.from_file(
-                os.path.join(self.directory, "POSCAR"),
-                # https://github.com/materialsproject/pymatgen/issues/4140
-                # We do not care about consistency between POSCAR and
-                # POTCAR here.  POTCAR will be re-generated anyway.
-                check_for_potcar=False,
-            )
-            self.structure = poscar.structure
-
-            super().__post_init__()
-
-            incar = Incar.from_file(os.path.join(self.directory, "INCAR"))
-            self.prev_incar = incar
-            kpoints = Kpoints.from_file(
-                os.path.join(self.directory, "KPOINTS")
-            )
-            self.prev_kpoints = kpoints
 
         # self.override_from_prev_calc does not inherit POTCAR.  Force it.
         if potcars := sorted(glob(str(Path(self.directory) / "POTCAR*"))):
@@ -289,9 +310,20 @@ class IMDDerivedInputSet(IMDVaspInputSet):
                         potcar.symbols):
                 potcar_dict[el] = symbol
             self._config_dict['POTCAR'] = potcar_dict
-            # potcar.functional is actually not what pymatgen means by
-            # POTCAR_FUNCTIONAL
-            # self._config_dict['POTCAR_FUNCTIONAL'] = potcar.functional
+
+    def write_input(self, output_dir, **kwargs) -> None:
+        """Write a set of VASP input to OUTPUT_DIR."""
+        super().write_input(output_dir, **kwargs)
+        # NEB input
+        if self.images is not None:
+            # Remove top-level POSCAR and POTCAR written
+            for f in ["POSCAR", "POTCAR"]:
+                f = os.path.join(output_dir, f)
+                if os.path.isfile(f):
+                    os.remove(f)
+            # Write images
+            for d, image in zip(neb_dirs(output_dir), self.images):
+                image.write_input(d, **kwargs)
 
 
 @dataclass

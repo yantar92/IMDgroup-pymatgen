@@ -7,7 +7,8 @@ from termcolor import colored
 from pymatgen.core import Species, Structure
 from pymatgen.io.vasp.inputs import Incar
 from IMDgroup.pymatgen.cli.imdg_analyze import read_vaspruns
-from IMDgroup.pymatgen.cli.imdg_status import (convergedp, nebp)
+from IMDgroup.pymatgen.cli.imdg_status import convergedp
+from IMDgroup.pymatgen.io.vasp.inputs import nebp
 from IMDgroup.pymatgen.core.structure import merge_structures
 
 logger = logging.getLogger(__name__)

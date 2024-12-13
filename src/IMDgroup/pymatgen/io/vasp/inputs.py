@@ -27,6 +27,30 @@ def _load_yaml_config(fname):
     return config
 
 
+def nebp(path):
+    """Return True when PATH is a NEB-like run.
+    """
+    incar_path = os.path.join(path, 'INCAR')
+    if os.path.isfile(incar_path):
+        incar = Incar.from_file(incar_path)
+        if 'IMAGES' in incar:
+            return True
+    return False
+
+
+def neb_dirs(path):
+    """Return a list of NEB dirs in PATH.
+    """
+    if nebp(path):
+        incar = Incar.from_file(os.path.join(path, "INCAR"))
+        nimages = incar['IMAGES']
+        paths = [os.path.join(path, f"{n:02d}")
+                 for n in range(1, nimages + 1)]
+        return paths
+        # return [p for p in paths if os.path.isdir(p)]
+    return None
+
+
 class Incar(pmgIncar):
     """Modified version of pymatgen's Incar class, which see.
     Extensions:
