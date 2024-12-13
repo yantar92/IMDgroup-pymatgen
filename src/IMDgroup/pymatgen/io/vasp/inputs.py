@@ -38,7 +38,7 @@ def nebp(path):
     return False
 
 
-def neb_dirs(path, include_ends = True):
+def neb_dirs(path, include_ends=True):
     """Return a list of NEB dirs in PATH.
     When optional argument INCLUDE_ENDS is False, do not include the
     first and the last image.
@@ -46,8 +46,8 @@ def neb_dirs(path, include_ends = True):
     if nebp(path):
         incar = Incar.from_file(os.path.join(path, "INCAR"))
         nimages = incar['IMAGES']
-        paths = [os.path.join(path, f"{n:02d}")
-                 for n in range(1, nimages + 1)]
+        rng = range(0, nimages + 2) if include_ends else range(1, nimages + 1)
+        paths = [os.path.join(path, f"{n:02d}") for n in rng]
         return paths
         # return [p for p in paths if os.path.isdir(p)]
     return None
