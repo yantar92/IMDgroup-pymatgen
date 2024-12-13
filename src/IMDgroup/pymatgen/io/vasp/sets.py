@@ -252,6 +252,12 @@ class IMDDerivedInputSet(IMDVaspInputSet):
         self.__structure = new_structure
 
     @property
+    def incar(self):
+        if self.prev_incar is None:
+            return None
+        return super().incar
+
+    @property
     def kpoints_updates(self):
         """Call kpoints_updates from VaspInputSet, but prefer
         prev_kpoints unconditionally.
