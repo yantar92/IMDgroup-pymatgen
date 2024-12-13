@@ -241,13 +241,13 @@ class IMDDerivedInputSet(IMDVaspInputSet):
         """
         if self.images is not None:
             return self.images[0].structure
-        return self.structure
+        return self.__structure
 
     @structure.setter
     def structure(self, new_structure):
         if self.images is not None:
             raise AttributeError("Cannot set structure for NEB inputset.")
-        self.structure = new_structure
+        self.__structure = new_structure
 
     @property
     def kpoints_updates(self):
