@@ -245,7 +245,9 @@ class IMDDerivedInputSet(IMDVaspInputSet):
 
     @structure.setter
     def structure(self, new_structure):
-        if self.images is not None and new_structure is not None:
+        if self.images is not None and\
+           new_structure is not None and\
+           new_structure is not self.structure:
             raise AttributeError("Cannot set structure for NEB inputset.")
         self.__structure = new_structure
 
