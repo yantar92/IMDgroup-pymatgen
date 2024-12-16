@@ -258,13 +258,13 @@ class IMDVaspInputSet(VaspInputSet):
                 self.structure,
                 os.path.join(output_dir, "selective_dynamics.cif")
             )
+        # Maybe remove empty INCAR written
+        if self.incar is None:
+            f = os.path.join(output_dir, "INCAR")
+            if os.path.isfile(f):
+                os.remove(f)
         # NEB input
         if self.images is not None:
-            # # Remove top-level POSCAR and POTCAR written
-            # for f in ["POSCAR", "POTCAR"]:
-            #     f = os.path.join(output_dir, f)
-            #     if os.path.isfile(f):
-            #         os.remove(f)
             # Write images
             for d, image in zip(neb_dirs(output_dir), self.images):
                 image.write_input(d, **kwargs)
