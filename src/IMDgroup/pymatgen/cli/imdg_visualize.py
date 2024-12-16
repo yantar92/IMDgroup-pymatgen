@@ -24,6 +24,10 @@ def write_selective_dynamics_summary_maybe(structure, fname):
     for site in structure:
         site.label = None
         if 'selective_dynamics' in site.properties and\
+           site.properties['selective_dynamics'] is None:
+            logger.debug('None values in selective_dynamics.  Skipping')
+            return False
+        if 'selective_dynamics' in site.properties and\
            np.array_equal(site.properties['selective_dynamics'],
                           [False, False, False]):
             has_fixed = True
