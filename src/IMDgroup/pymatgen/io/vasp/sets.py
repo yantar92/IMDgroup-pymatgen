@@ -74,6 +74,7 @@ class IMDVaspInputSet(VaspInputSet):
     """
     functional: str | None = None
     images: list[Self] | None = None
+    __structure: Structure | None = None
 
     @property
     def structure(self):
