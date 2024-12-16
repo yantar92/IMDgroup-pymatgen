@@ -324,7 +324,12 @@ class IMDDerivedInputSet(IMDVaspInputSet):
         if nebp(self.directory):
             self.images = []
             for subdir in neb_dirs(self.directory):
-                self.images.append(IMDDerivedInputSet(directory=subdir))
+                # Re-use user-specified class parameters
+                # overriding directory
+                kwargs = {'directory': subdir}
+                params = {k: kwargs.get(k, getattr(self, k))
+                          for k in self.__dict__}
+                self.images.append(IMDDerivedInputSet(**params))
 
         # Directory settings take precedence.
         self.inherit_incar = True
