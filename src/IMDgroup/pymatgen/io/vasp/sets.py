@@ -320,6 +320,12 @@ class IMDDerivedInputSet(IMDVaspInputSet):
         return super().kpoints_updates
 
     def __post_init__(self) -> None:
+
+        if nebp(self.directory):
+            self.images = []
+            for subdir in neb_dirs(self.directory):
+                self.images.append(IMDDerivedInputSet(directory=subdir))
+
         # Directory settings take precedence.
         self.inherit_incar = True
         try:
@@ -329,7 +335,8 @@ class IMDDerivedInputSet(IMDVaspInputSet):
         except ValueError:
             logger.debug("No VASP output found.  Reading input instead")
             # No VASP output found.  Try to ingest VASP input.
-            if os.path.isfile(os.path.join(self.directory, "POSCAR")):
+            if os.path.isfile(os.path.join(self.directory, "POSCAR")) and\
+               self.images is None:
                 poscar = Poscar.from_file(
                     os.path.join(self.directory, "POSCAR"),
                     # https://github.com/materialsproject/pymatgen/issues/4140
@@ -338,11 +345,6 @@ class IMDDerivedInputSet(IMDVaspInputSet):
                     check_for_potcar=False,
                 )
                 self.structure = poscar.structure
-
-        if nebp(self.directory):
-            self.images = []
-            for subdir in neb_dirs(self.directory):
-                self.images.append(IMDDerivedInputSet(directory=subdir))
 
         super().__post_init__()
 
