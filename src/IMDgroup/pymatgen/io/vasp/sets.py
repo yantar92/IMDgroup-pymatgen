@@ -9,6 +9,7 @@ import logging
 from glob import glob
 from pathlib import Path
 from dataclasses import dataclass
+from typing import Self
 import numpy as np
 from pymatgen.io.vasp.sets import VaspInputSet, BadInputSetWarning
 from pymatgen.io.vasp.inputs import Potcar, Kpoints, Poscar
@@ -64,8 +65,33 @@ class IMDVaspInputSet(VaspInputSet):
     6. Warn if KPOINT density is too high/low
     7. Visualize non-trivial selective dynamic constrains, if any as
        .cif file.
+    8. New argument IMAGES defining additional inputsets to be written
+       into 00 01 02 ... folders.  Useful when INCAR has IMAGES
+       parameter.  When IMAGES are provided, inputset automatically
+       uses structure from the first image.  Setting the structure to
+       anything other then None or the first image structure will
+       raise an error.
     """
     functional: str | None = None
+    images: list[Self] | None = None
+
+    @property
+    def structure(self):
+        """Get set's structure.
+        """
+        if self.images is not None:
+            return self.images[0].structure
+        return self.__structure
+
+    @structure.setter
+    def structure(self, new_structure):
+        if new_structure is self.structure:
+            return
+        if self.images is not None and\
+           new_structure is not None and\
+           new_structure is not self.structure:
+            raise AttributeError("Cannot set structure for NEB inputset.")
+        self.__structure = new_structure
 
     @property
     def kpoints(self) -> Kpoints | None:
@@ -114,6 +140,10 @@ class IMDVaspInputSet(VaspInputSet):
     def incar(self) -> Incar:
         """The INCAR.  Also, automatically derive SYSTEM name."""
         incar = super().incar
+
+        # Empty incar.  Do nothing.
+        if incar is None or incar is {}:
+            return incar
 
         formula = self.structure.reduced_formula
         lattice_type = SpacegroupAnalyzer(self.structure).get_crystal_system()
@@ -183,6 +213,9 @@ class IMDVaspInputSet(VaspInputSet):
     @property
     def poscar(self) -> Poscar:
         """Check structure and return POSCAR."""
+        if self.__structure is None:
+            return None
+
         assert self.structure.is_valid()
 
         # When using selective dynamics, detect bogus fully fixed atoms.
@@ -199,10 +232,12 @@ class IMDVaspInputSet(VaspInputSet):
         return super().poscar
 
     @property
-    def potcar_symbols(self) -> list[str]:
+    def potcar_symbols(self) -> list[str] | None:
         """List of POTCAR symbols.
         Auto-fill missing potentials for elements using VASP
         recommendations."""
+        if self.poscar is None:
+            return None
         # Setup default POTCAR.  If an element is missing from
         # POTCAR_RECOMMENED, assume that the potential name is the
         # same with element name.
@@ -219,10 +254,33 @@ class IMDVaspInputSet(VaspInputSet):
     def write_input(self, output_dir, **kwargs) -> None:
         """Write a set of VASP input to OUTPUT_DIR."""
         super().write_input(output_dir, **kwargs)
-        write_selective_dynamics_summary_maybe(
-            self.structure,
-            os.path.join(output_dir, "selective_dynamics.cif")
-        )
+        if self.images is None and self.structure is not None:
+            write_selective_dynamics_summary_maybe(
+                self.structure,
+                os.path.join(output_dir, "selective_dynamics.cif")
+            )
+        # NEB input
+        if self.images is not None:
+            # # Remove top-level POSCAR and POTCAR written
+            # for f in ["POSCAR", "POTCAR"]:
+            #     f = os.path.join(output_dir, f)
+            #     if os.path.isfile(f):
+            #         os.remove(f)
+            # Write images
+            for d, image in zip(neb_dirs(output_dir), self.images):
+                image.write_input(d, **kwargs)
+                # Store NEB path snapshot
+                trajectory = merge_structures(self.images)
+                logger.debug(
+                    "Writing trajectory file %s",
+                    os.path.join(output_dir, 'NEB_trajectory.cif'))
+                trajectory.to_file(
+                    os.path.join(output_dir, 'NEB_trajectory.cif'))
+                # Visualize information about fixed/not fixed sites, if any
+                write_selective_dynamics_summary_maybe(
+                    trajectory,
+                    os.path.join(output_dir, 'NEB_fixed_sites.cif')
+                )
 
 
 @dataclass
@@ -234,22 +292,6 @@ class IMDDerivedInputSet(IMDVaspInputSet):
     images = None
 
     CONFIG = {'INCAR': {}, 'POTCAR_FUNCTIONAL': "PBE_64"}
-
-    @property
-    def structure(self):
-        """Get set's structure.
-        """
-        if self.images is not None:
-            return self.images[0].structure
-        return self.__structure
-
-    @structure.setter
-    def structure(self, new_structure):
-        if self.images is not None and\
-           new_structure is not None and\
-           new_structure is not self.structure:
-            raise AttributeError("Cannot set structure for NEB inputset.")
-        self.__structure = new_structure
 
     @property
     def incar(self):
@@ -334,20 +376,6 @@ class IMDDerivedInputSet(IMDVaspInputSet):
                         potcar.symbols):
                 potcar_dict[el] = symbol
             self._config_dict['POTCAR'] = potcar_dict
-
-    def write_input(self, output_dir, **kwargs) -> None:
-        """Write a set of VASP input to OUTPUT_DIR."""
-        super().write_input(output_dir, **kwargs)
-        # NEB input
-        if self.images is not None:
-            # Remove top-level POSCAR and POTCAR written
-            for f in ["POSCAR", "POTCAR"]:
-                f = os.path.join(output_dir, f)
-                if os.path.isfile(f):
-                    os.remove(f)
-            # Write images
-            for d, image in zip(neb_dirs(output_dir), self.images):
-                image.write_input(d, **kwargs)
 
 
 @dataclass
@@ -472,6 +500,14 @@ class IMDNEBVaspInputSet(IMDDerivedInputSet):
                 f"INCARs in {self.directory} and {self.target_directory}"
                 f" are inconsistent: {diff['Different']}")
 
+        self.images = structure_interpolate2(
+            self.structure, self.target_structure,
+            nimages=self.incar["IMAGES"]+1,
+            frac_tol=self.frac_tol, autosort_tol=0.5)
+        for image in self.images:
+            assert structure_is_valid2(image, self.frac_tol)
+        self._fix_atoms_maybe(self.images)  # modify by side effect
+
     def _fix_atoms_maybe(self, images):
         """Fix atoms further away than self.fix_cutoff from moving atoms.
         Fixing is done by setting selective dynamics for each image in
@@ -503,37 +539,6 @@ class IMDNEBVaspInputSet(IMDDerivedInputSet):
                     site.properties['selective_dynamics'] =\
                         [False, False, False]
         return None
-
-    def write_input(self, output_dir, **kwargs) -> None:
-        """Write a set of VASP input to OUTPUT_DIR."""
-        super().write_input(output_dir, **kwargs)
-        # Remove POSCAR written in the top dir.  It is not needed for
-        # NEB calculations.
-        os.remove(os.path.join(output_dir, 'POSCAR'))
-        logger.debug("Interpolating NEB path in %s", output_dir)
-        images = structure_interpolate2(
-            self.structure, self.target_structure,
-            nimages=self.incar["IMAGES"]+1,
-            frac_tol=self.frac_tol, autosort_tol=0.5)
-        for image in images:
-            assert structure_is_valid2(image, self.frac_tol)
-        self._fix_atoms_maybe(images)  # modify by side effect
-        # Store NEB path snapshot
-        trajectory = merge_structures(images)
-        logger.debug(
-            "Writing trajectory file %s",
-            os.path.join(output_dir, 'NEB_trajectory.cif'))
-        trajectory.to_file(os.path.join(output_dir, 'NEB_trajectory.cif'))
-        # Visualize information about fixed/not fixed sites, if any
-        write_selective_dynamics_summary_maybe(
-            trajectory,
-            os.path.join(output_dir, 'NEB_fixed_sites.cif')
-        )
-        for image_idx, _ in enumerate(images):
-            sub_dir = Path(os.path.join(output_dir, f"{image_idx:02d}"))
-            if not sub_dir.exists():
-                sub_dir.mkdir()
-            images[image_idx].to_file(os.path.join(sub_dir, 'POSCAR'))
 
 
 @due.dcite(
