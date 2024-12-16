@@ -28,7 +28,8 @@ def write_selective_dynamics_summary_maybe(structure, fname):
                           [False, False, False]):
             has_fixed = True
             site.species = Species('Fe')  # fixed
-        elif False in site.properties['selective_dynamics']:
+        elif 'selective_dynamics' in site.properties and\
+             False in site.properties['selective_dynamics']:
             has_fixed = True
             site.species = Species('Co')  # partially fixed
         else:
