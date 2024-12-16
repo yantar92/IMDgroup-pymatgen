@@ -271,7 +271,8 @@ class IMDVaspInputSet(VaspInputSet):
             for d, image in zip(neb_dirs(output_dir), self.images):
                 image.write_input(d, **kwargs)
                 # Store NEB path snapshot
-                trajectory = merge_structures(self.images)
+                trajectory = merge_structures(
+                    [img.structure for img in self.images])
                 logger.debug(
                     "Writing trajectory file %s",
                     os.path.join(output_dir, 'NEB_trajectory.cif'))
