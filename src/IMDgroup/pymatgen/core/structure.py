@@ -46,7 +46,9 @@ def merge_structures(
 
     sites_before = sum(len(s) for s in structs)
     for struct in structs[1:]:
-        for site in struct:
+        # Need to use copy to avoid merge_sites modifying site
+        # properties by side effect.
+        for site in struct.copy():
             merged.append(
                 site.species,
                 site.frac_coords,
