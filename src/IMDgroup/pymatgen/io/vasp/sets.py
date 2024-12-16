@@ -218,15 +218,15 @@ class IMDVaspInputSet(VaspInputSet):
         assert self.structure.is_valid()
 
         # When using selective dynamics, detect bogus fully fixed atoms.
-        for site in self.structure:
-            if 'selective_dynamics' in site.properties and\
-               not np.any(site.properties['selective_dynamics']):
-                # [False, False, False]
-                warnings.warn(
-                    "Bogus selective dynamics settings: site is fixed:"
-                    f"\n{site}:{site.properties}",
-                    BadInputSetWarning,
-                )
+        # for site in self.structure:
+        #     if 'selective_dynamics' in site.properties and\
+        #        not np.any(site.properties['selective_dynamics']):
+        #         # [False, False, False]
+        #         warnings.warn(
+        #             "Bogus selective dynamics settings: site is fixed:"
+        #             f"\n{site}:{site.properties}",
+        #             BadInputSetWarning,
+        #         )
 
         return super().poscar
 
