@@ -214,8 +214,6 @@ class IMDVaspInputSet(VaspInputSet):
     @property
     def poscar(self) -> Poscar:
         """Check structure and return POSCAR."""
-        if self.__structure is None:
-            return None
 
         assert self.structure.is_valid()
 
