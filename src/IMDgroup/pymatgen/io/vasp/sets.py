@@ -323,9 +323,12 @@ class IMDDerivedInputSet(IMDVaspInputSet):
         # Directory settings take precedence.
         self.inherit_incar = True
         try:
+            logger.debug(
+                "Reading previous VASP output from %s", self.directory)
             self.override_from_prev_calc(prev_calc_dir=self.directory)
             super().__post_init__()
         except ValueError:
+            logger.debug("No VASP output found.  Reading input instead")
             # No VASP output found.  Try to ingest VASP input.
             if os.path.isfile(os.path.join(self.directory, "POSCAR")):
                 poscar = Poscar.from_file(
