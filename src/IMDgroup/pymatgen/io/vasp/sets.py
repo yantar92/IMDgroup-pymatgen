@@ -226,7 +226,7 @@ class IMDVaspInputSet(VaspInputSet):
                 # [False, False, False]
                 warnings.warn(
                     "Bogus selective dynamics settings: site is fixed:"
-                    f"\n{site}",
+                    f"\n{site}:{site.properties}",
                     BadInputSetWarning,
                 )
 
