@@ -326,7 +326,7 @@ class IMDDerivedInputSet(IMDVaspInputSet):
             for subdir in neb_dirs(self.directory):
                 # Re-use user-specified class parameters
                 # overriding directory
-                kwargs = {'directory': subdir}
+                kwargs = {'directory': subdir, 'images': None}
                 params = {k: kwargs.get(k, getattr(self, k))
                           for k in self.__dict__}
                 self.images.append(IMDDerivedInputSet(**params))
