@@ -367,7 +367,7 @@ class IMDDerivedInputSet(IMDVaspInputSet):
             self.prev_incar = None
 
         # self.override_from_prev_calc does not inherit POTCAR.  Force it.
-        if potcars := sorted(glob(str(Path(self.directory) / "POTCAR*"))) and\
+        if (potcars := sorted(glob(str(Path(self.directory) / "POTCAR*")))) and\
            self.poscar is not None:
             # Override defaults with POTCAR data
             # We still want to transfer the file explicitly to
