@@ -326,7 +326,6 @@ class IMDDerivedInputSet(IMDVaspInputSet):
             logger.debug(
                 "Reading previous VASP output from %s", self.directory)
             self.override_from_prev_calc(prev_calc_dir=self.directory)
-            super().__post_init__()
         except ValueError:
             logger.debug("No VASP output found.  Reading input instead")
             # No VASP output found.  Try to ingest VASP input.
@@ -339,20 +338,21 @@ class IMDDerivedInputSet(IMDVaspInputSet):
                     check_for_potcar=False,
                 )
                 self.structure = poscar.structure
-            elif nebp(self.directory):
-                self.images = []
-                for subdir in neb_dirs(self.directory):
-                    self.images.append(IMDDerivedInputSet(directory=subdir))
 
-            super().__post_init__()
+        if nebp(self.directory):
+            self.images = []
+            for subdir in neb_dirs(self.directory):
+                self.images.append(IMDDerivedInputSet(directory=subdir))
 
-            if os.path.isfile(os.path.join(self.directory, "KPOINTS")):
-                kpoints = Kpoints.from_file(
-                    os.path.join(self.directory, "KPOINTS")
-                )
-                self.prev_kpoints = kpoints
-            else:
-                self.prev_kpoints = None
+        super().__post_init__()
+
+        if os.path.isfile(os.path.join(self.directory, "KPOINTS")):
+            kpoints = Kpoints.from_file(
+                os.path.join(self.directory, "KPOINTS")
+            )
+            self.prev_kpoints = kpoints
+        else:
+            self.prev_kpoints = None
 
         if os.path.isfile(os.path.join(self.directory, "INCAR")):
             # override_from_prev_calc uses vasprun.xml
