@@ -4,7 +4,7 @@ import logging
 import os
 import numpy as np
 from termcolor import colored
-from pymatgen.core import Species, Structure
+from pymatgen.core import Species, DummySpecies, Structure
 from pymatgen.io.vasp.inputs import Incar
 from IMDgroup.pymatgen.cli.imdg_analyze import read_vaspruns
 from IMDgroup.pymatgen.cli.imdg_status import convergedp
@@ -35,7 +35,7 @@ def write_selective_dynamics_summary_maybe(structure, fname):
             site.species = Species('Co')  # partially fixed
         elif 'selective_dynamics' in site.properties and\
              site.properties['selective_dynamics'] is None:
-            site.species = Species('X')  # unknown
+            site.species = DummySpecies('X')  # unknown
             site.properties['selective_dynamics'] = [False, False, False]
         else:
             site.species = Species('Ni')  # not fixed
