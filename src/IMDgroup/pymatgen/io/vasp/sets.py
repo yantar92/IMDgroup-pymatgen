@@ -461,7 +461,7 @@ class IMDNEBVaspInputSet(IMDDerivedInputSet):
     fix_cutoff: float | None = None
     frac_tol: float = 0.5
 
-    # According to Henkelman et al JCP 2000 (10.1063/1.1329672),
+    # According to Henkelman et al JCP 2000 (doi: 10.1063/1.1329672),
     # the typical number of images is 4-20.  We take smaller number as
     # the default here.
     # POTIM is reduced as NEB tends to generate paths passing close to
