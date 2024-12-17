@@ -399,16 +399,22 @@ class IMDDerivedInputSet(IMDVaspInputSet):
             if self.force_prev_kpoints_file:
                 self.prev_kpoints = None
 
-        if os.path.isfile(os.path.join(self.directory, "INCAR")):
+        incar_path = os.path.join(self.directory, "INCAR")
+        if os.path.isfile(incar_path):
             # override_from_prev_calc uses vasprun.xml
             # However, as it turns out vasprun.xml may not have all
             # the incar parameters. For example, it does not store NCORE.
             # Force using the actual INCAR file.
-            incar = Incar.from_file(os.path.join(self.directory, "INCAR"))
+            incar = Incar.from_file(incar_path)
             self.prev_incar = incar
+        elif self.force_prev_incar_file:
+            self.prev_incar = None
         else:
-            if self.force_prev_incar_file:
-                self.prev_incar = None
+            parent_dir = os.path.dirname(os.path.abspath(self.directory))
+            parent_incar_path = os.path.join(parent_dir, "INCAR")
+            if nebp(parent_dir) and os.path.isfile(parent_incar_path):
+                incar = Incar.from_file(parent_incar_path)
+                self.prev_incar = incar
 
         # self.override_from_prev_calc does not inherit POTCAR.  Force it.
         if (potcars := sorted(glob(str(Path(self.directory) / "POTCAR*")))) and\
