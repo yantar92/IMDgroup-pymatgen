@@ -71,10 +71,19 @@ class IMDVaspInputSet(VaspInputSet):
        uses structure from the first image.  Setting the structure to
        anything other then None or the first image structure will
        raise an error.
+    9. New arguments NO_KPOINTS to suppress writing KPOINTS file,
+       NO_POTCAR to suppress writing POTCAR file, and NO_POSCAR to
+       suppress writing POSCAR file.
+    completely.
     """
     functional: str | None = None
     images: list[Self] | None = None
+    no_kpoints: bool = False
+    no_potcar: bool = False
+    no_poscar: bool = False
     __structure: Structure | None = None
+
+    CONFIG = {'INCAR': {}, 'POTCAR_FUNCTIONAL': "PBE_64"}
 
     @property
     def structure(self):
@@ -97,6 +106,9 @@ class IMDVaspInputSet(VaspInputSet):
     @property
     def kpoints(self) -> Kpoints | None:
         """The KPOINTS file."""
+        if self.no_kpoints:
+            return None
+
         kpoints = super().kpoints
 
         kpts = kpoints.kpts
@@ -143,7 +155,7 @@ class IMDVaspInputSet(VaspInputSet):
         incar = super().incar
 
         # Empty incar.  Do nothing.
-        if incar is None or incar is {}:
+        if incar is None or list(incar) == []:
             return incar
 
         formula = self.structure.reduced_formula
@@ -250,6 +262,13 @@ class IMDVaspInputSet(VaspInputSet):
                     if element in POTCAR_RECOMMENDED else element
         return super().potcar_symbols
 
+    @property
+    def potcar(self) -> Potcar | None:
+        """The input set's POTCAR."""
+        if self.no_potcar:
+            return None
+        return super().potcar
+
     def write_input(self, output_dir, **kwargs) -> None:
         """Write a set of VASP input to OUTPUT_DIR."""
         super().write_input(output_dir, **kwargs)
@@ -259,8 +278,13 @@ class IMDVaspInputSet(VaspInputSet):
                 os.path.join(output_dir, "selective_dynamics.cif")
             )
         # Maybe remove empty INCAR written
-        if self.incar is None:
+        if self.incar is None or list(self.incar) == []:
             f = os.path.join(output_dir, "INCAR")
+            if os.path.isfile(f):
+                os.remove(f)
+        # Maybe remove POSCAR written
+        if self.no_poscar:
+            f = os.path.join(output_dir, "POSCAR")
             if os.path.isfile(f):
                 os.remove(f)
         # NEB input
@@ -287,11 +311,16 @@ class IMDVaspInputSet(VaspInputSet):
 class IMDDerivedInputSet(IMDVaspInputSet):
     """Inputset derived from an existing Vasp output or input directory.
     Accepts mandatory argument DIRECTORY.
+    Optional argument FORCE_PREV_INCAR_FILE (default False), when set
+    to True will discard INCAR parameters from vasprun.xml (if any) if
+    there is no actual INCAR present in DIRECTORY.
+    Optional argument FORCE_PREV_KPOINTS_FILE (default False) does the
+    same for KPOINTS.
     """
     directory: str | None = None
     images = None
-
-    CONFIG = {'INCAR': {}, 'POTCAR_FUNCTIONAL': "PBE_64"}
+    force_prev_incar_file: bool = False
+    force_prev_kpoints_file: bool = False
 
     @property
     def incar(self):
@@ -326,7 +355,15 @@ class IMDDerivedInputSet(IMDVaspInputSet):
             for subdir in neb_dirs(self.directory):
                 # Re-use user-specified class parameters
                 # overriding directory
-                kwargs = {'directory': subdir, 'images': None}
+                kwargs = {
+                    'directory': subdir,
+                    'images': None,
+                    # vasprun.xml in NEB directories will combine
+                    # local INCAR and parent INCAR, which we do not
+                    # want to mix here.
+                    'force_prev_incar_file': True,
+                    'force_prev_kpoints_file': True,
+                }
                 params = {k: kwargs.get(k, getattr(self, k))
                           for k in self.__dict__}
                 self.images.append(IMDDerivedInputSet(**params))
@@ -359,7 +396,8 @@ class IMDDerivedInputSet(IMDVaspInputSet):
             )
             self.prev_kpoints = kpoints
         else:
-            self.prev_kpoints = None
+            if self.force_prev_kpoints_file:
+                self.prev_kpoints = None
 
         if os.path.isfile(os.path.join(self.directory, "INCAR")):
             # override_from_prev_calc uses vasprun.xml
@@ -369,9 +407,8 @@ class IMDDerivedInputSet(IMDVaspInputSet):
             incar = Incar.from_file(os.path.join(self.directory, "INCAR"))
             self.prev_incar = incar
         else:
-            # No INCAR at all.  Do not use the one from Vasprun - it
-            # will not work well when deriving from NEB sub-calculations
-            self.prev_incar = None
+            if self.force_prev_incar_file:
+                self.prev_incar = None
 
         # self.override_from_prev_calc does not inherit POTCAR.  Force it.
         if (potcars := sorted(glob(str(Path(self.directory) / "POTCAR*")))) and\
@@ -475,6 +512,7 @@ class IMDNEBVaspInputSet(IMDDerivedInputSet):
     def incar(self) -> Incar:
         """The INCAR.  Also, check POTIM and IMAGES."""
         incar = super().incar
+
         if incar['POTIM'] > 0.25:
             warnings.warn(
                 f"POTIM={incar['POTIM']} parameter is higher than"
@@ -490,6 +528,9 @@ class IMDNEBVaspInputSet(IMDDerivedInputSet):
         return incar
 
     def __post_init__(self) -> None:
+        # Do not write top-level POSCAR
+        self.no_poscar = True
+
         # Refuse to accept unconverged VASP runs.
         beg_run = Vasprun(os.path.join(self.directory, 'vasprun.xml'))
         end_run = Vasprun(os.path.join(self.target_directory, 'vasprun.xml'))
@@ -509,13 +550,25 @@ class IMDNEBVaspInputSet(IMDDerivedInputSet):
                 f"INCARs in {self.directory} and {self.target_directory}"
                 f" are inconsistent: {diff['Different']}")
 
-        self.images = structure_interpolate2(
+        str_images = structure_interpolate2(
             self.structure, self.target_structure,
             nimages=self.incar["IMAGES"]+1,
             frac_tol=self.frac_tol, autosort_tol=0.5)
-        for image in self.images:
+        for image in str_images:
             assert structure_is_valid2(image, self.frac_tol)
-        self._fix_atoms_maybe(self.images)  # modify by side effect
+        self._fix_atoms_maybe(str_images)  # modify by side effect
+
+        # Setup NEB image VASP inputsets
+        self.images = []
+        for image in str_images:
+            inputset = IMDVaspInputSet(no_kpoints=True, no_potcar=True)
+            # FIXME: We cannot pass structure via structure= parameter because
+            # pymatgen has a bug with _structure vs. structure
+            # parameters being completely messed up
+            # Need to report a bug.  This is a clear example of why
+            # there is a problem in the code (see TODO item there)
+            inputset.structure = image
+            self.images.append(inputset)
 
     def _fix_atoms_maybe(self, images):
         """Fix atoms further away than self.fix_cutoff from moving atoms.
