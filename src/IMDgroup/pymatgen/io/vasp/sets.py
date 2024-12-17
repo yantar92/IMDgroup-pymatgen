@@ -499,12 +499,10 @@ class IMDNEBVaspInputSet(IMDDerivedInputSet):
 
         self.target_structure = end_run.final_structure
 
-        # Make sure that INCARs for start_dir and end_dir are
-        # consistent.
-        source_incar = Incar.from_file(
-            os.path.join(self.directory, "INCAR"))
-        target_incar = Incar.from_file(
-            os.path.join(self.target_directory, "INCAR"))
+        # Make sure that INCAR parameters for start_dir and end_dir
+        # are consistent.
+        source_incar = beg_run.parameters
+        target_incar = end_run.parameters
         diff = source_incar.diff(target_incar)
         if len(diff['Different']) > 0:
             raise ValueError(
