@@ -313,7 +313,7 @@ def status(args):
     entries_dict = {}
 
     def exclude_dirp(p):
-        if args.exclude is not None and re.match(args.exclude, p):
+        if args.exclude is not None and re.search(args.exclude, p):
             return True
         return False
 
