@@ -9,6 +9,7 @@ import warnings
 import subprocess
 import shutil
 from monty.io import zopen
+import numpy as np
 from termcolor import colored
 from xml.etree.ElementTree import ParseError
 from pymatgen.io.vasp.outputs import (Vasprun, Outcar)
@@ -295,13 +296,14 @@ def print_seconds(seconds):
 
 def vasp_output_time(path):
     """Return last VASP output modification time in PATH.
+    If no VASP output is found, return np.none
     """
     if nebp(path):
-        return max(vasp_output_time(p) for p in neb_dirs(path))
+        return np.nanmax(vasp_output_time(p) for p in neb_dirs(path))
     outcar = os.path.join(path, 'OUTCAR')
     if os.path.isfile(outcar):
         return os.path.getmtime(outcar)
-    return None
+    return np.none
 
 
 def status(args):
