@@ -537,24 +537,38 @@ class IMDNEBVaspInputSet(IMDDerivedInputSet):
         # Do not write top-level POSCAR
         self.no_poscar = True
 
-        # Refuse to accept unconverged VASP runs.
         beg_run = Vasprun(os.path.join(self.directory, 'vasprun.xml'))
-        end_run = Vasprun(os.path.join(self.target_directory, 'vasprun.xml'))
-        assert beg_run.converged and end_run.converged
+        try:
+            end_run = Vasprun(os.path.join(
+                self.target_directory, 'vasprun.xml'))
+        except FileNotFoundError:
+            end_run = None
+            warnings.warn(
+                f"Failed to read Vasprun from {self.target_directory}.  "
+                "Falling back to reading POSCAR."
+            )
+        if end_run is not None:
+            assert beg_run.converged and end_run.converged
 
         super().__post_init__()
 
-        self.target_structure = end_run.final_structure
+        if end_run is None:
+            poscar = Poscar.from_file(
+                os.path.join(self.target_directory, "POSCAR"))
+            self.target_structure = poscar.structure
+        else:
+            self.target_structure = end_run.final_structure
 
-        # Make sure that INCAR parameters for start_dir and end_dir
-        # are consistent.
-        source_incar = beg_run.parameters
-        target_incar = end_run.parameters
-        diff = source_incar.diff(target_incar)
-        if len(diff['Different']) > 0:
-            raise ValueError(
-                f"INCARs in {self.directory} and {self.target_directory}"
-                f" are inconsistent: {diff['Different']}")
+        if end_run is not None:
+            # Make sure that INCAR parameters for start_dir and end_dir
+            # are consistent.
+            source_incar = beg_run.parameters
+            target_incar = end_run.parameters
+            diff = source_incar.diff(target_incar)
+            if len(diff['Different']) > 0:
+                raise ValueError(
+                    f"INCARs in {self.directory} and {self.target_directory}"
+                    f" are inconsistent: {diff['Different']}")
 
         str_images = structure_interpolate2(
             self.structure, self.target_structure,
