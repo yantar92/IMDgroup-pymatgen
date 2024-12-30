@@ -7,6 +7,7 @@ import math
 import warnings
 from alive_progress import alive_bar
 from termcolor import colored
+from xml.etree.ElementTree import ParseError
 from pymatgen.io.vasp.inputs import Poscar
 from pymatgen.analysis.structure_matcher import StructureMatcher
 from IMDgroup.pymatgen.io.vasp.outputs import Vasprun
@@ -100,6 +101,10 @@ def _read_structures(dir_list, force_poscar=False, force_vasprun=False):
                         raise
                     structures.append(read_poscar(vaspdir))
                     used_poscar_output = True
+                except ParseError:
+                    warnings.warn(
+                        f"Failed to read vasprun from {vaspdir}.  Skipping"
+                    )
             abar()  # pylint: disable=not-callable
     return structures
 
