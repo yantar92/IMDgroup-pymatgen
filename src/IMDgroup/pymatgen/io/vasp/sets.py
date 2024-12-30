@@ -387,6 +387,10 @@ class IMDDerivedInputSet(IMDVaspInputSet):
                     check_for_potcar=False,
                 )
                 self.structure = poscar.structure
+            else:
+                raise ValueError(
+                    f"No VASP input found in {self.directory}"
+                )
 
         super().__post_init__()
 
