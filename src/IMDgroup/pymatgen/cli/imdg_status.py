@@ -399,7 +399,7 @@ def status(args):
                         str(datetime.timedelta(seconds=round(cpu_time_sec)))
                     n_cores = outcar['run_stats']['cores']
                     if final_energy is None:
-                        progress = "N/A"
+                        progress = " N/A"
                     else:
                         progress = f" | {final_energy:.2f}eV" +\
                             f" CPU time: {cpu_time} ({n_cores} cores)"
