@@ -469,6 +469,10 @@ structure will not be constrained.
         "--count",
         help="do not write output, just print count",
         action="store_true")
+    parser.add_argument(
+        "--multithread",
+        help="Use multithreading?",
+        action="store_true")
 
 
 def insert(args):
@@ -486,13 +490,17 @@ def insert(args):
             step=args.step,
             proximity_threshold=args.threshold,
             selective_dynamics=[True, True, True],
-            matcher=None)
+            matcher=None,
+            multithread=args.multithread,
+        )
     else:
         transformer = InsertMoleculeTransformation(
             args.atom,
             step=args.step,
             proximity_threshold=args.threshold,
-            selective_dynamics=[True, True, True])
+            selective_dynamics=[True, True, True],
+            multithread=args.multithread,
+        )
     structures = transformer.all_inserts(inputset.structure, limit=args.limit)
 
     results = []
