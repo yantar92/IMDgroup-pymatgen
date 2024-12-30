@@ -113,7 +113,7 @@ VASP_PROGRESS = {
         r"opt step +=.+harmonic.+distance.+",
         r"next E +=.+d E +=.+",
         r"BRION:.+",
-        r"g(Force) *= .+g(Stress)=.+",
+        r"g.Force. *= .+g.Stress.=.+",
     ]
 }
 
