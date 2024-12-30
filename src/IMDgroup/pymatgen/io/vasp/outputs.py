@@ -23,7 +23,7 @@ class Vasprun(pmgVasprun):
            self.incar.get('ISIF') != Incar.ISIF_FIX_SHAPE_VOL:
             warnings.warn(
                 "Energy may not be accurate when using "
-                f"ISIF!={Incar.ISIF_FIX_SHAPE_VOL}",
+                f"ISIF({self.incar.get('ISIF')})!={Incar.ISIF_FIX_SHAPE_VOL}",
                 VasprunWarning
             )
 
