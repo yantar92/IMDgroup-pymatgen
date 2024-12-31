@@ -107,9 +107,14 @@ def neb(args):
         incar = Incar.from_file(os.path.join(wdir, 'INCAR'))
         images = [f"{n:02d}" for n in range(1, 1 + incar['IMAGES'])]
         neb_structures = []
+        neb_structures.append(
+            Structure.from_file(os.path.join(wdir, "00", "POSCAR")))
         for image in images:
             neb_structures.append(
                 entries_dict[os.path.join(wdir, image)].structure)
+        neb_structures.append(
+            Structure.from_file(os.path.join(
+                wdir, f"{1 + incar['IMAGES']:02d}", "POSCAR")))
         trajectory = merge_structures(neb_structures)
         cif_name = 'NEB_trajectory_converged.cif'
         output_cif = os.path.join(wdir, cif_name)
