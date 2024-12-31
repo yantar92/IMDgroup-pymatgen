@@ -352,6 +352,10 @@ class IMDDerivedInputSet(IMDVaspInputSet):
 
         if nebp(self.directory):
             self.images = []
+            logger.debug(
+                "Found NEB input in %s",
+                self.directory
+            )
             for subdir in neb_dirs(self.directory):
                 # Re-use user-specified class parameters
                 # overriding directory
