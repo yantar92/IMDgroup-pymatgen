@@ -391,6 +391,8 @@ class IMDDerivedInputSet(IMDVaspInputSet):
                     check_for_potcar=False,
                 )
                 self.structure = poscar.structure
+            elif self.images is not None:
+                pass
             else:
                 raise ValueError(
                     f"No VASP input found in {self.directory}"
