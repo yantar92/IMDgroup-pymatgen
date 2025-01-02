@@ -2,6 +2,7 @@
 """
 import logging
 from alive_progress import alive_bar
+import numpy as np
 from pymatgen.core import Structure
 from pymatgen.analysis.structure_matcher import StructureMatcher
 from IMDgroup.pymatgen.core.structure import merge_structures
@@ -59,9 +60,12 @@ class _StructFilter():
         """Return True when END1 and END2 form equivalent pairs with ORIGIN.
         """
         matcher = StructureMatcher(attempt_supercell=True, scale=False)
-        if matcher.fit(
-                merge_structures([self.origin, end1], tol=self.tol),
-                merge_structures([self.origin, end2], tol=self.tol)):
+        if np.isclose(
+                structure_distance(self.origin, end1),
+                structure_distance(self.origin, end2)) and\
+            matcher.fit(
+                merge_structures([self.origin, end1]),
+                merge_structures([self.origin, end2])):
             return True
         return False
 
@@ -143,9 +147,12 @@ def _pair_post_filter(unique_pairs, all_clones):
 
     def add_pair_maybe(pair):
         for idx, known_pair in enumerate(unique_pairs):
-            if matcher.fit(
-                    merge_structures([pair[0], pair[1]], tol=0.5),
-                    merge_structures([known_pair[0], known_pair[1]], tol=0.5)):
+            if np.isclose(
+                    structure_distance(pair[0], pair[1]),
+                    structure_distance(known_pair[0], known_pair[1])) and\
+                matcher.fit(
+                    merge_structures([pair[0], pair[1]]),
+                    merge_structures([known_pair[0], known_pair[1]])):
                 use_pair[idx] = True
                 return
         # must not happen
