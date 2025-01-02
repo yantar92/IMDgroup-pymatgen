@@ -244,8 +244,16 @@ def get_neb_pairs(
                 all_pairs = get_neb_pairs_1(
                     origin, target, prototype, cutoff,
                     discard_equivalent=False)
-                all_clones += [target_clone for _, target_clone in all_pairs
-                               if not _struct_is_equiv(target_clone, all_clones)]
+                for _, target_clone in all_pairs:
+                    if target_clone in all_clones:
+                        continue
+                    equiv = False
+                    for known in all_clones:
+                        if structure_distance(known, target_clone) < 0.5:
+                            equiv = True
+                            break
+                    if not equiv:
+                        all_clones.append(target_clone)
         pairs = _pair_post_filter(pairs, all_clones)
 
     return pairs
