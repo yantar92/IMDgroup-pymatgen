@@ -223,7 +223,8 @@ def get_neb_pairs(
         logger.info("Removing compound paths")
         all_clones = []
         for idx, origin in enumerate(uniq_structures):
-            all_clones.append(origin)
+            if not _struct_is_equiv(origin, all_clones):
+                all_clones.append(origin)
             for idx2, target in enumerate(uniq_structures[idx:]):
                 logger.info(
                     "gen_neb_pairs: searching all pairs %d -> %d ...",
@@ -231,7 +232,8 @@ def get_neb_pairs(
                 all_pairs = get_neb_pairs_1(
                     origin, target, prototype, cutoff,
                     discard_equivalent=False)
-                all_clones += [target_clone for _, target_clone in all_pairs]
+                all_clones += [target_clone for _, target_clone in all_pairs
+                               if not _struct_is_equiv(target_clone, all_clones)]
         pairs = _pair_post_filter(pairs, all_clones)
 
     return pairs
