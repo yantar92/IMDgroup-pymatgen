@@ -1,9 +1,9 @@
 """NEB pair generator for diffusion paths.
 """
 import logging
+from alive_progress import alive_bar
 from pymatgen.core import Structure
 from pymatgen.analysis.structure_matcher import StructureMatcher
-import numpy as np
 from IMDgroup.pymatgen.core.structure import merge_structures
 from IMDgroup.pymatgen.transformations.symmetry_clone\
     import SymmetryCloneTransformation
@@ -37,14 +37,18 @@ class _StructFilter():
             self,
             origin: Structure,
             cutoff: float | None,
+            discard_equivalent: bool = True,
             tol: float = 0.5) -> None:
         """Setup structure filter.
         ORIGIN is the beginning of diffusion pair (Structure).
         CUTOFF and TOL are the largest and smallest distances between
         ORIGIN and filtered structure for structure to be accepted.
+        DISCARD_EQUIVALENT control whether to filter out symmetrycally
+        equivalent pairs.
         """
         self.rejected = []
         self.origin = origin
+        self.discard_equivalent = discard_equivalent
         if cutoff is None:
             self.cutoff = float("inf")
         else:
@@ -73,14 +77,15 @@ class _StructFilter():
         dist = structure_distance(self.origin, clone)
         if dist > self.cutoff or dist < self.tol:
             return False
-        for rej in self.rejected:
-            dist = structure_distance(clone, rej)
-            if dist < self.tol:
-                return False
-        for other in clones:
-            if self.is_equiv(clone, other):
-                self.rejected.append(clone)
-                return False
+        if self.discard_equivalent:
+            for rej in self.rejected:
+                dist = structure_distance(clone, rej)
+                if dist < self.tol:
+                    return False
+                for other in clones:
+                    if self.is_equiv(clone, other):
+                        self.rejected.append(clone)
+                        return False
         return True
 
     def final_filter(self, clones):
@@ -100,18 +105,22 @@ def get_neb_pairs_1(
         origin: Structure,
         target: Structure,
         prototype: Structure,
-        cutoff: float | None = None) -> list[tuple[Structure, Structure]]:
+        cutoff: float | None = None,
+        discard_equivalent: bool = True) -> list[tuple[Structure, Structure]]:
     """Construct all possible unique diffusion pairs between ORIGIN and TARGET.
     ORIGIN is always taken as beginning of diffusion.
     Diffusion end points are taken by applying all possible symmetry
     operations of PROTOTYPE onto TARGET.
     End points that are further than CUTOFF are discarded.
 
+    Symmatrically equivalent diffusion pairs are discarded, unless
+    DISCARD_EQUIVALENT is False.
+
     Return a list of tuples representing begin/end structure pairs.
     """
     trans = SymmetryCloneTransformation(
         prototype,
-        filter_cls=_StructFilter(origin, cutoff))
+        filter_cls=_StructFilter(origin, cutoff, discard_equivalent))
     clones = trans.get_all_clones(target)
 
     logger.info('Found %d pairs', len(clones))
@@ -122,10 +131,48 @@ def get_neb_pairs_1(
     return list((origin, clone) for clone in clones)
 
 
+def _pair_post_filter(unique_pairs, all_clones):
+    """Minimize UNIQUE_PAIRS keeping ALL_CLONES reachable.
+    UNIQUE_PAIRS is a list of unique diffusion paths.
+    ALL_CLONES is a list of diffusion points.
+    The return value will be a subset of shortest possible
+    UNIQUE_PAIRS sufficient to cover ALL_CLONES.
+    """
+    use_pair = [False] * len(unique_pairs)
+    matcher = StructureMatcher(attempt_supercell=True, scale=False)
+
+    def add_pair_maybe(pair):
+        for idx, known_pair in enumerate(unique_pairs):
+            if matcher.fit(
+                    merge_structures([pair[0], pair[1]], tol=0.5),
+                    merge_structures([known_pair[0], known_pair[1]], tol=0.5)):
+                use_pair[idx] = True
+                return
+        # must not happen
+        raise AssertionError("This must not happen")
+
+    visited = [False] * len(all_clones)
+
+    with alive_bar(len(all_clones), title='Post-filtering') as progress_bar:
+        def dfs(from_idx):
+            visited[from_idx] = True
+            progress_bar()  # pylint: disable=not-callable
+            from_struct = all_clones[from_idx]
+            distances = [(structure_distance(from_struct, to_struct), to_idx)
+                         for to_idx, to_struct in enumerate(all_clones)
+                         if not visited[to_idx]]
+            for _, to_idx in sorted(distances):
+                add_pair_maybe((from_struct, all_clones[to_idx]))
+                dfs(to_idx)
+        dfs(0)
+    return [p for idx, p in enumerate(unique_pairs) if use_pair[idx]]
+
+
 def get_neb_pairs(
         structures: list[Structure],
         prototype: Structure,
-        cutoff: float | None = None)\
+        cutoff: float | None = None,
+        remove_compound: bool = False)\
         -> list[tuple[Structure, Structure]]:
     """Construct all possible unique diffusion pairs from STRUCTURES.
     The STRUCTURES must all be derived from PROTOTYPE structure (have
@@ -141,6 +188,14 @@ def get_neb_pairs(
     that require moving atoms more than CUTOFF ans will be discarded.
     The exact criterion is: sum of all atom displacements to change
     one structure into another must be no larger than CUTOFF.
+
+    When optional argument REMOVE_COMPOUND is provided (False by default),
+    find the smallest subset of the shortest diffusion pairs that is
+    sufficient to cover all possible diffusion sites for STRUCTURES
+    (including symmetrically equivalent).  For example, given 1-2,
+    2-3, and 1-3 diffusion pairs, 1-3 == 1-2 + 2-3 and 1-3 will be dropped.
+    This is heuristics as the diffusion barrier for 1-3 might
+    generally be lower compared to 1-2 + 2-3 combination.
 
     Returns a list of tuples containing begin/end structures.
     """
@@ -163,4 +218,20 @@ def get_neb_pairs(
                 idx, idx2+idx)
             pairs += get_neb_pairs_1(
                 origin, target, prototype, cutoff)
+
+    if remove_compound:
+        logger.info("Removing compound paths")
+        all_clones = []
+        for idx, origin in enumerate(uniq_structures):
+            all_clones.append(origin)
+            for idx2, target in enumerate(uniq_structures[idx:]):
+                logger.info(
+                    "gen_neb_pairs: searching all pairs %d -> %d ...",
+                    idx, idx2+idx)
+                all_pairs = get_neb_pairs_1(
+                    origin, target, prototype, cutoff,
+                    discard_equivalent=False)
+                all_clones += [target_clone for _, target_clone in all_pairs]
+        pairs = _pair_post_filter(pairs, all_clones)
+
     return pairs
