@@ -38,7 +38,7 @@ class _StructFilter():
     def __init__(
             self,
             origin: Structure,
-            cutoff: float,
+            cutoff: float | None,
             tol: float = 0.5) -> None:
         """Setup structure filter.
         ORIGIN is the beginning of diffusion pair (Structure).
@@ -47,7 +47,10 @@ class _StructFilter():
         """
         self.rejected = []
         self.origin = origin
-        self.cutoff = cutoff
+        if cutoff is None:
+            self.cutoff = float("inf")
+        else:
+            self.cutoff = cutoff
         self.tol = tol
 
     def is_equiv(self, end1, end2):
