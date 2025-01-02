@@ -161,16 +161,21 @@ def _pair_post_filter(unique_pairs, all_clones):
     visited = [False] * len(all_clones)
 
     with alive_bar(len(all_clones), title='Post-filtering') as progress_bar:
-        def dfs(from_idx):
+        def dfs(from_idx, dist_cutoff=float("inf")):
             visited[from_idx] = True
             progress_bar()  # pylint: disable=not-callable
             from_struct = all_clones[from_idx]
             distances = [(structure_distance(from_struct, to_struct), to_idx)
                          for to_idx, to_struct in enumerate(all_clones)
                          if not visited[to_idx]]
-            for _, to_idx in sorted(distances):
-                add_pair_maybe((from_struct, all_clones[to_idx]))
-                dfs(to_idx)
+            for dist, to_idx in sorted(distances):
+                if not visited[to_idx] and not dist > dist_cutoff:
+                    logger.info(
+                        "coverage: %s -> %s (%f)",
+                        from_idx, to_idx, dist
+                    )
+                    add_pair_maybe((from_struct, all_clones[to_idx]))
+                    dfs(to_idx, dist)
         dfs(0)
     return [p for idx, p in enumerate(unique_pairs) if use_pair[idx]]
 
