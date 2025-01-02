@@ -5,7 +5,6 @@ from alive_progress import alive_bar
 from pymatgen.core import Structure
 from pymatgen.analysis.structure_matcher import StructureMatcher
 import numpy as np
-from pulp import LpProblem, LpVariable, lpSum, LpInteger, LpStatus
 from IMDgroup.pymatgen.core.structure import merge_structures
 from IMDgroup.pymatgen.transformations.symmetry_clone\
     import SymmetryCloneTransformation
@@ -28,53 +27,6 @@ def _struct_is_equiv(
     return False
 
 
-def find_linear_decomposition(basis, target_vector, tolerance=None):
-    """Find its positive integer decomposition of TARGET_VECTOR in BASIS.
-    TARGET_VECTOR and BASIS components must be 1-dimemtional.
-    TOLERANCE, when provided is comparison accuracy (within each dimetion).
-    Return a list of coefficients for BASIS or None if decomposition
-    is not possible.
-
-    Decomposition coefficients will be 0 or positive integers.
-    """
-
-    model = LpProblem("LinearDecompositionWithAbs")
-
-    # FIXME: Withoug limits, we may pretty much always make
-    # coefficients large enough to beat TOLERANCE, but what should be
-    # these limits?
-    limit = 10
-    tolerance = tolerance/limit
-    coeffs = [LpVariable(f"x{i}", -limit, limit, cat=LpInteger)
-              for i in range(len(basis))]
-
-    for j in range(target_vector.shape[0]):  # Iterate through each dimension
-        if tolerance is None:
-            model += (lpSum(coeffs[i] * basis[i][j]
-                            for i in range(len(basis))) ==
-                      target_vector[j],
-                      f"CombinationConstraint_{j}")
-        else:
-            model += (lpSum(coeffs[i] * basis[i][j]
-                            for i in range(len(basis))) <=
-                      target_vector[j] + tolerance,
-                      f"UpperBoundConstraint_{j}")
-            model += (lpSum(coeffs[i] * basis[i][j]
-                            for i in range(len(basis))) >=
-                      target_vector[j] - tolerance,
-                      f"LowerBoundConstraint_{j}")
-    for i in range(len(basis)):
-        model += coeffs[i] >= 0, f"Non-negative_coeff_{i}"
-
-    # Solve the problem
-    model.solve()
-
-    if LpStatus[model.status] == 'Optimal':
-        return [coeff.varValue for coeff in coeffs]  # Return the coefficients
-    else:
-        return None  # No solution found
-
-
 class _StructFilter():
     """Structure filter that rejects equivalent diffusion pairs.
     Given a structure STRUCT and ORIGIN, STRUCT+ORIGIN combined will
@@ -87,19 +39,15 @@ class _StructFilter():
             self,
             origin: Structure,
             cutoff: float,
-            discard_combinations=False,
             tol: float = 0.5) -> None:
         """Setup structure filter.
         ORIGIN is the beginning of diffusion pair (Structure).
         CUTOFF and TOL are the largest and smallest distances between
         ORIGIN and filtered structure for structure to be accepted.
-        DISCARD_COMBINATIONS, when True, filters out diffusion
-        paths are are combinations of multiple other paths (approximation).
         """
         self.rejected = []
         self.origin = origin
         self.cutoff = cutoff
-        self.discard_combinations = discard_combinations
         self.tol = tol
 
     def is_equiv(self, end1, end2):
@@ -124,44 +72,6 @@ class _StructFilter():
                 v[idx] = v[idx] if np.abs(coord) > frac_tol else 0
             return v
         return np.array([0, 0, 0])
-
-    def is_linear_combination(
-            self, end: Structure, base: list[Structure]) -> bool:
-        """Return True when END structure is a linear combination of BASE.
-        Linear combination here implies only natural coefficients.
-        BASE is a list of structures.
-
-        The idea of this filter is that diffusion path that can be
-        constructed from shorted paths will end up going exactly
-        through them.  Such idea is only an approximation that is
-        likely valid for very distant paths, but may not be valid for
-        shorter. Consider, for example, 1-3 vs 1-2-3 path. 1-2 and 2-3
-        barrier may, in some cases be higher than 1-3, especially for
-        more complex structures. So, such an approach would only be
-        approximation applicable to certain simple systems.
-        """
-        v1 = structure_diff(self.origin, end)
-        v_base = [structure_diff(self.origin, s) for s in base]
-
-        # Ignore too small displacement (according to self.tol)
-        v1 = np.array([self._zero_small(v) for v in v1])
-        v_base = [np.array([self._zero_small(v) for v in v2]) for v2 in v_base]
-
-        logger.debug(
-            "Linear combination? %s",
-            [v for v in v1 if not np.array_equal(v, [0, 0, 0])])
-        logger.debug(
-            "Basis: %s",
-            [[v for v in b if not np.array_equal(v, [0, 0, 0])]
-             for b in v_base])
-
-        result = find_linear_decomposition(
-            np.array([v.flatten() for v in v_base]),
-            v1.flatten(),
-            tolerance=self.tol/np.max(self.origin.lattice.abc))
-        if result is not None:
-            logger.debug("Coefficients: %s", result)
-        return result
 
     def is_multiple(self, end1: Structure, end2: Structure) -> bool:
         """Return True when END2 path is a multiple of END1 path wrt ORIGIN.
@@ -237,7 +147,6 @@ class _StructFilter():
             key=lambda clone: structure_distance(self.origin, clone),
             reverse=True)
 
-        rejected_combinations = []
         with alive_bar(len(clones), title='Post-filtering') as progress_bar:
             for clone in clones:
                 uniq = True
@@ -247,22 +156,6 @@ class _StructFilter():
                        self.is_multiple(other, clone):
                         uniq = False
                         break
-                if uniq and self.discard_combinations:
-                    base = []
-                    # Remove already discarded combination from base
-                    for c in clones + self.rejected:
-                        if not self.is_equiv(c, clone) and\
-                           all(not self.is_equiv(c, rej)
-                               for rej in rejected_combinations):
-                            base.append(c)
-                    if len(base) > 0 and\
-                       self.is_linear_combination(clone, base):
-                        logger.info(
-                            "Found linear combination (dist=%f)",
-                            structure_distance(self.origin, clone)
-                        )
-                        rejected_combinations.append(clone)
-                        uniq = False
                 progress_bar()  # pylint: disable=not-callable
                 if uniq:
                     filtered.append(clone)
@@ -273,22 +166,18 @@ def get_neb_pairs_1(
         origin: Structure,
         target: Structure,
         prototype: Structure,
-        cutoff: float | None = None,
-        discard_combinations=False) -> list[tuple[Structure, Structure]]:
+        cutoff: float | None = None) -> list[tuple[Structure, Structure]]:
     """Construct all possible unique diffusion pairs between ORIGIN and TARGET.
     ORIGIN is always taken as beginning of diffusion.
     Diffusion end points are taken by applying all possible symmetry
     operations of PROTOTYPE onto TARGET.
     End points that are further than CUTOFF are discarded.
-    When DISCARD_COMBINATIONS is True, discard diffusion paths
-    that can be constructed as a combination of other paths. (This is
-    an approximation and thus disabled by default).
 
     Return a list of tuples representing begin/end structure pairs.
     """
     trans = SymmetryCloneTransformation(
         prototype,
-        filter_cls=_StructFilter(origin, cutoff, discard_combinations))
+        filter_cls=_StructFilter(origin, cutoff))
     clones = trans.get_all_clones(target)
 
     logger.info('Found %d pairs', len(clones))
@@ -302,8 +191,7 @@ def get_neb_pairs_1(
 def get_neb_pairs(
         structures: list[Structure],
         prototype: Structure,
-        cutoff: float | None = None,
-        discard_combinations=False)\
+        cutoff: float | None = None)\
         -> list[tuple[Structure, Structure]]:
     """Construct all possible unique diffusion pairs from STRUCTURES.
     The STRUCTURES must all be derived from PROTOTYPE structure (have
@@ -319,10 +207,6 @@ def get_neb_pairs(
     that require moving atoms more than CUTOFF ans will be discarded.
     The exact criterion is: sum of all atom displacements to change
     one structure into another must be no larger than CUTOFF.
-
-    When DISCARD_COMBINATIONS is True, discard diffusion paths
-    that can be constructed as a combination of other paths. (This is
-    an approximation and thus disabled by default).
 
     Returns a list of tuples containing begin/end structures.
     """
@@ -344,5 +228,5 @@ def get_neb_pairs(
                 "gen_neb_pairs: searching pairs %d -> %d ...",
                 idx, idx2+idx)
             pairs += get_neb_pairs_1(
-                origin, target, prototype, cutoff, discard_combinations)
+                origin, target, prototype, cutoff)
     return pairs
