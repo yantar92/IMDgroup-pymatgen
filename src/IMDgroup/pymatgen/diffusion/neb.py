@@ -1,15 +1,13 @@
 """NEB pair generator for diffusion paths.
 """
 import logging
-from alive_progress import alive_bar
 from pymatgen.core import Structure
 from pymatgen.analysis.structure_matcher import StructureMatcher
 import numpy as np
 from IMDgroup.pymatgen.core.structure import merge_structures
 from IMDgroup.pymatgen.transformations.symmetry_clone\
     import SymmetryCloneTransformation
-from IMDgroup.pymatgen.core.structure import\
-    (structure_distance, structure_diff)
+from IMDgroup.pymatgen.core.structure import structure_distance
 
 logger = logging.getLogger(__name__)
 
@@ -63,59 +61,6 @@ class _StructFilter():
             return True
         return False
 
-    def _zero_small(self, v):
-        """Return v when it is large. Return 0 vector otherwise.
-        When v has small components, zero them out as well.
-        """
-        cart = self.origin.lattice.get_cartesian_coords(v)
-        norm = np.linalg.norm(cart)
-        if norm > self.tol:
-            for idx, coord in enumerate(v):
-                frac_tol = self.tol/self.origin.lattice.abc[idx]
-                v[idx] = v[idx] if np.abs(coord) > frac_tol else 0
-            return v
-        return np.array([0, 0, 0])
-
-    def is_multiple(self, end1: Structure, end2: Structure) -> bool:
-        """Return True when END2 path is a multiple of END1 path wrt ORIGIN.
-        The multiplication coefficient must be positive (path in
-        opposite direction is a *different* path.
-        """
-        v1 = structure_diff(self.origin, end1)
-        v2 = structure_diff(self.origin, end2)
-
-        # Ignore too small displacement (according to self.tol)
-        v1 = np.array([self._zero_small(v) for v in v1])
-        v2 = np.array([self._zero_small(v) for v in v2])
-
-        logger.debug(
-            "Multiple? %s -> %s",
-            [v for v in v1 if not np.array_equal(v, [0, 0, 0])],
-            [v for v in v2 if not np.array_equal(v, [0, 0, 0])])
-
-        # 0/0 would throw a warning.  We don't care about it here.
-        with np.errstate(divide='ignore'):
-            fracs = np.divide(v2, v1)
-        max_mult = np.round(np.nanmax(fracs))
-        min_mult = np.round(np.nanmin(fracs))
-
-        logger.debug("Multipliers: %s...%s", min_mult, max_mult)
-
-        if max_mult != min_mult:
-            return False
-
-        # Path in opposite direction is a *different* path
-        if max_mult < 0:
-            return False
-
-        end1_mult = self.origin.copy()
-        for idx in range(len(end1_mult)):
-            end1_mult.translate_sites([idx], v1[idx]*max_mult)
-        if structure_distance(end1_mult, end2, tol=self.tol) == 0:
-            logger.info("Found multiple: %dx", max_mult)
-            return True
-        return False
-
     def filter(self, clone, clones):
         """Return False if CLONE should be rejected.
         Return True otherwise.
@@ -141,27 +86,13 @@ class _StructFilter():
     def final_filter(self, clones):
         """Filter out diffusion paths that are multiples of other paths.
         """
-        filtered = []
-
         # Sort structures inversely by distance from reference STRUCTURE
         # This way, we will filter out longer paths first.
-        clones = sorted(
+        filtered = sorted(
             clones,
             key=lambda clone: structure_distance(self.origin, clone),
             reverse=True)
 
-        with alive_bar(len(clones), title='Post-filtering') as progress_bar:
-            for clone in clones:
-                uniq = True
-                for other in (clones + self.rejected):
-                    if clone != other and\
-                       not self.is_equiv(clone, other) and\
-                       self.is_multiple(other, clone):
-                        uniq = False
-                        break
-                progress_bar()  # pylint: disable=not-callable
-                if uniq:
-                    filtered.append(clone)
         return filtered
 
 
