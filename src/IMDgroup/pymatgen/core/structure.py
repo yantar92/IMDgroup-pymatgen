@@ -1,6 +1,7 @@
 """Extension for pymatgen.core.structure
 """
 import logging
+import warnings
 import numpy as np
 from pymatgen.core import Structure
 
@@ -76,8 +77,20 @@ def structure_distance(
     # re-ordered (to match structure1) final structure as output
     # This also performs the necessary assertions about structure
     # similarity
-    str2 = structure1.interpolate(
-        structure2, 2, autosort_tol=0.5)[2]
+    try:
+        str2 = structure1.interpolate(
+            structure2, 2, autosort_tol=0.5)[2]
+    except ValueError:
+        # Fall back to direct interpolation
+        # Structures are way too different, so the best we can do is
+        # assuming that the site order is right
+        warnings.warn("Computing distance between dissimilar structures")
+        # At least, make sure that we are not mapping one species into another.
+        for site1, site2 in zip(structure1, structure2):
+            assert site1.species == site2.species
+        str2 = structure1.interpolate(
+            structure2, 2)[2]
+
 
     tot_distance = 0
     for node1, node2 in zip(str1, str2):
