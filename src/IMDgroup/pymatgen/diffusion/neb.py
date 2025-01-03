@@ -208,7 +208,7 @@ def _pair_post_filter(unique_pairs, all_clones):
             queue = [idx for idx, v in enumerate(visited) if v]
             bfs1(queue, dist)
 
-        raise AssertionError("bfs: This must not happen")
+        raise AssertionError(f"bfs: This must not happen (visited: {visited})")
 
 
 def get_neb_pairs(
