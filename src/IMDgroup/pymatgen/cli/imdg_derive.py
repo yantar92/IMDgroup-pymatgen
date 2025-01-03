@@ -609,6 +609,11 @@ def neb_diffusion_add_args(parser):
         help="NEB images with atoms less than frac_tol * sum of radiuses will not be generated",
         type=float,
         default=0.75)
+    parser.add_argument(
+        "--remove_compound",
+        help="Filter out diffusion paths that may be constructed out of shorter paths",
+        action="store_true",
+    )
 
 
 def neb_diffusion(args):
@@ -633,7 +638,8 @@ def neb_diffusion(args):
         structure.properties['origin_path'] = struct_path
         structures.append(structure)
 
-    pairs = get_neb_pairs(structures, prototype, args.cutoff)
+    pairs = get_neb_pairs(
+        structures, prototype, args.cutoff, args.remove_compound)
 
     result = []
     for idx, (beg, end) in enumerate(pairs):
