@@ -629,7 +629,7 @@ class IMDNEBVaspInputSet(IMDDerivedInputSet):
             inputset = IMDVaspInputSet(
                 no_kpoints=True, no_potcar=True,
                 # Avoid pymatgen automatically adding parameters
-                inherit_incar=True, prev_incar=[])
+                inherit_incar=True, prev_incar={})
             # FIXME: We cannot pass structure via structure= parameter because
             # pymatgen has a bug with _structure vs. structure
             # parameters being completely messed up
