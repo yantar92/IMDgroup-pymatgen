@@ -7,6 +7,7 @@ import argparse
 import dataclasses
 import logging
 import numpy as np
+import pymatgen.core as pmg
 from pymatgen.io.vasp.outputs import Vasprun
 from IMDgroup.pymatgen.diffusion.neb import get_neb_pairs
 from IMDgroup.pymatgen.io.vasp.sets\
@@ -615,8 +616,13 @@ def neb_diffusion(args):
     Return (inputset, output_dir_suffix)
     """
     logger.info("Reading prototype from %s", args.input_directory)
-    prototype_run = Vasprun(os.path.join(args.input_directory, 'vasprun.xml'))
-    prototype = prototype_run.final_structure
+    if os.path.isdir(args.input_directory):
+        prototype_run = Vasprun(os.path.join(
+            args.input_directory, 'vasprun.xml'))
+        prototype = prototype_run.final_structure
+    else:
+        # Try to load structure from file
+        prototype = pmg.Structure.from_file(args.input_directory)
 
     structures = []
     for struct_path in args.diffusion_points:
