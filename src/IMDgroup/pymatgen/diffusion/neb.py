@@ -198,7 +198,7 @@ def _pair_post_filter(unique_pairs, all_clones):
         visited[0] = True
         progress_bar()  # pylint: disable=not-callable
         for dist in np.unique(distance_matrix, axis=None):
-            logger.info(
+            logger.debug(
                 "Trying to reach all the sites via <=%.2f long paths",
                 dist
             )
