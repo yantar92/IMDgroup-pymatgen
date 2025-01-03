@@ -586,9 +586,23 @@ class IMDNEBVaspInputSet(IMDDerivedInputSet):
                     f"INCARs in {self.directory} and {self.target_directory}"
                     f" are inconsistent: {diff['Different']}")
 
+        self.update_images()
+
+    def update_images(self, beg=None, end=None):
+        """Update self.images to be interpolation of BEG..END.
+        BEG and END are structures to interpolate between.
+        If not provided, BEG is taken from self.structure and
+        END is taken from self.target_structure.
+        """
+        if beg is None:
+            beg = self.structure
+        if end is None:
+            end = self.target_structure
+        else:
+            self.target_structure = end
         try:
             str_images = structure_interpolate2(
-                self.structure, self.target_structure,
+                beg, end,
                 nimages=self.incar["IMAGES"]+1,
                 frac_tol=self.frac_tol, autosort_tol=0.5)
         except ValueError:
@@ -599,7 +613,7 @@ class IMDNEBVaspInputSet(IMDDerivedInputSet):
                 BadInputSetWarning
             )
             str_images = structure_interpolate2(
-                self.structure, self.target_structure,
+                beg, end,
                 nimages=self.incar["IMAGES"]+1,
                 frac_tol=self.frac_tol, autosort_tol=0)
 

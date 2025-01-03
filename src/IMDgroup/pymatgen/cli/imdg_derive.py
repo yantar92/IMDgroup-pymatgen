@@ -649,8 +649,7 @@ def neb_diffusion(args):
             fix_cutoff=args.fix_dist if args.fix_dist > 0 else None,
             frac_tol=args.frac_tol,
             user_incar_settings={'IMAGES': args.nimages})
-        inputset.structure = beg
-        inputset.target_structure = end
+        inputset.update_images(beg, end)
         output_dir_suffix = f"NEB.{idx:02}"
         result.append((inputset, output_dir_suffix))
     return result
