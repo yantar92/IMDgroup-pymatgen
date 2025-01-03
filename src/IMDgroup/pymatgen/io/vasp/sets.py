@@ -582,9 +582,11 @@ class IMDNEBVaspInputSet(IMDDerivedInputSet):
             target_incar = end_run.parameters
             diff = source_incar.diff(target_incar)
             if len(diff['Different']) > 0:
-                raise ValueError(
+                warnings.warn(
                     f"INCARs in {self.directory} and {self.target_directory}"
-                    f" are inconsistent: {diff['Different']}")
+                    f" are inconsistent: {diff['Different']}",
+                    BadInputSetWarning
+                )
 
         self.update_images()
 
