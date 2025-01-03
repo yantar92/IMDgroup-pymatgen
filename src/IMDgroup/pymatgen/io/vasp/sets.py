@@ -586,10 +586,23 @@ class IMDNEBVaspInputSet(IMDDerivedInputSet):
                     f"INCARs in {self.directory} and {self.target_directory}"
                     f" are inconsistent: {diff['Different']}")
 
-        str_images = structure_interpolate2(
-            self.structure, self.target_structure,
-            nimages=self.incar["IMAGES"]+1,
-            frac_tol=self.frac_tol, autosort_tol=0.5)
+        try:
+            str_images = structure_interpolate2(
+                self.structure, self.target_structure,
+                nimages=self.incar["IMAGES"]+1,
+                frac_tol=self.frac_tol, autosort_tol=0.5)
+        except ValueError:
+            # Auto-sorting sites failed.
+            # Fall back to 1-to-1 site matching
+            warnings.warn(
+                "Automatic match failed.  Assuming 1-to-1 site mapping during structure interpolation",
+                BadInputSetWarning
+            )
+            str_images = structure_interpolate2(
+                self.structure, self.target_structure,
+                nimages=self.incar["IMAGES"]+1,
+                frac_tol=self.frac_tol, autosort_tol=0)
+
         for image in str_images:
             assert structure_is_valid2(image, self.frac_tol)
         self._fix_atoms_maybe(str_images)  # modify by side effect
