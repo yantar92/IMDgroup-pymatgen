@@ -142,15 +142,27 @@ def _pair_post_filter(unique_pairs, all_clones):
     The return value will be a subset of shortest possible
     UNIQUE_PAIRS sufficient to cover ALL_CLONES.
     """
-    use_pair = [False] * len(unique_pairs)
     matcher = StructureMatcher(attempt_supercell=True, scale=False)
 
+    distance_matrix = np.zeros((len(all_clones), len(all_clones)))
+    for from_idx, from_struct in enumerate(all_clones):
+        for to_idx, to_struct in enumerate(all_clones):
+            if from_idx < to_idx:
+                distance_matrix[from_idx][to_idx] = \
+                    structure_distance(from_struct, to_struct)
+            elif from_idx == to_idx:
+                distance_matrix[from_idx][to_idx] = 0
+            else:
+                distance_matrix[from_idx][to_idx] = \
+                    distance_matrix[to_idx][from_idx]
+
+    use_pair = [False] * len(unique_pairs)
     def add_pair_maybe(pair):
         for idx, known_pair in enumerate(unique_pairs):
             if np.isclose(
                     structure_distance(pair[0], pair[1]),
-                    structure_distance(known_pair[0], known_pair[1])) and\
-                matcher.fit(
+                    structure_distance(known_pair[0], known_pair[1]))\
+                and matcher.fit(
                     merge_structures([pair[0], pair[1]]),
                     merge_structures([known_pair[0], known_pair[1]])):
                 use_pair[idx] = True
@@ -160,24 +172,43 @@ def _pair_post_filter(unique_pairs, all_clones):
 
     visited = [False] * len(all_clones)
 
-    with alive_bar(len(all_clones), title='Post-filtering') as progress_bar:
-        def dfs(from_idx, dist_cutoff=float("inf")):
-            visited[from_idx] = True
-            progress_bar()  # pylint: disable=not-callable
-            from_struct = all_clones[from_idx]
-            distances = [(structure_distance(from_struct, to_struct), to_idx)
-                         for to_idx, to_struct in enumerate(all_clones)
-                         if not visited[to_idx]]
-            for dist, to_idx in sorted(distances):
-                if not visited[to_idx] and not dist > dist_cutoff:
-                    logger.info(
-                        "coverage: %s -> %s (%f)",
-                        from_idx, to_idx, dist
-                    )
-                    add_pair_maybe((from_struct, all_clones[to_idx]))
-                    dfs(to_idx, dist)
-        dfs(0)
-    return [p for idx, p in enumerate(unique_pairs) if use_pair[idx]]
+    with alive_bar(
+            len(all_clones), title='Post-filtering') as progress_bar:
+
+        def bfs1(queue, dist_cutoff):
+            while len(queue) > 0:
+                from_idx = queue.pop(0)
+                from_struct = all_clones[from_idx]
+                if not visited[from_idx]:
+                    visited[from_idx] = True
+                    progress_bar()  # pylint: disable=not-callable
+                distances = [(dist, to_idx)
+                             for to_idx, dist
+                             in enumerate(distance_matrix[from_idx])
+                             if not visited[to_idx]]
+                for dist, to_idx in sorted(distances):
+                    if not visited[to_idx] and not dist > dist_cutoff:
+                        logger.info(
+                            "coverage: %s -> %s (%f)",
+                            from_idx, to_idx, dist
+                        )
+                        to_struct = all_clones[to_idx]
+                        add_pair_maybe((from_struct, to_struct))
+                        queue.append(to_idx)
+        visited[0] = True
+        progress_bar()  # pylint: disable=not-callable
+        for dist in np.unique(distance_matrix, axis=None):
+            if all(visited):
+                return [p for idx, p in enumerate(unique_pairs)
+                        if use_pair[idx]]
+            logger.info(
+                "Trying to reach all the sites via <=%.2f long paths",
+                dist
+            )
+            queue = [idx for idx, v in enumerate(visited) if v]
+            bfs1(queue, dist)
+
+        raise AssertionError("This must not happen")
 
 
 def get_neb_pairs(
