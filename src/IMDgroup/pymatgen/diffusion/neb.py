@@ -198,15 +198,15 @@ def _pair_post_filter(unique_pairs, all_clones):
         visited[0] = True
         progress_bar()  # pylint: disable=not-callable
         for dist in np.unique(distance_matrix, axis=None):
-            if all(visited):
-                return [p for idx, p in enumerate(unique_pairs)
-                        if use_pair[idx]]
             logger.info(
                 "Trying to reach all the sites via <=%.2f long paths",
                 dist
             )
             queue = [idx for idx, v in enumerate(visited) if v]
             bfs1(queue, dist)
+            if all(visited):
+                return [p for idx, p in enumerate(unique_pairs)
+                        if use_pair[idx]]
 
         raise AssertionError(f"bfs: This must not happen (visited: {visited})")
 
