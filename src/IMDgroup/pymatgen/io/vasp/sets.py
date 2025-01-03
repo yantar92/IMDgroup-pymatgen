@@ -72,15 +72,16 @@ class IMDVaspInputSet(VaspInputSet):
        anything other then None or the first image structure will
        raise an error.
     9. New arguments NO_KPOINTS to suppress writing KPOINTS file,
-       NO_POTCAR to suppress writing POTCAR file, and NO_POSCAR to
-       suppress writing POSCAR file.
-    completely.
+       NO_POTCAR to suppress writing POTCAR file, NO_POSCAR to
+       suppress writing POSCAR file, and NO_INCAR to suppress INCAR
+       file completely.
     """
     functional: str | None = None
     images: list[Self] | None = None
     no_kpoints: bool = False
     no_potcar: bool = False
     no_poscar: bool = False
+    no_incar: bool = False
     __structure: Structure | None = None
 
     CONFIG = {'INCAR': {}, 'POTCAR_FUNCTIONAL': "PBE_64"}
@@ -152,6 +153,8 @@ class IMDVaspInputSet(VaspInputSet):
     @property
     def incar(self) -> Incar:
         """The INCAR.  Also, automatically derive SYSTEM name."""
+        if self.no_incar:
+            return None
         incar = super().incar
 
         # Empty incar.  Do nothing.
@@ -629,7 +632,7 @@ class IMDNEBVaspInputSet(IMDDerivedInputSet):
             inputset = IMDVaspInputSet(
                 no_kpoints=True, no_potcar=True,
                 # Avoid pymatgen automatically adding parameters
-                inherit_incar=True, prev_incar={})
+                no_incar=True)
             # FIXME: We cannot pass structure via structure= parameter because
             # pymatgen has a bug with _structure vs. structure
             # parameters being completely messed up
