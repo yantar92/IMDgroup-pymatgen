@@ -497,6 +497,10 @@ class IMDStandardVaspInputSet(IMDVaspInputSet):
         super().__post_init__()
 
 
+class IMDNEBVaspInputSetWarning(UserWarning):
+    """Warning from IMDNEBVaspInputSet."""
+
+
 @dataclass
 class IMDNEBVaspInputSet(IMDDerivedInputSet):
     """Input set for NEB calculations.
@@ -563,7 +567,8 @@ class IMDNEBVaspInputSet(IMDDerivedInputSet):
         if incar['IBRION'] != 1:
             warnings.warn(
                 f"IBRION({incar['IBRION']}) ≠ 1.  Forcing IBRION=1\n"
-                "See https://www.vasp.at/wiki/index.php/SPRING"
+                "See https://www.vasp.at/wiki/index.php/SPRING",
+                IMDNEBVaspInputSetWarning
             )
         return incar
 
