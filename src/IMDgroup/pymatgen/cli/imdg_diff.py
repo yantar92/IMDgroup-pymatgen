@@ -139,12 +139,7 @@ def diff_structures(args):
     """
     args.dirs = [d for d in args.dirs if os.path.isdir(d)]
     structures = _read_structures(sorted(args.dirs), args.poscar, args.vasprun)
-    # 2x tigher tolerance compared to the defaults.
-    # With defaults, structures different by ~0.1eV could be matched
-    # according to tests.
-    # Going even lower does not help much though - we have to account
-    # actual energy from VASP to distinguish structures.
-    matcher = StructureMatcher(ltol=0.1, stol=0.15, angle_tol=2.5)
+    matcher = StructureMatcher(attempt_supercell=True, scale=False)
 
     def _structures_eq(str1, str2):
         """Compare structures STR1 and STR2 for equality.
