@@ -605,8 +605,13 @@ def neb_diffusion_add_args(parser):
         type=float,
         default=-1)
     parser.add_argument(
+        "--method",
+        help="Interpolation method: 'linear' or 'IDPP' (default)",
+        type=str,
+        default='IDPP')
+    parser.add_argument(
         "--frac_tol",
-        help="NEB images with atoms less than frac_tol * sum of radiuses will not be generated",
+        help="when method='linear', NEB images with atoms less than frac_tol * sum of radiuses will not be generated",
         type=float,
         default=0.75)
     parser.add_argument(
@@ -647,6 +652,7 @@ def neb_diffusion(args):
             directory=beg.properties['origin_path'],
             target_directory=end.properties['origin_path'],
             fix_cutoff=args.fix_dist if args.fix_dist > 0 else None,
+            method=args.method,
             frac_tol=args.frac_tol,
             user_incar_settings={'IMAGES': args.nimages})
         inputset.update_images(beg, end)

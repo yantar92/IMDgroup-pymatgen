@@ -10,7 +10,6 @@ from glob import glob
 from pathlib import Path
 from dataclasses import dataclass
 from typing import Self
-import numpy as np
 from pymatgen.io.vasp.sets import VaspInputSet, BadInputSetWarning
 from pymatgen.io.vasp.inputs import Potcar, Kpoints, Poscar
 from pymatgen.io.vasp.outputs import Vasprun
@@ -20,8 +19,10 @@ from pymatgen.ext.matproj import MPRester
 from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
 from ase.calculators.vasp.setups \
     import setups_defaults as ase_potential_defaults
+from ase.mep import idpp_interpolate
 from IMDgroup.pymatgen.core.structure import\
     merge_structures, structure_interpolate2, structure_is_valid2
+from IMDgroup.pymatgen.io.ase.ase import IMDGAseAtomsAdaptor
 from IMDgroup.pymatgen.io.vasp.inputs import Incar, _load_yaml_config, nebp, neb_dirs
 from IMDgroup.pymatgen.cli.imdg_visualize import\
     write_selective_dynamics_summary_maybe
@@ -508,14 +509,22 @@ class IMDNEBVaspInputSet(IMDDerivedInputSet):
     are further away from atoms that move during NEB than FIX_CUTOFF
     angstrom.
 
-    Optional argument FRAC_TOL controls proximity threshold for
-    generated images.  When a distance between some atoms in a
-    generated image is less than sum of their radiuses times FRAC_TOL,
-    such image is avoided.  Default: 0.5
+    Optional argument METHOD controls interpolation method.
+    Possible values:
+    - 'IDPP' (default): Use image dependent pair potential method from ASE.
+      Method description: Søren Smidstrup, Andreas Pedersen, Kurt
+      Stokbro and Hannes Jónsson Chem. Phys. 140, 214106 (2014)
+    - 'linear': Use linear interpolation.
+
+    When METHOD is 'linear', optional argument FRAC_TOL controls
+    proximity threshold for generated images.  When a distance between
+    some atoms in a generated image is less than sum of their radiuses
+    times FRAC_TOL, such image is avoided.  Default: 0.5
     """
     target_directory: str | None = None
     fix_cutoff: float | None = None
     frac_tol: float = 0.5
+    method: str = 'IDPP'
 
     # According to Henkelman et al JCP 2000 (doi: 10.1063/1.1329672),
     # the typical number of images is 4-20.  We take smaller number as
@@ -605,11 +614,12 @@ class IMDNEBVaspInputSet(IMDDerivedInputSet):
             end = self.target_structure
         else:
             self.target_structure = end
+        frac_tol = 0 if self.method == 'IDPP' else self.frac_tol
         try:
             str_images = structure_interpolate2(
                 beg, end,
                 nimages=self.incar["IMAGES"]+1,
-                frac_tol=self.frac_tol, autosort_tol=0.5)
+                frac_tol=frac_tol, autosort_tol=0.5)
         except ValueError:
             # Auto-sorting sites failed.
             # Fall back to 1-to-1 site matching
@@ -620,11 +630,20 @@ class IMDNEBVaspInputSet(IMDDerivedInputSet):
             str_images = structure_interpolate2(
                 beg, end,
                 nimages=self.incar["IMAGES"]+1,
-                frac_tol=self.frac_tol, autosort_tol=0)
+                frac_tol=frac_tol, autosort_tol=0)
 
         for image in str_images:
             assert structure_is_valid2(image, self.frac_tol)
         self._fix_atoms_maybe(str_images)  # modify by side effect
+
+        if self.method == 'IDPP':
+            adaptor = IMDGAseAtomsAdaptor()
+            images_ase = [adaptor.get_atoms(i) for i in str_images]
+            # idpp_interpolate(images_ase, fmax=0.001)
+            # mic=True is important as periodic boundary conditions are not
+            # considered between images otherwise
+            idpp_interpolate(images_ase, mic=True)
+            str_images = [adaptor.get_structure(s) for s in images_ase]
 
         # Setup NEB image VASP inputsets
         self.images = []
