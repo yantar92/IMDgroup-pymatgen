@@ -1,6 +1,7 @@
 """NEB pair generator for diffusion paths.
 """
 import logging
+import warnings
 from alive_progress import alive_bar
 import numpy as np
 from pymatgen.core import Structure
@@ -12,16 +13,25 @@ from IMDgroup.pymatgen.core.structure import structure_distance
 
 logger = logging.getLogger(__name__)
 
+class StructureDuplicateWarning(UserWarning):
+    """Warning class for duplicate input structures."""
 
 def _struct_is_equiv(
         struct: Structure,
-        known_structs: list[Structure]):
+        known_structs: list[Structure],
+        warn=False):
     """Return True when STRUCT is equivalent to any KNOWN_STRUCTS.
     Otherwise, return False.
+    When WARN is True, display warning when duplicate is found.
     """
     matcher = StructureMatcher(attempt_supercell=True, scale=False)
     for known in known_structs:
         if matcher.fit(struct, known):
+            if warn:
+                warnings.warn(
+                    "Duplicate structures found",
+                    StructureDuplicateWarning
+                )
             return True
     return False
 
@@ -244,13 +254,13 @@ def get_neb_pairs(
     """
     uniq_structures = []
     logger.info(
-        "gen_neb_pairs: removing duplicates among %d structures...",
+        "gen_neb_pairs: Checking duplicates among %d structures...",
         len(structures))
     for struct in structures:
-        if not _struct_is_equiv(struct, uniq_structures):
+        if not _struct_is_equiv(struct, uniq_structures, warn=True):
             uniq_structures.append(struct)
     logger.info(
-        "gen_neb_pairs: removing duplicates... done (removed %d)",
+        "gen_neb_pairs: Checking duplicates... done (removed %d)",
         len(structures)-len(uniq_structures))
 
     pairs = []
