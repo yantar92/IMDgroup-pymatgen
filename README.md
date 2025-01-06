@@ -21,8 +21,11 @@ research that is performed in [Inverse Materials Design group](https://www.oimal
 
 # Features
 
--   Generate all possible unique insertion sites of an atom or molecule
-    into a given structure.
+-   Command line tools to generate, monitor, and post-process VASP inputs
+-   Finding all possible unique insertion sites of an atom or molecule
+    into a given structure
+-   Finding all unique diffusion paths for an interstitial atom or
+    molecule
 -   VASP input set optimized for cellulose relaxation.
     See Yadav, Malyi 2024 Cellulose (doi: [10.1007/s10570-024-05754-7](https://doi.org/10.1007/s10570-024-05754-7))
 
