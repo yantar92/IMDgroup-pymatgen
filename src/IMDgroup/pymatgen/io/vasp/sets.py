@@ -643,7 +643,7 @@ class IMDNEBVaspInputSet(IMDDerivedInputSet):
             # idpp_interpolate(images_ase, fmax=0.001)
             # mic=True is important as periodic boundary conditions are not
             # considered between images otherwise
-            idpp_interpolate(images_ase, mic=True)
+            idpp_interpolate(images_ase, mic=True, traj=None)
             str_images = [adaptor.get_structure(s) for s in images_ase]
 
         # Setup NEB image VASP inputsets
