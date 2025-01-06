@@ -559,6 +559,12 @@ class IMDNEBVaspInputSet(IMDDerivedInputSet):
                 "IMAGES=0 makes no sense for NEB",
                 BadInputSetWarning,
             )
+
+        if incar['IBRION'] != 1:
+            warnings.warn(
+                f"IBRION({incar['IBRION']}) ≠ 1.  Forcing IBRION=1\n"
+                "See https://www.vasp.at/wiki/index.php/SPRING"
+            )
         return incar
 
     def __post_init__(self) -> None:
