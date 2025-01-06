@@ -24,7 +24,8 @@ def _struct_is_equiv(
     Otherwise, return False.
     When WARN is True, display warning when duplicate is found.
     """
-    matcher = StructureMatcher(attempt_supercell=True, scale=False)
+    matcher = StructureMatcher(ltol=0.1, stol=0.15, angle_tol=2.5)
+    # matcher = StructureMatcher(attempt_supercell=True, scale=False)
     for known in known_structs:
         if matcher.fit(struct, known):
             if warn:
