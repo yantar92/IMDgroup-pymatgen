@@ -632,8 +632,9 @@ class IMDNEBVaspInputSet(IMDDerivedInputSet):
                 nimages=self.incar["IMAGES"]+1,
                 frac_tol=frac_tol, autosort_tol=0)
 
-        for image in str_images:
-            assert structure_is_valid2(image, self.frac_tol)
+        if self.method != 'IDPP':
+            for image in str_images:
+                assert structure_is_valid2(image, self.frac_tol)
         self._fix_atoms_maybe(str_images)  # modify by side effect
 
         if self.method == 'IDPP':
