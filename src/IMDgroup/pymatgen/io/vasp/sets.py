@@ -623,6 +623,16 @@ class IMDNEBVaspInputSet(IMDDerivedInputSet):
 
         self.update_images()
 
+    def write_input(self, output_dir, **kwargs) -> None:
+        """Write a set of VASP input to OUTPUT_DIR."""
+        super().write_input(output_dir, **kwargs)
+        # Save information about the initial/final image inputs.
+        log_file = os.path.join(output_dir, "NEB-inputs.txt")
+        with open(log_file, "w", encoding='utf-8') as f:
+            f.write("NEB path computed between:\n")
+            f.write(f"00: {self.directory}\n")
+            f.write(f"{1+len(self.images)}: {self.target_directory}\n")
+
     def update_images(self, beg=None, end=None):
         """Update self.images to be interpolation of BEG..END.
         BEG and END are structures to interpolate between.
