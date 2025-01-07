@@ -276,6 +276,12 @@ class IMDVaspInputSet(VaspInputSet):
     def write_input(self, output_dir, **kwargs) -> None:
         """Write a set of VASP input to OUTPUT_DIR."""
         super().write_input(output_dir, **kwargs)
+        # Write inputset info
+        with open(os.path.join(output_dir, "IMDVaspInputSet.log", "w")) as f:
+            for field in dataclass.fields(self.__class__):
+                if field.name not in ['structure', 'images']:
+                    field_value = getattr(self, field.name)
+                    f.write(f"{field.name}: {field_value}")
         if self.images is None and self.structure is not None:
             write_selective_dynamics_summary_maybe(
                 self.structure,
