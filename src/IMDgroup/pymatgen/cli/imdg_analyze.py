@@ -231,6 +231,7 @@ def analyze(args):
             ('dir', 'Directory'), ('incar_group', 'INCAR type'),
             ('energy', 'Energy'), ('e_per_atom', 'E/Atom'),
             ('total_mag', 'Magnetization'),
+            ('%vol', '%vol'),
             ('a', 'a'), ('b', 'b'), ('c', 'c'),
             ('%a', '%a'), ('%b', '%b'), ('%c', '%c'),
             ('alpha', 'α'), ('beta', 'β'), ('gamma', 'γ'),
