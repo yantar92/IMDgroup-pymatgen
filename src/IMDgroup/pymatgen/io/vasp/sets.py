@@ -572,6 +572,7 @@ class IMDNEBVaspInputSet(IMDDerivedInputSet):
                 "See https://www.vasp.at/wiki/index.php/SPRING",
                 IMDNEBVaspInputSetWarning
             )
+            incar['IBRION'] = 1
         return incar
 
     def __post_init__(self) -> None:
