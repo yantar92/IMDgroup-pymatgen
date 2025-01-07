@@ -8,7 +8,7 @@ import warnings
 import logging
 from glob import glob
 from pathlib import Path
-from dataclasses import dataclass
+from dataclasses import dataclass, fields
 from typing import Self
 from pymatgen.io.vasp.sets import VaspInputSet, BadInputSetWarning
 from pymatgen.io.vasp.inputs import Potcar, Kpoints, Poscar
@@ -278,7 +278,7 @@ class IMDVaspInputSet(VaspInputSet):
         super().write_input(output_dir, **kwargs)
         # Write inputset info
         with open(os.path.join(output_dir, "IMDVaspInputSet.log"), "w") as f:
-            for field in dataclass.fields(self.__class__):
+            for field in fields(self.__class__):
                 if field.name not in ['structure', 'images']:
                     field_value = getattr(self, field.name)
                     f.write(f"{field.name}: {field_value}")
