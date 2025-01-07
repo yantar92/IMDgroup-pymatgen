@@ -532,7 +532,9 @@ class IMDNEBVaspInputSet(IMDDerivedInputSet):
 
     # According to Henkelman et al JCP 2000 (doi: 10.1063/1.1329672),
     # the typical number of images is 4-20.  We take smaller number as
-    # the default here.
+    # the default here.  We also use odd number by default as barrier
+    # top often lays in the middle and odd number of images has higher
+    # chance to be at the top.
     # POTIM is reduced as NEB tends to generate paths passing close to
     # other atoms, causing problems with convergence
     CONFIG = {
@@ -540,7 +542,7 @@ class IMDNEBVaspInputSet(IMDDerivedInputSet):
             # https://www.vasp.at/wiki/index.php/SPRING
             # says that IBROIN=2 "*usually* fails to converge"
             "IBRION": 1,
-            "IMAGES": 4,
+            "IMAGES": 5,
             "SPRING": -5,
             "POTIM": 0.25},
         'POTCAR_FUNCTIONAL': "PBE_64"
