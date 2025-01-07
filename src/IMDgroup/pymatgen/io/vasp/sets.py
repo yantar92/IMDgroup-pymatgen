@@ -279,7 +279,7 @@ class IMDVaspInputSet(VaspInputSet):
         # Write inputset info
         with open(os.path.join(output_dir, "IMDVaspInputSet.log"), "w") as f:
             for field in fields(self.__class__):
-                if field.name not in ['structure', '__structure', 'images']:
+                if field.name not in ['images']:
                     field_value = getattr(self, field.name)
                     f.write(f"{field.name}: {field_value}\n")
         if self.images is None and self.structure is not None:
