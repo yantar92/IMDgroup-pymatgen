@@ -631,7 +631,7 @@ class IMDNEBVaspInputSet(IMDDerivedInputSet):
         with open(log_file, "w", encoding='utf-8') as f:
             f.write("NEB path computed between:\n")
             f.write(f"00: {self.directory}\n")
-            f.write(f"{1+len(self.images)}: {self.target_directory}\n")
+            f.write(f"{1+len(self.images):02d}: {self.target_directory}\n")
 
     def update_images(self, beg=None, end=None):
         """Update self.images to be interpolation of BEG..END.
