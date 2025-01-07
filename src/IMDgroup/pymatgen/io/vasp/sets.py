@@ -277,7 +277,8 @@ class IMDVaspInputSet(VaspInputSet):
         """Write a set of VASP input to OUTPUT_DIR."""
         super().write_input(output_dir, **kwargs)
         # Write inputset info
-        with open(os.path.join(output_dir, "IMDVaspInputSet.log"), "w") as f:
+        log_file = os.path.join(output_dir, "IMDVaspInputSet.log")
+        with open(log_file, "w", encoding='utf-8') as f:
             for field in fields(self.__class__):
                 if field.name not in ['images']:
                     field_value = getattr(self, field.name)
