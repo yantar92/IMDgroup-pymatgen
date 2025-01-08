@@ -542,31 +542,21 @@ class IMDNEBVaspInputSet(IMDDerivedInputSet):
     # the default here.  We also use odd number by default as barrier
     # top often lays in the middle and odd number of images has higher
     # chance to be at the top.
-    # POTIM is reduced as NEB tends to generate paths passing close to
-    # other atoms, causing problems with convergence
     CONFIG = {
         'INCAR': {
             # https://www.vasp.at/wiki/index.php/SPRING
             # says that IBROIN=2 "*usually* fails to converge"
             "IBRION": 1,
             "IMAGES": 5,
-            "SPRING": -5,
-            "POTIM": 0.25},
+            "SPRING": -5},
         'POTCAR_FUNCTIONAL': "PBE_64"
     }
 
     @property
     def incar(self) -> Incar:
-        """The INCAR.  Also, check POTIM and IMAGES."""
+        """The INCAR.  Also, check IMAGES."""
         incar = super().incar
 
-        if incar['POTIM'] > 0.25:
-            warnings.warn(
-                f"POTIM={incar['POTIM']} parameter is higher than"
-                " the default 0.25 for NEB.\n"
-                "I hope that you know what you are doing",
-                BadInputSetWarning,
-            )
         if incar['IMAGES'] == 0:
             warnings.warn(
                 "IMAGES=0 makes no sense for NEB",
