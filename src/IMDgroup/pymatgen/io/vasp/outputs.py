@@ -3,6 +3,7 @@
 
 import warnings
 from pymatgen.io.vasp.outputs import Vasprun as pmgVasprun
+from pymatgen.io.vasp.outputs import Outcar as pmgOutcar
 from IMDgroup.pymatgen.io.vasp.inputs import Incar
 
 
@@ -28,3 +29,16 @@ class Vasprun(pmgVasprun):
             )
 
         return energy
+
+
+class Outcar(pmgOutcar):
+    """Modified version of pymatgen's Outcar class that stores all the fields.
+    """
+
+    def as_dict(self) -> dict:
+        """MSONable dict."""
+        dct = super().as_dict()
+        for key, value in vars(self).items():
+            if key not in dct:
+                dct[key] = value
+        return dct

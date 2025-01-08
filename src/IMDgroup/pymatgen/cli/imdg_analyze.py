@@ -9,7 +9,7 @@ from tabulate import tabulate
 from alive_progress import alive_bar
 from pymatgen.apps.borg.hive import VaspToComputedEntryDrone
 from pymatgen.apps.borg.queen import BorgQueen
-from pymatgen.io.vasp.outputs import Outcar
+from IMDgroup.pymatgen.io.vasp.outputs import Outcar
 from IMDgroup.pymatgen.io.vasp.inputs import Incar
 
 SAVE_FILE = "vasp_data_imdg.gz"

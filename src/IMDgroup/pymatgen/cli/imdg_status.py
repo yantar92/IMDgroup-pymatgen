@@ -11,7 +11,8 @@ import shutil
 from monty.io import zopen
 from termcolor import colored
 from xml.etree.ElementTree import ParseError
-from pymatgen.io.vasp.outputs import (Vasprun, Outcar, UnconvergedVASPWarning)
+from pymatgen.io.vasp.outputs import (Vasprun, UnconvergedVASPWarning)
+from IMDgroup.pymatgen.io.vasp.outputs import Outcar
 from IMDgroup.pymatgen.io.vasp.inputs import nebp, neb_dirs
 from IMDgroup.pymatgen.cli.imdg_analyze import read_vaspruns
 
