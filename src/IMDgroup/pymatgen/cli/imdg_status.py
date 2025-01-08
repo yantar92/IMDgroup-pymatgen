@@ -405,15 +405,14 @@ def status(args):
                 outcar = Outcar(os.path.join(wdir, "OUTCAR")).as_dict()
             if outcar is not None:
                 if final_energy is None:
-                    outcar_obj = Outcar(os.path.join(wdir, "OUTCAR"))
-                    final_energy = outcar_obj.final_energy
+                    final_energy = outcar['final_energy']
                 try:
                     cpu_time_sec =\
                         outcar['run_stats']['Total CPU time used (sec)']
                     cpu_time =\
                         str(datetime.timedelta(seconds=round(cpu_time_sec)))
                 except KeyError:
-                    cpu_time="N/A"
+                    cpu_time = "N/A"
                 n_cores = outcar['run_stats']['cores']
                 if final_energy is None:
                     progress = " N/A"
