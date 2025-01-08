@@ -355,7 +355,7 @@ def incar_add_args(parser):
     parser.add_argument(
         "parameters",
         nargs="*",
-        help="PARAM:VALUE to be set in the INCAR.",
+        help="PARAM:VALUE to be set in the INCAR. (VALUE=None to unset)",
         type=str)
 
 
@@ -371,6 +371,8 @@ def incar(args):
     else:
         for str_val in args.parameters:
             key, val = str_val.split(":")
+            if val == 'None':
+                val = None
             incar_overrides[key] = val
 
     inputset = IMDDerivedInputSet(
