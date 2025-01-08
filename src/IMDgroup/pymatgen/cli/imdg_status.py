@@ -109,15 +109,15 @@ VASP_WARNINGS = {
 }
 
 VASP_PROGRESS = {
-    "relax": [
+    "00SCF": [
+        r"DAV:.+",
+    ],
+    "01relax": [
         r"step:.+harm=.+dis=.+next Energy=.+dE=.+",
         r"opt step +=.+harmonic.+distance.+",
         r"next E +=.+d E +=.+",
         r"BRION:.+",
         r"g.Force. *= .+g.Stress.=.+",
-    ],
-    "SCF": [
-        r"DAV:.+",
     ],
 }
 
