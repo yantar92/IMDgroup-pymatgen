@@ -403,10 +403,13 @@ def status(args):
                 logger.debug('Reading OUTCAR in %s', wdir)
                 outcar = Outcar(os.path.join(wdir, "OUTCAR")).as_dict()
             if outcar is not None:
-                cpu_time_sec =\
-                    outcar['run_stats']['Total CPU time used (sec)']
-                cpu_time =\
-                    str(datetime.timedelta(seconds=round(cpu_time_sec)))
+                try:
+                    cpu_time_sec =\
+                        outcar['run_stats']['Total CPU time used (sec)']
+                    cpu_time =\
+                        str(datetime.timedelta(seconds=round(cpu_time_sec)))
+                except KeyError:
+                    cpu_time="N/A"
                 n_cores = outcar['run_stats']['cores']
                 if final_energy is None:
                     progress = " N/A"
