@@ -415,11 +415,14 @@ def status(args):
                 except KeyError:
                     cpu_time = "N/A"
                 n_cores = outcar['run_stats']['cores']
+                if converged:
+                    # Clear progress logs
+                    progress = ""
                 if final_energy is None:
-                    progress = " N/A"
+                    progress = " N/A" + progress
                 else:
                     progress = f" | {final_energy:.2f}eV" +\
-                        f" CPU time: {cpu_time} ({n_cores} cores)"
+                        f" CPU time: {cpu_time} ({n_cores} cores)" + progress
         mtime = vasp_output_time(wdir)
         delta = mtime - datetime.datetime.now().timestamp()
         print(
