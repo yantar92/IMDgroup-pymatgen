@@ -384,34 +384,35 @@ def status(args):
         else:
             try:
                 converged = convergedp(wdir, entries_dict, reread=True)
-                if not isinstance(converged, bool):
-                    final_energy = converged
-                else:
-                    final_energy = None
-                if wdir in entries_dict:
-                    outcar = entries_dict[wdir].data['outcar']
-                elif nebp(wdir):
-                    outcar = None
-                    progress = ""
-                else:
-                    logger.debug('Reading OUTCAR in %s', wdir)
-                    outcar = Outcar(os.path.join(wdir, "OUTCAR")).as_dict()
-                if outcar is not None:
-                    cpu_time_sec =\
-                        outcar['run_stats']['Total CPU time used (sec)']
-                    cpu_time =\
-                        str(datetime.timedelta(seconds=round(cpu_time_sec)))
-                    n_cores = outcar['run_stats']['cores']
-                    if final_energy is None:
-                        progress = " N/A"
-                    else:
-                        progress = f" | {final_energy:.2f}eV" +\
-                            f" CPU time: {cpu_time} ({n_cores} cores)"
                 if converged is not None:
                     run_status = colored("converged", "green")\
                         if converged else colored("unconverged", "red")
             except (ParseError, FileNotFoundError):
+                converged = False
                 run_status = colored("incomplete vasprun.xml", "red")
+            if not isinstance(converged, bool):
+                final_energy = converged
+            else:
+                final_energy = None
+            if wdir in entries_dict:
+                outcar = entries_dict[wdir].data['outcar']
+            elif nebp(wdir):
+                outcar = None
+                progress = ""
+            else:
+                logger.debug('Reading OUTCAR in %s', wdir)
+                outcar = Outcar(os.path.join(wdir, "OUTCAR")).as_dict()
+            if outcar is not None:
+                cpu_time_sec =\
+                    outcar['run_stats']['Total CPU time used (sec)']
+                cpu_time =\
+                    str(datetime.timedelta(seconds=round(cpu_time_sec)))
+                n_cores = outcar['run_stats']['cores']
+                if final_energy is None:
+                    progress = " N/A"
+                else:
+                    progress = f" | {final_energy:.2f}eV" +\
+                        f" CPU time: {cpu_time} ({n_cores} cores)"
         mtime = vasp_output_time(wdir)
         delta = mtime - datetime.datetime.now().timestamp()
         print(
