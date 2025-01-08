@@ -53,7 +53,7 @@ def setup_logger(args):
             format=log_format, datefmt=date_format,
             level=logging.INFO, handlers=[file_handler])
         logging.info("Setting debug level to: INFO (writing to file)")
-
+    logging.captureWarnings(True)
 
 def main():
     """Main routine."""
