@@ -404,7 +404,8 @@ def status(args):
                 outcar = Outcar(os.path.join(wdir, "OUTCAR")).as_dict()
             if outcar is not None:
                 if final_energy is None:
-                    final_energy = outcar.final_energy
+                    outcar_obj = Outcar(os.path.join(wdir, "OUTCAR"))
+                    final_energy = outcar_obj.final_energy
                 try:
                     cpu_time_sec =\
                         outcar['run_stats']['Total CPU time used (sec)']
