@@ -206,6 +206,12 @@ class IMDVaspInputSet(VaspInputSet):
                     BadInputSetWarning,
                 )
 
+        if 'NCORE' in incar and 'NPAR' in incar:
+            warnings.warn(
+                f"Both NCORE({incar['NCORE']}) and NPAR({incar['NPAR']}) are set. "
+                "NCORE will be ignored.  See https://www.vasp.at/wiki/index.php/NCORE",
+                BadInputSetWarning,
+            )
         NCORE = incar['NCORE'] if 'NCORE' in incar else None  # pylint:disable invalid-name
         if 'NPAR' in incar:
             # https://www.vasp.at/wiki/index.php/KPAR
@@ -221,7 +227,7 @@ class IMDVaspInputSet(VaspInputSet):
            NCORE * 25 > len(self.structure):
             warnings.warn(
                 "NCORE/NPAR parameter in the input set is too large"
-                f" ({NCORE} (NCORE) * 25 > {len(self.structure)} atoms)"
+                f" ({NCORE} ({'NPAR' if 'NPAR' in incar else 'NCORE'}) * 25 > {len(self.structure)} atoms)"
                 "\n See https://www.vasp.at/wiki/index.php/NCORE",
                 BadInputSetWarning,
             )
