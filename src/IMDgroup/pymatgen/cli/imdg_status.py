@@ -28,9 +28,6 @@ VASP_WARNINGS = {
         'slurm_error': [
             "VASP crashed.  Possible causes: not enough memory, VASP bug, cluster problem"
         ],
-        'vasp_bug': [
-            "VASP bug encountered.  Please report the problem to VASP developers"
-        ],
         'brmix': [
             "This is expected to happen once in charged systems"
         ]
