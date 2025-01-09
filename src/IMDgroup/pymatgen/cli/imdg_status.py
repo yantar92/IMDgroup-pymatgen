@@ -25,12 +25,15 @@ VASP_WARNINGS = {
     ],
     # Additional message to clarify a warning
     "__extra_message": {
-        'slurm_error':
-        "VASP crashed.  Possible causes: not enough memory, VASP bug, cluster problem",
-        'vasp_bug':
-        "VASP bug encountered.  Please report the problem to VASP developers",
-        'brmix':
-        "This is expected to happen once in charged systems"
+        'slurm_error': [
+            "VASP crashed.  Possible causes: not enough memory, VASP bug, cluster problem"
+        ],
+        'vasp_bug': [
+            "VASP bug encountered.  Please report the problem to VASP developers"
+        ],
+        'brmix': [
+            "This is expected to happen once in charged systems"
+        ]
     },
     "slurm_error": [
         "slurmstepd: error.+",
@@ -256,14 +259,16 @@ def get_vasp_logs(log_file, log_matchers):
                     else:
                         extra = None
                         if '__extra_message' in log_matchers:
-                            extra = log_matchers['__extra_message'].get(warn_name)
-                            if extra is not None:
-                                extra = colored(
-                                    "TIP: ", "magenta", attrs=['bold']) +\
-                                    colored(extra, "yellow")
+                            extra_lines = log_matchers['__extra_message'].get(warn_name)
+                            if extra_lines is not None:
+                                extra = ""
+                                for line in extra_lines:
+                                    extra += "\n" + colored(
+                                        "TIP: ", "magenta", attrs=['bold']) +\
+                                        colored(line, "yellow")
                         result[warn_name] = {
                             'message': matches[-1] +
-                            ("\n" + extra if extra is not None else ""),
+                            (extra if extra is not None else ""),
                             'count': num
                         }
         logger.debug("Finished processing")
