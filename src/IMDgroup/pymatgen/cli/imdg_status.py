@@ -252,7 +252,8 @@ def get_vasp_logs(log_file, log_matchers):
                             extra = log_matchers['__extra_message'].get(warn_name)
                             if extra is not None:
                                 extra = colored(
-                                    "Tip: ", "magenta", attrs=['bold']) + extra
+                                    "TIP: ", "magenta", attrs=['bold']) +\
+                                    colored(extra, "light_yellow")
                         result[warn_name] = {
                             'message': matches[-1] +
                             ("\n" + extra if extra is not None else ""),
