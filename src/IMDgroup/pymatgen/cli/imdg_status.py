@@ -27,10 +27,15 @@ VASP_WARNINGS = {
     "__extra_message": {
         'slurm_error':
         "VASP crashed.  Possible causes: not enough memory, VASP bug, cluster problem",
+        'vasp_bug':
+        "VASP bug encountered.  Please report the problem to VASP developers"
     },
     "slurm_error": [
         "slurmstepd: error.+",
         "prterun noticed.+",
+    ],
+    "vasp_bug": [
+        "Please submit a bug report.",
     ],
     # "relaxation_step": [
     #     # Very large atom displacement during relaxation
