@@ -23,6 +23,11 @@ VASP_WARNINGS = {
         # false positives to be filtered out
         " *kinetic energy error for atom=.+",
     ],
+    # Additional message to clarify a warning
+    "__extra_message": {
+        'slurm_error':
+        "VASP crashed.  Possible causes: not enough memory, VASP bug, cluster problem",
+    },
     "slurm_error": [
         "slurmstepd: error.+",
         "prterun noticed.+",
@@ -242,8 +247,12 @@ def get_vasp_logs(log_file, log_matchers):
                     if warn_name in result:
                         result[warn_name]['count'] += num
                     else:
+                        extra = None
+                        if '__extra_message' in log_matchers:
+                            extra = log_matchers['__extra_message'].get(warn_name)
                         result[warn_name] = {
-                            'message': matches[-1],
+                            'message': matches[-1] +
+                            ("\n" + extra if extra is not None else ""),
                             'count': num
                         }
         logger.debug("Finished processing")
