@@ -23,6 +23,7 @@ def _showwarning(message, category, _filename, _lineno, file=None, _line=None):
     output = colored(
         f"{category.__name__}: ", "yellow", attrs=['bold']) +\
         f"{message}"
+    logger.warning("%s", message)
     print(output, file=file or sys.stderr)
 
 
@@ -53,7 +54,6 @@ def setup_logger(args):
             format=log_format, datefmt=date_format,
             level=logging.INFO, handlers=[file_handler])
         logging.info("Setting debug level to: INFO (writing to file)")
-    logging.captureWarnings(True)
 
 def main():
     """Main routine."""
