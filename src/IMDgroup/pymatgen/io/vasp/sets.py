@@ -22,7 +22,7 @@ from ase.calculators.vasp.setups \
 from ase.mep import idpp_interpolate
 from IMDgroup.pymatgen.core.structure import\
     merge_structures, structure_interpolate2, structure_is_valid2
-from IMDgroup.pymatgen.io.ase.ase import IMDGAseAtomsAdaptor
+from pymatgen.io.ase import AseAtomsAdaptor
 from IMDgroup.pymatgen.io.vasp.inputs import Incar, _load_yaml_config, nebp, neb_dirs
 from IMDgroup.pymatgen.cli.imdg_visualize import\
     write_selective_dynamics_summary_maybe
@@ -665,7 +665,7 @@ class IMDNEBVaspInputSet(IMDDerivedInputSet):
         self._fix_atoms_maybe(str_images)  # modify by side effect
 
         if self.method == 'IDPP':
-            adaptor = IMDGAseAtomsAdaptor()
+            adaptor = AseAtomsAdaptor()
             images_ase = [adaptor.get_atoms(i) for i in str_images]
             # idpp_interpolate(images_ase, fmax=0.001)
             # mic=True is important as periodic boundary conditions are not
