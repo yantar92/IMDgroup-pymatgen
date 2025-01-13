@@ -66,7 +66,7 @@ def main():
         The scripts supports several subcommands.  Type "imdg
         sub-command -h" to get help for individual sub-commands.
         """,
-        epilog="Autho: Ihor Radchenko"
+        epilog="Author: Ihor Radchenko"
     )
     parser.add_argument(
         "-v", "--verbosity", action="count",
