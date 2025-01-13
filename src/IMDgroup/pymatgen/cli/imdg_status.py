@@ -261,7 +261,7 @@ def get_vasp_logs(log_file, log_matchers):
                                 extra = ""
                                 for line in extra_lines:
                                     extra += "\n" + colored(
-                                        "TIP: ", "magenta", attrs=['bold']) +\
+                                        " ➙ TIP: ", "magenta", attrs=['bold']) +\
                                         line
                         result[warn_name] = {
                             'message': matches[-1] +
