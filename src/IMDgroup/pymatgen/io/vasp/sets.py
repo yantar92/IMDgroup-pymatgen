@@ -17,13 +17,14 @@ from pymatgen.util.due import Doi, due
 from pymatgen.core import Structure
 from pymatgen.ext.matproj import MPRester
 from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
+from pymatgen.io.ase import AseAtomsAdaptor
 from ase.calculators.vasp.setups \
     import setups_defaults as ase_potential_defaults
 from ase.mep import idpp_interpolate
 from IMDgroup.pymatgen.core.structure import\
     merge_structures, structure_interpolate2, structure_is_valid2
-from pymatgen.io.ase import AseAtomsAdaptor
-from IMDgroup.pymatgen.io.vasp.inputs import Incar, _load_yaml_config, nebp, neb_dirs
+from IMDgroup.pymatgen.io.vasp.inputs import\
+    Incar, _load_yaml_config, nebp, neb_dirs
 from IMDgroup.pymatgen.cli.imdg_visualize import\
     write_selective_dynamics_summary_maybe
 
@@ -159,7 +160,7 @@ class IMDVaspInputSet(VaspInputSet):
         incar = super().incar
 
         # Empty incar.  Do nothing.
-        if incar is None or list(incar) == []:
+        if incar is None or not list(incar):
             return incar
 
         formula = self.structure.reduced_formula
@@ -208,11 +209,14 @@ class IMDVaspInputSet(VaspInputSet):
 
         if 'NCORE' in incar and 'NPAR' in incar:
             warnings.warn(
-                f"Both NCORE({incar['NCORE']}) and NPAR({incar['NPAR']}) are set. "
-                "NCORE will be ignored.  See https://www.vasp.at/wiki/index.php/NCORE",
+                f"Both NCORE({incar['NCORE']}) "
+                f"and NPAR({incar['NPAR']}) are set. "
+                "NCORE will be ignored.  "
+                "See https://www.vasp.at/wiki/index.php/NCORE",
                 BadInputSetWarning,
             )
-        NCORE = incar['NCORE'] if 'NCORE' in incar else None  # pylint:disable invalid-name
+        # pylint:disable=invalid-name
+        NCORE = incar['NCORE'] if 'NCORE' in incar else None
         if 'NPAR' in incar:
             # https://www.vasp.at/wiki/index.php/KPAR
             KPAR = incar['KPAR'] if 'KPAR' in incar else 1
@@ -227,7 +231,8 @@ class IMDVaspInputSet(VaspInputSet):
            NCORE * 25 > len(self.structure):
             warnings.warn(
                 "NCORE/NPAR parameter in the input set is too large"
-                f" ({NCORE} ({'NPAR' if 'NPAR' in incar else 'NCORE'}) * 25 > {len(self.structure)} atoms)"
+                f" ({NCORE} ({'NPAR' if 'NPAR' in incar else 'NCORE'}) * 25"
+                f" > {len(self.structure)} atoms)"
                 "\n See https://www.vasp.at/wiki/index.php/NCORE",
                 BadInputSetWarning,
             )
@@ -295,7 +300,7 @@ class IMDVaspInputSet(VaspInputSet):
                 os.path.join(output_dir, "selective_dynamics.cif")
             )
         # Maybe remove empty INCAR written
-        if self.incar is None or list(self.incar) == []:
+        if self.incar is None or not list(self.incar):
             f = os.path.join(output_dir, "INCAR")
             if os.path.isfile(f):
                 os.remove(f)
@@ -395,7 +400,7 @@ class IMDDerivedInputSet(IMDVaspInputSet):
             logger.debug(
                 "Reading previous VASP output from %s", self.directory)
             self.override_from_prev_calc(prev_calc_dir=self.directory)
-        except ValueError:
+        except ValueError as exc:
             logger.debug("No VASP output found.  Reading input instead")
             # No VASP output found.  Try to ingest VASP input.
             if os.path.isfile(os.path.join(self.directory, "POSCAR")) and\
@@ -413,7 +418,7 @@ class IMDDerivedInputSet(IMDVaspInputSet):
             else:
                 raise ValueError(
                     f"No VASP input found in {self.directory}"
-                )
+                ) from exc
 
         super().__post_init__()
 
@@ -444,8 +449,8 @@ class IMDDerivedInputSet(IMDVaspInputSet):
                 self.prev_incar = incar
 
         # self.override_from_prev_calc does not inherit POTCAR.  Force it.
-        if (potcars := sorted(glob(str(Path(self.directory) / "POTCAR*")))) and\
-           self.poscar is not None:
+        if (potcars := sorted(glob(str(Path(self.directory) / "POTCAR*"))))\
+           and self.poscar is not None:
             # Override defaults with POTCAR data
             # We still want to transfer the file explicitly to
             # make sure that any non-standard POTCARS are not
@@ -651,7 +656,8 @@ class IMDNEBVaspInputSet(IMDDerivedInputSet):
             # Auto-sorting sites failed.
             # Fall back to 1-to-1 site matching
             warnings.warn(
-                "Automatic match failed.  Assuming 1-to-1 site mapping during structure interpolation",
+                "Automatic match failed.  "
+                "Assuming 1-to-1 site mapping during structure interpolation",
                 BadInputSetWarning
             )
             str_images = structure_interpolate2(
