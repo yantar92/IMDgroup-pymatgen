@@ -45,6 +45,9 @@ VASP_WARNINGS = {
     "vasp_bug": [
         "Please submit a bug report.",
     ],
+    "fortran_runtime_error": [
+        "Fortran runtime error.+"
+    ],
     "vasp_runtime_error": [
         "Error termination.+\n.+\n.+"
     ],
