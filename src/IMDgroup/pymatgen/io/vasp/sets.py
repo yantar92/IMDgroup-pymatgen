@@ -80,6 +80,7 @@ class IMDVaspInputSet(VaspInputSet):
     """
     functional: str | None = None
     images: list[Self] | None = None
+    name: str | None = None
     no_kpoints: bool = False
     no_potcar: bool = False
     no_poscar: bool = False

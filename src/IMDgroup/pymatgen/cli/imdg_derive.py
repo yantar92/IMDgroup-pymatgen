@@ -124,14 +124,15 @@ def perturb_add_args(parser):
 
 def perturb(args):
     """Create perturbed input
-    Return (inputset, output_dir_suffix)
+    Return {'inputsets': [<inputset>]}
     """
     inputset = IMDDerivedInputSet(directory=args.input_directory)
 
     inputset.structure.perturb(args.distance)
     output_dir_suffix = f"PERTURB.{args.distance}"
+    inputset.name = output_dir_suffix
 
-    return (inputset, output_dir_suffix)
+    return {'inputsets': [inputset]}
 
 
 def strain_add_args(parser):
@@ -175,7 +176,7 @@ def strain_add_args(parser):
 
 def strain(args):
     """Create strained input
-    Return (inputset, output_dir_suffix)
+    Return {'inputsets': <list of inputsets>}
     """
     inputset = IMDDerivedInputSet(directory=args.input_directory)
 
@@ -217,9 +218,10 @@ def strain(args):
             (f".a.{strn[0]:.2f}" if strn[0] != 0 else "") +
             (f".b.{strn[1]:.2f}" if strn[1] != 0 else "") +
             f".c.{strn[2]:.2f}")
-        outputs.append((inputset_new, output_dir_suffix))
+        inputset_new.name = output_dir_suffix
+        outputs.append(inputset_new)
 
-    return outputs
+    return {'inputsets': outputs}
 
 
 def relax_add_args(parser):
@@ -247,7 +249,7 @@ def relax_add_args(parser):
 
 def relax(args):
     """Create relaxation setup.
-    Return (inputset, output_dir_suffix)
+    Return {'inputsets': [inputset]}
     """
     relax_overrides = {
         "ISTART": 0,
@@ -282,7 +284,8 @@ def relax(args):
         user_incar_settings=relax_overrides,
     )
     output_dir_suffix = f"relax.{args.isif}"
-    return (inputset, output_dir_suffix)
+    inputset.name = output_dir_suffix
+    return {'inputsets': [inputset]}
 
 
 def supercell_add_args(parser):
@@ -306,7 +309,7 @@ def supercell_add_args(parser):
 
 def supercell(args):
     """Create supercell.
-    Return (inputset, output_dir_suffix)
+    Return {'inputsets': [<inputset>]}
     """
     inputset = IMDDerivedInputSet(
         directory=args.input_directory,
@@ -315,7 +318,8 @@ def supercell(args):
     scaling = [int(x) for x in args.supercell_size.split("x")]
     inputset.structure.make_supercell(scaling)
     output_dir_suffix = args.supercell_size
-    return (inputset, output_dir_suffix)
+    inputset.name = output_dir_suffix
+    return {'inputsets': [inputset]}
 
 
 def functional_add_args(parser):
@@ -337,13 +341,14 @@ def functional_add_args(parser):
 
 def functional(args):
     """Create custom functional setup.
-    Return (inputset, output_dir_suffix)
+    Return {'inputsets': [inputset]}
     """
     inputset = IMDDerivedInputSet(
         directory=args.input_directory,
         functional=args.functional_type)
     output_dir_suffix = args.functional_type
-    return (inputset, output_dir_suffix)
+    inputset.name = output_dir_suffix
+    return {'inputsets': [inputset]}
 
 
 def incar_add_args(parser):
@@ -362,7 +367,7 @@ def incar_add_args(parser):
 
 def incar(args):
     """Create custom incar setup.
-    Return (inputset, output_dir_suffix)
+    Return {'inputsets': [inputset]}
     """
     incar_overrides = {}
     if args.parameters is None:
@@ -382,7 +387,8 @@ def incar(args):
     )
     output_dir_suffix = ','.join(
         [f'{key}.{val}' for key, val in incar_overrides.items()])
-    return (inputset, output_dir_suffix)
+    inputset.name = output_dir_suffix
+    return {'inputsets': [inputset]}
 
 
 def kpoints_add_args(parser):
@@ -402,14 +408,15 @@ def kpoints_add_args(parser):
 
 def kpoints(args):
     """Create custom kpoints setup.
-    Return (inputset, output_dir_suffix)
+    Return {'inputsets': [inputset]}
     """
     inputset = IMDDerivedInputSet(
         directory=args.input_directory,
         user_kpoints_settings={'grid_density': args.density},
     )
     output_dir_suffix = f"KPOINTS.{args.density}"
-    return (inputset, output_dir_suffix)
+    inputset.name = output_dir_suffix
+    return {'inputsets': [inputset]}
 
 
 def scf_add_args(parser):
@@ -423,14 +430,15 @@ def scf_add_args(parser):
 
 def scf(args):
     """Create SCF setup.
-    Return (inputset, output_dir_suffix)
+    Return {'inputsets': [inputset]}
     """
     inputset = IMDDerivedInputSet(
         directory=args.input_directory,
         user_incar_settings={'NSW': 0, 'IBRION': -1},
     )
     output_dir_suffix = "SCF"
-    return (inputset, output_dir_suffix)
+    inputset.name = output_dir_suffix
+    return {'inputsets': [inputset]}
 
 
 def insert_add_args(parser):
@@ -481,7 +489,7 @@ structure will not be constrained.
 
 def insert(args):
     """Create setup for inserted molecules/atoms.
-    Return (inputset, output_dir_suffix)
+    Return {'inputsets': [<list of inputsets>]}
     """
     inputset = IMDDerivedInputSet(
         directory=args.input_directory,
@@ -515,9 +523,10 @@ def insert(args):
             suffix = f"ins.{args.atom}.{idx}"
             inputset2 = dataclasses.replace(inputset)
             inputset2.structure = structure
-            results.append((inputset2, suffix))
+            inputset2.name = suffix
+            results.append(inputset2)
 
-    return results
+    return {'inputsets': results}
 
 
 def delete_add_args(parser):
@@ -536,7 +545,7 @@ def delete_add_args(parser):
 
 def delete(args):
     """Delete a site/sites from structure.
-    Return (inputset, output_dir_suffix)
+    Return {'inputsets': [inputset]}
     """
     inputset = IMDDerivedInputSet(directory=args.input_directory)
     len_before = len(inputset.structure)
@@ -544,7 +553,8 @@ def delete(args):
     if len(inputset.structure) == len_before:
         warnings.warn("Nothing was deleted")
     output_dir_suffix = ",".join(args.what)
-    return (inputset, output_dir_suffix)
+    inputset.name = output_dir_suffix
+    return {'inputsets': [inputset]}
 
 
 def neb_add_args(parser):
@@ -567,14 +577,15 @@ def neb_add_args(parser):
 
 def neb(args):
     """Create NEB input.
-    Return (inputset, output_dir_suffix)
+    Return {'inputsets': [inputset]}
     """
     inputset = IMDNEBVaspInputSet(
         directory=args.input_directory,
         target_directory=args.target,
         user_incar_settings={'IMAGES': args.nimages})
     output_dir_suffix = "NEB"
-    return (inputset, output_dir_suffix)
+    inputset.name = output_dir_suffix
+    return {'inputsets': [inputset]}
 
 
 def neb_diffusion_add_args(parser):
@@ -625,8 +636,8 @@ def neb_diffusion_add_args(parser):
 
 
 def neb_diffusion(args):
-    """Create NEB input.
-    Return (inputset, output_dir_suffix)
+    """Create NEB input for all possible diffusion paths.
+    Return {'inputsets': <list of inputsets>}
     """
     logger.info("Reading prototype from %s", args.input_directory)
     if os.path.isdir(args.input_directory):
@@ -660,16 +671,16 @@ def neb_diffusion(args):
             user_incar_settings={'IMAGES': args.nimages})
         inputset.update_images(beg, end)
         output_dir_suffix = f"NEB.{idx:02}"
-        result.append((inputset, output_dir_suffix))
-    return result
+        inputset.name = output_dir_suffix
+        result.append(inputset)
+    return {'inputsets': result}
 
 
 def derive(args):
     """Main routine.
     """
-    value_or_values = args.func_derive(args)
-    if isinstance(value_or_values, tuple):
-        value_or_values = [value_or_values]
+    data = args.func_derive(args)
+    inputsets = data['inputsets']
 
     output_dir_prefix = os.path.basename(
         os.path.abspath(args.input_directory)) + "."
@@ -680,13 +691,13 @@ def derive(args):
     if args.output == "":
         raise ValueError("--output cannot be empty")
 
-    for inputset, output_dir_suffix in value_or_values:
+    for inputset in inputsets:
         if output_dir_prefix:
-            output_dir = output_dir_prefix + output_dir_suffix
+            output_dir = output_dir_prefix + inputset.name
         else:
-            output_dir = output_dir_suffix
+            output_dir = inputset.name
         if args.output:
-            if len(value_or_values) == 1:
+            if len(inputsets) == 1:
                 output_dir = args.output
             else:
                 output_dir = os.path.join(args.output, output_dir)
