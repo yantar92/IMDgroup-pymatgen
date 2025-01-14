@@ -431,7 +431,7 @@ def status(args):
                     outcar = Outcar(os.path.join(wdir, "OUTCAR")).as_dict()
                 except Exception as exc:
                     warnings.warn(
-                        f"{wdir}: Failed to read OUTCAR:\n{exc}",
+                        f"Failed to read {os.path.join(wdir, "OUTCAR")}:\n{exc}",
                     )
             if outcar is not None:
                 if final_energy is None:
