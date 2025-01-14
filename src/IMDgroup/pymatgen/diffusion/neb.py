@@ -120,7 +120,9 @@ def get_neb_pairs_1(
         target: Structure,
         prototype: Structure,
         cutoff: float | None = None,
-        discard_equivalent: bool = True) -> list[tuple[Structure, Structure]]:
+        discard_equivalent: bool = True,
+        rejected: list[tuple[Structure, Structure]] | None = None
+) -> list[tuple[Structure, Structure]]:
     """Construct all possible unique diffusion pairs between ORIGIN and TARGET.
     ORIGIN is always taken as beginning of diffusion.
     Diffusion end points are taken by applying all possible symmetry
@@ -131,10 +133,13 @@ def get_neb_pairs_1(
     DISCARD_EQUIVALENT is False.
 
     Return a list of tuples representing begin/end structure pairs.
+
+    When REJECTED argument is provided, it must be a list that will me
+    modified by side effect.  The list will store all the
+    symmetrically equivalent pairs not included in teh return value.
     """
-    trans = SymmetryCloneTransformation(
-        prototype,
-        filter_cls=_StructFilter(origin, cutoff, discard_equivalent))
+    filter_cls = _StructFilter(origin, cutoff, discard_equivalent)
+    trans = SymmetryCloneTransformation(prototype, filter_cls=filter_cls)
     clones = trans.get_all_clones(target)
 
     logger.info('Found %d pairs', len(clones))
@@ -142,6 +147,9 @@ def get_neb_pairs_1(
         'Distances: %s',
         [(idx, float(structure_distance(origin, clone, tol=0.5)))
          for idx, clone in enumerate(clones)])
+    if rejected is not None:
+        for rej in filter_cls.rejected:
+            rejected.append((origin, rej))
     return list((origin, clone) for clone in clones)
 
 
@@ -268,9 +276,9 @@ def get_neb_pairs(
         logger.info(
             "gen_neb_pairs: Using structure enumeration"
             " preserving the original order (including duplicates)")
-        
 
     pairs = []
+    rejected_pairs = []
     for idx, origin in enumerate(uniq_structures):
         if origin is None:
             continue
@@ -281,35 +289,27 @@ def get_neb_pairs(
                 "gen_neb_pairs: searching pairs %d -> %d ...",
                 idx, idx2+idx)
             pairs += get_neb_pairs_1(
-                origin, target, prototype, cutoff)
+                origin, target, prototype, cutoff, rejected=rejected_pairs)
 
     if remove_compound:
         logger.info("Removing compound paths")
         all_clones = []
-        for idx, origin in enumerate(uniq_structures):
-            if origin is None:
-                continue
-            if not _struct_is_equiv(origin, all_clones):
-                all_clones.append(origin)
-            for idx2, target in enumerate(uniq_structures[idx:]):
-                if target is None:
-                    continue
-                logger.info(
-                    "gen_neb_pairs: searching all pairs %d -> %d ...",
-                    idx, idx2+idx)
-                all_pairs = get_neb_pairs_1(
-                    origin, target, prototype, cutoff,
-                    discard_equivalent=False)
-                for _, target_clone in all_pairs:
-                    if target_clone in all_clones:
-                        continue
-                    equiv = False
-                    for known in all_clones:
-                        if structure_distance(known, target_clone) < 0.5:
-                            equiv = True
-                            break
-                    if not equiv:
-                        all_clones.append(target_clone)
+
+        def __add_to_clones(clone):
+            if clone in all_clones:
+                return
+            equiv = False
+            for known in all_clones:
+                if structure_distance(known, clone) < 0.5:
+                    equiv = True
+                    break
+            if not equiv:
+                all_clones.append(clone)
+
+        for origin, target in pairs + rejected_pairs:
+            __add_to_clones(origin)
+            __add_to_clones(target)
+
         pairs = _pair_post_filter(pairs, all_clones)
 
     return pairs
