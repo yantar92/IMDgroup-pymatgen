@@ -446,6 +446,7 @@ def status(args):
                 try:
                     outcar = Outcar(os.path.join(wdir, "OUTCAR")).as_dict()
                 except Exception as exc:
+                    outcar = None
                     warnings.warn(
                         f"Failed to read {os.path.join(wdir, "OUTCAR")}: {exc}",
                         ParseOutcarWarning
