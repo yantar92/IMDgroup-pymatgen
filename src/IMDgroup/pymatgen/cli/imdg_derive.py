@@ -24,7 +24,8 @@ def add_args(parser):
     Args:
       parser: Sub-parser.
     """
-    parser.help = """Create new VASP inputs from existing."""
+    parser.help = """Create new VASP inputs from existing.
+Write them to <prefix><output name><subdir>."""
 
     parser.add_argument(
         "input_directory",
@@ -42,7 +43,7 @@ def add_args(parser):
     parser.add_argument(
         "--output",
         help="Directory to write the mutated VASP input"
-        "(default: <old-name>.<suffix>)."
+        "(default: <input name>.<mutated name>)."
     )
     parser.add_argument(
         "--output-prefix",
