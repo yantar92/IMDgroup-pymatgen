@@ -45,6 +45,9 @@ VASP_WARNINGS = {
     "vasp_bug": [
         "Please submit a bug report.",
     ],
+    "vasp_runtime_error": [
+        "Error termination.+\n.+\n.+"
+    ],
     # "relaxation_step": [
     #     # Very large atom displacement during relaxation
     #     # >=0.06
