@@ -2,7 +2,6 @@
 """
 import logging
 import warnings
-from multiprocessing import Pool
 from alive_progress import alive_bar
 import numpy as np
 from pymatgen.core import Structure
@@ -50,18 +49,15 @@ class _StructFilter():
             origin: Structure,
             cutoff: float | None,
             discard_equivalent: bool = True,
-            tol: float = 0.5,
-            multithread: bool = False) -> None:
+            tol: float = 0.5) -> None:
         """Setup structure filter.
         ORIGIN is the beginning of diffusion pair (Structure).
         CUTOFF and TOL are the largest and smallest distances between
         ORIGIN and filtered structure for structure to be accepted.
         DISCARD_EQUIVALENT control whether to filter out symmetrycally
         equivalent pairs.
-        MULTITHREAD, when True, enable multithreading.
         """
         self.rejected = []
-        self.multithread = multithread
         self.origin = origin
         self.discard_equivalent = discard_equivalent
         if cutoff is None:
@@ -100,20 +96,10 @@ class _StructFilter():
                 dist = structure_distance(clone, rej)
                 if dist < self.tol:
                     return False
-                if self.multithread:
-                    with Pool() as pool:
-                        equivs = pool.starmap(
-                            self.is_equiv,
-                            [(clone, other) for other in clones]
-                        )
-                        if True in equivs:
-                            self.rejected.append(clone)
-                            return False
-                else:
-                    for other in clones:
-                        if self.is_equiv(clone, other):
-                            self.rejected.append(clone)
-                            return False
+                for other in clones:
+                    if self.is_equiv(clone, other):
+                        self.rejected.append(clone)
+                        return False
         return True
 
     def final_filter(self, clones):
@@ -135,8 +121,7 @@ def get_neb_pairs_1(
         prototype: Structure,
         cutoff: float | None = None,
         discard_equivalent: bool = True,
-        rejected: list[tuple[Structure, Structure]] | None = None,
-        multithread: bool = False
+        rejected: list[tuple[Structure, Structure]] | None = None
 ) -> list[tuple[Structure, Structure]]:
     """Construct all possible unique diffusion pairs between ORIGIN and TARGET.
     ORIGIN is always taken as beginning of diffusion.
@@ -152,11 +137,8 @@ def get_neb_pairs_1(
     When REJECTED argument is provided, it must be a list that will me
     modified by side effect.  The list will store all the
     symmetrically equivalent pairs not included in teh return value.
-
-    MULTITHREAD (default: False) controls multithreading.
     """
-    filter_cls = _StructFilter(
-        origin, cutoff, discard_equivalent, multithread=multithread)
+    filter_cls = _StructFilter(origin, cutoff, discard_equivalent)
     trans = SymmetryCloneTransformation(prototype, filter_cls=filter_cls)
     clones = trans.get_all_clones(target)
 
@@ -251,9 +233,8 @@ def get_neb_pairs(
         structures: list[Structure],
         prototype: Structure,
         cutoff: float | None = None,
-        remove_compound: bool = False,
-        multithread: bool = False
-) -> list[tuple[Structure, Structure]]:
+        remove_compound: bool = False)\
+        -> list[tuple[Structure, Structure]]:
     """Construct all possible unique diffusion pairs from STRUCTURES.
     The STRUCTURES must all be derived from PROTOTYPE structure (have
     the same lattice parameter).  Usually STRUCTURES, contain a list
@@ -276,8 +257,6 @@ def get_neb_pairs(
     2-3, and 1-3 diffusion pairs, 1-3 == 1-2 + 2-3 and 1-3 will be dropped.
     This is heuristics as the diffusion barrier for 1-3 might
     generally be lower compared to 1-2 + 2-3 combination.
-
-    MULTITHREAD (default: False) enabled multithreading.
 
     Returns a list of tuples containing begin/end structures.
     """
@@ -310,8 +289,7 @@ def get_neb_pairs(
                 "gen_neb_pairs: searching pairs %d -> %d ...",
                 idx, idx2+idx)
             pairs += get_neb_pairs_1(
-                origin, target, prototype, cutoff, rejected=rejected_pairs,
-                multithread=multithread)
+                origin, target, prototype, cutoff, rejected=rejected_pairs)
 
     if remove_compound:
         logger.info("Removing compound paths")

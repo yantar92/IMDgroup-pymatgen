@@ -633,10 +633,6 @@ def neb_diffusion_add_args(parser):
         help="Filter out diffusion paths that may be constructed out of shorter paths",
         action="store_true",
     )
-    parser.add_argument(
-        "--multithread",
-        help="Use multithreading?",
-        action="store_true")
 
 
 def neb_diffusion(args):
@@ -662,8 +658,7 @@ def neb_diffusion(args):
         structures.append(structure)
 
     pairs = get_neb_pairs(
-        structures, prototype, args.cutoff, args.remove_compound,
-        multithread=args.multithread)
+        structures, prototype, args.cutoff, args.remove_compound)
 
     result = []
     for idx, (beg, end) in enumerate(pairs):
