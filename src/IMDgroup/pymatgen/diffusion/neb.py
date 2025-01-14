@@ -259,13 +259,24 @@ def get_neb_pairs(
     for struct in structures:
         if not _struct_is_equiv(struct, uniq_structures, warn=True):
             uniq_structures.append(struct)
+        else:
+            uniq_structures.append(None)
     logger.info(
         "gen_neb_pairs: Checking duplicates... done (removed %d)",
         len(structures)-len(uniq_structures))
+    if len(structures)-len(uniq_structures) > 0:
+        logger.info(
+            "gen_neb_pairs: Using structure enumeration"
+            " preserving the original order (including duplicates)")
+        
 
     pairs = []
     for idx, origin in enumerate(uniq_structures):
+        if origin is None:
+            continue
         for idx2, target in enumerate(uniq_structures[idx:]):
+            if target is None:
+                continue
             logger.info(
                 "gen_neb_pairs: searching pairs %d -> %d ...",
                 idx, idx2+idx)
@@ -276,9 +287,13 @@ def get_neb_pairs(
         logger.info("Removing compound paths")
         all_clones = []
         for idx, origin in enumerate(uniq_structures):
+            if origin is None:
+                continue
             if not _struct_is_equiv(origin, all_clones):
                 all_clones.append(origin)
             for idx2, target in enumerate(uniq_structures[idx:]):
+                if target is None:
+                    continue
                 logger.info(
                     "gen_neb_pairs: searching all pairs %d -> %d ...",
                     idx, idx2+idx)
