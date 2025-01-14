@@ -43,9 +43,9 @@ def structure_distance(
         tol: float = 0.1) -> float:
     """Return distance between two similar structures.
     The structures must have the same number of sites and species.
-    The returned value is a sum of distances between the nearest
-    lattice sites.  Distances below TOL do not contribute to the
-    sum.
+    The returned value is a square root of sum of squared distances
+    between the nearest lattice sites.  Distances below TOL do not
+    contribute to the sum.
     """
     str1 = structure1
     # interpolate knows how to match similar sites, spitting out
@@ -66,14 +66,13 @@ def structure_distance(
         str2 = structure1.interpolate(
             structure2, 2)[2]
 
-
-    tot_distance = 0
+    tot_distance_square = 0
     for node1, node2 in zip(str1, str2):
         distance = node1.distance(node2)
         if distance > tol:
-            tot_distance += distance
+            tot_distance_square += distance * distance
 
-    return tot_distance
+    return np.sqrt(tot_distance_square)
 
 
 def structure_diff(

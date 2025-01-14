@@ -239,8 +239,8 @@ def get_neb_pairs(
 
     When optional argument CUTOFF is provided, all the diffusion pairs
     that require moving atoms more than CUTOFF ans will be discarded.
-    The exact criterion is: sum of all atom displacements to change
-    one structure into another must be no larger than CUTOFF.
+    The exact criterion is: sum squares of all atom displacements to
+    change one structure into another must be no larger than CUTOFF^2.
 
     When optional argument REMOVE_COMPOUND is provided (False by default),
     find the smallest subset of the shortest diffusion pairs that is
