@@ -37,7 +37,7 @@ VASP_WARNINGS = {
         "prterun noticed.+",
     ],
     "mag_init": [
-        r"You use a magnetic or noncollinear calculation.+\(\n.+\)\{6\}"
+        r"You use a magnetic or noncollinear calculation.+\n.+"
     ],
     "kpoints_parser": [
         "Error reading KPOINTS file.+\n.+\n.+\n.+"
