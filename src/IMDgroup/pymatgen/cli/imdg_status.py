@@ -335,6 +335,9 @@ def vasp_output_time(path):
         return os.path.getmtime(outcar)
     return None
 
+class ParseOutcarWarning(UserWarning):
+    """Warning when there is a problem parsing OUTCAR."""
+
 
 def status(args):
     """Main routine.
@@ -432,7 +435,8 @@ def status(args):
                     outcar = Outcar(os.path.join(wdir, "OUTCAR")).as_dict()
                 except Exception as exc:
                     warnings.warn(
-                        f"Failed to read {os.path.join(wdir, "OUTCAR")}:\n{exc}",
+                        f"Failed to read {os.path.join(wdir, "OUTCAR")}: {exc}",
+                        ParseOutcarWarning
                     )
             if outcar is not None:
                 if final_energy is None:
