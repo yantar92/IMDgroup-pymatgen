@@ -427,7 +427,12 @@ def status(args):
                 progress = ""
             else:
                 logger.debug('Reading OUTCAR in %s', wdir)
-                outcar = Outcar(os.path.join(wdir, "OUTCAR")).as_dict()
+                try:
+                    outcar = Outcar(os.path.join(wdir, "OUTCAR")).as_dict()
+                except Exception as exc:
+                    warnings.warn(
+                        f"{wdir}: Failed to read OUTCAR:\n{exc}",
+                    )
             if outcar is not None:
                 if final_energy is None:
                     final_energy = outcar['final_energy']
