@@ -83,7 +83,8 @@ VASP_WARNINGS = {
     "zpotrf": ["LAPACK: Routine ZPOTRF failed", "Routine ZPOTRF ZTRTRI"],
     "amin": ["One of the lattice vectors is very long (>50 A), but AMIN"],
     "zbrent": [
-        "ZBRENT: fatal internal in", "ZBRENT: fatal error in bracketing",
+        "ZBRENT: fatal internal in",
+        "ZBRENT: fatal error in bracketing.+\n.+\n.+",
         "ZBRENT:  can not reach accuracy",
         # "ZBRENT: can't locate minimum, use default step"
     ],
