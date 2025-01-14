@@ -36,6 +36,12 @@ VASP_WARNINGS = {
         "slurmstepd: error.+",
         "prterun noticed.+",
     ],
+    "mag_init": [
+        r"You use a magnetic or noncollinear calculation.+\(\n.+\)\{6\}"
+    ],
+    "kpoints_parser": [
+        "Error reading KPOINTS file.+\n.+\n.+\n.+"
+    ],
     "vasp_bug": [
         "Please submit a bug report.",
     ],
