@@ -468,7 +468,7 @@ def status(args):
                 if final_energy is None:
                     progress = " N/A" + progress
                 else:
-                    progress = f" | {final_energy:.2f}eV" +\
+                    progress = f" | {final_energy:.4f}eV" +\
                         f" CPU time: {cpu_time} ({n_cores} cores)" + progress
         mtime = vasp_output_time(wdir)
         delta = mtime - datetime.datetime.now().timestamp()
