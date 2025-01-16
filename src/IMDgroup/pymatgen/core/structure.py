@@ -32,9 +32,9 @@ def merge_structures(
                 site.frac_coords,
                 properties=site.properties)
         merged.merge_sites(mode='average', tol=tol)
-    logger.debug(
-        "Merged %d structures (%d -> %d atoms)",
-        len(structs), sites_before, len(merged))
+    # logger.debug(
+    #     "Merged %d structures (%d -> %d atoms)",
+    #     len(structs), sites_before, len(merged))
     return merged
 
 
