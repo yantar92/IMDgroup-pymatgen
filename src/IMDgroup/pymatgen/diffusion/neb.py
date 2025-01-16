@@ -100,20 +100,20 @@ class _StructFilter():
                 dist = structure_distance(clone, rej)
                 if dist < self.tol:
                     return False
-                if self.multithread:
-                    with Pool() as pool:
-                        equivs = pool.starmap(
-                            self.is_equiv,
-                            [(clone, other) for other in clones]
-                        )
-                        if True in equivs:
-                            self.rejected.append(clone)
-                            return False
-                else:
-                    for other in clones:
-                        if self.is_equiv(clone, other):
-                            self.rejected.append(clone)
-                            return False
+            if self.multithread:
+                with Pool() as pool:
+                    equivs = pool.starmap(
+                        self.is_equiv,
+                        [(clone, other) for other in clones]
+                    )
+                    if True in equivs:
+                        self.rejected.append(clone)
+                        return False
+            else:
+                for other in clones:
+                    if self.is_equiv(clone, other):
+                        self.rejected.append(clone)
+                        return False
         return True
 
     def final_filter(self, clones):
