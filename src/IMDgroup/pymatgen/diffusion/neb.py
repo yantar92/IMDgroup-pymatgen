@@ -89,14 +89,14 @@ class _StructFilter():
         (3) Its diffusion pair with ORIGIN is symmetrically equivalent
             to ORIGIN + any of CLONES.
         """
-        dist = structure_distance(self.origin, clone)
+        dist = structure_distance(self.origin, clone, tol=self.tol)
         logger.debug("Considering pair %f", dist)
         if dist > self.cutoff or dist < self.tol:
             logger.debug("Too long/short")
             return False
         if self.discard_equivalent:
             for rej in self.rejected:
-                dist = structure_distance(clone, rej)
+                dist = structure_distance(clone, rej, tol=self.tol)
                 if dist < self.tol:
                     logger.debug("Exact duplicate")
                     return False
@@ -126,7 +126,7 @@ class _StructFilter():
         # This way, we will filter out longer paths first.
         filtered = sorted(
             clones,
-            key=lambda clone: structure_distance(self.origin, clone),
+            key=lambda clone: structure_distance(self.origin, clone, tol=self.tol),
             reverse=True)
 
         return filtered
@@ -188,7 +188,7 @@ def _pair_post_filter(unique_pairs, all_clones):
         for to_idx, to_struct in enumerate(all_clones):
             if from_idx < to_idx:
                 distance_matrix[from_idx][to_idx] = \
-                    structure_distance(from_struct, to_struct)
+                    structure_distance(from_struct, to_struct, tol=0.5)
             elif from_idx == to_idx:
                 distance_matrix[from_idx][to_idx] = 0
             else:
@@ -322,7 +322,7 @@ def get_neb_pairs(
                 return
             equiv = False
             for known in all_clones:
-                if structure_distance(known, clone) < 0.5:
+                if structure_distance(known, clone, tol=0.5) < 0.5:
                     equiv = True
                     break
             if not equiv:
