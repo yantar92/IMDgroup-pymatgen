@@ -92,11 +92,13 @@ class _StructFilter():
         dist = structure_distance(self.origin, clone)
         logger.debug("Considering pair %f", dist)
         if dist > self.cutoff or dist < self.tol:
+            logger.debug("Too long/short")
             return False
         if self.discard_equivalent:
             for rej in self.rejected:
                 dist = structure_distance(clone, rej)
                 if dist < self.tol:
+                    logger.debug("Exact duplicate")
                     return False
             if self.multithread:
                 with Pool() as pool:
@@ -106,11 +108,13 @@ class _StructFilter():
                     )
                     if True in equivs:
                         self.rejected.append(clone)
+                        logger.debug("Equivalent path")
                         return False
             else:
                 for other in clones:
                     if self.is_equiv(clone, other):
                         self.rejected.append(clone)
+                        logger.debug("Equivalent path")
                         return False
         logger.debug("accepted")
         return True
