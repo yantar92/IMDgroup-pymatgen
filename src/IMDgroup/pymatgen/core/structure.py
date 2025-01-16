@@ -40,12 +40,18 @@ def merge_structures(
 
 def structure_distance(
         structure1: Structure, structure2: Structure,
-        tol: float = 0.1) -> float:
+        tol: float = 0.1,
+        autosort_tol: float | None = 0.5) -> float:
     """Return distance between two similar structures.
     The structures must have the same number of sites and species.
     The returned value is a square root of sum of squared distances
     between the nearest lattice sites.  Distances below TOL do not
     contribute to the sum.
+
+    AUTOSOR_TOL (default: 0.5) is passed to
+    pymatgen.core.Structure.interpolate.  When it is a float an
+    attempt is made to match site to site via heuristics.  When None,
+    compute 1-to-1 distance mapping.
     """
     str1 = structure1
     # interpolate knows how to match similar sites, spitting out
@@ -54,7 +60,7 @@ def structure_distance(
     # similarity
     try:
         str2 = structure1.interpolate(
-            structure2, 2, autosort_tol=0.5)[2]
+            structure2, 2, autosort_tol=autosort_tol)[2]
     except ValueError:
         # Fall back to direct interpolation
         # Structures are way too different, so the best we can do is

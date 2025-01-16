@@ -1,5 +1,6 @@
 """NEB pair generator for diffusion paths.
 """
+from enum import auto
 import logging
 import warnings
 from multiprocessing import Pool
@@ -89,7 +90,8 @@ class _StructFilter():
         (3) Its diffusion pair with ORIGIN is symmetrically equivalent
             to ORIGIN + any of CLONES.
         """
-        dist = structure_distance(self.origin, clone, tol=self.tol)
+        dist = structure_distance(
+            self.origin, clone, tol=self.tol, autosort_tol=None)
         logger.debug("Considering pair %f", dist)
         if dist > self.cutoff or dist < self.tol:
             logger.debug("Too long/short")
@@ -126,7 +128,8 @@ class _StructFilter():
         # This way, we will filter out longer paths first.
         filtered = sorted(
             clones,
-            key=lambda clone: structure_distance(self.origin, clone, tol=self.tol),
+            key=lambda clone: structure_distance(
+                self.origin, clone, tol=self.tol, autosort_tol=None),
             reverse=True)
 
         return filtered
@@ -166,7 +169,7 @@ def get_neb_pairs_1(
     logger.info('Found %d pairs', len(clones))
     logger.info(
         'Distances: %s',
-        [(idx, float(structure_distance(origin, clone, tol=0.5)))
+        [(idx, float(structure_distance(origin, clone, tol=0.5, autosort_tol=None)))
          for idx, clone in enumerate(clones)])
     if rejected is not None:
         for rej in filter_cls.rejected:
@@ -190,7 +193,7 @@ def _pair_post_filter(unique_pairs, all_clones):
             for to_idx, to_struct in enumerate(all_clones):
                 if from_idx < to_idx:
                     distance_matrix[from_idx][to_idx] = \
-                        structure_distance(from_struct, to_struct, tol=0.5)
+                        structure_distance(from_struct, to_struct, tol=0.5, autosort_tol=None)
                 elif from_idx == to_idx:
                     distance_matrix[from_idx][to_idx] = 0
                 else:
@@ -325,7 +328,7 @@ def get_neb_pairs(
                 return
             equiv = False
             for known in all_clones:
-                if structure_distance(known, clone, tol=0.5) < 0.5:
+                if structure_distance(known, clone, tol=0.5, autosort_tol=None) < 0.5:
                     equiv = True
                     break
             if not equiv:
