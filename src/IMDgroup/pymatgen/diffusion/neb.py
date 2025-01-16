@@ -187,7 +187,7 @@ def _pair_post_filter(unique_pairs, all_clones):
     matcher = StructureMatcher(attempt_supercell=True, scale=False)
 
     distance_matrix = np.zeros((len(all_clones), len(all_clones)))
-    with alive_bar(len(distance_matrix), title='Computing distance matrix')\
+    with alive_bar(len(all_clones) ** 2, title='Computing distance matrix')\
          as progress_bar:
         for from_idx, from_struct in enumerate(all_clones):
             for to_idx, to_struct in enumerate(all_clones):
