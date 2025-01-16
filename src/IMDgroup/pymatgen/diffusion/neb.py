@@ -306,9 +306,13 @@ def get_neb_pairs(
             if not equiv:
                 all_clones.append(clone)
 
-        for origin, target in pairs + rejected_pairs:
-            __add_to_clones(origin)
-            __add_to_clones(target)
+        all_pairs = pairs + rejected_pairs
+        with alive_bar(len(all_pairs), title='Enumerating clones')\
+             as progress_bar:
+            for origin, target in pairs + rejected_pairs:
+                __add_to_clones(origin)
+                __add_to_clones(target)
+                progress_bar()  # pylint: disable=not-callable
 
         pairs = _pair_post_filter(pairs, all_clones)
 
