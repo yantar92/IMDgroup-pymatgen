@@ -96,20 +96,8 @@ class _StructFilter():
         if dist > self.cutoff or dist < self.tol:
             return False
         if self.discard_equivalent:
-            if self.multithread:
-                with Pool() as pool:
-                    distances = pool.starmap(
-                        structure_distance,
-                        [(clone, rej) for rej in self.rejected],
-                        chunksize=20
-                    )
-            else:
-                distances = None
-            for idx, rej in enumerate(self.rejected):
-                if distances is None:
-                    dist = structure_distance(clone, rej)
-                else:
-                    dist = distances[idx]
+            for rej in self.rejected:
+                dist = structure_distance(clone, rej)
                 if dist < self.tol:
                     return False
                 if self.multithread:
