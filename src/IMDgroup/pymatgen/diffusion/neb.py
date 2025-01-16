@@ -74,10 +74,7 @@ class _StructFilter():
         """Return True when END1 and END2 form equivalent pairs with ORIGIN.
         """
         matcher = StructureMatcher(attempt_supercell=True, scale=False)
-        if np.isclose(
-                structure_distance(self.origin, end1),
-                structure_distance(self.origin, end2)) and\
-            matcher.fit(
+        if matcher.fit(
                 merge_structures([self.origin, end1]),
                 merge_structures([self.origin, end2])):
             return True
