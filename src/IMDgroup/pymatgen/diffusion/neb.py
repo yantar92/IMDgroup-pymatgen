@@ -77,7 +77,8 @@ class _StructFilter():
         matcher = StructureMatcher(attempt_supercell=True, scale=False)
         if matcher.fit(
                 merge_structures([self.origin, end1]),
-                merge_structures([self.origin, end2])):
+                merge_structures([self.origin, end2]),
+                symmetric=True):
             return True
         return False
 
@@ -206,7 +207,8 @@ def _pair_post_filter(unique_pairs, all_clones):
         for idx, known_pair in enumerate(unique_pairs):
             if matcher.fit(
                     merge_structures([pair[0], pair[1]]),
-                    merge_structures([known_pair[0], known_pair[1]])):
+                    merge_structures([known_pair[0], known_pair[1]]),
+                    symmetric=True):
                 use_pair[idx] = True
                 return
         # must not happen
