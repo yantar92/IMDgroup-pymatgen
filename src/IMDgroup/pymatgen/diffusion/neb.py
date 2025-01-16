@@ -90,6 +90,7 @@ class _StructFilter():
             to ORIGIN + any of CLONES.
         """
         dist = structure_distance(self.origin, clone)
+        logger.debug("Considering pair %f", dist)
         if dist > self.cutoff or dist < self.tol:
             return False
         if self.discard_equivalent:
@@ -111,6 +112,7 @@ class _StructFilter():
                     if self.is_equiv(clone, other):
                         self.rejected.append(clone)
                         return False
+        logger.debug("accepted")
         return True
 
     def final_filter(self, clones):
