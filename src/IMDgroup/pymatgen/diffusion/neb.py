@@ -95,11 +95,11 @@ class _StructFilter():
             logger.debug("Too long/short")
             return False
         if self.discard_equivalent:
-            for rej in self.rejected:
-                dist = structure_distance(clone, rej, tol=self.tol)
-                if dist < self.tol:
-                    logger.debug("Exact duplicate")
-                    return False
+            # for rej in self.rejected:
+            #     dist = structure_distance(clone, rej, tol=self.tol)
+            #     if dist < self.tol:
+            #         logger.debug("Exact duplicate")
+            #         return False
             if self.multithread:
                 with Pool() as pool:
                     equivs = pool.starmap(
