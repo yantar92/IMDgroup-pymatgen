@@ -195,10 +195,7 @@ def _pair_post_filter(unique_pairs, all_clones):
     use_pair = [False] * len(unique_pairs)
     def add_pair_maybe(pair):
         for idx, known_pair in enumerate(unique_pairs):
-            if np.isclose(
-                    structure_distance(pair[0], pair[1]),
-                    structure_distance(known_pair[0], known_pair[1]))\
-                and matcher.fit(
+            if matcher.fit(
                     merge_structures([pair[0], pair[1]]),
                     merge_structures([known_pair[0], known_pair[1]])):
                 use_pair[idx] = True
