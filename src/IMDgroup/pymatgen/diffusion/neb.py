@@ -184,16 +184,19 @@ def _pair_post_filter(unique_pairs, all_clones):
     matcher = StructureMatcher(attempt_supercell=True, scale=False)
 
     distance_matrix = np.zeros((len(all_clones), len(all_clones)))
-    for from_idx, from_struct in enumerate(all_clones):
-        for to_idx, to_struct in enumerate(all_clones):
-            if from_idx < to_idx:
-                distance_matrix[from_idx][to_idx] = \
-                    structure_distance(from_struct, to_struct, tol=0.5)
-            elif from_idx == to_idx:
-                distance_matrix[from_idx][to_idx] = 0
-            else:
-                distance_matrix[from_idx][to_idx] = \
-                    distance_matrix[to_idx][from_idx]
+    with alive_bar(len(distance_matrix), title='Computing distance matrix')\
+         as progress_bar:
+        for from_idx, from_struct in enumerate(all_clones):
+            for to_idx, to_struct in enumerate(all_clones):
+                if from_idx < to_idx:
+                    distance_matrix[from_idx][to_idx] = \
+                        structure_distance(from_struct, to_struct, tol=0.5)
+                elif from_idx == to_idx:
+                    distance_matrix[from_idx][to_idx] = 0
+                else:
+                    distance_matrix[from_idx][to_idx] = \
+                        distance_matrix[to_idx][from_idx]
+                progress_bar()  # pylint: disable=not-callable
 
     use_pair = [False] * len(unique_pairs)
     def add_pair_maybe(pair):
