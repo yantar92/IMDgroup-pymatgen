@@ -212,8 +212,8 @@ def slurm_runningp(path):
     return False
 
 
-def slurm_log_file(path):
-    """Return slurm log file in PATH.
+def vasp_log_file(path):
+    """Return VASP log file in PATH.
     Return None, if the log file is not found.
     """
     files = [f for f in os.listdir(path)
@@ -221,7 +221,9 @@ def slurm_log_file(path):
     logger.debug("Searching slurm logs in %s across %s", path, files)
     matching = []
     for f in files:
-        if "slurm" in f:
+        # slurm-XXX.log (produced by slurm with default settings)
+        # stdout (produced by VASP itself)
+        if "slurm" in f or "stdout" in f:
             matching.append(os.path.join(path, f))
     if len(matching) > 0:
         newest = matching[0]
@@ -400,7 +402,7 @@ def status(args):
         outcar_path = os.path.join(wdir, 'OUTCAR')
         if not os.path.isfile(outcar_path):
             outcar_path = False
-        if log_file := (slurm_log_file(wdir) or outcar_path):
+        if log_file := (vasp_log_file(wdir) or outcar_path):
             logger.debug("Found VASP logs in %s: %s", wdir, log_file)
             progress_data = get_vasp_logs(log_file, VASP_PROGRESS)
             if len(progress_data.values()) > 0:
