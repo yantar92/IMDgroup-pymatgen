@@ -169,7 +169,9 @@ def convergedp(path, entries_dict, reread=False):
     argument is True.  For REREAD=True, try reading vasprun.xml even
     if it is not present in the ENTRIES_DICT.
     """
-    if nebp(path):
+    if nebp(path) and not os.path.isfile(os.path.join(path, 'vasprun.xml')):
+        # Newer versions of VASP (6.4.3) do not write vasprun.xml to
+        # top level dir, but instead write per image.
         for image_path in neb_dirs(path, include_ends=False):
             if not convergedp(image_path, entries_dict):
                 return False
