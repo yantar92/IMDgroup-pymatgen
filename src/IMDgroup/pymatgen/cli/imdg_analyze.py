@@ -138,7 +138,7 @@ class IMDGVaspToComputedEnrgyDrone(VaspToComputedEntryDrone):
                 computed_entry.data['outcar'] = outcar.as_dict()
             except Exception as exc:
                 logger.debug("error reading %s: %s", outcar_path, exc)
-                return None
+                computed_entry.data['outcar'] = None
 
         return computed_entry
 
