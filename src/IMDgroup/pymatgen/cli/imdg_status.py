@@ -172,6 +172,7 @@ def convergedp(path, entries_dict, reread=False):
     if nebp(path) and not os.path.isfile(os.path.join(path, 'vasprun.xml')):
         # Newer versions of VASP (6.4.3) do not write vasprun.xml to
         # top level dir, but instead write per image.
+        logger.debug("New NEB folder layout.  Scanning image folders for vasprun.xml")
         for image_path in neb_dirs(path, include_ends=False):
             if not convergedp(image_path, entries_dict):
                 return False
