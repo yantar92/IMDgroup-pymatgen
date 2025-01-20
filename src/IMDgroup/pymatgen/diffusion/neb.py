@@ -29,6 +29,8 @@ def _struct_is_equiv(
     """
     matcher = StructureMatcher(attempt_supercell=True, scale=False)
     for known in known_structs:
+        if known is None:
+            continue
         if matcher.fit(struct, known):
             if warn:
                 warnings.warn(
