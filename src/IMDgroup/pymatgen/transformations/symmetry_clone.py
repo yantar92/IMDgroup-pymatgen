@@ -154,7 +154,12 @@ class SymmetryCloneTransformation(AbstractTransformation):
                 # Make life easier for the collees.  Align sites
                 # between clone and structure
                 props = clone.properties  # preserve properties
-                clone = structure.interpolate(clone, 2, autosort_tol=0.5)[2]
+                try:
+                    clone = structure.interpolate(clone, 2, autosort_tol=0.5)[2]
+                except ValueError:
+                    # Complex structure with atom-to-atom matching
+                    # that is difficult to find.
+                    clone = clone
                 clone.properties = props
                 clone.properties['symop'] = op
                 if not _member(clone, clones)\
