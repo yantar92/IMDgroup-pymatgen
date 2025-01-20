@@ -315,19 +315,19 @@ class IMDVaspInputSet(VaspInputSet):
             # Write images
             for d, image in zip(neb_dirs(output_dir), self.images):
                 image.write_input(d, **kwargs)
-                logger.debug(
-                    "Writing trajectory file %s",
-                    os.path.join(output_dir, 'NEB_trajectory.cif'))
-                # Store NEB path snapshot
-                trajectory = merge_structures(
-                    [img.structure for img in self.images])
-                trajectory.to_file(
-                    os.path.join(output_dir, 'NEB_trajectory.cif'))
-                # Visualize information about fixed/not fixed sites, if any
-                write_selective_dynamics_summary_maybe(
-                    trajectory,
-                    os.path.join(output_dir, 'NEB_fixed_sites.cif')
-                )
+            logger.debug(
+                "Writing trajectory file %s",
+                os.path.join(output_dir, 'NEB_trajectory.cif'))
+            # Store NEB path snapshot
+            trajectory = merge_structures(
+                [img.structure for img in self.images])
+            trajectory.to_file(
+                os.path.join(output_dir, 'NEB_trajectory.cif'))
+            # Visualize information about fixed/not fixed sites, if any
+            write_selective_dynamics_summary_maybe(
+                trajectory,
+                os.path.join(output_dir, 'NEB_fixed_sites.cif')
+            )
 
 
 @dataclass
