@@ -22,22 +22,38 @@ class StructureDuplicateWarning(UserWarning):
 def _struct_is_equiv(
         struct: Structure,
         known_structs: list[Structure],
-        warn=False):
+        warn=False,
+        multithread=False):
     """Return True when STRUCT is equivalent to any KNOWN_STRUCTS.
     Otherwise, return False.
     When WARN is True, display warning when duplicate is found.
+    When MULTITHREAD is True, use multithreading.
     """
     matcher = StructureMatcher(attempt_supercell=True, scale=False)
-    for known in known_structs:
-        if known is None:
-            continue
-        if matcher.fit(struct, known):
-            if warn:
-                warnings.warn(
-                    "Duplicate structures found",
-                    StructureDuplicateWarning
-                )
+
+    def _warn():
+        if warn:
+            warnings.warn(
+                "Duplicate structures found",
+                StructureDuplicateWarning
+            )
+        
+    if multithread:
+        with Pool() as pool:
+            equivs = pool.starmap(
+                matcher.fit,
+                [(struct, known) for known in known_structs if known is not None]
+            )
+        if True in equivs:
+            _warn()
             return True
+    else:
+        for known in known_structs:
+            if known is None:
+                continue
+            if matcher.fit(struct, known):
+                _warn()
+                return True
     return False
 
 
@@ -299,7 +315,8 @@ def get_neb_pairs(
         "gen_neb_pairs: Checking duplicates among %d structures...",
         len(structures))
     for struct in structures:
-        if not _struct_is_equiv(struct, uniq_structures, warn=True):
+        if not _struct_is_equiv(
+                struct, uniq_structures, warn=True, multithread=multithread):
             uniq_structures.append(struct)
         else:
             uniq_structures.append(None)
