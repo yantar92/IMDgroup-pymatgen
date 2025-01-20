@@ -41,13 +41,8 @@ imdg = "IMDgroup.pymatgen.cli.imdg:main"
 exclude = ["tests"]
 where = ["src/"]
 include = [
-        "IMDgroup",
 	"IMDgroup.pymatgen.*",
-	"IMDgroup.pymatgen.transformations",
-        "IMDgroup.pymatgen.io.vasp",
-        "IMDgroup.pymatgen.cli",
-        "IMDgroup.pymatgen.core",
-        "IMDgroup.pymatgen.diffusion",
+        "IMDgroup",
         ]
 
 [tool.setuptools.package-data]
