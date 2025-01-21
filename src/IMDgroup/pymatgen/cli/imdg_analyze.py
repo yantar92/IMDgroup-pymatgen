@@ -155,7 +155,7 @@ class IMDGVaspToComputedEnrgyDrone(VaspToComputedEntryDrone):
             assert isinstance(final_energy, float)
             outcar.read_pattern(
                 {'converged_ionic':
-                 r'reached required accuracy - stopping structural energy minimisation|writing wavefunctions'},
+                 r'(reached required accuracy - stopping structural energy minimisation|writing wavefunctions)'},
                 reverse=True,
                 terminate_on_match=True
             )
@@ -166,9 +166,12 @@ class IMDGVaspToComputedEnrgyDrone(VaspToComputedEntryDrone):
                 reverse=True,
                 terminate_on_match=True
             )
-            converged_electronic = True \
-                if outcar.data['converged_electronic'] == 'aborting loop because EDIFF is reached'\
-                else False
+            converged_electronic = outcar.data['converged_electronic']
+            if converged_electronic and\
+               converged_electronic[0][0] == 'because EDIFF is reached':
+                converged_electronic = True
+            else:
+                converged_electronic = False
             computed_entry = ComputedStructureEntry(
                 structure=contcar.structure,
                 composition=contcar.structure.composition,
