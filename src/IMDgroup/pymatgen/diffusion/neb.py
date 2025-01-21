@@ -8,7 +8,6 @@ from alive_progress import alive_bar
 import numpy as np
 from pymatgen.core import Structure
 from pymatgen.analysis.structure_matcher import StructureMatcher
-from IMDgroup.pymatgen.core.structure import structure_interpolate2
 from IMDgroup.pymatgen.core.structure import merge_structures
 from IMDgroup.pymatgen.transformations.symmetry_clone\
     import SymmetryCloneTransformation
@@ -231,9 +230,6 @@ def _pair_post_filter(unique_pairs, all_clones):
                 use_pair[idx] = True
                 return
         # must not happen
-        path = structure_interpolate2(pair[0], pair[1], nimages=3, frac_tol=0)
-        trajectory = merge_structures(path)
-        trajectory.to_file("tmp_failing_path.cif")
         raise AssertionError("mapping paths: This must not happen")
 
     # Visit matrix: False when we cannot reach a site; True - we can.
@@ -275,6 +271,7 @@ def _pair_post_filter(unique_pairs, all_clones):
             if all(visited):
                 return [p for idx, p in enumerate(unique_pairs)
                         if use_pair[idx]]
+
         raise AssertionError(f"bfs: This must not happen (visited: {visited})")
 
 
@@ -368,10 +365,6 @@ def get_neb_pairs(
                 __add_to_clones(target)
                 progress_bar()  # pylint: disable=not-callable
 
-        for idx, pair in enumerate(pairs):
-            path = structure_interpolate2(pair[0], pair[1], nimages=3, frac_tol=0)
-            trajectory = merge_structures(path)
-            trajectory.to_file(f"tmp_unique_path_{idx}.cif")
         pairs = _pair_post_filter(pairs, all_clones)
 
     return pairs
