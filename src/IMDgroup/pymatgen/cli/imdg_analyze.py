@@ -7,8 +7,10 @@ import hashlib
 from tabulate import tabulate
 
 from alive_progress import alive_bar
+from pymatgen.entries.computed_entries import ComputedStructureEntry
 from pymatgen.apps.borg.hive import VaspToComputedEntryDrone
 from pymatgen.apps.borg.queen import BorgQueen
+from pymatgen.io.vasp.inputs import Poscar
 from IMDgroup.pymatgen.io.vasp.outputs import Outcar
 from IMDgroup.pymatgen.io.vasp.inputs import Incar
 
@@ -127,18 +129,58 @@ class IMDGVaspToComputedEnrgyDrone(VaspToComputedEntryDrone):
     """
     def assimilate(self, path):
         """Assimilate Vasprun and Outcar from PATH.
-        Return ComputedEntry object.
+        Return ComputedEntry object or None when PATH does not contain
+        a valid Vasprun/Outcar.
         """
         computed_entry = super().assimilate(path)
 
-        if computed_entry is not None:
-            outcar_path = os.path.join(path, "OUTCAR")
-            try:
-                outcar = Outcar(outcar_path)
-                computed_entry.data['outcar'] = outcar.as_dict()
-            except Exception as exc:
-                logger.debug("error reading %s: %s", outcar_path, exc)
-                computed_entry.data['outcar'] = None
+        outcar_path = os.path.join(path, "OUTCAR")
+        try:
+            outcar = Outcar(outcar_path)
+        except Exception as exc:
+            if computed_entry is None:
+                # Cannot read anything
+                logger.debug("Failed to read vasprun.xml/OUTCAR in %s", path)
+                return None
+            logger.debug("error reading %s: %s", outcar_path, exc)
+            outcar = None
+
+        if computed_entry is None:
+            assert outcar is not None
+            # Vasprun not complete
+            # Try to deduce parameters from OUTCAR + CONTCAR instead
+            logger.debug("Trying to deduce run parameters from OUTCAR and CONTCAR")
+            contcar = Poscar.from_file(os.path.join(path, 'CONTCAR'))
+            final_energy = outcar.final_energy
+            assert isinstance(final_energy, float)
+            outcar.read_pattern(
+                {'converged_ionic':
+                 r'reached required accuracy - stopping structural energy minimisation|writing wavefunctions'},
+                reverse=True,
+                terminate_on_match=True
+            )
+            converged_ionic = True if outcar.data['converged_ionic'] else False
+            outcar.read_pattern(
+                {'converged_electronic':
+                 r'aborting loop (EDIFF was not reached \(unconverged\)|because EDIFF is reached)'},
+                reverse=True,
+                terminate_on_match=True
+            )
+            converged_electronic = True \
+                if outcar.data['converged_electronic'] == 'aborting loop because EDIFF is reached'\
+                else False
+            computed_entry = ComputedStructureEntry(
+                structure=contcar.structure,
+                composition=contcar.structure.composition,
+                energy=final_energy,
+                data={
+                    'converged': converged_ionic and converged_electronic,
+                    'filename': outcar_path})
+
+        if outcar is None:
+            computed_entry.data['outcar'] = None
+        else:
+            computed_entry.data['outcar'] = outcar.as_dict()
 
         return computed_entry
 

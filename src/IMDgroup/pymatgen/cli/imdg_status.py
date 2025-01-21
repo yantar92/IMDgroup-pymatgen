@@ -11,10 +11,11 @@ import shutil
 from monty.io import zopen
 from termcolor import colored
 from xml.etree.ElementTree import ParseError
-from pymatgen.io.vasp.outputs import (Vasprun, UnconvergedVASPWarning)
+from pymatgen.io.vasp.outputs import UnconvergedVASPWarning
 from IMDgroup.pymatgen.io.vasp.outputs import Outcar
 from IMDgroup.pymatgen.io.vasp.inputs import nebp, neb_dirs
-from IMDgroup.pymatgen.cli.imdg_analyze import read_vaspruns
+from IMDgroup.pymatgen.cli.imdg_analyze\
+    import read_vaspruns, IMDGVaspToComputedEnrgyDrone
 
 logger = logging.getLogger(__name__)
 # Adapted (and modified) from custodian/src/custodian/vasp/handlers.py
@@ -169,10 +170,8 @@ def convergedp(path, entries_dict, reread=False):
     argument is True.  For REREAD=True, try reading vasprun.xml even
     if it is not present in the ENTRIES_DICT.
     """
-    if nebp(path) and not os.path.isfile(os.path.join(path, 'vasprun.xml')):
-        # Newer versions of VASP (6.4.3) do not write vasprun.xml to
-        # top level dir, but instead write per image.
-        logger.debug("New NEB folder layout.  Scanning image folders for vasprun.xml")
+    if nebp(path):
+        logger.debug("NEB folder layout.  Scanning image folders for vasprun.xml/OUTCAR")
         for image_path in neb_dirs(path, include_ends=False):
             if not convergedp(image_path, entries_dict):
                 return False
@@ -180,11 +179,15 @@ def convergedp(path, entries_dict, reread=False):
     if path not in entries_dict:
         logger.debug("%s not found in ENTRIES_DICT", path)
         if reread:
-            run = Vasprun(
-                os.path.join(path, 'vasprun.xml'),
-                parse_dos=False,
-                parse_eigen=False)
-            return run.final_energy if run.converged else False
+            drone = IMDGVaspToComputedEnrgyDrone(
+                inc_structure=False,
+                parameters=None,
+                data=['final_energy', 'converged']
+            )
+            computed_entry = drone.assimilate(path)
+            assert computed_entry is not None
+            return computed_entry.data['final_energy']\
+                if computed_entry.data['converged'] else False
         return False
     converged = entries_dict[path].data['converged']
     final_energy = entries_dict[path].energy
@@ -390,7 +393,7 @@ def status(args):
     for wdir, _, files in os.walk(args.dir):
         if exclude_dirp(wdir):
             continue
-        if 'vasprun.xml' in files:
+        if 'vasprun.xml' in files or 'OUTCAR' in files:
             paths.append(wdir)
         else:
             for f in files:
