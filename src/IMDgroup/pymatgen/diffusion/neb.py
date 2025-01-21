@@ -236,6 +236,7 @@ def _pair_post_filter(unique_pairs, all_clones):
         trajectory.to_file("tmp_failing_path.cif")
         raise AssertionError("mapping paths: This must not happen")
 
+    # Visit matrix: False when we cannot reach a site; True - we can.
     visited = [False] * len(all_clones)
 
     with alive_bar(
@@ -263,13 +264,13 @@ def _pair_post_filter(unique_pairs, all_clones):
                         queue.append(to_idx)
         visited[0] = True
         progress_bar()  # pylint: disable=not-callable
-        for dist in np.unique(distance_matrix, axis=None):
+        for max_dist in np.unique(distance_matrix, axis=None):
             logger.debug(
                 "Trying to reach all the sites via <=%.2f long paths",
-                dist
+                max_dist
             )
             queue = [idx for idx, v in enumerate(visited) if v]
-            bfs1(queue, dist)
+            bfs1(queue, max_dist)
             if all(visited):
                 return [p for idx, p in enumerate(unique_pairs)
                         if use_pair[idx]]
