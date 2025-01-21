@@ -254,14 +254,15 @@ def _pair_post_filter(unique_pairs, all_clones):
                              in enumerate(distance_matrix[from_idx])
                              if not visited[to_idx]]
                 for dist, to_idx in sorted(distances):
+                    to_struct = all_clones[to_idx]
                     if not visited[to_idx] and not dist > dist_cutoff:
                         logger.info(
                             "coverage: %s -> %s (%f)",
                             from_idx, to_idx, dist
                         )
-                        to_struct = all_clones[to_idx]
-                        add_pair_maybe((from_struct, to_struct))
                         queue.append(to_idx)
+                    if not dist > dist_cutoff:
+                        add_pair_maybe((from_struct, to_struct))
         visited[0] = True
         progress_bar()  # pylint: disable=not-callable
         for max_dist in np.unique(distance_matrix, axis=None):
