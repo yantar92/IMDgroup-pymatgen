@@ -196,12 +196,16 @@ def get_neb_pairs_1(
     return list((origin, clone) for clone in clones)
 
 
-def _pair_post_filter(unique_pairs, all_clones):
+def _pair_post_filter(
+        unique_pairs, all_clones,
+        multithread=False):
     """Minimize UNIQUE_PAIRS keeping ALL_CLONES reachable.
     UNIQUE_PAIRS is a list of unique diffusion paths.
     ALL_CLONES is a list of diffusion points.
     The return value will be a subset of shortest possible
     UNIQUE_PAIRS sufficient to cover ALL_CLONES.
+
+    When MULTITHREAD is True, use multithreading.
     """
     matcher = StructureMatcher(attempt_supercell=True, scale=False)
 
@@ -221,14 +225,28 @@ def _pair_post_filter(unique_pairs, all_clones):
                 progress_bar()  # pylint: disable=not-callable
 
     use_pair = [False] * len(unique_pairs)
+
     def add_pair_maybe(pair):
-        for idx, known_pair in enumerate(unique_pairs):
-            if matcher.fit(
-                    merge_structures([pair[0], pair[1]]),
-                    merge_structures([known_pair[0], known_pair[1]]),
-                    symmetric=True):
-                use_pair[idx] = True
-                return
+        if multithread:
+            with Pool() as pool:
+                equivs = pool.starmap(
+                    matcher.fit,
+                    [(merge_structures([pair[0], pair[1]]),
+                      merge_structures([known_pair[0], known_pair[1]]),
+                      True) for known_pair in unique_pairs]
+                )
+            for idx, val in enumerate(equivs):
+                if val:
+                    use_pair[idx] = True
+                    return
+        else:
+            for idx, known_pair in enumerate(unique_pairs):
+                if matcher.fit(
+                        merge_structures([pair[0], pair[1]]),
+                        merge_structures([known_pair[0], known_pair[1]]),
+                        symmetric=True):
+                    use_pair[idx] = True
+                    return
         # must not happen
         raise AssertionError("mapping paths: This must not happen")
 
@@ -365,6 +383,6 @@ def get_neb_pairs(
                 __add_to_clones(target)
                 progress_bar()  # pylint: disable=not-callable
 
-        pairs = _pair_post_filter(pairs, all_clones)
+        pairs = _pair_post_filter(pairs, all_clones, multithread=multithread)
 
     return pairs
