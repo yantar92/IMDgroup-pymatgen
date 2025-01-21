@@ -77,6 +77,21 @@ From Python
         potcar_spec=True)
 
 
+## Getting symmetrically equivalent structures
+
+    import pymatgen.core as pmg
+    from IMDgroup.pymatgen.transormation.symmetry_clone import SymmetryCloneTransformation
+    
+    structure = pmg.Structure.from_file("path_to_structure")
+    prototype = pmg.Structure.from_file("path_to_prototype")
+    
+    trans = SymmetryCloneTransformation(prototype)
+    all_clones = trans.get_all_clones(structure)
+    
+    for idx, clone in enumerate(all_clones):
+        clone.to_file(f"clone_{idx}.cif")
+
+
 # TODO Citing
 
 
