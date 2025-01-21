@@ -26,7 +26,7 @@ VASP_WARNINGS = {
     # Additional message to clarify a warning
     "__extra_message": {
         'slurm_error': [
-            "VASP crashed.  Possible causes: not enough memory, VASP bug, cluster problem"
+            "VASP crashed.  Possible causes: time limit exceeded, not enough memory, VASP bug, cluster problem"
         ],
         'brmix': [
             "This is expected to happen once in charged systems"
