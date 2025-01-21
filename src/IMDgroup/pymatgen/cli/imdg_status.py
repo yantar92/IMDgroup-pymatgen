@@ -249,7 +249,7 @@ def get_vasp_logs(log_file, log_matchers):
     """
     result = {}
     logger.debug("Scanning log file %s", log_file)
-    with zopen(log_file, mode="rt") as f:
+    with zopen(log_file, mode="rt", encoding="UTF-8") as f:
         text = f.read()
         logger.debug("Ingested log text")
         excluded = []
