@@ -252,7 +252,7 @@ def _get_min_cutoff(distance_matrix):
                              if not visited[to_idx]]
                 for distance, to_idx in sorted(distances):
                     if not visited[to_idx] and not distance > dist_cutoff:
-                        logger.info(
+                        logger.debug(
                             "coverage: %s -> %s (%f)",
                             from_idx, to_idx, distance
                         )
