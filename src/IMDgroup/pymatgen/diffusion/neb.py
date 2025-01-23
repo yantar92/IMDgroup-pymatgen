@@ -322,6 +322,7 @@ def get_neb_pairs(
     logger.info("Searching unique diffusion paths")
     pairs = []
     merged_pairs = []
+    _known_dists = []
     with alive_bar(
             len(distance_matrix),
             title='Removing equivalent paths') as progress_bar:
@@ -332,11 +333,15 @@ def get_neb_pairs(
                 if edge_len != np.inf:
                     merged = merge_structures(
                         [all_clones[from_idx], all_clones[to_idx]])
-                    if not _struct_is_equiv(merged, merged_pairs,
+                    # Equivalent paths must have the same length
+                    # (assuming that structure_distance is robust enough)
+                    if np.any([np.isclose(edge_len, d) for d in _known_dists])\
+                       and _struct_is_equiv(merged, merged_pairs,
                                             multithread=multithread):
-                        pairs.append(
-                            (all_clones[from_idx], all_clones[to_idx]))
-                        merged_pairs.append(merged)
+                        continue
+                    pairs.append((all_clones[from_idx], all_clones[to_idx]))
+                    merged_pairs.append(merged)
+                    _known_dists.append(edge_len)
             progress_bar()  # pylint: disable=not-callable
     logger.info("Found %d unique paths", len(pairs))
 
