@@ -273,10 +273,14 @@ def _get_min_cutoff(distance_matrix):
                     # Return _larger_ distance to avoid float
                     # comparison precision problems
                     if distance != np.inf and distance > max_dist:
+                        logger.debug(
+                            "Max required distance %f.  Next: %f",
+                            max_dist, distance)
                         return (max_dist + distance) / 2.0
                 # cutoff is the largest distance, return something
                 # slightly higher
-                logger.debug("Cutoff is the largest diffusion path length, returning x2")
+                logger.debug(
+                    "Cutoff is the largest diffusion path length, returning x2")
                 return max_dist * 2
 
         raise AssertionError(f"bfs: This must not happen (visited: {visited})")
