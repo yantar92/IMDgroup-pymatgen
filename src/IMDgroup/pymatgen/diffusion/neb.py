@@ -272,8 +272,11 @@ def _get_min_cutoff(distance_matrix):
                 for distance in all_distances_sorted:
                     # Return _larger_ distance to avoid float
                     # comparison precision problems
-                    if distance > max_dist:
+                    if distance != np.inf and distance > max_dist:
                         return (max_dist + distance) / 2.0
+                # cutoff is the largest distance, return something
+                # slightly higher
+                return max_dist * 2
 
         raise AssertionError(f"bfs: This must not happen (visited: {visited})")
 
