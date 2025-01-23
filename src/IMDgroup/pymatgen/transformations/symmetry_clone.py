@@ -167,7 +167,8 @@ class SymmetryCloneTransformation(AbstractTransformation):
                 except ValueError:
                     # Complex structure with atom-to-atom matching
                     # that is difficult to find.
-                    clone = clone
+                    # clone = clone
+                    pass
                 clone.properties = props
                 clone.properties['symop'] = op
                 if not _member(clone, clones)\
