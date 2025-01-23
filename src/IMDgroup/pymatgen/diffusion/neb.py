@@ -350,18 +350,15 @@ def get_neb_pairs(
             " preserving the original order (including duplicates)")
 
     all_clones = []
-    with alive_bar(len(uniq_structures), title='Enumerating clones')\
-         as progress_bar:
-        for idx, struct in enumerate(uniq_structures):
-            if struct is None:
-                progress_bar()  # pylint: disable=not-callable
-                continue
-            trans = SymmetryCloneTransformation(prototype)
-            clones = trans.get_all_clones(struct, progress_bar=False)
-            for clone in clones:
-                clone.properties['_orig_idx'] = idx
-            all_clones += clones
-            progress_bar()  # pylint: disable=not-callable
+    for idx, struct in enumerate(uniq_structures):
+        if struct is None:
+            continue
+        logger.info("Enumerating clones in structure #%d", idx)
+        trans = SymmetryCloneTransformation(prototype)
+        clones = trans.get_all_clones(struct)
+        for clone in clones:
+            clone.properties['_orig_idx'] = idx
+        all_clones += clones
     logger.info("Found %d clones", len(all_clones))
 
     distance_matrix = np.inf * np.ones((len(all_clones), len(all_clones)))
