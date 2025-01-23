@@ -6,6 +6,7 @@ import warnings
 import argparse
 import dataclasses
 import logging
+from multiprocessing import Pool
 import numpy as np
 import pymatgen.core as pmg
 from pymatgen.io.vasp.outputs import Vasprun
@@ -639,6 +640,19 @@ def neb_diffusion_add_args(parser):
         action="store_true")
 
 
+def __neb_diffusion_get_inputset(idx, beg, end, args):
+    inputset = IMDNEBVaspInputSet(
+        directory=beg.properties['origin_path'],
+        target_directory=end.properties['origin_path'],
+        fix_cutoff=args.fix_dist if args.fix_dist > 0 else None,
+        method=args.path_method,
+        frac_tol=args.frac_tol,
+        user_incar_settings={'IMAGES': args.nimages})
+    inputset.update_images(beg, end)
+    output_dir_suffix = f"NEB.{idx:02}"
+    inputset.name = output_dir_suffix
+    return inputset
+
 def neb_diffusion(args):
     """Create NEB input for all possible diffusion paths.
     Return {'inputsets': <list of inputsets>}
@@ -669,19 +683,18 @@ def neb_diffusion(args):
         structures, prototype, args.cutoff, args.remove_compound,
         multithread=args.multithread)
 
-    result = []
-    for idx, (beg, end) in enumerate(pairs):
-        inputset = IMDNEBVaspInputSet(
-            directory=beg.properties['origin_path'],
-            target_directory=end.properties['origin_path'],
-            fix_cutoff=args.fix_dist if args.fix_dist > 0 else None,
-            method=args.path_method,
-            frac_tol=args.frac_tol,
-            user_incar_settings={'IMAGES': args.nimages})
-        inputset.update_images(beg, end)
-        output_dir_suffix = f"NEB.{idx:02}"
-        inputset.name = output_dir_suffix
-        result.append(inputset)
+    if args.multithread:
+        with Pool() as pool:
+            result = pool.starmap(
+                __neb_diffusion_get_inputset,
+                [(idx, beg, end, args) for idx, (beg, end) in enumerate(pairs)]
+            )
+    else:
+        result = []
+        for idx, (beg, end) in enumerate(pairs):
+            inputset = __neb_diffusion_get_inputset(idx, beg, end, args)
+            result.append(inputset)
+
     return {'inputsets': result}
 
 
