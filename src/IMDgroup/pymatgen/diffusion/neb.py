@@ -483,4 +483,10 @@ def get_neb_pairs(
             progress_bar()  # pylint: disable=not-callable
     logger.info("Found %d unique paths", len(pairs))
 
+    # Sort by lentgh
+    pairs = sorted(
+        pairs,
+        key=lambda pair: structure_distance(
+            pair[0], pair[1], tol=0.5, autosort_tol=None))
+
     return pairs
