@@ -610,9 +610,9 @@ def neb_diffusion_add_args(parser):
         default=4)
     parser.add_argument(
         "--cutoff",
-        help="Distance cutoff between diffusion points.",
-        type=float,
-        default=5)
+        help="Distance cutoff between diffusion points (float or 'auto' to determine automatically).",
+        type=str,
+        default='auto')
     parser.add_argument(
         "--fix_dist",
         help="Atoms further than fix_dist ans away will not be allowed to move (default: -1; no restrictions)",
@@ -643,6 +643,10 @@ def neb_diffusion(args):
     """Create NEB input for all possible diffusion paths.
     Return {'inputsets': <list of inputsets>}
     """
+
+    if args.cutoff != 'auto' and args.cutoff:
+        args.cutoff = float(args.cutoff)
+
     logger.info("Reading prototype from %s", args.input_directory)
     if os.path.isdir(args.input_directory):
         prototype_run = Vasprun(os.path.join(

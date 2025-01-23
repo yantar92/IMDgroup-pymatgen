@@ -82,6 +82,23 @@ class SymmetryFillTransformation(AbstractTransformation):
         return filled_structure
 
 
+def apply_operation_keep_lattice(structure, op):
+    """Apply OP to STRUCTURE, keeping lattice vectors unchanged.
+    STRUCTURE is modifed by side effect.
+    """
+    tmp = structure.copy()
+    tmp.apply_operation(op, fractional=True)
+    # Operation might change the lattice vectors.
+    # Force them back into STRUCTURE by enforcing periodic
+    # conditions
+    structure.remove_sites(indices=range(len(structure)))  # empty
+    for site in tmp:
+        structure.append(
+            site.species, site.coords,
+            coords_are_cartesian=True,
+            properties=site.properties)
+
+
 class SymmetryCloneTransformation(AbstractTransformation):
     """Create equivalent structures according to symmetry."""
 
@@ -120,7 +137,7 @@ class SymmetryCloneTransformation(AbstractTransformation):
             raise ValueError(
                 "sym_operations must be Structure of a list of SymmOp")
 
-    def get_all_clones(self, structure):
+    def get_all_clones(self, structure, progress_bar=True):
         """Generate a list of all clones for STRUCTURE.
         """
         clones = []
@@ -135,22 +152,13 @@ class SymmetryCloneTransformation(AbstractTransformation):
                     return True
             return False
 
-        with alive_bar(len(self.sym_operations), title='Searching clones')\
-             as progress_bar:
+        with alive_bar(len(self.sym_operations),
+                       title='Searching clones',
+                       disable=not progress_bar) as progress_bar:
             for op in self.sym_operations:
                 progress_bar()  # pylint: disable=not-callable
-                tmp = structure.copy()
-                tmp.apply_operation(op, fractional=True)
-                # Operation might change the lattice vectors.
-                # Force them back into STRUCTURE by enforcing periodic
-                # conditions
                 clone = structure.copy()
-                clone.remove_sites(indices=range(len(clone)))  # empty
-                for site in tmp:
-                    clone.append(
-                        site.species, site.coords,
-                        coords_are_cartesian=True,
-                        properties=site.properties)
+                apply_operation_keep_lattice(clone, op)
                 # Make life easier for the collees.  Align sites
                 # between clone and structure
                 props = clone.properties  # preserve properties
