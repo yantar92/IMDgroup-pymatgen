@@ -85,19 +85,33 @@ class SymmetryFillTransformation(AbstractTransformation):
 
 def apply_operation_keep_lattice(structure, op):
     """Apply OP to STRUCTURE, keeping lattice vectors unchanged.
-    STRUCTURE is modifed by side effect.
+    Return modified copy of the structure.
     """
     tmp = structure.copy()
     tmp.apply_operation(op, fractional=True)
     # Operation might change the lattice vectors.
     # Force them back into STRUCTURE by enforcing periodic
     # conditions
-    structure.remove_sites(indices=range(len(structure)))  # empty
+    result = structure.copy()
+    result.remove_sites(indices=range(len(result)))  # empty
     for site in tmp:
-        structure.append(
+        result.append(
             site.species, site.coords,
             coords_are_cartesian=True,
             properties=site.properties)
+    # Make life easier for the collees.  Align sites
+    # between clone and structure
+    props = result.properties  # preserve properties
+    try:
+        result = structure.interpolate(result, 2, autosort_tol=0.5)[2]
+    except ValueError:
+        # Complex structure with atom-to-atom matching
+        # that is difficult to find.
+        # result = result
+        pass
+    result.properties = props
+    result.properties['symop'] = op
+    return result
 
 
 class SymmetryCloneTransformation(AbstractTransformation):
@@ -172,19 +186,7 @@ class SymmetryCloneTransformation(AbstractTransformation):
             for op in self.sym_operations:
                 progress_bar()  # pylint: disable=not-callable
                 clone = structure.copy()
-                apply_operation_keep_lattice(clone, op)
-                # Make life easier for the collees.  Align sites
-                # between clone and structure
-                props = clone.properties  # preserve properties
-                try:
-                    clone = structure.interpolate(clone, 2, autosort_tol=0.5)[2]
-                except ValueError:
-                    # Complex structure with atom-to-atom matching
-                    # that is difficult to find.
-                    # clone = clone
-                    pass
-                clone.properties = props
-                clone.properties['symop'] = op
+                clone = apply_operation_keep_lattice(clone, op)
                 if not _member(clone, clones)\
                    and (self.filter_cls is None
                         or self.filter_cls.filter(clone, clones)):

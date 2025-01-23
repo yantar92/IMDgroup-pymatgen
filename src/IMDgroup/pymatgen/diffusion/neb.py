@@ -485,7 +485,7 @@ def get_neb_pairs(
                 if edge_len != np.inf:
                     target = all_clones[to_idx].copy()
                     if invop:
-                        apply_operation_keep_lattice(target, invop)
+                        target = apply_operation_keep_lattice(target, invop)
                     pair_matrix[orig_idx].append(target)
             progress_bar()  # pylint: disable=not-callable
 
