@@ -2,7 +2,7 @@
 """
 
 import logging
-from multiprocessing import Pool
+from multiprocessing import Pool, cpu_count
 from pymatgen.transformations.transformation_abc import AbstractTransformation
 from pymatgen.core import (SymmOp, Structure, Element)
 from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
@@ -163,7 +163,9 @@ class SymmetryCloneTransformation(AbstractTransformation):
             """Return True when STRUCTURE is in CLONES.
             Return False otherwise.
             """
-            if multithread:
+            # For some reason, Python sometimes hangs here when there
+            # are too few CLONES.
+            if multithread and len(clones) > cpu_count():
                 with Pool() as pool:
                     distances = pool.starmap(
                         structure_distance,
