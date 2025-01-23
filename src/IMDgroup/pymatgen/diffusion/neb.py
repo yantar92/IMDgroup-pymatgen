@@ -276,6 +276,7 @@ def _get_min_cutoff(distance_matrix):
                         return (max_dist + distance) / 2.0
                 # cutoff is the largest distance, return something
                 # slightly higher
+                logger.debug("Cutoff is the largest diffusion path length, returning x2")
                 return max_dist * 2
 
         raise AssertionError(f"bfs: This must not happen (visited: {visited})")
