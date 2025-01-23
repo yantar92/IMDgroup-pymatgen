@@ -227,7 +227,6 @@ def graph_connected(distance_matrix):
             if not visited[to_idx] and distance != np.inf:
                 queue.append(to_idx)
 
-    logger.debug("%s", visited)
     return all(visited)
 
 
