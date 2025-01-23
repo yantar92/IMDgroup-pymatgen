@@ -463,6 +463,7 @@ def get_neb_pairs(
         logger.info("Found %d non-compound paths", n_edges)
 
     logger.info("Searching unique diffusion paths")
+    pairs = []
     merged_pairs = []
     with alive_bar(
             len(distance_matrix),
