@@ -463,44 +463,23 @@ def get_neb_pairs(
         logger.info("Found %d non-compound paths", n_edges)
 
     logger.info("Searching unique diffusion paths")
-
-    # Now, we have a number of diffusion paths, possibly starting from
-    # a clone of the original structure.
-    # Reduce everything in such a way that we always start from a
-    # member of uniq_structures.
-    pair_matrix = [[] for _ in uniq_structures]
-
+    merged_pairs = []
     with alive_bar(
             len(distance_matrix),
-            title='Mapping paths to origin') as progress_bar:
+            title='Removing equivalent paths') as progress_bar:
         for from_idx, row in enumerate(distance_matrix):
-            targets = []
-            orig_idx = all_clones[from_idx].properties.get('_orig_idx')
-            invop = None
-            if op := all_clones[from_idx].properties.get('symop'):
-                invop = op.inverse
             for to_idx, edge_len in enumerate(row):
                 if from_idx > to_idx:
                     continue
                 if edge_len != np.inf:
-                    target = all_clones[to_idx].copy()
-                    if invop:
-                        target = apply_operation_keep_lattice(target, invop)
-                    pair_matrix[orig_idx].append(target)
+                    merged = merge_structures(
+                        [all_clones[from_idx], all_clones[to_idx]])
+                    if not _struct_is_equiv(merged, merged_pairs,
+                                            multithread=multithread):
+                        pairs.append(
+                            (all_clones[from_idx], all_clones[to_idx]))
+                        merged_pairs.append(merged)
             progress_bar()  # pylint: disable=not-callable
-
-    pairs = []
-    for idx, targets in enumerate(pair_matrix):
-        logger.info(
-            "gen_neb_pairs: searching paths from %d -> %s",
-            idx, [target.properties.get('_orig_idx') for target in targets])
-        pairs += get_neb_pairs_1(
-            uniq_structures[idx],
-            targets,
-            cutoff,
-            discard_equivalent=True,
-            multithread=multithread
-        )
     logger.info("Found %d unique paths", len(pairs))
 
     return pairs
