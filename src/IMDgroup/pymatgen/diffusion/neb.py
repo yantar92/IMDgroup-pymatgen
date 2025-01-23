@@ -276,7 +276,9 @@ def _get_min_cutoff(distance_matrix):
                         logger.debug(
                             "Max required distance %f.  Next: %f",
                             max_dist, distance)
-                        return (max_dist + distance) / 2.0
+                        # Use slightly larger value to avoid
+                        # comparison errors.
+                        return (max_dist + distance) / 2.0 * 1.01
                 # cutoff is the largest distance, return something
                 # slightly higher
                 logger.debug(
