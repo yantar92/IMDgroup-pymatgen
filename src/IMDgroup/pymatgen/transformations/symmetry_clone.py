@@ -2,6 +2,7 @@
 """
 
 import logging
+from multiprocessing import Pool
 from pymatgen.transformations.transformation_abc import AbstractTransformation
 from pymatgen.core import (SymmOp, Structure, Element)
 from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
@@ -137,8 +138,10 @@ class SymmetryCloneTransformation(AbstractTransformation):
             raise ValueError(
                 "sym_operations must be Structure of a list of SymmOp")
 
-    def get_all_clones(self, structure, progress_bar=True):
+    def get_all_clones(self, structure, progress_bar=True, multithread=False):
         """Generate a list of all clones for STRUCTURE.
+        PROGRESS_BAR controls whether to display progress.
+        MULTITHREAD controls using multithreading.
         """
         clones = []
 
@@ -146,8 +149,19 @@ class SymmetryCloneTransformation(AbstractTransformation):
             """Return True when STRUCTURE is in CLONES.
             Return False otherwise.
             """
-            for clone in clones:
-                dist = structure_distance(structure, clone)
+            if multithread:
+                with Pool() as pool:
+                    distances = pool.starmap(
+                        structure_distance,
+                        [(structure, clone) for clone in clones]
+                    )
+            else:
+                distances = None
+            for idx, clone in enumerate(clones):
+                if distances:
+                    dist = distances[idx]
+                else:
+                    dist = structure_distance(structure, clone)
                 if dist < self.tol:
                     return True
             return False
