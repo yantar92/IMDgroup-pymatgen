@@ -136,8 +136,8 @@ def structure_interpolate2(
 
     if center:
         _images = structure1.interpolate(structure2, nimages=1, **kwargs)
-        center1 = np.mean(np.array(_images[0].frac_coords), axis=1)
-        center2 = np.mean(np.array(_images[1].frac_coords), axis=1)
+        center1 = np.mean(np.array(_images[0].frac_coords), axis=0)
+        center2 = np.mean(np.array(_images[1].frac_coords), axis=0)
         diff = center1 - center2
         diff_len = np.linalg.norm(diff)
         logger.debug("Interpolating: drift %fÅ", diff_len)
