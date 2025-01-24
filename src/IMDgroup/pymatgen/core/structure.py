@@ -59,8 +59,11 @@ def structure_distance(
     # This also performs the necessary assertions about structure
     # similarity
     try:
-        str2 = structure1.interpolate(
-            structure2, 2, autosort_tol=autosort_tol)[2]
+        str2 = structure_interpolate2(
+            structure1, structure2, 2,
+            center=tol,
+            frac_tol=0,
+            autosort_tol=autosort_tol)[2]
     except ValueError:
         # Fall back to direct interpolation
         # Structures are way too different, so the best we can do is
@@ -69,8 +72,8 @@ def structure_distance(
         # At least, make sure that we are not mapping one species into another.
         for site1, site2 in zip(structure1, structure2):
             assert site1.species == site2.species
-        str2 = structure1.interpolate(
-            structure2, 2)[2]
+        str2 = structure_interpolate2(
+            structure1, structure2, 2, frac_tol=0, center=tol)[2]
 
     tot_distance_square = 0
     for node1, node2 in zip(str1, str2):
