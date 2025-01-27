@@ -84,8 +84,10 @@ Write them to <prefix><output name><subdir>."""
     parser_scf = subparsers.add_parser("scf")
     scf_add_args(parser_scf)
 
-    parser_insert = subparsers.add_parser("ins")
+    parser_insert = subparsers.add_parser("insert")
     insert_add_args(parser_insert)
+    parser_insert2 = subparsers.add_parser("ins")
+    insert_add_args(parser_insert2)
 
     parser_delete = subparsers.add_parser("del")
     delete_add_args(parser_delete)
@@ -456,15 +458,20 @@ structure will not be constrained.
 
     parser.add_argument(
         "atom",
-        help="Atom name to be inserted"
+        help="Atom name to be inserted or path to molecule structure"
     )
     parser.add_argument(
         "--limit",
-        help="""Number of structures (negative to randomize search: not recommended because of input repro problems)""",
+        help="""Number of structures (negative to select subset of structures randomly)""",
         type=int)
     parser.add_argument(
         "--step",
         help="Scan step, ans",
+        type=float)
+    parser.add_argument(
+        "--step_noise",
+        help="""Standard deviation of noise added to each point in the scan grid (default: None)
+When negative number, use random sampling instead of scanning a grid""",
         type=float)
     parser.add_argument(
         "--threshold",
@@ -501,6 +508,7 @@ def insert(args):
         transformer = InsertMoleculeTransformation(
             args.atom,
             step=args.step,
+            step_noise=args.spet_noise,
             proximity_threshold=args.threshold,
             selective_dynamics=[True, True, True],
             matcher=None,
@@ -510,6 +518,7 @@ def insert(args):
         transformer = InsertMoleculeTransformation(
             args.atom,
             step=args.step,
+            step_noise=args.spet_noise,
             proximity_threshold=args.threshold,
             selective_dynamics=[True, True, True],
             multithread=args.multithread,
