@@ -178,7 +178,8 @@ class IMDGVaspToComputedEnrgyDrone(VaspToComputedEntryDrone):
                 energy=final_energy,
                 data={
                     'converged': converged_ionic and converged_electronic,
-                    'filename': outcar_path})
+                    'filename': outcar_path,
+                    'final_energy': final_energy})
 
         if outcar is None:
             computed_entry.data['outcar'] = None
