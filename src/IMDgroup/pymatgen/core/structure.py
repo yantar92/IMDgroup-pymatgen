@@ -106,9 +106,6 @@ def structure_interpolate2(
     Return a list of interpolated structures, possibly adjusted to
     avoid atom collisions by changing distances between images.
     """
-    assert structure_is_valid2(structure1, frac_tol)
-    assert structure_is_valid2(structure2, frac_tol)
-
     if center:
         _images = structure1.interpolate(structure2, nimages=1, **kwargs)
         center1 = np.mean(np.array(_images[0].frac_coords), axis=0)
@@ -125,6 +122,12 @@ def structure_interpolate2(
             )
 
     images = structure1.interpolate(structure2, nimages=nimages, **kwargs)
+
+    if np.isclose(frac_tol, 0):
+        return images
+
+    assert structure_is_valid2(structure1, frac_tol)
+    assert structure_is_valid2(structure2, frac_tol)
 
     def all_valid(images):
         """Return True if all IMAGES are valid.
