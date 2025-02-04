@@ -115,8 +115,8 @@ def structure_interpolate2(
         center2 = np.mean(np.array(_images[1].frac_coords), axis=0)
         diff = center1 - center2
         diff_len = np.linalg.norm(diff)
-        # logger.debug("Interpolating: drift %fÅ", diff_len)
-        if center is True or (isinstance(center, float) and diff_len < center):
+        logger.debug("Interpolating: drift %fÅ", diff_len)
+        if center is True or (isinstance(center, float) and diff_len > center):
             structure2 = _images[1].copy()
             # logger.info("Interpolating: adjusting centers by %fÅ", diff_len)
             structure2.translate_sites(
