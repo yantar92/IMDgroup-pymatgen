@@ -205,3 +205,25 @@ def structure_is_valid2(structure: Structure, frac_tol: float = 0.5) -> bool:
             if dist < max_dist:
                 return False
     return True
+
+
+def reduce_supercell(structure):
+    """Return reduced supercell for STRUCTURE.
+    Do not modify STRUCTURE.
+    """
+    reduced_structure = structure.copy()
+    reduced_structure = reduced_structure.get_primitive_structure(
+        constrain_latt=['alpha', 'beta', 'gamma'])
+    return reduced_structure
+
+
+def get_supercell_size(structure):
+    """Get supercell size for STRUCTURE.
+    Return a tuple of intergers (A, B, C) for AxBxC supercell.
+    """
+    reduced_structure = reduce_supercell(structure)
+    a = structure.lattice.a/reduced_structure.lattice.a
+    b = structure.lattice.b/reduced_structure.lattice.b
+    c = structure.lattice.c/reduced_structure.lattice.c
+    return (round(a), round(b), round(c))
+

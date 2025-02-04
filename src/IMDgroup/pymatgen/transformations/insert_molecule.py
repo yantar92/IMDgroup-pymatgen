@@ -12,6 +12,7 @@ from pymatgen.util.typing import SpeciesLike
 from pymatgen.core.periodic_table import get_el_sp
 from pymatgen.symmetry.analyzer import PointGroupAnalyzer
 from pymatgen.analysis.structure_matcher import StructureMatcher
+from IMDgroup.pymatgen.core.structure import reduce_supercell
 
 __author__ = "Ihor Radchenko <yantar92@posteo.net>"
 
@@ -114,9 +115,7 @@ class InsertMoleculeTransformation(AbstractTransformation):
         # supercell beyond the underlying primitive structure.
         if self.reduce_supercell:
             logger.debug("Attempting to scale down the original structure")
-            reduced_structure = structure.copy()
-            reduced_structure = reduced_structure.get_primitive_structure(
-                constrain_latt=['alpha', 'beta', 'gamma'])
+            reduced_structure = reduce_supercell(structure)
             logger.info(
                 "%s",
                 'Detected '

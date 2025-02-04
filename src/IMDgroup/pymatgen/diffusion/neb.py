@@ -7,7 +7,7 @@ from alive_progress import alive_bar
 import numpy as np
 from pymatgen.core import Structure
 from pymatgen.analysis.structure_matcher import StructureMatcher
-from IMDgroup.pymatgen.core.structure import merge_structures
+from IMDgroup.pymatgen.core.structure import merge_structures, get_supercell_size
 from IMDgroup.pymatgen.transformations.symmetry_clone\
     import SymmetryCloneTransformation
 from IMDgroup.pymatgen.core.structure import structure_distance
@@ -17,6 +17,10 @@ logger = logging.getLogger(__name__)
 
 class StructureDuplicateWarning(UserWarning):
     """Warning class for duplicate input structures."""
+
+
+class get_neb_pairs_warning(UserWarning):
+    """Warning class for get_neb_pairs."""
 
 
 def _struct_is_equiv(
@@ -167,6 +171,11 @@ def get_neb_pairs(
     of possible unique sites for interstitial/substitutional atom (or
     atoms).
 
+    IMPORTANT: STRUCTURES must be at least 2x2x2 supercells.  If not,
+    they will be scaled up to become 2x2x2 by appending PROTOTYPE.
+    (This is done to ensure for technical reasons so that we can cover
+    self->self diffusion paths)
+
     The algorithm assumes that applying symmetry operation for
     PROTOTYPE on any element STRUCTURES produces a valid alternative
     diffusion start/end point.
@@ -214,6 +223,57 @@ def get_neb_pairs(
         logger.info(
             "gen_neb_pairs: Using structure enumeration"
             " preserving the original order (including duplicates)")
+
+    dims = get_supercell_size(prototype)
+
+    # FIXME: When using PROTOTYPE to fill up the space, and inserted
+    # atom/molecule is close to the cell edge, we risk creating a
+    # supercell that is not fully relaxed.
+    # The easiest way to avoid this would be demanding at least 2x2x2
+    # structures as input.
+    def __enlarge_cell(structure):
+        """Enlarge STRUCTURE to be at least 2x2x2.
+        Use PROTOTYPE to fill newly appended volume.
+        Assume that STRUCTURE has DIMS size already.
+        Return the new structure.
+        """
+        if structure is None:
+            return None
+        scales = [2 if dim == 1 else 1 for dim in dims]
+        # Create scaled up prototype
+        scaled_structure = prototype.copy() * scales
+        # Remove all the points that are bound by the original
+        # structure.
+        sites_to_remove = []
+        for idx, site in enumerate(scaled_structure):
+            inside = True
+            for scale, coord in zip(scales, site.frac_coords):
+                if scale == 2 and coord >= 0.5:
+                    inside = False
+                    break
+            if inside:
+                sites_to_remove.append(idx)
+        scaled_structure.remove_sites(sites_to_remove)
+        # Add sites from STRUCTURE in place of the removed from the
+        # prototype
+        for site in structure:
+            scaled_structure.append(
+                species=site.species,
+                coords=site.coords,
+                coords_are_cartesian=True,
+                properties=site.properties
+            )
+        return scaled_structure
+
+    if dims[0] == 1 or dims[1] == 1 or dims[2] == 1:
+        warnings.warn(
+            "get_neb_pairs: Prototype is not at least 2x2x2 supercell."
+            " Scaling up (inaccurate)\n Suggestion: better give relaxed supercell as input.",
+            get_neb_pairs_warning
+        )
+        uniq_structures = [__enlarge_cell(struct) for struct in uniq_structures]
+        prototype = __enlarge_cell(prototype)
+        assert prototype is not None
 
     all_clones = []
     for idx, struct in enumerate(uniq_structures):
