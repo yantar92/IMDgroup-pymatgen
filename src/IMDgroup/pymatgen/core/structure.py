@@ -88,13 +88,13 @@ def structure_interpolate2(
         structure1: Structure, structure2: Structure,
         nimages: int = 10,
         frac_tol: float = 0.5,
-        center: bool | float = 0.5,
+        center: bool | float = 1.0,
         **kwargs) -> list[Structure]:
     """Like Structure.interpolate, but make sure that images are valid.
     Valid means that no atoms in the images are very close
     (structure_is_valid2), no closer than FRAC_TOL*sum of specie radiuses.
 
-    A new parameter CENTER (default: 0.5Å) will adjust STRUCTURE2 to
+    A new parameter CENTER (default: 1.0Å) will adjust STRUCTURE2 to
     match STRUCTURE1 geometric center of mass before interpolation.
     CENTER may either be a boolean (True to adjust structure centers)
     or a float to adjust structure centers only when the distance
@@ -112,8 +112,8 @@ def structure_interpolate2(
         center2 = np.mean(np.array(_images[1].frac_coords), axis=0)
         diff = center1 - center2
         diff_len = np.linalg.norm(diff)
-        logger.debug("Interpolating: drift %fÅ", diff_len)
-        if center is True or (isinstance(center, float) and diff_len > center):
+        # logger.debug("Interpolating: drift %fÅ", diff_len)
+        if center is True or (isinstance(center, float) and diff_len < center):
             structure2 = _images[1].copy()
             # logger.info("Interpolating: adjusting centers by %fÅ", diff_len)
             structure2.translate_sites(
