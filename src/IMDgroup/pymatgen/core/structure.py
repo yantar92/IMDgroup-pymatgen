@@ -48,7 +48,7 @@ def structure_distance(
     between the nearest lattice sites.  Distances below TOL do not
     contribute to the sum.
 
-    AUTOSOR_TOL (default: 0.5) is passed to
+    AUTOSORT_TOL (default: 0.5) is passed to
     pymatgen.core.Structure.interpolate.  When it is a float an
     attempt is made to match site to site via heuristics.  When None,
     compute 1-to-1 distance mapping.
