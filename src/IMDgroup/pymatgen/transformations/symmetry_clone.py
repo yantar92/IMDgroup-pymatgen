@@ -8,7 +8,7 @@ from pymatgen.core import (SymmOp, Structure, Element)
 from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
 from pymatgen.util.typing import SpeciesLike
 from alive_progress import alive_bar
-from IMDgroup.pymatgen.core.structure import structure_distance
+from IMDgroup.pymatgen.core.structure import structure_distance, get_matched_structure
 
 __author__ = "Ihor Radchenko <yantar92@posteo.net>"
 logger = logging.getLogger(__name__)
@@ -86,6 +86,8 @@ class SymmetryFillTransformation(AbstractTransformation):
 def apply_operation_keep_lattice(structure, op):
     """Apply OP to STRUCTURE, keeping lattice vectors unchanged.
     Return modified copy of the structure.
+    The modified structure will have atom-to-atom match and all the
+    frac_coords normalized within 0..1 range.
     """
     tmp = structure.copy()
     tmp.apply_operation(op, fractional=True)
@@ -99,16 +101,12 @@ def apply_operation_keep_lattice(structure, op):
             site.species, site.coords,
             coords_are_cartesian=True,
             properties=site.properties)
-    # Make life easier for the collees.  Align sites
+    for site in result:
+        site.to_unit_cell(in_place=True)
+    # Make life easier for the callees.  Align sites
     # between clone and structure
     props = result.properties  # preserve properties
-    try:
-        result = structure.interpolate(result, 2, autosort_tol=0.5)[2]
-    except ValueError:
-        # Complex structure with atom-to-atom matching
-        # that is difficult to find.
-        # result = result
-        pass
+    result = get_matched_structure(structure, result)
     result.properties = props
     result.properties['symop'] = op
     return result
@@ -156,6 +154,7 @@ class SymmetryCloneTransformation(AbstractTransformation):
         """Generate a list of all clones for STRUCTURE.
         PROGRESS_BAR controls whether to display progress.
         MULTITHREAD controls using multithreading.
+        The clone sites will match STRUCTURE one-to-one.
         """
         clones = []
 

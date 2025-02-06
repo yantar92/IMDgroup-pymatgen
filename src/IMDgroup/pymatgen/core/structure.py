@@ -38,6 +38,69 @@ def merge_structures(
     return merged
 
 
+def get_matched_structure(
+        reference_struct: Structure,
+        target_struct: Structure,
+        pbc: bool = True
+        ):
+    """Find the best site match between REFERENCE_STRUCT and TARGET_STRUCT.
+    Return modified TARGET_STRUCT with sites rearranged in such a way that
+    reference_struct[idx] is close to return_value[idx] and have the
+    same species.
+
+    TARGET_STRUCT must have the same lattice with REFERENCE_STRUCT and
+    must contain sites of REFERENCE_STRUCT as a subset.
+
+    When PBC is False, do not use boundary conditions to compute distances.
+    """
+    # Check length of structures
+    if len(target_struct) < len(reference_struct):
+        raise ValueError("Target structure has too few sites!")
+
+    if not reference_struct.lattice == target_struct.lattice:
+        raise ValueError("Structures with different lattices!")
+
+    start_coords = np.array(reference_struct.frac_coords)
+    end_coords = np.array(target_struct.frac_coords)
+
+    if pbc:
+        dist_matrix = reference_struct.lattice.get_all_distances(
+            start_coords, end_coords)
+    else:
+        diff = start_coords[:, np.newaxis, :] - end_coords[np.newaxis, :, :]
+        dist_matrix = np.sqrt(np.sum(diff**2, axis=-1))
+
+    matched = np.full(len(start_coords), False)
+
+    result_sites = []
+
+    # Assign the closest site with the same species
+    for idx, row in enumerate(dist_matrix):
+        ind = np.argsort(row)
+        found_mapping = False
+        for matched_idx in ind:
+            if not matched[matched_idx] and\
+               reference_struct[idx].species ==\
+               target_struct[matched_idx].species:
+                matched[matched_idx] = True
+                result_sites.append(target_struct[matched_idx])
+                found_mapping = True
+                break
+        if not found_mapping:
+            raise ValueError("Unable to reliably match structures")
+
+    # If there are more sites in target_struct, add them to the end.
+    for idx, site_matched in enumerate(matched):
+        if not site_matched:
+            result_sites.append(target_struct[idx])
+
+    return Structure.from_sites(
+        result_sites,
+        charge=target_struct.charge,
+        properties=target_struct.properties
+    )
+
+
 def structure_distance(
         structure1: Structure, structure2: Structure,
         tol: float = 0.1,
@@ -58,22 +121,7 @@ def structure_distance(
     # re-ordered (to match structure1) final structure as output
     # This also performs the necessary assertions about structure
     # similarity
-    try:
-        str2 = structure_interpolate2(
-            structure1, structure2, 2,
-            center=tol,
-            frac_tol=0,
-            autosort_tol=autosort_tol)[2]
-    except ValueError:
-        # Fall back to direct interpolation
-        # Structures are way too different, so the best we can do is
-        # assuming that the site order is right
-        warnings.warn("Computing distance between dissimilar structures")
-        # At least, make sure that we are not mapping one species into another.
-        for site1, site2 in zip(structure1, structure2):
-            assert site1.species == site2.species
-        str2 = structure_interpolate2(
-            structure1, structure2, 2, frac_tol=0, center=tol)[2]
+    str2 = get_matched_structure(structure1, structure2)
 
     tot_distance_square = 0
     for node1, node2 in zip(str1, str2):
@@ -107,19 +155,20 @@ def structure_interpolate2(
     avoid atom collisions by changing distances between images.
     """
     if center:
-        _images = structure1.interpolate(structure2, nimages=1, **kwargs)
-        center1 = np.mean(np.array(_images[0].frac_coords), axis=0)
-        center2 = np.mean(np.array(_images[1].frac_coords), axis=0)
+        center1 = np.mean(np.array(structure1.frac_coords), axis=0)
+        center2 = np.mean(np.array(structure2.frac_coords), axis=0)
         diff = center1 - center2
         diff_len = np.linalg.norm(diff)
         # logger.debug("Interpolating: drift %fÅ", diff_len)
         if center is True or (isinstance(center, float) and diff_len < center):
-            structure2 = _images[1].copy()
+            structure2 = structure2.copy()
             # logger.info("Interpolating: adjusting centers by %fÅ", diff_len)
             structure2.translate_sites(
                 list(range(len(structure2))),
                 diff, frac_coords=True, to_unit_cell=True
             )
+
+    structure2 = get_matched_structure(structure1, structure2)
 
     images = structure1.interpolate(structure2, nimages=nimages, **kwargs)
 
