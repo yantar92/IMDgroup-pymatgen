@@ -168,7 +168,7 @@ class SymmetryCloneTransformation(AbstractTransformation):
                 with Pool() as pool:
                     distances = pool.starmap(
                         structure_distance,
-                        [(structure, clone) for clone in clones]
+                        [(structure, clone, 0.1, False) for clone in clones]
                     )
             else:
                 distances = None
@@ -176,7 +176,7 @@ class SymmetryCloneTransformation(AbstractTransformation):
                 if distances:
                     dist = distances[idx]
                 else:
-                    dist = structure_distance(structure, clone)
+                    dist = structure_distance(structure, clone, match_first=False)
                 if dist < self.tol:
                     return True
             return False
@@ -201,7 +201,7 @@ class SymmetryCloneTransformation(AbstractTransformation):
         # Sort structures by distance from reference STRUCTURE
         clones = sorted(
             clones,
-            key=lambda clone: structure_distance(clone, structure))
+            key=lambda clone: structure_distance(clone, structure, match_first=False))
 
         return clones
 
