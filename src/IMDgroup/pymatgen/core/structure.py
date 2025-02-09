@@ -2,8 +2,11 @@
 """
 import logging
 import warnings
+from multiprocessing import Pool
 import numpy as np
 from pymatgen.core import Structure
+from pymatgen.analysis.structure_matcher import StructureMatcher
+from pymatgen.util.coord import pbc_shortest_vectors
 
 logger = logging.getLogger(__name__)
 
@@ -99,6 +102,44 @@ def get_matched_structure(
         charge=target_struct.charge,
         properties=target_struct.properties
     )
+
+
+def structure_diff(
+        structure1: Structure, structure2: Structure,
+        tol: float = 0.1,
+        match_first = True
+        ):
+    """Return translation vectors between two similar structures.
+    The structures must have the same number of sites and species.
+    Trnalations shorter than TOL angstrem do not contribute to the
+    result.
+
+    When MATCH_FIRST is True (default), call get_matched_structure
+    first.
+    """
+    str1 = structure1
+    # interpolate knows how to match similar sites, spitting out
+    # re-ordered (to match structure1) final structure as output
+    # This also performs the necessary assertions about structure
+    # similarity
+    if match_first:
+        str2 = get_matched_structure(structure1, structure2)
+    else:
+        str2 = structure2
+
+    vectors = []
+    diff_frac = [
+        pbc_shortest_vectors(str1.lattice, c1, c2)[0][0]
+        for c1, c2 in zip(str1.frac_coords, str2.frac_coords)
+    ]
+    diff = str1.lattice.get_cartesian_coords(diff_frac)
+    for v in diff:
+        if np.linalg.norm(v) > tol:
+            vectors.append(v)
+        else:
+            vectors.append(np.array([0, 0, 0]))
+
+    return vectors
 
 
 def structure_distance(
