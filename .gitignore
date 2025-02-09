@@ -3,3 +3,4 @@ __pycache__
 flycheck_*
 /.venv/
 /build/
+.aider*
