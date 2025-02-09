@@ -145,24 +145,25 @@ def structure_diff(
 def structure_distance(
         structure1: Structure, structure2: Structure,
         tol: float = 0.1,
-        autosort_tol: float | None = 0.5) -> float:
-    """Return distance between two similar structures.
+        match_first=True) -> float:
+    """Return tuple distance between two similar structures.
     The structures must have the same number of sites and species.
     The returned value is a square root of sum of squared distances
     between the nearest lattice sites.  Distances below TOL do not
     contribute to the sum.
 
-    AUTOSORT_TOL (default: 0.5) is passed to
-    pymatgen.core.Structure.interpolate.  When it is a float an
-    attempt is made to match site to site via heuristics.  When None,
-    compute 1-to-1 distance mapping.
+    When MATCH_FIRST is True (default), call get_matched_structure
+    first.
     """
     str1 = structure1
     # interpolate knows how to match similar sites, spitting out
     # re-ordered (to match structure1) final structure as output
     # This also performs the necessary assertions about structure
     # similarity
-    str2 = get_matched_structure(structure1, structure2)
+    if match_first:
+        str2 = get_matched_structure(structure1, structure2)
+    else:
+        str2 = structure2
 
     tot_distance_square = 0
     for node1, node2 in zip(str1, str2):
