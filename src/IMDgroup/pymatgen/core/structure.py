@@ -310,7 +310,6 @@ def reduce_supercell(structure):
         constrain_latt=['alpha', 'beta', 'gamma'])
     return reduced_structure
 
-
 def get_supercell_size(structure):
     """Get supercell size for STRUCTURE.
     Return a tuple of intergers (A, B, C) for AxBxC supercell.
@@ -321,3 +320,50 @@ def get_supercell_size(structure):
     c = structure.lattice.c/reduced_structure.lattice.c
     return (round(a), round(b), round(c))
 
+
+class StructureDuplicateWarning(UserWarning):
+    """Warning class for duplicate input structures."""
+
+
+def structure_matches(
+        struct: Structure,
+        known_structs: list[Structure],
+        warn=False,
+        multithread=False):
+    """Return True when STRUCT is equivalent to any KNOWN_STRUCTS.
+    Otherwise, return False.
+    When WARN is True, display warning when duplicate is found.
+    When MULTITHREAD is True, use multithreading.
+    """
+    matcher = StructureMatcher(attempt_supercell=True, scale=False)
+
+    def _warn(duplicate_of):
+        if warn:
+            origin_path = struct.properties.get('origin_path')
+            origin_path_2 = duplicate_of.properties.get('origin_path')
+            warnings.warn(
+                "Duplicate structures found" +
+                f" ({origin_path} and {origin_path_2})"
+                if origin_path and origin_path_2 else "",
+                StructureDuplicateWarning
+            )
+
+    if multithread:
+        with Pool() as pool:
+            equivs = pool.starmap(
+                matcher.fit,
+                [(struct, known) for known in known_structs
+                 if known is not None]
+            )
+        for idx, val in enumerate(equivs):
+            if val:
+                _warn(known_structs[idx])
+                return True
+    else:
+        for known in known_structs:
+            if known is None:
+                continue
+            if matcher.fit(struct, known):
+                _warn(known)
+                return True
+    return False
