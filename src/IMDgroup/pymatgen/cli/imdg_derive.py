@@ -686,6 +686,7 @@ def neb_diffusion(args):
         assert structure_run.converged
         structure = structure_run.final_structure
         structure.properties['origin_path'] = struct_path
+        structure.properties['final_energy'] = structure_run.final_energy
         structures.append(structure)
 
     pairs = get_neb_pairs(
