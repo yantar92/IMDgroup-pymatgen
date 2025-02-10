@@ -537,13 +537,18 @@ def get_neb_pairs(
     pairs = []
     merged_pairs = []
     _known_dists = []
+    n_edges = 0
+    for from_idx, to_idx, data in neb_graph.edges:
+        if from_idx > to_idx or data is None:
+            continue
+        n_edges += 1
     with alive_bar(
-            len(neb_graph.structures)**2,
+            n_edges,
             title='Removing equivalent paths') as progress_bar:
         for from_idx, to_idx, edge in neb_graph.edges:
-            progress_bar()  # pylint: disable=not-callable
             if from_idx > to_idx or edge is None:
                 continue
+            progress_bar()  # pylint: disable=not-callable
             merged = merge_structures(
                 [all_clones[from_idx], all_clones[to_idx]])
             # Equivalent paths must have the same length
