@@ -36,11 +36,14 @@ class _NEB_Graph:
         all_edges = self.__get_all_edges()
         edge_matrix = np.full(
             (len(structures), len(structures)), None, dtype=object)
-        for from_idx, to_idx, dist, vec in all_edges:
-            edge_matrix[from_idx, to_idx] = {
-                'distance': dist, 'vector': np.array(vec)}
-            edge_matrix[to_idx, from_idx] = {
-                'distance': dist, 'vector': -np.array(vec)}
+        for from_idx, to_idx, data in all_edges:
+            edge_matrix[from_idx, to_idx] = data
+            data_rev = {
+                'distance': data['distance'],
+                'vector': -data['vector'],
+                'energy_barrier': -data['energy_barrier']
+            }
+            edge_matrix[to_idx, from_idx] = data_rev
         self._edge_matrix = edge_matrix
 
     @property
