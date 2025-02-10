@@ -241,10 +241,9 @@ class _NEB_Graph:
         return False
 
     def all_diffusion_paths_infinite(
-            self, energy_cutoff: float | None = None) -> bool:
-        """Return True when all structures are within infinite diffusion paths.
-        When ENERGY_CUTOFF is a float, only check structures with this or lower
-        structure.property['final_energy'].
+            self, idxs: list[int] | None = None) -> bool:
+        """Return True when all IDXS are within infinite diffusion paths.
+        If IDXS is None, check all the structures in the graph.
 
         Assume that structures with the same
         structure.properties['_orig_idx'] are symmetrically equivalent
@@ -252,10 +251,10 @@ class _NEB_Graph:
         infinite diffusion path.
         """
         _checked = []
-        for idx, struct in enumerate(self.structures):
-            if energy_cutoff is not None and\
-               struct.properties['final_energy'] > energy_cutoff:
-                continue
+        if idxs is None:
+            idxs = [idx for idx, _ in enumerate(self.structures)]
+        for idx in idxs:
+            struct = self.structures[idx]
             if struct.properties.get('_orig_idx') in _checked:
                 continue
             if not self.diffusion_path_infinite(idx):
@@ -264,34 +263,42 @@ class _NEB_Graph:
                 _checked.append(_idx)
         return True
 
-    def get_min_cutoff(self, energy_cutoff: float | None = None):
+    def get_min_cutoff(self, idx_connected: list[int] | None = None):
         """Find the smallest distance cutoff keeping graph connected.
-
-        When ENERGY_CUTOFF is provided, also make sure that vertice
-        structures with no larger structure.properties['final_energy']
-        are also a part of infinite diffusion path.
+        Also, make sure that vertice structures are also a part of
+        infinite diffusion path.
 
         Assume that structures with the same
         structure.properties['_orig_idx'] are symmetrically equivalent
         and do not need to be checked individually whether they lay in
         infinite diffusion path.
+
+        When IDX_CONNECTED is provided, it should be a list of indices
+        to check for connectivity.
         """
         # Visit matrix: False when we cannot reach a site; True - we can.
         visited = [False] * len(self.structures)
+        if idx_connected is None:
+            start_idx = 0
+            must_visit = [True] * len(self.structures)
+        else:
+            start_idx = idx_connected[0]
+            must_visit = [False] * len(self.structures)
+            for idx in idx_connected:
+                must_visit[idx] = True
 
         with alive_bar(
-                len(visited), title='Auto-detecting cutoff') as progress_bar:
+                None, title='Auto-detecting cutoff'):
 
             def bfs1(queue, dist_cutoff):
                 while len(queue) > 0:
                     from_idx = queue.pop(0)
                     if not visited[from_idx]:
                         visited[from_idx] = True
-                        progress_bar()  # pylint: disable=not-callable
                     distances = [(edge['distance'], to_idx)
                                  for to_idx, edge
                                  in enumerate(self._edge_matrix[from_idx])
-                                 if not visited[to_idx]]
+                                 if not visited[to_idx] and edge is not None]
                     for distance, to_idx in sorted(distances):
                         if not visited[to_idx] and not distance > dist_cutoff:
                             logger.debug(
@@ -299,8 +306,7 @@ class _NEB_Graph:
                                 from_idx, to_idx, distance
                             )
                             queue.append(to_idx)
-            visited[0] = True
-            progress_bar()  # pylint: disable=not-callable
+            visited[start_idx] = True
             all_distances_sorted = np.unique(
                 [edge['distance'] for _, _, edge in self.edges
                  if edge is not None])
@@ -311,11 +317,12 @@ class _NEB_Graph:
                 )
                 queue = [idx for idx, v in enumerate(visited) if v]
                 bfs1(queue, max_dist)
-                all_visited = all(visited)
+                all_visited = all(did for must, did in zip(must_visit, visited)
+                                  if must)
                 all_infinite = True
-                if all_visited and energy_cutoff is not None:
+                if all_visited:
                     all_infinite =\
-                        self.all_diffusion_paths_infinite(energy_cutoff)
+                        self.all_diffusion_paths_infinite(idx_connected)
                 if all_visited and all_infinite:
                     for distance in all_distances_sorted:
                         # Return _larger_ distance to avoid float
@@ -517,9 +524,13 @@ def get_neb_pairs(
     energy_threshold = sorted(np.unique(energies))[0]
     logger.info("Energy theshold: %f", energy_threshold)
 
+    low_en_idxs = [
+        idx for idx, s in enumerate(neb_graph.structures)
+        if not s.properties['final_energy'] > energy_threshold]
+
     if cutoff == 'auto':
         logger.info("Determining minimal possible diffusion distance cutoff")
-        cutoff = neb_graph.get_min_cutoff(energy_threshold)
+        cutoff = neb_graph.get_min_cutoff(low_en_idxs)
         logger.info('Found optimal cutoff to cover all sites: %f', cutoff)
 
     assert isinstance(cutoff, float)
