@@ -555,8 +555,16 @@ def get_neb_pairs(
             n_edges += 1
     logger.info("Found %d paths shorter than cutoff (%f)", n_edges, cutoff)
 
+    def _connected_and_infinite():
+        is_connected = neb_graph.connected(low_en_idxs)
+        is_infinite = False
+        if is_connected:
+            is_infinite =\
+                neb_graph.all_diffusion_paths_infinite(low_en_idxs)
+        return is_connected and is_infinite
+
     # Loop over largest known (or estimated as energy difference)
-    # barriers and remove as many as possible.  Always keep >=0 barriers.
+    # barriers and remove as many as possible.  Always keep <=0 barriers.
     n_removed = 0
     barriers = [(data['energy_barrier'], from_idx, to_idx)
                 for from_idx, to_idx, data in neb_graph.edges
@@ -569,12 +577,7 @@ def get_neb_pairs(
         # Try removing one by one, starting from highest.
         for en, from_idx, to_idx in sorted(barriers, reverse=True):
             removed = neb_graph.remove_edge(from_idx, to_idx)
-            is_connected = neb_graph.connected(low_en_idxs)
-            is_infinite = False
-            if is_connected:
-                is_infinite =\
-                    neb_graph.all_diffusion_paths_infinite(low_en_idxs)
-            if is_connected and is_infinite:
+            if _connected_and_infinite():
                 logger.info("%d -> %d: removed (%f)", from_idx, to_idx, en)
                 n_removed += 1
             else:
@@ -583,75 +586,62 @@ def get_neb_pairs(
             progress_bar()  # pylint: disable=not-callable
     logger.info("Removed %d high-energy barriers", n_removed)
 
-    # if remove_compound:
-    #     logger.info("Removing compound paths")
+    if remove_compound:
+        logger.info("Removing compound paths")
 
-    #     edges = []
-    #     for from_idx, to_idx, edge in neb_graph.edges:
-    #         if from_idx > to_idx:
-    #             continue
-    #         edge_len = edge['distance']
-    #         edge_vec = edge['vector']
-    #         edges.append((edge_len, from_idx, to_idx))
+        edges = [(edge['distance'], from_idx, to_idx)
+                 for from_idx, to_idx, edge in neb_graph.edges]
+        n_edges = len(edges)
 
-    #     with alive_bar(
-    #             n_edges,
-    #             title='Removing compound paths') as progress_bar:
-    #         assert _diffusion_path_infinite(distance_vector_matrix, 0)
-    #         for edge_len, from_idx, to_idx in sorted(edges, reverse=True):
-    #             if edge_len == np.inf:
-    #                 continue
-    #             edge_vec = distance_vector_matrix[from_idx][to_idx]
-    #             edge_vec_rev = distance_vector_matrix[to_idx][from_idx]
-    #             distance_matrix[from_idx, to_idx] = np.inf
-    #             distance_matrix[to_idx, from_idx] = np.inf
-    #             distance_vector_matrix[from_idx, to_idx] = None
-    #             distance_vector_matrix[to_idx, from_idx] = None
-    #             if _diffusion_path_infinite(distance_vector_matrix, 0):
-    #                 logger.debug(
-    #                     "%d -> %d (%f): removed",
-    #                     from_idx, to_idx, edge_len
-    #                 )
-    #                 n_edges -= 1
-    #             else:
-    #                 distance_matrix[from_idx, to_idx] = edge_len
-    #                 distance_matrix[to_idx, from_idx] = edge_len
-    #                 distance_vector_matrix[from_idx, to_idx] = edge_vec
-    #                 distance_vector_matrix[to_idx, from_idx] = edge_vec_rev
-    #                 logger.info(
-    #                     "%d -> %d (%f): kept",
-    #                     from_idx, to_idx, edge_len
-    #                 )
-    #             progress_bar()  # pylint: disable=not-callable
-    #     logger.info("Found %d non-compound paths", n_edges)
+        with alive_bar(
+                n_edges,
+                title='Removing compound paths') as progress_bar:
+            for edge_len, from_idx, to_idx in sorted(edges, reverse=True):
+                removed = neb_graph.remove_edge(from_idx, to_idx)
+                if _connected_and_infinite():
+                    logger.debug(
+                        "%d -> %d (%f): removed",
+                        from_idx, to_idx, edge_len
+                    )
+                    n_edges -= 1
+                else:
+                    logger.info(
+                        "%d -> %d (%f): kept",
+                        from_idx, to_idx, edge_len
+                    )
+                    neb_graph.set_edges(removed)
+                progress_bar()  # pylint: disable=not-callable
+        logger.info("Found %d non-compound paths", n_edges)
 
     logger.info("Searching unique diffusion paths")
     pairs = []
     merged_pairs = []
     _known_dists = []
-    n_edges = 0
+    edges = []
+    dists = []
     for from_idx, to_idx, data in neb_graph.edges:
-        if from_idx > to_idx or data is None:
-            continue
-        n_edges += 1
+        if from_idx > to_idx:
+            from_idx, to_idx = to_idx, from_idx
+        if (from_idx, to_idx) not in edges:
+            edges.append((from_idx, to_idx))
+            dists.append(data['distance'])
+    n_edges = len(edges)
     with alive_bar(
             n_edges,
             title='Removing equivalent paths') as progress_bar:
-        for from_idx, to_idx, edge in neb_graph.edges:
-            if from_idx > to_idx or edge is None:
-                continue
+        for (from_idx, to_idx), dist in zip(edges, dists):
             progress_bar()  # pylint: disable=not-callable
             merged = merge_structures(
                 [all_clones[from_idx], all_clones[to_idx]])
             # Equivalent paths must have the same length
             # (assuming that structure_distance is robust enough)
-            if np.any([np.isclose(edge['distance'], d) for d in _known_dists])\
+            if np.any([np.isclose(dist, d) for d in _known_dists])\
                and structure_matches(merged, merged_pairs,
                                      multithread=multithread):
                 continue
             pairs.append((all_clones[from_idx], all_clones[to_idx]))
             merged_pairs.append(merged)
-            _known_dists.append(edge['distance'])
+            _known_dists.append(dist)
     logger.info("Found %d unique paths", len(pairs))
 
     # Sort by lentgh
