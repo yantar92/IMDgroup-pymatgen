@@ -521,7 +521,7 @@ def get_neb_pairs(
         logger.debug("Energy %d: %f", idx, energy)
         energies.append(energy)
     # Only take the lowest-energy structure
-    energy_threshold = sorted(np.unique(energies))[0]
+    energy_threshold = sorted(np.unique(energies))[0] + 1E-9
     logger.info("Energy theshold: %f", energy_threshold)
 
     low_en_idxs = [
