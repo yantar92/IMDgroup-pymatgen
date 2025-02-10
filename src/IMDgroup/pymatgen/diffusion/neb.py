@@ -61,14 +61,14 @@ class _NEB_Graph:
 
     def remove_edge(self, from_idx, to_idx):
         """Remove edge between FROM_IDX and TO_IDX structures.
-        Remove opposite edge as well.
-        Return a list of edges removed.
+        Return the edge removed or None if there was no edge between
+        FROM_IDX and TO_IDX.
         """
-        edge1 = (from_idx, to_idx, self._edge_matrix[from_idx, to_idx])
-        edge2 = (to_idx, from_idx, self._edge_matrix[to_idx, from_idx])
+        edge = (from_idx, to_idx, self._edge_matrix[from_idx, to_idx])
+        if edge[2] is None:
+            return None
         self._edge_matrix[from_idx, to_idx] = None
-        self._edge_matrix[to_idx, from_idx] = None
-        return [edge1, edge2]
+        return edge
 
     def remove_vertice_edges(self, idx):
         """Remove vertice edges for IDX structure.
@@ -77,13 +77,17 @@ class _NEB_Graph:
         """
         removed = []
         for to_idx, _ in enumerate(self.structures):
-            removed += self.remove_edge(idx, to_idx)
-        return removed
+            removed.append(self.remove_edge(idx, to_idx))
+            removed.append(self.remove_edge(to_idx, idx))
+        return [edge for edge in removed if edge is not None]
 
     def set_edges(self, edges):
         """Set EDGES.
         EDGES is a list of (from_idx, to_idx, edge_data_dict)
+        or a single tuple representing one edge to be removed.
         """
+        if not isinstance(edges, list):
+            edges = [edges]
         for from_idx, to_idx, data in edges:
             self._edge_matrix[from_idx, to_idx] = data
 
@@ -95,9 +99,17 @@ class _NEB_Graph:
         vec = structure_diff(from_struct, to_struct, tol=0, match_first=False)
         distance = structure_distance(
             from_struct, to_struct, tol=0.5, match_first=False)
+        to_energy = to_struct.properties['final_energy']
+        from_energy = from_struct.properties['final_energy']
+        energy_barrier = to_energy - from_energy
+        data = {
+            'distance': distance,
+            'vector': np.array(vec),
+            'energy_barrier': energy_barrier
+        }
         if progress_bar is not None:
             progress_bar()  # pylint: disable=not-callable
-        return (from_idx, to_idx, distance, vec)
+        return (from_idx, to_idx, data)
 
     def __get_all_edges(self):
         """Compute all edges for the NEB graph."""
@@ -485,6 +497,7 @@ def get_neb_pairs(
             continue
         if not edge_len < cutoff:
             neb_graph.remove_edge(from_idx, to_idx)
+            neb_graph.remove_edge(to_idx, from_idx)
         else:
             n_edges += 1
     logger.info("Found %d paths shorter than cutoff (%f)", n_edges, cutoff)
