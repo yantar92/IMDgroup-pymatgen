@@ -550,40 +550,33 @@ def get_neb_pairs(
             n_edges += 1
     logger.info("Found %d paths shorter than cutoff (%f)", n_edges, cutoff)
 
-    logger.info("Removing high-energy structures")
-    # Loop over structures above the threshold and remove them if such
-    # removal does not break infinite diffusion path for low-energy
-    # structures.
-    low_en_idxs = [
-        idx for idx in np.argsort(energies)
-        if not energies[idx] > energy_threshold]
-    high_en_idxs = [
-        idx for idx in reversed(np.argsort(energies))
-        if energies[idx] > energy_threshold]
-
-    def __infinitely_connected():
-        for idx in low_en_idxs:
-            connected = neb_graph.diffusion_path_infinite(idx)
-            if not connected:
-                return False
-        return True
-
-    # assert __infinitely_connected()
+    # Loop over largest known (or estimated as energy difference)
+    # barriers and remove as many as possible.  Always keep >=0 barriers.
     n_removed = 0
+    barriers = [(data['energy_barrier'], from_idx, to_idx)
+                for from_idx, to_idx, data in neb_graph.edges
+                if data['energy_barrier'] >= 1E-9]
+    logger.info('Removing high-energy barriers')
     with alive_bar(
-            len(high_en_idxs),
-            title='Removing high-energy configurations'
+            len(barriers),
+            title='Removing high-energy barriers'
     ) as progress_bar:
-        for idx in high_en_idxs:
-            removed_edges = neb_graph.remove_vertice_edges(idx)
-            if not __infinitely_connected():
-                logger.info("%d: kept (%f)", idx, energies[idx])
-                neb_graph.set_edges(removed_edges)
-            else:
-                logger.debug("%d: removed (%f)", idx, energies[idx])
+        # Try removing one by one, starting from highest.
+        for en, from_idx, to_idx in sorted(barriers, reverse=True):
+            removed = neb_graph.remove_edge(from_idx, to_idx)
+            is_connected = neb_graph.connected(low_en_idxs)
+            is_infinite = False
+            if is_connected:
+                is_infinite =\
+                    neb_graph.all_diffusion_paths_infinite(low_en_idxs)
+            if is_connected and is_infinite:
+                logger.info("%d -> %d: removed (%f)", from_idx, to_idx, en)
                 n_removed += 1
+            else:
+                logger.info("%d -> %d: kept (%f)", from_idx, to_idx, en)
+                neb_graph.set_edges(removed)
             progress_bar()  # pylint: disable=not-callable
-    logger.info("Removed %d high-energy configurations", n_removed)
+    logger.info("Removed %d high-energy barriers", n_removed)
 
     # if remove_compound:
     #     logger.info("Removing compound paths")
