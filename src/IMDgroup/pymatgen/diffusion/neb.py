@@ -45,19 +45,16 @@ class _NEB_Graph:
 
     @property
     def edges(self):
-        """Return a list of all edges.
-        Each element of the list is (from_idx, to_idx, edge_data)
+        """Return a list of all edges, as a generator.
+        Each element is (from_idx, to_idx, edge_data)
         where edge_data is a dict containing 'vector' and 'distance'
         entries representing distance between structures and vector
         moving from one structure to another.
         """
-        # FIXME: Ideally, we should return an interator
-        result = []
         for from_idx, row in enumerate(self._edge_matrix):
             for to_idx, data in enumerate(row):
                 if data is not None:
-                    result.append((from_idx, to_idx, data))
-        return result
+                    yield (from_idx, to_idx, data)
 
     def remove_edge(self, from_idx, to_idx):
         """Remove edge between FROM_IDX and TO_IDX structures.
