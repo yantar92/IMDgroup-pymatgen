@@ -324,8 +324,13 @@ class _NEB_Graph:
                                   if must)
                 all_infinite = True
                 if all_visited:
+                    deleted = [
+                        self.remove_edge(from_idx, to_idx)
+                        for from_idx, to_idx, edge in self.edges
+                        if edge['distance'] > max_dist]
                     all_infinite =\
                         self.all_diffusion_paths_infinite(idx_connected)
+                    self.set_edges(deleted)
                 if all_visited and all_infinite:
                     for distance in all_distances_sorted:
                         # Return _larger_ distance to avoid float
