@@ -146,15 +146,18 @@ class _NEB_Graph:
                 if from_idx < to_idx
             ]
 
-    def connected(self):
+    def connected(self, idxs: list[int] | None = None):
         """Return True when graph is connected.
         Otherwise, return False.
+        If IDXS is a list, only check connectivity of IDXS vertices.
         """
         n_vertices = len(self.structures)
         # Visit matrix: False when we cannot reach a site; True - we can.
         visited = [False for _ in range(n_vertices)]
 
-        queue = [0]
+        if idxs is None:
+            idxs = [idx for idx, _ in enumerate(self.structures)]
+        queue = [idxs[0]]
 
         while len(queue) > 0:
             from_idx = queue.pop(0)
@@ -165,7 +168,7 @@ class _NEB_Graph:
                 if not visited[to_idx]:
                     queue.append(to_idx)
 
-        return all(visited)
+        return all(visited[idx] for idx in idxs)
 
     def diffusion_path_infinite(self, start_idx):
         """Return True when START_IDX is within infinite diffusion path.
