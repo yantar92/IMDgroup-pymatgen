@@ -191,15 +191,41 @@ class _NEB_Graph:
                     return True
         return False
 
-    def get_min_cutoff(self):
-        """Find the smallest distance cutoff keeping graph connected.
-        DISTANCE_MATRIX is a square matrix representing diffusion path lengthes.
+    def all_diffusion_paths_infinite(
+            self, energy_cutoff: float | None = None) -> bool:
+        """Return True when all structures are within infinite diffusion paths.
+        When ENERGY_CUTOFF is a float, only check structures with this or lower
+        structure.property['final_energy'].
 
-        Note: connected diffusion graph may theoretcally lead to all the
-        diffusion paths be bound within finite volume.  Most of the time
-        it should be fine though.  Good enough as an approximation.
-        FIXME: Consider using full "infinite diffusion path" criterion
-        instead.
+        Assume that structures with the same
+        structure.properties['_orig_idx'] are symmetrically equivalent
+        and do not need to be checked individually whether they lay in
+        infinite diffusion path.
+        """
+        _checked = []
+        for idx, struct in enumerate(self.structures):
+            if energy_cutoff is not None and\
+               struct.properties['final_energy'] > energy_cutoff:
+                continue
+            if struct.properties.get('_orig_idx') in _checked:
+                continue
+            if not self.diffusion_path_infinite(idx):
+                return False
+            if _idx := struct.properties.get('_orig_idx'):
+                _checked.append(_idx)
+        return True
+
+    def get_min_cutoff(self, energy_cutoff: float | None = None):
+        """Find the smallest distance cutoff keeping graph connected.
+
+        When ENERGY_CUTOFF is provided, also make sure that vertice
+        structures with no larger structure.properties['final_energy']
+        are also a part of infinite diffusion path.
+
+        Assume that structures with the same
+        structure.properties['_orig_idx'] are symmetrically equivalent
+        and do not need to be checked individually whether they lay in
+        infinite diffusion path.
         """
         # Visit matrix: False when we cannot reach a site; True - we can.
         visited = [False] * len(self.structures)
@@ -236,7 +262,12 @@ class _NEB_Graph:
                 )
                 queue = [idx for idx, v in enumerate(visited) if v]
                 bfs1(queue, max_dist)
-                if all(visited):
+                all_visited = all(visited)
+                all_infinite = True
+                if all_visited and energy_cutoff is not None:
+                    all_infinite =\
+                        self.all_diffusion_paths_infinite(energy_cutoff)
+                if all_visited and all_infinite:
                     for distance in all_distances_sorted:
                         # Return _larger_ distance to avoid float
                         # comparison precision problems
@@ -250,10 +281,12 @@ class _NEB_Graph:
                     # cutoff is the largest distance, return something
                     # slightly higher
                     logger.debug(
-                        "Cutoff is the largest diffusion path length, returning x2")
+                        "Cutoff is the largest diffusion path length"
+                        ", returning x2")
                     return max_dist * 2
 
-            raise AssertionError(f"bfs: This must not happen (visited: {visited})")
+            raise AssertionError(
+                f"bfs: This must not happen (visited: {visited})")
 
 
 # FIXME: When using PROTOTYPE to fill up the space, and inserted
@@ -423,9 +456,21 @@ def get_neb_pairs(
 
     neb_graph = _NEB_Graph(all_clones, multithread=multithread)
 
+    energies = []
+    for idx, struct in enumerate(neb_graph.structures):
+        energy = struct.properties.get('final_energy')
+        if energy is None:
+            origin_path = struct.properties.get('origin_path')
+            raise ValueError(f"Energy data is missing for {origin_path}")
+        logger.debug("Energy %d: %f", idx, energy)
+        energies.append(energy)
+    # Only take the lowest-energy structure
+    energy_threshold = sorted(np.unique(energies))[0]
+    logger.info("Energy theshold: %f", energy_threshold)
+
     if cutoff == 'auto':
         logger.info("Determining minimal possible diffusion distance cutoff")
-        cutoff = neb_graph.get_min_cutoff()
+        cutoff = neb_graph.get_min_cutoff(energy_threshold)
         logger.info('Found optimal cutoff to cover all sites: %f', cutoff)
 
     assert isinstance(cutoff, float)
@@ -441,22 +486,7 @@ def get_neb_pairs(
             n_edges += 1
     logger.info("Found %d paths shorter than cutoff (%f)", n_edges, cutoff)
 
-    # for idx, _ in enumerate(neb_graph.structures):
-    #     assert neb_graph.diffusion_path_infinite(idx)
-
     logger.info("Removing high-energy structures")
-    energies = []
-    for idx, struct in enumerate(neb_graph.structures):
-        energy = struct.properties.get('final_energy')
-        if energy is None:
-            origin_path = struct.properties.get('origin_path')
-            raise ValueError(f"Energy data is missing for {origin_path}")
-        logger.debug("Energy %d: %f", idx, energy)
-        energies.append(energy)
-    # Only take the lowest-energy structure
-    energy_threshold = sorted(np.unique(energies))[0]
-    logger.info("Energy theshold: %f", energy_threshold)
-
     # Loop over structures above the threshold and remove them if such
     # removal does not break infinite diffusion path for low-energy
     # structures.
