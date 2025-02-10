@@ -188,13 +188,13 @@ class _NEB_Graph:
         cache = self.__diffusion_path_cache
         cycle = cache.get(start_idx) if cache is not None else None
         if cycle is not None:
-            logger.debug("(cached) %s", cycle)
             prev_idx = cycle[0]
             cycle_valid = True
             for next_idx in cycle[1:]:
                 if self._edge_matrix[prev_idx, next_idx] is None:
                     cycle_valid = False
                     break
+                prev_idx = next_idx
             if cycle_valid:
                 logger.debug(
                     "(cached) Found infinite diffusion path for %d: %s",
