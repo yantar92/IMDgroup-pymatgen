@@ -31,6 +31,7 @@ class _NEB_Graph:
         Assume that all the structures have the same lattice and atoms
         corresponding to each other.
         """
+        self.__diffusion_path_cache = {}
         self.structures = structures
         self.multithread = multithread
         all_edges = self.__get_all_edges()
@@ -120,7 +121,8 @@ class _NEB_Graph:
 
     def _compute_edges_multithreaded(self):
         """Compute edges using multithreading."""
-        with alive_bar(None, title='Computing distance matrix') as progress_bar:
+        with alive_bar(
+                None, title='Computing distance matrix') as progress_bar:
             with Pool() as pool:
                 progress_bar(len(self.structures) ** 2 / 2)
                 return pool.starmap(
@@ -133,7 +135,9 @@ class _NEB_Graph:
 
     def _compute_edges_singlethreaded(self):
         """Compute edges without multithreading."""
-        with alive_bar(len(self.structures) ** 2, title='Computing distance matrix') as progress_bar:
+        with alive_bar(
+                len(self.structures) ** 2,
+                title='Computing distance matrix') as progress_bar:
             return [
                 self._get_edge(
                     from_idx, to_idx, from_struct, to_struct, progress_bar)
@@ -178,17 +182,35 @@ class _NEB_Graph:
         # non-equivalent starting positions for the diffusion.
         # visited = np.full(len(self.structures), False)
 
+        cache = self.__diffusion_path_cache
+        cycle = cache.get(start_idx) if cache is not None else None
+        if cycle is not None:
+            logger.debug("(cached) %s", cycle)
+            prev_idx = cycle[0]
+            cycle_valid = True
+            for next_idx in cycle[1:]:
+                if self._edge_matrix[prev_idx, next_idx] is None:
+                    cycle_valid = False
+                    break
+            if cycle_valid:
+                logger.debug(
+                    "(cached) Found infinite diffusion path for %d: %s",
+                    start_idx,
+                    " -> ".join([str(i) for i in cycle]),
+                )
+                return True
+
         nx_G = nx.DiGraph()
         for from_idx, to_idx, edge in self.edges:
             if edge is not None:
                 nx_G.add_edge(from_idx, to_idx)
+        components = nx.strongly_connected_components(nx_G)
+        for c in components:
+            if start_idx in c:
+                nx_G = nx_G.subgraph(c)
+                break
 
-        # FIXME: The number of cycles in dense graphs grows
-        # exponentially with the number of edges.  So, this may take
-        # too long and we need some kind of cutoff or other smart idea
-        # to make things reasonable. Maybe somehow ensure that the
-        # graph passed is sparse.
-        for cycle in nx.simple_cycles(nx_G):
+        def _check_cycle(cycle):
             if start_idx in cycle:
                 cycle += [cycle[0]]
                 tot_vec = 0
@@ -203,7 +225,19 @@ class _NEB_Graph:
                         " -> ".join([str(i) for i in cycle]),
                         np.linalg.norm(tot_vec)
                     )
+                    self.__diffusion_path_cache[start_idx] = cycle
                     return True
+            return False
+
+        # First, try to find short-ish cycles
+        for cycle in nx.simple_cycles(nx_G, 4):
+            if _check_cycle(cycle):
+                return True
+        # No luck, go all-in
+
+        for cycle in nx.simple_cycles(nx_G):
+            if _check_cycle(cycle):
+                return True
         return False
 
     def all_diffusion_paths_infinite(
