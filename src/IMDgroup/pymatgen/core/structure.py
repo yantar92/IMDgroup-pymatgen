@@ -327,7 +327,7 @@ class StructureDuplicateWarning(UserWarning):
 
 def structure_matches(
         struct: Structure,
-        known_structs: list[Structure],
+        known_structs: list[Structure | None],
         cmp_fun=None,
         warn=False,
         multithread=False):
@@ -341,6 +341,8 @@ def structure_matches(
     """
     if cmp_fun is None:
         cmp_fun = StructureMatcher(attempt_supercell=True, scale=False).fit
+
+    known_structs = [known for known in known_structs if known is not None]
 
     def _warn(duplicate_of):
         if warn:
@@ -357,8 +359,7 @@ def structure_matches(
         with Pool() as pool:
             equivs = pool.starmap(
                 cmp_fun,
-                [(struct, known) for known in known_structs
-                 if known is not None]
+                [(struct, known) for known in known_structs]
             )
         for idx, val in enumerate(equivs):
             if val:
@@ -366,8 +367,6 @@ def structure_matches(
                 return True
     else:
         for known in known_structs:
-            if known is None:
-                continue
             if cmp_fun(struct, known):
                 _warn(known)
                 return True
