@@ -382,6 +382,8 @@ def __enlarge_cell(structure, prototype, scales):
     # Remove all the points that are bound by the original
     # structure.
     sites_to_remove = []
+    for site in scaled_structure:
+        site.to_unit_cell(in_place=True)
     for idx, site in enumerate(scaled_structure):
         inside = True
         for scale, coord in zip(scales, site.frac_coords):
