@@ -244,7 +244,7 @@ class _NEB_Graph:
                 return True
             if start_idx in cycle:
                 n_skipped += 1
-                logger.debug("skipped: %d", n_skipped)
+                logger.debug("skipped closed cycle: %d", n_skipped)
                 if n_skipped > max_skipped:
                     warnings.warn(
                         "Unable to find infinite diffusion path"
