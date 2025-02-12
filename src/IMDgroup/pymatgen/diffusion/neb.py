@@ -238,9 +238,20 @@ class _NEB_Graph:
                 return True
         # No luck, go all-in
 
+        n_skipped = 0
+        max_skipped = int(1E9)
         for cycle in nx.simple_cycles(nx_G):
             if _check_cycle(cycle):
                 return True
+            if start_idx in cycle:
+                n_skipped += 1
+                if n_skipped > max_skipped:
+                    warnings.warn(
+                        "Unable to find infinite diffusion path"
+                        f" for {start_idx} after attempting"
+                        " {max_skipped} paths"
+                    )
+                    break
         return False
 
     def all_diffusion_paths_infinite(
