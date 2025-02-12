@@ -669,6 +669,46 @@ def __neb_diffusion_get_inputset(idx, beg, end, args):
     inputset.name = output_dir_suffix
     return inputset
 
+
+def _append_valid(site, structure, tol=0.5):
+    """Append SITE to STRUCTURE without invalidating it.
+    If SITE can be appended without breaking structure.is_valid(),
+    just append it, modifying STRUCTRE by side effect.  If not, try
+    moving SITE, so that all distances to existing STRUCTURE sites are
+    not too small.
+    TOL is distance tolerance, in angstrem.
+    """
+    structure.append(
+        site.species, site.coords,
+        coords_are_cartesian=True
+    )
+    if structure.is_valid(tol):
+        return structure
+
+    warnings.warn(
+        "Added atoms clash with prototype.  Trying to adjust"
+    )
+
+    while not structure.is_valid(tol):
+        site = structure[-1]
+        _, _, neighbor_indices, _ =\
+            structure.lattice.get_points_in_sphere(
+                frac_points=structure.frac_coords,
+                center=site.coords,  # Cartesian
+                r=tol, zip_results=False
+            )
+        close_idx = neighbor_indices[0]
+        if structure[close_idx] == site:
+            close_idx = neighbor_indices[1]
+        close = structure[close_idx]
+        frac_vec = 0.1 * (site.frac_coords - close.frac_coords)
+        structure.translate_sites(
+            [len(structure) - 1],
+            frac_vec, frac_coords=True
+            )
+    return structure
+
+
 def neb_diffusion(args):
     """Create NEB input for all possible diffusion paths.
     Return {'inputsets': <list of inputsets>}
@@ -717,13 +757,7 @@ def neb_diffusion(args):
                         coords_are_cartesian=True
                         )
                 for site in new_sites:
-                    struct.append(
-                        species=site.species,
-                        coords=site.coords,
-                        coords_are_cartesian=True,
-                        # If we put atom too close this way, throw an error
-                        validate_proximity=True
-                        )
+                    _append_valid(site, struct, tol=0.5)
 
     pairs = get_neb_pairs(
         structures, prototype, args.cutoff, args.remove_compound,
