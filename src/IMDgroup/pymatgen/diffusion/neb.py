@@ -239,7 +239,7 @@ class _NEB_Graph:
         # No luck, go all-in
 
         n_skipped = 0
-        max_skipped = int(1E6)
+        max_skipped = int(1E4)
         for cycle in nx.simple_cycles(nx_G):
             if _check_cycle(cycle):
                 return True
