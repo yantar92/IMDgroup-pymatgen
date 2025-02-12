@@ -203,6 +203,8 @@ class _NEB_Graph:
                 )
                 return True
 
+        logger.debug(
+            "Searching infinite diffusion paths including %d", start_idx)
         nx_G = nx.DiGraph()
         for from_idx, to_idx, edge in self.edges:
             if edge is not None:
