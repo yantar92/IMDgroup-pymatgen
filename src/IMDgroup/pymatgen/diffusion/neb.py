@@ -249,7 +249,7 @@ class _NEB_Graph:
                     warnings.warn(
                         "Unable to find infinite diffusion path"
                         f" for {start_idx} after attempting"
-                        " {max_skipped} paths"
+                        f" {max_skipped} paths"
                     )
                     break
         return False
