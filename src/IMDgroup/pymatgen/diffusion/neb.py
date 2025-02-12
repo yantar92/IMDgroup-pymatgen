@@ -560,7 +560,7 @@ def get_neb_pairs(
         for clone in clones:
             clone.properties['_orig_idx'] = idx
         logger.info(
-            "#%d clones assigned indices %d..%d",
+            "#%d clones assigned indices #%d..#%d",
             idx, len(all_clones), len(all_clones)+len(clones)-1
             )
         all_clones += clones
