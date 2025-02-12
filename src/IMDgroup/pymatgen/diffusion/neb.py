@@ -232,12 +232,6 @@ class _NEB_Graph:
                     return True
             return False
 
-        # First, try to find short-ish cycles
-        for cycle in nx.simple_cycles(nx_G, 4):
-            if _check_cycle(cycle):
-                return True
-        # No luck, go all-in
-
         n_skipped = 0
         max_skipped = int(1E3)
         for cycle in nx.simple_cycles(nx_G):
