@@ -384,6 +384,9 @@ def __enlarge_cell(structure, prototype, scales):
     sites_to_remove = []
     for site in scaled_structure:
         site.to_unit_cell(in_place=True)
+    structure = structure.copy()
+    for site in structure:
+        site.to_unit_cell(in_place=True)
     for idx, site in enumerate(scaled_structure):
         inside = True
         for scale, coord in zip(scales, site.frac_coords):
