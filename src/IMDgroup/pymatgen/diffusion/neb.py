@@ -541,6 +541,15 @@ def get_neb_pairs(
     prototype, uniq_structures = \
         __scale_structures_maybe(prototype, uniq_structures)
 
+    logger.info("Assigning indices")
+    for idx, struct in enumerate(uniq_structures):
+        logger.info(
+            "#%d: %s",
+            idx, struct.properties['origin_path']
+            if struct is not None
+            else "ignore (duplicate)"
+            )
+
     all_clones = []
     for idx, struct in enumerate(uniq_structures):
         if struct is None:
@@ -550,6 +559,10 @@ def get_neb_pairs(
         clones = trans.get_all_clones(struct, multithread=multithread)
         for clone in clones:
             clone.properties['_orig_idx'] = idx
+        logger.info(
+            "#%d clones assigned indices %d..%d",
+            idx, len(all_clones), len(all_clones)+len(clones)-1
+            )
         all_clones += clones
     logger.info("Found %d clones", len(all_clones))
 
