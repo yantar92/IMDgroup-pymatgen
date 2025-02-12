@@ -10,6 +10,7 @@ from multiprocessing import Pool
 import numpy as np
 import pymatgen.core as pmg
 from pymatgen.io.vasp.outputs import Vasprun
+from IMDgroup.pymatgen.core.structure import get_matched_structure
 from IMDgroup.pymatgen.diffusion.neb import get_neb_pairs
 from IMDgroup.pymatgen.io.vasp.sets\
     import (IMDDerivedInputSet, IMDNEBVaspInputSet)
@@ -639,6 +640,12 @@ def neb_diffusion_add_args(parser):
         type=float,
         default=0.75)
     parser.add_argument(
+        "--use_prototype_matrix",
+        help="Before processing, alter diffusion points to use prototype matrix"
+        " (this will build diffusion points by inserting added atoms into unchanged prototype structure)",
+        action="store_true",
+    )
+    parser.add_argument(
         "--remove_compound",
         help="Filter out diffusion paths that may be constructed out of shorter paths",
         action="store_true",
@@ -688,6 +695,35 @@ def neb_diffusion(args):
         structure.properties['origin_path'] = struct_path
         structure.properties['final_energy'] = structure_run.final_energy
         structures.append(structure)
+
+    if args.use_prototype_matrix:
+        logger.info("Building new diffusion points as prototype+added atoms")
+        for idx, struct in enumerate(structures):
+            structures[idx] =\
+                get_matched_structure(prototype, struct)
+        if len(structures[0]) > len(prototype):
+            idxs = list(range(len(prototype), len(structures[0])))
+            logger.debug(
+                "Found inserted sites: %s",
+                [structures[0][idx] for idx in idxs]
+            )
+            for struct in structures:
+                new_sites = [struct[idx] for idx in idxs]
+                struct.remove_sites(list(range(len(struct))))
+                for site in prototype:
+                    struct.append(
+                        species=site.species,
+                        coords=site.coords,
+                        coords_are_cartesian=True
+                        )
+                for site in new_sites:
+                    struct.append(
+                        species=site.species,
+                        coords=site.coords,
+                        coords_are_cartesian=True,
+                        # If we put atom too close this way, throw an error
+                        validate_proximity=True
+                        )
 
     pairs = get_neb_pairs(
         structures, prototype, args.cutoff, args.remove_compound,
