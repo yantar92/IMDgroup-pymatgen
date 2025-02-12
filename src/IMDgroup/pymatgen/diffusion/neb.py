@@ -394,11 +394,15 @@ def __enlarge_cell(structure, prototype, scales):
 
 def _remove_duplicates(
         structures: list[Structure],
+        idxs: list[int] | None = None,
         multithread: bool = False,
-) -> list[Structure|None]:
+) -> list[Structure | None]:
     """Remove duplicates from STRUCTURES.
     Return list of the same length with duplicate structures replaced
     with None.
+
+    When IDXS is a list of indices, only compare site proximity of the
+    listed sites.
 
     When MULTITHREAD is True, use multithreading.
     """
@@ -406,15 +410,33 @@ def _remove_duplicates(
     logger.info(
         "gen_neb_pairs: Checking duplicates among %d structures...",
         len(structures))
+
+    if idxs is not None:
+        def __check_idxs(struct1, struct2):
+            for idx in idxs:
+                if struct1[idx].distance(struct2[idx]) > 0.5:
+                    return False
+            return True
+        cmp_fun = __check_idxs
+        # Can't pickle local function
+        multithread = False
+    else:
+        cmp_fun = None
+
     with alive_bar(len(structures), title='Checking duplicates')\
          as progress_bar:
         for struct in structures:
-            if not structure_matches(
-                    struct, uniq_structures, warn=True,
-                    multithread=multithread):
-                uniq_structures.append(struct)
-            else:
+            if struct is None:
                 uniq_structures.append(None)
+                progress_bar()  # pylint: disable=not-callable
+                continue
+            if structure_matches(
+                    struct, uniq_structures, warn=True,
+                    cmp_fun=cmp_fun,
+                    multithread=multithread):
+                uniq_structures.append(None)
+            else:
+                uniq_structures.append(struct)
             progress_bar()  # pylint: disable=not-callable
     logger.info(
         "gen_neb_pairs: Checking duplicates... done (removed %d)",
@@ -495,16 +517,29 @@ def get_neb_pairs(
 
     Returns a list of tuples containing begin/end structures.
     """
+    # Arrange 1-to-1 site matching in all the provided structures
+    # including prototype (needed to detect insertion sites)
+    for idx, struct in enumerate(structures):
+        if struct is not None:
+            structures[idx] =\
+                get_matched_structure(prototype, struct)
+
+    uniq_structures = structures
+    # Remove duplicates in the inserted sites.
+    if len(structures[0]) > len(prototype):
+        idxs = list(range(len(prototype), len(structures[0])))
+        logger.info(
+            "Removing duplicate positions for insertions into prototype")
+        uniq_structures = _remove_duplicates(structures, idxs, multithread)
+
     # Remove duplicates.
-    uniq_structures = _remove_duplicates(structures, multithread)
+    logger.info("Removing symmetry duplicates")
+    uniq_structures = _remove_duplicates(
+        uniq_structures, multithread=multithread)
+
     # Scale everything to at least 2x2x2 supercell.
     prototype, uniq_structures = \
         __scale_structures_maybe(prototype, uniq_structures)
-    # Arrange 1-to-1 site matching in all the provided structures
-    for idx, struct in enumerate(uniq_structures):
-        if idx != 0 and struct is not None:
-            uniq_structures[idx] =\
-                get_matched_structure(uniq_structures[0], struct)
 
     all_clones = []
     for idx, struct in enumerate(uniq_structures):

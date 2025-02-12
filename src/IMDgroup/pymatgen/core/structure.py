@@ -328,14 +328,19 @@ class StructureDuplicateWarning(UserWarning):
 def structure_matches(
         struct: Structure,
         known_structs: list[Structure],
+        cmp_fun=None,
         warn=False,
         multithread=False):
     """Return True when STRUCT is equivalent to any KNOWN_STRUCTS.
     Otherwise, return False.
+    CMP_FUN is the function to be used to judge the equivalence
+    (default: None - use StructureMatcher.fit).  It must accept two arguments
+    - structures to compare.
     When WARN is True, display warning when duplicate is found.
     When MULTITHREAD is True, use multithreading.
     """
-    matcher = StructureMatcher(attempt_supercell=True, scale=False)
+    if cmp_fun is None:
+        cmp_fun = StructureMatcher(attempt_supercell=True, scale=False).fit
 
     def _warn(duplicate_of):
         if warn:
@@ -351,7 +356,7 @@ def structure_matches(
     if multithread:
         with Pool() as pool:
             equivs = pool.starmap(
-                matcher.fit,
+                cmp_fun,
                 [(struct, known) for known in known_structs
                  if known is not None]
             )
@@ -363,7 +368,7 @@ def structure_matches(
         for known in known_structs:
             if known is None:
                 continue
-            if matcher.fit(struct, known):
+            if cmp_fun(struct, known):
                 _warn(known)
                 return True
     return False
