@@ -73,7 +73,7 @@ def get_matched_structure(
         diff = start_coords[:, np.newaxis, :] - end_coords[np.newaxis, :, :]
         dist_matrix = np.sqrt(np.sum(diff**2, axis=-1))
 
-    matched = np.full(len(start_coords), False)
+    matched = np.full(len(end_coords), False)
 
     result_sites = []
 
