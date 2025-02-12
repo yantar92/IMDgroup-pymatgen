@@ -600,6 +600,11 @@ def get_neb_pairs(
     low_en_idxs = [
         idx for idx, s in enumerate(neb_graph.structures)
         if not s.properties['final_energy'] > energy_threshold]
+    logger.info(
+        "Diffusion graph connectivity will be limited"
+        " to lowest-energy configurations: %s",
+        low_en_idxs
+    )
 
     if cutoff == 'auto':
         logger.info("Determining minimal possible diffusion distance cutoff")
@@ -679,6 +684,11 @@ def get_neb_pairs(
                 progress_bar()  # pylint: disable=not-callable
         logger.info("Found %d non-compound paths", n_edges)
 
+    logger.info(
+        "Final diffusion graph: %s",
+        [(from_idx, to_idx) for from_idx, to_idx, _ in neb_graph.edges]
+    )
+
     logger.info("Searching unique diffusion paths")
     pairs = []
     merged_pairs = []
@@ -704,6 +714,7 @@ def get_neb_pairs(
             if np.any([np.isclose(dist, d) for d in _known_dists])\
                and structure_matches(merged, merged_pairs,
                                      multithread=multithread):
+                logger.debug("%s path is non-unique", (from_idx, to_idx))
                 continue
             pairs.append((all_clones[from_idx], all_clones[to_idx]))
             merged_pairs.append(merged)
