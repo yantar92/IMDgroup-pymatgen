@@ -212,6 +212,7 @@ class _NEB_Graph:
             if start_idx in c:
                 nx_G = nx_G.subgraph(c)
                 break
+        assert start_idx in nx_G.nodes()
 
         def _check_cycle(cycle):
             if start_idx in cycle:
