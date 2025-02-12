@@ -191,6 +191,7 @@ class SymmetryCloneTransformation(AbstractTransformation):
                 if not _member(clone, clones)\
                    and (self.filter_cls is None
                         or self.filter_cls.filter(clone, clones)):
+                    assert clone.is_valid()
                     clones.append(clone)
 
         # Apply additional filters
