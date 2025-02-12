@@ -585,6 +585,7 @@ def get_neb_pairs(
             continue
         if not edge_len < cutoff:
             neb_graph.remove_edge(from_idx, to_idx)
+            # pylint: disable=arguments-out-of-order
             neb_graph.remove_edge(to_idx, from_idx)
         else:
             n_edges += 1
