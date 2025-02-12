@@ -269,12 +269,11 @@ class _NEB_Graph:
             idxs = [idx for idx, _ in enumerate(self.structures)]
         for idx in idxs:
             struct = self.structures[idx]
-            if struct.properties.get('_orig_idx') in _checked:
+            if struct.properties['_orig_idx'] in _checked:
                 continue
             if not self.diffusion_path_infinite(idx):
                 return False
-            if _idx := struct.properties.get('_orig_idx'):
-                _checked.append(_idx)
+            _checked.append(struct.properties['_orig_idx'])
         return True
 
     def get_min_cutoff(self, idx_connected: list[int] | None = None):
