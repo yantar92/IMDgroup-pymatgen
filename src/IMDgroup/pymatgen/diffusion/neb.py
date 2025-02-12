@@ -239,12 +239,13 @@ class _NEB_Graph:
         # No luck, go all-in
 
         n_skipped = 0
-        max_skipped = int(1E4)
+        max_skipped = int(1E3)
         for cycle in nx.simple_cycles(nx_G):
             if _check_cycle(cycle):
                 return True
             if start_idx in cycle:
                 n_skipped += 1
+                logger.debug("skipped: %d", n_skipped)
                 if n_skipped > max_skipped:
                     warnings.warn(
                         "Unable to find infinite diffusion path"
@@ -405,6 +406,7 @@ def __enlarge_cell(structure, prototype, scales):
             coords_are_cartesian=True,
             properties=site.properties
         )
+    assert scaled_structure.is_valid()
     return scaled_structure
 
 
