@@ -6,6 +6,8 @@ from multiprocessing import Pool
 from alive_progress import alive_bar
 import numpy as np
 import networkx as nx
+from networkx.algorithms.cycles import _johnson_cycle_search\
+    as johnson_cycle_search
 from pymatgen.core import Structure
 from IMDgroup.pymatgen.core.structure import\
     merge_structures, get_supercell_size, structure_matches
@@ -237,7 +239,7 @@ class _NEB_Graph:
 
         n_skipped = 0
         max_skipped = int(1E3)
-        for cycle in nx.simple_cycles(nx_G):
+        for cycle in johnson_cycle_search(nx_G, [start_idx]):
             if _check_cycle(cycle):
                 return True
             if start_idx in cycle:
