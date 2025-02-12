@@ -238,13 +238,13 @@ class _NEB_Graph:
             return False
 
         n_skipped = 0
-        max_skipped = int(1E3)
+        max_skipped = int(1E6)
         for cycle in johnson_cycle_search(nx_G, [start_idx]):
             if _check_cycle(cycle):
                 return True
             if start_idx in cycle:
                 n_skipped += 1
-                logger.debug("skipped closed cycle: %d", n_skipped)
+                # logger.debug("skipped closed cycle: %d", n_skipped)
                 if n_skipped > max_skipped:
                     warnings.warn(
                         "Unable to find infinite diffusion path"
