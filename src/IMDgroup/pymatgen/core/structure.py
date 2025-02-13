@@ -172,16 +172,22 @@ def structure_distance(
     else:
         str2 = structure2
 
+    # Returns cartesian!
+    _, dist2_matrix = pbc_shortest_vectors(
+        str1.lattice,
+        str1.frac_coords, str2.frac_coords,
+        # Only compute diagonal elements (1-to-1 matching)
+        mask=~np.eye(len(str1), dtype=bool),
+        return_d2=True)
+
     tot_distance_square = 0
     max_dist_square = None
     if max_dist is not None:
         max_dist_square = max_dist * max_dist
-    for node1, node2 in zip(str1, str2):
-        if tol > 0 and not np.linalg.norm(node1.coords - node2.coords) > tol:
-            continue
-        distance = node1.distance(node2)
-        if distance > tol:
-            tot_distance_square += distance * distance
+    for idx, _ in enumerate(str1):
+        distance_square = dist2_matrix[idx][idx]
+        if np.sqrt(distance_square) > tol:
+            tot_distance_square += distance_square
             if max_dist_square is not None and\
                tot_distance_square > max_dist_square:
                 return np.sqrt(tot_distance_square)
