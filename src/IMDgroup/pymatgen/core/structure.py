@@ -128,11 +128,14 @@ def structure_diff(
         str2 = structure2
 
     vectors = []
-    diff_frac = [
-        pbc_shortest_vectors(str1.lattice, c1, c2)[0][0]
-        for c1, c2 in zip(str1.frac_coords, str2.frac_coords)
-    ]
-    diff = str1.lattice.get_cartesian_coords(diff_frac)
+    # Returns cartesian!
+    diff_matrix = pbc_shortest_vectors(
+        str1.lattice, str1.frac_coords, str2.frac_coords,
+        # Only compute diagonal elements (1-to-1 matching)
+        mask=~np.eye(len(str1), dtype=bool),
+        return_d2=False)
+    diff = [diff_matrix[idx][idx] for idx in range(len(str1))]
+
     for v in diff:
         if np.linalg.norm(v) > tol:
             vectors.append(v)
