@@ -112,6 +112,10 @@ def apply_operation_keep_lattice(structure, op):
     return result
 
 
+def _structure_distance_wrapper(args):
+    return structure_distance(*args)
+
+
 class SymmetryCloneTransformation(AbstractTransformation):
     """Create equivalent structures according to symmetry."""
 
@@ -166,17 +170,16 @@ class SymmetryCloneTransformation(AbstractTransformation):
             # are too few CLONES.
             if multithread and len(clones) > cpu_count():
                 with Pool() as pool:
-                    distances = pool.starmap(
-                        structure_distance,
+                    distances = pool.imap_unordered(
+                        _structure_distance_wrapper,
                         [(structure, clone, 0.1, False) for clone in clones]
                     )
-            else:
-                distances = None
+                    for dist in distances:
+                        if dist < self.tol:
+                            pool.terminate()
+                            return True
             for idx, clone in enumerate(clones):
-                if distances:
-                    dist = distances[idx]
-                else:
-                    dist = structure_distance(structure, clone, match_first=False)
+                dist = structure_distance(structure, clone, match_first=False)
                 if dist < self.tol:
                     return True
             return False
