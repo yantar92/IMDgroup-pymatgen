@@ -168,18 +168,21 @@ class SymmetryCloneTransformation(AbstractTransformation):
             """
             # For some reason, Python sometimes hangs here when there
             # are too few CLONES.
-            if multithread and len(clones) > cpu_count():
-                with Pool() as pool:
-                    distances = pool.imap_unordered(
-                        _structure_distance_wrapper,
-                        [(structure, clone, 0.1, False) for clone in clones]
-                    )
-                    for dist in distances:
-                        if dist < self.tol:
-                            pool.terminate()
-                            return True
-            for idx, clone in enumerate(clones):
-                dist = structure_distance(structure, clone, match_first=False)
+            # FIXME: Multithreaded version appear to be slower in practice.
+            # if multithread and len(clones) > cpu_count():
+            #     with Pool() as pool:
+            #         distances = pool.imap_unordered(
+            #             _structure_distance_wrapper,
+            #             [(structure, clone, 0.1, False, self.tol)
+            #              for clone in clones]
+            #         )
+            #         for dist in distances:
+            #             if dist < self.tol:
+            #                 pool.terminate()
+            #                 return True
+            for clone in clones:
+                dist = structure_distance(
+                    structure, clone, match_first=False, max_dist=self.tol)
                 if dist < self.tol:
                     return True
             return False

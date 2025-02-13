@@ -145,7 +145,8 @@ def structure_diff(
 def structure_distance(
         structure1: Structure, structure2: Structure,
         tol: float = 0.1,
-        match_first=True) -> float:
+        match_first=True,
+        max_dist=None) -> float:
     """Return tuple distance between two similar structures.
     The structures must have the same number of sites and species.
     The returned value is a square root of sum of squared distances
@@ -154,6 +155,9 @@ def structure_distance(
 
     When MATCH_FIRST is True (default), call get_matched_structure
     first.
+
+    When MAX_DIST is provided, return immediately when computed
+    distance exceeds MAX_DIST.
     """
     str1 = structure1
     # interpolate knows how to match similar sites, spitting out
@@ -166,10 +170,18 @@ def structure_distance(
         str2 = structure2
 
     tot_distance_square = 0
+    max_dist_square = None
+    if max_dist is not None:
+        max_dist_square = max_dist * max_dist
     for node1, node2 in zip(str1, str2):
+        if tol > 0 and not np.linalg.norm(node1.coords - node2.coords) > tol:
+            continue
         distance = node1.distance(node2)
         if distance > tol:
             tot_distance_square += distance * distance
+            if max_dist_square is not None and\
+               tot_distance_square > max_dist_square:
+                return np.sqrt(tot_distance_square)
 
     return np.sqrt(tot_distance_square)
 
