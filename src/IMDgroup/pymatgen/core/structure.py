@@ -325,6 +325,13 @@ class StructureDuplicateWarning(UserWarning):
     """Warning class for duplicate input structures."""
 
 
+# Global variable to hold the worker function.
+_global_worker = None
+
+def _worker_wrapper(args):
+    """Top-level function that calls the global worker with unpacked arguments."""
+    return _global_worker(*args)
+
 def structure_matches(
         struct: Structure,
         known_structs: list[Structure | None],
@@ -357,14 +364,17 @@ def structure_matches(
 
     if multithread:
         with Pool() as pool:
-            equivs = pool.starmap(
-                cmp_fun,
+            global _global_worker
+            _global_worker = cmp_fun
+            equivs = pool.imap(
+                _worker_wrapper,
                 [(struct, known) for known in known_structs]
             )
-        for idx, val in enumerate(equivs):
-            if val:
-                _warn(known_structs[idx])
-                return True
+            for idx, val in enumerate(equivs):
+                if val:
+                    pool.terminate()
+                    _warn(known_structs[idx])
+                    return True
     else:
         for known in known_structs:
             if cmp_fun(struct, known):
