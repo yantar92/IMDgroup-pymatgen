@@ -10,7 +10,7 @@ from multiprocessing import Pool
 import numpy as np
 import pymatgen.core as pmg
 from pymatgen.io.vasp.outputs import Vasprun
-from IMDgroup.pymatgen.core.structure import get_matched_structure
+from IMDgroup.pymatgen.core.structure import get_matched_structure, merge_structures
 from IMDgroup.pymatgen.diffusion.neb import get_neb_pairs
 from IMDgroup.pymatgen.io.vasp.sets\
     import (IMDDerivedInputSet, IMDNEBVaspInputSet)
@@ -654,6 +654,10 @@ def neb_diffusion_add_args(parser):
         "--multithread",
         help="Use multithreading?",
         action="store_true")
+    parser.add_argument(
+        "--write_graph",
+        help="Whether to write the full diffusion graph",
+        action="store_true")
 
 
 def __neb_diffusion_get_inputset(idx, beg, end, args):
@@ -668,6 +672,21 @@ def __neb_diffusion_get_inputset(idx, beg, end, args):
     output_dir_suffix = f"NEB.{idx:02}"
     inputset.name = output_dir_suffix
     return inputset
+
+
+def __neb_diffusion_get_inputsets(pairs, args):
+    if args.multithread:
+        with Pool() as pool:
+            result = pool.starmap(
+                __neb_diffusion_get_inputset,
+                [(idx, beg, end, args) for idx, (beg, end) in enumerate(pairs)]
+            )
+    else:
+        result = []
+        for idx, (beg, end) in enumerate(pairs):
+            inputset = __neb_diffusion_get_inputset(idx, beg, end, args)
+            result.append(inputset)
+    return result
 
 
 def _append_valid(site, structure, tol=0.5):
@@ -759,21 +778,21 @@ def neb_diffusion(args):
                 for site in new_sites:
                     _append_valid(site, struct, tol=0.5)
 
-    pairs = get_neb_pairs(
+    pairs, unfiltered_pairs = get_neb_pairs(
         structures, prototype, args.cutoff, args.remove_compound,
-        multithread=args.multithread)
+        multithread=args.multithread, return_unfiltered=True)
 
-    if args.multithread:
-        with Pool() as pool:
-            result = pool.starmap(
-                __neb_diffusion_get_inputset,
-                [(idx, beg, end, args) for idx, (beg, end) in enumerate(pairs)]
-            )
-    else:
-        result = []
-        for idx, (beg, end) in enumerate(pairs):
-            inputset = __neb_diffusion_get_inputset(idx, beg, end, args)
-            result.append(inputset)
+    result = __neb_diffusion_get_inputsets(pairs, args)
+    if args.write_graph:
+        graph_inputs = __neb_diffusion_get_inputsets(
+            unfiltered_pairs, args)
+        graph_images = []
+        for inputset in graph_inputs:
+            assert inputset.images is not None
+            for image in inputset.images:
+                graph_images.append(image.structure)
+        graph_combined = merge_structures(graph_images)
+        graph_combined.to_file("imdg-full-graph.cif")
 
     return {'inputsets': result}
 

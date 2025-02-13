@@ -494,8 +494,11 @@ def get_neb_pairs(
         prototype: Structure,
         cutoff: float | None | str = None,
         remove_compound: bool = False,
-        multithread: bool = False
-) -> list[tuple[Structure, Structure]]:
+        multithread: bool = False,
+        return_unfiltered: bool = False
+) -> list[tuple[Structure, Structure]] |\
+     tuple[list[tuple[Structure, Structure]],
+           list[tuple[Structure, Structure]]]:
     """Construct all possible unique diffusion pairs from STRUCTURES.
     The STRUCTURES must all be derived from PROTOTYPE structure (have
     the same lattice parameter).  Usually STRUCTURES, contain a list
@@ -532,6 +535,10 @@ def get_neb_pairs(
     MULTITHREAD (default: False) enables multithreading.
 
     Returns a list of tuples containing begin/end structures.
+    When RETURN_UNFILTERED (default: False) is True, return a tuple of
+    two lists: (unique_pairs, all_pairs). all_pairs will represent the
+    full resulting diffusion graph including symmetrically equivalent
+    diffusion pairs.
     """
     # Arrange 1-to-1 site matching in all the provided structures
     # including prototype (needed to detect insertion sites)
@@ -725,5 +732,12 @@ def get_neb_pairs(
         pairs,
         key=lambda pair: structure_distance(
             pair[0], pair[1], tol=0.5, match_first=False))
+
+    if return_unfiltered:
+        unfiltered_pairs = [
+            (all_clones[from_idx], all_clones[to_idx])
+            for from_idx, to_idx, _ in neb_graph.edges
+        ]
+        return pairs, unfiltered_pairs
 
     return pairs
