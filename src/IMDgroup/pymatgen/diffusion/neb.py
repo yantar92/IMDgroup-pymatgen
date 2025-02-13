@@ -580,8 +580,10 @@ def get_neb_pairs(
         logger.info("Enumerating clones in structure #%d", idx)
         trans = SymmetryCloneTransformation(prototype)
         clones = trans.get_all_clones(struct, multithread=multithread)
-        for clone in clones:
+        for clone_idx, clone in enumerate(clones):
             clone.properties['_orig_idx'] = idx
+            clone.properties['_clone_idx'] =\
+                len(all_clones) + clone_idx
         logger.info(
             "#%d clones assigned indices #%d..#%d",
             idx, len(all_clones), len(all_clones)+len(clones)-1
