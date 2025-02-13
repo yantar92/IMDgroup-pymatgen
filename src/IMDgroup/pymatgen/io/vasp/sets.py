@@ -94,11 +94,21 @@ class IMDVaspInputSet(VaspInputSet):
         """Get set's structure.
         """
         if self.images is not None:
-            return self.images[0].structure
-        return self.__structure
+            structure = self.images[0].structure
+        else:
+            structure = self.__structure
+        # Group species in the structure to avoid duplicate species in POSCAR
+        # https://github.com/materialsproject/pymatgen/issues/1633
+        if structure is not None:
+            # Note that get_sorted_structure uses built-in sort, which
+            # is stable. So, we will preserve species order for the
+            # same species.
+            structure = structure.get_sorted_structure(
+                key=lambda site: site.species.average_electroneg)
+        return structure
 
     @structure.setter
-    def structure(self, new_structure):
+    def structure(self, new_structure: None | Structure):
         if new_structure is self.structure:
             return
         if self.images is not None and\
