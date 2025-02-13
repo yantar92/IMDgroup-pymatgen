@@ -138,7 +138,7 @@ class _NEB_Graph:
     def _compute_edges_singlethreaded(self):
         """Compute edges without multithreading."""
         with alive_bar(
-                len(self.structures) ** 2,
+                int(len(self.structures) ** 2 / 2),
                 title='Computing distance matrix') as progress_bar:
             return [
                 self._get_edge(
