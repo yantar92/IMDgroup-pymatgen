@@ -714,19 +714,23 @@ def get_neb_pairs(
             n_edges,
             title='Removing equivalent paths') as progress_bar:
         for (from_idx, to_idx), dist in zip(edges, dists):
-            progress_bar()  # pylint: disable=not-callable
             merged = merge_structures(
                 [all_clones[from_idx], all_clones[to_idx]])
             # Equivalent paths must have the same length
             # (assuming that structure_distance is robust enough)
-            if np.any([np.isclose(dist, d) for d in _known_dists])\
-               and structure_matches(merged, merged_pairs,
-                                     multithread=multithread):
+            close_pair_idxs = [
+                idx for idx, d in enumerate(_known_dists)
+                if np.isclose(dist, d)]
+            if len(close_pair_idxs) > 0 and structure_matches(
+                    merged, [merged_pairs[idx] for idx in close_pair_idxs],
+                    multithread=multithread):
                 logger.debug("%s path is non-unique", (from_idx, to_idx))
+                progress_bar()  # pylint: disable=not-callable
                 continue
             pairs.append((all_clones[from_idx], all_clones[to_idx]))
             merged_pairs.append(merged)
             _known_dists.append(dist)
+            progress_bar()  # pylint: disable=not-callable
     logger.info("Found %d unique paths", len(pairs))
 
     # Sort by lentgh
