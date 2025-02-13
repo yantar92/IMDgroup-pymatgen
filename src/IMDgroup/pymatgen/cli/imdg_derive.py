@@ -781,7 +781,7 @@ def neb_diffusion(args):
                         coords_are_cartesian=True
                         )
                 for site in new_sites:
-                    _append_valid(site, struct, args.threshold)
+                    _append_valid(site, struct, args.frac_tol)
 
     pairs, unfiltered_pairs = get_neb_pairs(
         structures, prototype, args.cutoff, args.remove_compound,
