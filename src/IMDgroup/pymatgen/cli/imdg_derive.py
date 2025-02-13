@@ -10,7 +10,9 @@ from multiprocessing import Pool
 import numpy as np
 import pymatgen.core as pmg
 from pymatgen.io.vasp.outputs import Vasprun
-from IMDgroup.pymatgen.core.structure import get_matched_structure, merge_structures
+from pymatgen.core import Structure, PeriodicSite
+from IMDgroup.pymatgen.core.structure import\
+    get_matched_structure, merge_structures, structure_is_valid2
 from IMDgroup.pymatgen.diffusion.neb import get_neb_pairs
 from IMDgroup.pymatgen.io.vasp.sets\
     import (IMDDerivedInputSet, IMDNEBVaspInputSet)
@@ -689,32 +691,35 @@ def __neb_diffusion_get_inputsets(pairs, args):
     return result
 
 
-def _append_valid(site, structure, tol=0.5):
+def _append_valid(
+        site: PeriodicSite,
+        structure: Structure,
+        frac_tol: float):
     """Append SITE to STRUCTURE without invalidating it.
     If SITE can be appended without breaking structure.is_valid(),
     just append it, modifying STRUCTRE by side effect.  If not, try
     moving SITE, so that all distances to existing STRUCTURE sites are
     not too small.
-    TOL is distance tolerance, in angstrem.
+    FRAC_TOL is distance tolerance, in fraction of atomic radii sum.
     """
     structure.append(
         site.species, site.coords,
         coords_are_cartesian=True
     )
-    if structure.is_valid(tol):
+    if structure_is_valid2(structure, frac_tol):
         return structure
 
     warnings.warn(
         "Added atoms clash with prototype.  Trying to adjust"
     )
 
-    while not structure.is_valid(tol):
+    while not structure_is_valid2(structure, frac_tol):
         site = structure[-1]
         _, _, neighbor_indices, _ =\
             structure.lattice.get_points_in_sphere(
                 frac_points=structure.frac_coords,
                 center=site.coords,  # Cartesian
-                r=tol, zip_results=False
+                r=5, zip_results=False
             )
         close_idx = neighbor_indices[0]
         if structure[close_idx] == site:
@@ -776,7 +781,7 @@ def neb_diffusion(args):
                         coords_are_cartesian=True
                         )
                 for site in new_sites:
-                    _append_valid(site, struct, tol=0.5)
+                    _append_valid(site, struct, args.threshold)
 
     pairs, unfiltered_pairs = get_neb_pairs(
         structures, prototype, args.cutoff, args.remove_compound,
