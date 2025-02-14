@@ -658,23 +658,11 @@ class IMDNEBVaspInputSet(IMDDerivedInputSet):
         else:
             self.target_structure = end
         frac_tol = 0 if self.method == 'IDPP' else self.frac_tol
-        try:
-            str_images = structure_interpolate2(
-                beg, end,
-                nimages=self.incar["IMAGES"]+1,
-                frac_tol=frac_tol, autosort_tol=0.5)
-        except ValueError:
-            # Auto-sorting sites failed.
-            # Fall back to 1-to-1 site matching
-            warnings.warn(
-                "Automatic match failed.  "
-                "Assuming 1-to-1 site mapping during structure interpolation",
-                BadInputSetWarning
-            )
-            str_images = structure_interpolate2(
-                beg, end,
-                nimages=self.incar["IMAGES"]+1,
-                frac_tol=frac_tol, autosort_tol=0)
+
+        str_images = structure_interpolate2(
+            beg, end,
+            nimages=self.incar["IMAGES"]+1,
+            frac_tol=frac_tol)
 
         if self.method != 'IDPP':
             for image in str_images:
