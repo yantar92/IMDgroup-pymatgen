@@ -107,7 +107,7 @@ def get_matched_structure(
 def structure_diff(
         structure1: Structure, structure2: Structure,
         tol: float = 0.1,
-        match_first = True
+        match_first: bool = True
         ):
     """Return translation vectors between two similar structures.
     The structures must have the same number of sites and species.
