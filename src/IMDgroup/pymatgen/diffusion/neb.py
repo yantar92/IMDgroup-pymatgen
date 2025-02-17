@@ -564,6 +564,7 @@ def get_neb_pairs(
     prototype, uniq_structures = \
         __scale_structures_maybe(prototype, uniq_structures)
 
+    # Inform user about structure numbers
     logger.info("Assigning indices")
     for idx, struct in enumerate(uniq_structures):
         logger.info(
@@ -573,6 +574,7 @@ def get_neb_pairs(
             else "ignore (duplicate)"
             )
 
+    # Compute all the symmetrically equivalent structure clones
     all_clones = []
     for idx, struct in enumerate(uniq_structures):
         if struct is None:
@@ -591,8 +593,12 @@ def get_neb_pairs(
         all_clones += clones
     logger.info("Found %d clones", len(all_clones))
 
+    # Build diffusion graph connecting all the clones
     neb_graph = _NEB_Graph(all_clones, multithread=multithread)
 
+    # Select structures that must remain connected in the graph
+    # Currently, we simply maintain connectivity of the lowest-energy
+    # structures (maybe through higher-energy intermediates).
     energies = []
     for idx, struct in enumerate(neb_graph.structures):
         energy = struct.properties.get('final_energy')
@@ -602,9 +608,10 @@ def get_neb_pairs(
         logger.debug("Energy %d: %f", idx, energy)
         energies.append(energy)
     # Only take the lowest-energy structure
+    # +1E-9 is to counter floating point error where structure clones
+    # may have slight variation of energies
     energy_threshold = sorted(np.unique(energies))[0] + 1E-9
     logger.info("Energy theshold: %f", energy_threshold)
-
     low_en_idxs = [
         idx for idx, s in enumerate(neb_graph.structures)
         if not s.properties['final_energy'] > energy_threshold]
@@ -614,13 +621,16 @@ def get_neb_pairs(
         low_en_idxs
     )
 
+    # If diffusion distance cutoff is not provided, detect it
+    # automatically, choosing the minimal possible cutoff that
+    # maintains structure connectivity.
     if cutoff == 'auto':
         logger.info("Determining minimal possible diffusion distance cutoff")
         cutoff = neb_graph.get_min_cutoff(low_en_idxs)
         logger.info('Found optimal cutoff to cover all sites: %f', cutoff)
 
+    # Only keep graph egdes shorter than cutoff
     assert isinstance(cutoff, float)
-    # Only keep egdes shorter than cutoff
     n_edges = 0
     for from_idx, to_idx, edge in neb_graph.edges:
         edge_len = edge['distance']
@@ -653,39 +663,38 @@ def get_neb_pairs(
             len(barriers),
             title='Removing high-energy barriers'
     ) as progress_bar:
-        # Try removing one by one, starting from highest.
+        # Try removing one by one, starting from the highest.
         for en, from_idx, to_idx in sorted(barriers, reverse=True):
             removed = neb_graph.remove_edge(from_idx, to_idx)
             if _connected_and_infinite():
-                logger.info("%d -> %d: removed (%f)", from_idx, to_idx, en)
+                logger.info("%d -> %d: removed (%feV)", from_idx, to_idx, en)
                 n_removed += 1
             else:
-                logger.info("%d -> %d: kept (%f)", from_idx, to_idx, en)
+                logger.info("%d -> %d: kept (%feV)", from_idx, to_idx, en)
                 neb_graph.set_edges(removed)
             progress_bar()  # pylint: disable=not-callable
     logger.info("Removed %d high-energy barriers", n_removed)
 
+    # If requested, remove as many as possible diffusion paths,
+    # starting from the longest, while keeping graph connectivity.
     if remove_compound:
         logger.info("Removing compound paths")
-
         edges = [(edge['distance'], from_idx, to_idx)
                  for from_idx, to_idx, edge in neb_graph.edges]
         n_edges = len(edges)
-
         with alive_bar(
-                n_edges,
-                title='Removing compound paths') as progress_bar:
+                n_edges, title='Removing compound paths') as progress_bar:
             for edge_len, from_idx, to_idx in sorted(edges, reverse=True):
                 removed = neb_graph.remove_edge(from_idx, to_idx)
                 if _connected_and_infinite():
                     logger.debug(
-                        "%d -> %d (%f): removed",
+                        "%d -> %d (%fÅ): removed",
                         from_idx, to_idx, edge_len
                     )
                     n_edges -= 1
                 else:
                     logger.info(
-                        "%d -> %d (%f): kept",
+                        "%d -> %d (%fÅ): kept",
                         from_idx, to_idx, edge_len
                     )
                     neb_graph.set_edges(removed)
@@ -697,6 +706,7 @@ def get_neb_pairs(
         [(from_idx, to_idx) for from_idx, to_idx, _ in neb_graph.edges]
     )
 
+    # Get rid of symmetrically equivalent diffusion paths.
     logger.info("Searching unique diffusion paths")
     pairs = []
     merged_pairs = []
