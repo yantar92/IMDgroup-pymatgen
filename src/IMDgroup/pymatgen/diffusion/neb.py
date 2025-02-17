@@ -45,18 +45,16 @@ class NEB_Graph(MultiDiGraph):
         JIMAGE_IDXS, when provided, lists the STRUCTURE site indices
         to consider for computing multiple possible paths between the
         same pair of structures (including self-self).  The diffusion
-        paths will be constructed considering
-        [0,0,0], [0,0,1], [0,1,0], [1,0,0],
-        [1,1,0], [1,0,1], [0,1,1], and [1,1,1] images of JIMAGE_IDXS
-        sites, but not any other sites (where only the shortest path
-        will be considered).  This is useful to compute self-self
-        diffusion where there are too many ways to compute possible
-        displacement vectors from one structure to another.
+        paths will be constructed considering [-1..1, -1..1, -1..1]
+        images of JIMAGE_IDXS sites, but not any other sites (where
+        only the shortest path will be considered).  This is useful to
+        compute self-self diffusion where there are too many ways to
+        compute possible displacement vectors from one structure to
+        another.
         """
 
         super().__init__()
 
-        self.__diffusion_path_cache = {}
         self.structures = structures
         self.multithread = multithread
 
@@ -69,8 +67,10 @@ class NEB_Graph(MultiDiGraph):
             if jimage_idxs is None:
                 self.__add_edge(from_idx, to_idx, vec)
             else:
-                for jimage in [[0, 0, 0], [0, 0, 1], [0, 1, 0], [1, 0, 0],
-                               [1, 1, 0], [0, 1, 1], [1, 0, 1], [1, 1, 1]]:
+                for jimage in [[i, j, k]
+                               for i in range(-1, 2)
+                               for j in range(-1, 2)
+                               for k in range(-1, 2)]:
                     vec2 = vec.copy()
                     for idx in jimage_idxs:
                         site_from = structures[from_idx][idx].to_unit_cell()
@@ -102,12 +102,13 @@ class NEB_Graph(MultiDiGraph):
             vector=np.array(vector),
             energy_barrier=energy_barrier
         )
-        self.add_edge(
-            to_idx, from_idx,
-            distance=distance,
-            vector=-np.array(vector),
-            energy_barrier=-energy_barrier
-        )
+        if to_idx != from_idx:
+            self.add_edge(
+                to_idx, from_idx,
+                distance=distance,
+                vector=-np.array(vector),
+                energy_barrier=-energy_barrier
+            )
 
     @staticmethod
     def _get_vec(
@@ -140,7 +141,7 @@ class NEB_Graph(MultiDiGraph):
                     [(from_idx, to_idx, from_struct, to_struct)
                      for from_idx, from_struct in enumerate(self.structures)
                      for to_idx, to_struct in enumerate(self.structures)
-                     if from_idx < to_idx]
+                     if from_idx <= to_idx]
                 )
 
     def _compute_vecs_singlethreaded(self):
@@ -153,7 +154,7 @@ class NEB_Graph(MultiDiGraph):
                     from_idx, to_idx, from_struct, to_struct, progress_bar)
                 for from_idx, from_struct in enumerate(self.structures)
                 for to_idx, to_struct in enumerate(self.structures)
-                if from_idx < to_idx
+                if from_idx <= to_idx
             ]
 
     def connected(self, idxs: list[int] | None = None):
