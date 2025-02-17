@@ -154,7 +154,11 @@ class SymmetryCloneTransformation(AbstractTransformation):
             raise ValueError(
                 "sym_operations must be Structure of a list of SymmOp")
 
-    def get_all_clones(self, structure, progress_bar=True, multithread=False):
+    def get_all_clones(
+            self,
+            structure: Structure,
+            progress_bar: bool = True,
+            multithread: bool = False) -> list[Structure]:
         """Generate a list of all clones for STRUCTURE.
         PROGRESS_BAR controls whether to display progress.
         MULTITHREAD controls using multithreading.
