@@ -63,25 +63,29 @@ class NEB_Graph(MultiDiGraph):
 
         all_vecs = self.__get_all_vecs()
 
-        for from_idx, to_idx, vec in all_vecs:
-            if jimage_idxs is None:
-                self.__add_edge(from_idx, to_idx, vec)
-            else:
-                for jimage in [[i, j, k]
-                               for i in range(-1, 2)
-                               for j in range(-1, 2)
-                               for k in range(-1, 2)]:
-                    vec2 = vec.copy()
-                    for idx in jimage_idxs:
-                        site_from = structures[from_idx][idx].to_unit_cell()
-                        site_to = structures[to_idx][idx].to_unit_cell()
-                        assert site_from is not None
-                        assert site_to is not None
-                        lattice = structures[from_idx].lattice
-                        vec2[idx] = lattice.get_cartesian_coords(
-                            site_to.frac_coords + jimage
-                            - site_from.frac_coords)
-                    self.__add_edge(from_idx, to_idx, vec2)
+        with alive_bar(
+                len(all_vecs),
+                title="Adding diffusion paths to graph") as progress_bar:
+            for from_idx, to_idx, vec in all_vecs:
+                if jimage_idxs is None:
+                    self.__add_edge(from_idx, to_idx, vec)
+                else:
+                    for jimage in [[i, j, k]
+                                   for i in range(-1, 2)
+                                   for j in range(-1, 2)
+                                   for k in range(-1, 2)]:
+                        vec2 = vec.copy()
+                        for idx in jimage_idxs:
+                            site_from = structures[from_idx][idx].to_unit_cell()
+                            site_to = structures[to_idx][idx].to_unit_cell()
+                            assert site_from is not None
+                            assert site_to is not None
+                            lattice = structures[from_idx].lattice
+                            vec2[idx] = lattice.get_cartesian_coords(
+                                site_to.frac_coords + jimage
+                                - site_from.frac_coords)
+                        self.__add_edge(from_idx, to_idx, vec2)
+                progress_bar()  # pylint: disable=not-callable
 
     def __add_edge(self, from_idx: int, to_idx: int, vector):
         def get_distance(vec):
