@@ -645,11 +645,13 @@ class IMDNEBVaspInputSet(IMDDerivedInputSet):
             f.write(f"00: {self.directory}\n")
             f.write(f"{len(self.images)-1:02d}: {self.target_directory}\n")
 
-    def update_images(self, beg=None, end=None):
+    def update_images(self, beg=None, end=None, **kwargs):
         """Update self.images to be interpolation of BEG..END.
         BEG and END are structures to interpolate between.
         If not provided, BEG is taken from self.structure and
         END is taken from self.target_structure.
+
+        kwargs is passed to structure_interpolate2.
         """
         if beg is None:
             beg = self.structure
@@ -662,7 +664,8 @@ class IMDNEBVaspInputSet(IMDDerivedInputSet):
         str_images = structure_interpolate2(
             beg, end,
             nimages=self.incar["IMAGES"]+1,
-            frac_tol=frac_tol)
+            frac_tol=frac_tol,
+            **kwargs)
 
         if self.method != 'IDPP':
             for image in str_images:
