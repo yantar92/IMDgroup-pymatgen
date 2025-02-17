@@ -194,24 +194,6 @@ class NEB_Graph(MultiDiGraph):
         # non-equivalent starting positions for the diffusion.
         # visited = np.full(len(self.structures), False)
 
-        cache = self.__diffusion_path_cache
-        cycle = cache.get(start_idx) if cache is not None else None
-        if cycle is not None:
-            prev_idx = cycle[0]
-            cycle_valid = True
-            for next_idx in cycle[1:]:
-                if not self.has_edge(prev_idx, next_idx):
-                    cycle_valid = False
-                    break
-                prev_idx = next_idx
-            if cycle_valid:
-                logger.debug(
-                    "(cached) Found infinite diffusion path for %d: %s",
-                    start_idx,
-                    " -> ".join([str(i) for i in cycle]),
-                )
-                return True
-
         logger.debug(
             "Searching infinite diffusion paths including %d", start_idx)
 
@@ -245,7 +227,6 @@ class NEB_Graph(MultiDiGraph):
                             " -> ".join([str(i) for i in cycle]),
                             np.linalg.norm(v)
                         )
-                        self.__diffusion_path_cache[start_idx] = cycle
                         return True
             return False
 
