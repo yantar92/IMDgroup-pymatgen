@@ -6,6 +6,7 @@ from multiprocessing import Pool
 from alive_progress import alive_bar
 import numpy as np
 import networkx as nx
+from networkx import MultiDiGraph
 from networkx.algorithms.cycles import _johnson_cycle_search\
     as johnson_cycle_search
 from pymatgen.core import Structure
@@ -23,125 +24,132 @@ class get_neb_pairs_warning(UserWarning):
     """Warning class for get_neb_pairs."""
 
 
-class _NEB_Graph:
+class NEB_Graph(MultiDiGraph):
+    """Graph representing diffusion paths.
+    """
 
     def __init__(
             self,
-            structures: list[Structure],
+            structures: list[Structure] | None = None,
+            jimage_idxs: list[int] | None = None,
             multithread: bool = False):
         """Create complete NEB graph from STRUCTURES.
         Assume that all the structures have the same lattice and atoms
         corresponding to each other.
+
+        When JIMAGE_IDXS is None, NEB graph edges will be constructed
+        using the shortest distances between STRUCTURES (accounting
+        for periodic boundary conditions).  This means that self-self
+        diffusion paths will be ignored.
+
+        JIMAGE_IDXS, when provided, lists the STRUCTURE site indices
+        to consider for computing multiple possible paths between the
+        same pair of structures (including self-self).  The diffusion
+        paths will be constructed considering
+        [0,0,0], [0,0,1], [0,1,0], [1,0,0],
+        [1,1,0], [1,0,1], [0,1,1], and [1,1,1] images of JIMAGE_IDXS
+        sites, but not any other sites (where only the shortest path
+        will be considered).  This is useful to compute self-self
+        diffusion where there are too many ways to compute possible
+        displacement vectors from one structure to another.
         """
+
+        super().__init__()
+
         self.__diffusion_path_cache = {}
         self.structures = structures
         self.multithread = multithread
-        all_edges = self.__get_all_edges()
-        edge_matrix = np.full(
-            (len(structures), len(structures)), None, dtype=object)
-        for from_idx, to_idx, data in all_edges:
-            edge_matrix[from_idx, to_idx] = data
-            data_rev = {
-                'distance': data['distance'],
-                'vector': -data['vector'],
-                'energy_barrier': -data['energy_barrier']
-            }
-            edge_matrix[to_idx, from_idx] = data_rev
-        self._edge_matrix = edge_matrix
 
-    @property
-    def edges(self):
-        """Return a list of all edges, as a generator.
-        Each element is (from_idx, to_idx, edge_data)
-        where edge_data is a dict containing 'vector' and 'distance'
-        entries representing distance between structures and vector
-        moving from one structure to another.
-        """
-        for from_idx, row in enumerate(self._edge_matrix):
-            for to_idx, data in enumerate(row):
-                if data is not None:
-                    yield (from_idx, to_idx, data)
+        if structures is None:
+            return
 
-    def remove_edge(self, from_idx, to_idx):
-        """Remove edge between FROM_IDX and TO_IDX structures.
-        Return the edge removed or None if there was no edge between
-        FROM_IDX and TO_IDX.
-        """
-        edge = (from_idx, to_idx, self._edge_matrix[from_idx, to_idx])
-        if edge[2] is None:
-            return None
-        self._edge_matrix[from_idx, to_idx] = None
-        return edge
+        all_vecs = self.__get_all_vecs()
 
-    def remove_vertice_edges(self, idx):
-        """Remove vertice edges for IDX structure.
-        This will keep the structrue itself, but remove all its edges.
-        Return the list of edges removed.
-        """
-        removed = []
-        for to_idx, _ in enumerate(self.structures):
-            removed.append(self.remove_edge(idx, to_idx))
-            removed.append(self.remove_edge(to_idx, idx))
-        return [edge for edge in removed if edge is not None]
+        for from_idx, to_idx, vec in all_vecs:
+            if jimage_idxs is None:
+                self.__add_edge(from_idx, to_idx, vec)
+            else:
+                for jimage in [[0, 0, 0], [0, 0, 1], [0, 1, 0], [1, 0, 0],
+                               [1, 1, 0], [0, 1, 1], [1, 0, 1], [1, 1, 1]]:
+                    vec2 = vec.copy()
+                    for idx in jimage_idxs:
+                        site_from = structures[from_idx][idx].to_unit_cell()
+                        site_to = structures[to_idx][idx].to_unit_cell()
+                        assert site_from is not None
+                        assert site_to is not None
+                        lattice = structures[from_idx].lattice
+                        vec2[idx] = lattice.get_cartesian_coords(
+                            site_to.frac_coords + jimage
+                            - site_from.frac_coords)
+                    self.__add_edge(from_idx, to_idx, vec2)
 
-    def set_edges(self, edges):
-        """Set EDGES.
-        EDGES is a list of (from_idx, to_idx, edge_data_dict)
-        or a single tuple representing one edge to be removed.
-        """
-        if not isinstance(edges, list):
-            edges = [edges]
-        for from_idx, to_idx, data in edges:
-            self._edge_matrix[from_idx, to_idx] = data
+    def __add_edge(self, from_idx: int, to_idx: int, vector):
+        def get_distance(vec):
+            distance = 0
+            for v in vec:
+                d = np.linalg.norm(v)
+                if d > 0.5:
+                    distance += d
+            return distance
+
+        distance = get_distance(vector)
+        from_energy = self.structures[from_idx].properties['final_energy']
+        to_energy = self.structures[to_idx].properties['final_energy']
+        energy_barrier = to_energy - from_energy
+        self.add_edge(
+            from_idx, to_idx,
+            distance=distance,
+            vector=np.array(vector),
+            energy_barrier=energy_barrier
+        )
+        self.add_edge(
+            to_idx, from_idx,
+            distance=distance,
+            vector=-np.array(vector),
+            energy_barrier=energy_barrier
+        )
 
     @staticmethod
-    def _get_edge(
+    def _get_vec(
             from_idx: int, to_idx: int,
             from_struct: Structure, to_struct: Structure,
             progress_bar=None):
+        """Compute minimal vector connecting from_struct and to_struct.
+        Return (from_idx, to_idx, vec).
+        """
         vec = structure_diff(from_struct, to_struct, tol=0, match_first=False)
-        distance = structure_distance(
-            from_struct, to_struct, tol=0.5, match_first=False)
-        to_energy = to_struct.properties['final_energy']
-        from_energy = from_struct.properties['final_energy']
-        energy_barrier = to_energy - from_energy
-        data = {
-            'distance': distance,
-            'vector': np.array(vec),
-            'energy_barrier': energy_barrier
-        }
         if progress_bar is not None:
             progress_bar()  # pylint: disable=not-callable
-        return (from_idx, to_idx, data)
+        return (from_idx, to_idx, vec)
 
-    def __get_all_edges(self):
-        """Compute all edges for the NEB graph."""
+    def __get_all_vecs(self):
+        """Compute all structure diff vectors for the NEB graph."""
         if self.multithread:
-            return self._compute_edges_multithreaded()
+            return self._compute_vecs_multithreaded()
         else:
-            return self._compute_edges_singlethreaded()
+            return self._compute_vecs_singlethreaded()
 
-    def _compute_edges_multithreaded(self):
-        """Compute edges using multithreading."""
+    def _compute_vecs_multithreaded(self):
+        """Compute vectors using multithreading."""
         with alive_bar(
                 None, title='Computing distance matrix') as progress_bar:
             with Pool() as pool:
                 progress_bar(len(self.structures) ** 2 / 2)
                 return pool.starmap(
-                    self._get_edge,
+                    self._get_vec,
                     [(from_idx, to_idx, from_struct, to_struct)
                      for from_idx, from_struct in enumerate(self.structures)
                      for to_idx, to_struct in enumerate(self.structures)
                      if from_idx < to_idx]
                 )
 
-    def _compute_edges_singlethreaded(self):
-        """Compute edges without multithreading."""
+    def _compute_vecs_singlethreaded(self):
+        """Compute vectors without multithreading."""
         with alive_bar(
                 int(len(self.structures) ** 2 / 2),
                 title='Computing distance matrix') as progress_bar:
             return [
-                self._get_edge(
+                self._get_vec(
                     from_idx, to_idx, from_struct, to_struct, progress_bar)
                 for from_idx, from_struct in enumerate(self.structures)
                 for to_idx, to_struct in enumerate(self.structures)
@@ -164,9 +172,7 @@ class _NEB_Graph:
         while len(queue) > 0:
             from_idx = queue.pop(0)
             visited[from_idx] = True
-            for to_idx, edge in enumerate(self._edge_matrix[from_idx]):
-                if edge is None:
-                    continue
+            for _, to_idx in self.edges(from_idx):
                 if not visited[to_idx]:
                     queue.append(to_idx)
 
@@ -193,7 +199,7 @@ class _NEB_Graph:
             prev_idx = cycle[0]
             cycle_valid = True
             for next_idx in cycle[1:]:
-                if self._edge_matrix[prev_idx, next_idx] is None:
+                if not self.has_edge(prev_idx, next_idx):
                     cycle_valid = False
                     break
                 prev_idx = next_idx
@@ -207,39 +213,44 @@ class _NEB_Graph:
 
         logger.debug(
             "Searching infinite diffusion paths including %d", start_idx)
-        nx_G = nx.DiGraph()
-        for from_idx, to_idx, edge in self.edges:
-            if edge is not None:
-                nx_G.add_edge(from_idx, to_idx)
-        components = nx.strongly_connected_components(nx_G)
+
+        components = nx.strongly_connected_components(self)
+        G = None
         for c in components:
             if start_idx in c:
-                nx_G = nx_G.subgraph(c)
+                G = self.subgraph(c)
                 break
-        assert start_idx in nx_G.nodes()
+        assert G is not None
+        assert start_idx in G.nodes()
 
         def _check_cycle(cycle):
             if start_idx in cycle:
                 cycle += [cycle[0]]
-                tot_vec = 0
+                tot_vecs = [0]
                 prev_idx = cycle[0]
                 for next_idx in cycle[1:]:
-                    tot_vec += self._edge_matrix[prev_idx, next_idx]['vector']
+                    new_vecs = []
+                    for _, to, vec in self.edges(prev_idx, data='vector'):
+                        if to == next_idx:
+                            for tot_v in tot_vecs:
+                                new_vecs.append(tot_v + vec)
+                    tot_vecs = new_vecs
                     prev_idx = next_idx
-                if not np.isclose(np.linalg.norm(tot_vec), 0):
-                    logger.debug(
-                        "Found infinite diffusion path for %d: %s (%f)",
-                        start_idx,
-                        " -> ".join([str(i) for i in cycle]),
-                        np.linalg.norm(tot_vec)
-                    )
-                    self.__diffusion_path_cache[start_idx] = cycle
-                    return True
+                for v in tot_vecs:
+                    if not np.isclose(np.linalg.norm(v), 0):
+                        logger.debug(
+                            "Found infinite diffusion path for %d: %s (%f)",
+                            start_idx,
+                            " -> ".join([str(i) for i in cycle]),
+                            np.linalg.norm(v)
+                        )
+                        self.__diffusion_path_cache[start_idx] = cycle
+                        return True
             return False
 
         n_skipped = 0
         max_skipped = int(1E6)
-        for cycle in johnson_cycle_search(nx_G, [start_idx]):
+        for cycle in johnson_cycle_search(G, [start_idx]):
             if _check_cycle(cycle):
                 return True
             if start_idx in cycle:
@@ -308,24 +319,24 @@ class _NEB_Graph:
                     from_idx = queue.pop(0)
                     if not visited[from_idx]:
                         visited[from_idx] = True
-                    distances = [(edge['distance'], to_idx)
-                                 for to_idx, edge
-                                 in enumerate(self._edge_matrix[from_idx])
-                                 if not visited[to_idx] and edge is not None]
+                    distances = [
+                        (dist, to_idx)
+                        for _, to_idx, dist
+                        in self.edges(from_idx, data='distance')
+                        if not visited[to_idx]]
                     for distance, to_idx in sorted(distances):
                         if not visited[to_idx] and not distance > dist_cutoff:
                             logger.debug(
-                                "coverage: %s -> %s (%f)",
+                                "coverage: %s -> %s (%fÅ)",
                                 from_idx, to_idx, distance
                             )
                             queue.append(to_idx)
             visited[start_idx] = True
             all_distances_sorted = np.unique(
-                [edge['distance'] for _, _, edge in self.edges
-                 if edge is not None])
+                [dist for _, _, dist in self.edges(data='distance')])
             for max_dist in all_distances_sorted:
                 logger.debug(
-                    "Trying to reach all the sites via <=%.2f long paths",
+                    "Trying to reach all the sites via <=%.2fÅ long paths",
                     max_dist
                 )
                 queue = [idx for idx, v in enumerate(visited) if v]
@@ -334,13 +345,18 @@ class _NEB_Graph:
                                   if must)
                 all_infinite = True
                 if all_visited:
-                    deleted = [
-                        self.remove_edge(from_idx, to_idx)
-                        for from_idx, to_idx, edge in self.edges
-                        if edge['distance'] > max_dist]
+                    data = [
+                        (from_idx, to_idx, key, data)
+                        for from_idx, to_idx, key, data
+                        in self.edges(keys=True, data=True)
+                        if data['distance'] > max_dist
+                    ]
+                    for from_idx, to_idx, key, _ in data:
+                        self.remove_edge(from_idx, to_idx, key)
                     all_infinite =\
                         self.all_diffusion_paths_infinite(idx_connected)
-                    self.set_edges(deleted)
+                    for from_idx, to_idx, _, d in data:
+                        self.add_edges_from([(from_idx, to_idx, d)])
                 if all_visited and all_infinite:
                     for distance in all_distances_sorted:
                         # Return _larger_ distance to avoid float
@@ -594,7 +610,7 @@ def get_neb_pairs(
     logger.info("Found %d clones", len(all_clones))
 
     # Build diffusion graph connecting all the clones
-    neb_graph = _NEB_Graph(all_clones, multithread=multithread)
+    neb_graph = NEB_Graph(all_clones, multithread=multithread)
 
     # Select structures that must remain connected in the graph
     # Currently, we simply maintain connectivity of the lowest-energy
@@ -632,14 +648,12 @@ def get_neb_pairs(
     # Only keep graph egdes shorter than cutoff
     assert isinstance(cutoff, float)
     n_edges = 0
-    for from_idx, to_idx, edge in neb_graph.edges:
-        edge_len = edge['distance']
-        if from_idx > to_idx:
-            continue
+    # Cast to list because MultiDiGraph.edges cannot handle
+    # changing edges on the fly.
+    for from_idx, to_idx, key, edge_len in\
+            list(neb_graph.edges(data='distance', keys=True)):
         if not edge_len < cutoff:
-            neb_graph.remove_edge(from_idx, to_idx)
-            # pylint: disable=arguments-out-of-order
-            neb_graph.remove_edge(to_idx, from_idx)
+            neb_graph.remove_edge(from_idx, to_idx, key)
         else:
             n_edges += 1
     logger.info("Found %d paths shorter than cutoff (%f)", n_edges, cutoff)
@@ -655,23 +669,25 @@ def get_neb_pairs(
     # Loop over largest known (or estimated as energy difference)
     # barriers and remove as many as possible.  Always keep <=0 barriers.
     n_removed = 0
-    barriers = [(data['energy_barrier'], from_idx, to_idx)
-                for from_idx, to_idx, data in neb_graph.edges
-                if data['energy_barrier'] >= 1E-9]
+    barriers = [(barrier, from_idx, to_idx, key)
+                for from_idx, to_idx, key, barrier in
+                neb_graph.edges(keys=True, data='energy_barrier')
+                if barrier >= 1E-9]
     logger.info('Removing high-energy barriers')
     with alive_bar(
             len(barriers),
             title='Removing high-energy barriers'
     ) as progress_bar:
         # Try removing one by one, starting from the highest.
-        for en, from_idx, to_idx in sorted(barriers, reverse=True):
-            removed = neb_graph.remove_edge(from_idx, to_idx)
+        for en, from_idx, to_idx, key in sorted(barriers, reverse=True):
+            data = neb_graph.edges[from_idx, to_idx, key]
+            neb_graph.remove_edge(from_idx, to_idx, key)
             if _connected_and_infinite():
                 logger.info("%d -> %d: removed (%feV)", from_idx, to_idx, en)
                 n_removed += 1
             else:
                 logger.info("%d -> %d: kept (%feV)", from_idx, to_idx, en)
-                neb_graph.set_edges(removed)
+                neb_graph.add_edges_from([(from_idx, to_idx, data)])
             progress_bar()  # pylint: disable=not-callable
     logger.info("Removed %d high-energy barriers", n_removed)
 
@@ -679,13 +695,15 @@ def get_neb_pairs(
     # starting from the longest, while keeping graph connectivity.
     if remove_compound:
         logger.info("Removing compound paths")
-        edges = [(edge['distance'], from_idx, to_idx)
-                 for from_idx, to_idx, edge in neb_graph.edges]
+        edges = [(distance, from_idx, to_idx, key)
+                 for from_idx, to_idx, key, distance
+                 in neb_graph.edges(keys=True, data='distance')]
         n_edges = len(edges)
         with alive_bar(
                 n_edges, title='Removing compound paths') as progress_bar:
-            for edge_len, from_idx, to_idx in sorted(edges, reverse=True):
-                removed = neb_graph.remove_edge(from_idx, to_idx)
+            for edge_len, from_idx, to_idx, key in sorted(edges, reverse=True):
+                data = neb_graph.edges[from_idx, to_idx, key]
+                neb_graph.remove_edge(from_idx, to_idx, key)
                 if _connected_and_infinite():
                     logger.debug(
                         "%d -> %d (%fÅ): removed",
@@ -697,7 +715,7 @@ def get_neb_pairs(
                         "%d -> %d (%fÅ): kept",
                         from_idx, to_idx, edge_len
                     )
-                    neb_graph.set_edges(removed)
+                    neb_graph.add_edges_from([(from_idx, to_idx, data)])
                 progress_bar()  # pylint: disable=not-callable
         logger.info("Found %d non-compound paths", n_edges)
 
@@ -713,21 +731,20 @@ def get_neb_pairs(
     _known_dists = []
     edges = []
     dists = []
-    for from_idx, to_idx, data in neb_graph.edges:
-        if from_idx > to_idx:
-            from_idx, to_idx = to_idx, from_idx
-        if (from_idx, to_idx) not in edges:
-            edges.append((from_idx, to_idx))
-            dists.append(data['distance'])
+    for from_idx, to_idx, key, dist in neb_graph.edges(data='distance', keys=True):
+        edges.append((from_idx, to_idx, key))
+        dists.append(dist)
     n_edges = len(edges)
     with alive_bar(
             n_edges,
             title='Removing equivalent paths') as progress_bar:
-        for (from_idx, to_idx), dist in zip(edges, dists):
+        for (from_idx, to_idx, key), dist in zip(edges, dists):
+            # Two paths are equivalent when they (1) form a
+            # symmetrically unique structure when combined;
+            # (2) when they length/vector is the same.
             merged = merge_structures(
                 [all_clones[from_idx], all_clones[to_idx]])
-            # Equivalent paths must have the same length
-            # (assuming that structure_distance is robust enough)
+            # Equivalent paths must have the same length.
             close_pair_idxs = [
                 idx for idx, d in enumerate(_known_dists)
                 if np.isclose(dist, d)]
