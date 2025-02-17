@@ -11,7 +11,7 @@ from networkx.algorithms.cycles import _johnson_cycle_search\
     as johnson_cycle_search
 from pymatgen.core import Structure
 from IMDgroup.pymatgen.core.structure import\
-    merge_structures, get_supercell_size, structure_matches
+    merge_structures, structure_matches
 from IMDgroup.pymatgen.transformations.symmetry_clone\
     import SymmetryCloneTransformation
 from IMDgroup.pymatgen.core.structure import\
@@ -374,51 +374,6 @@ class NEB_Graph(MultiDiGraph):
                 f"bfs: This must not happen (visited: {visited})")
 
 
-# FIXME: When using PROTOTYPE to fill up the space, and inserted
-# atom/molecule is close to the cell edge, we risk creating a
-# supercell that is not fully relaxed.
-# The easiest way to avoid this would be demanding at least 2x2x2
-# structures as input.
-def __enlarge_cell(structure, prototype, scales):
-    """Enlarge STRUCTURE up to SCALES.
-    Use PROTOTYPE to fill newly appended volume.
-    Return the new structure.
-    """
-    if structure is None:
-        return None
-    # Create scaled up prototype
-    scaled_structure = prototype.copy() * scales
-    scaled_structure.properties = structure.properties
-    # Remove all the points that are bound by the original
-    # structure.
-    sites_to_remove = []
-    for site in scaled_structure:
-        site.to_unit_cell(in_place=True)
-    structure = structure.copy()
-    for site in structure:
-        site.to_unit_cell(in_place=True)
-    for idx, site in enumerate(scaled_structure):
-        inside = True
-        for scale, coord in zip(scales, site.frac_coords):
-            if scale == 2 and coord >= 0.5:
-                inside = False
-                break
-        if inside:
-            sites_to_remove.append(idx)
-    scaled_structure.remove_sites(sites_to_remove)
-    # Add sites from STRUCTURE in place of the removed from the
-    # prototype
-    for site in structure:
-        scaled_structure.append(
-            species=site.species,
-            coords=site.coords,
-            coords_are_cartesian=True,
-            properties=site.properties
-        )
-    assert scaled_structure.is_valid()
-    return scaled_structure
-
-
 def _remove_duplicates(
         structures: list[Structure],
         idxs: list[int] | None = None,
@@ -473,31 +428,6 @@ def _remove_duplicates(
             "gen_neb_pairs: Using structure enumeration"
             " preserving the original order (including duplicates)")
     return uniq_structures
-
-
-def __scale_structures_maybe(prototype, uniq_structures):
-    """Scale PROTOTYPE and UNIQ_STRUCTURES up to at least 2x2x2 supercell.
-    Return (prototype, structures), maybe unchanged.
-    """
-    dims = get_supercell_size(prototype)
-    scales = [2 if dim == 1 else 1 for dim in dims]
-    if dims[0] == 1 or dims[1] == 1 or dims[2] == 1:
-        warnings.warn(
-            "Prototype is not at least 2x2x2 supercell"
-            f" ({dims[0]}x{dims[1]}x{dims[2]})."
-            " Scaling up (inaccurate)"
-            "\n Suggestion: better give relaxed supercell as input.",
-            get_neb_pairs_warning
-        )
-        uniq_structures = [
-            __enlarge_cell(struct, prototype, scales)
-            for struct in uniq_structures]
-        prototype = __enlarge_cell(prototype, prototype, scales)
-        assert prototype is not None
-        # FIXME: get_supercell_size does not catch scaling for PEO
-        # structure.  Potential pymatgen bug.
-        # dims = tuple(dim * scale for dim, scale in zip(dims, scales))
-    return prototype, uniq_structures
 
 
 def get_neb_pairs(
@@ -569,10 +499,6 @@ def get_neb_pairs(
     logger.info("Removing symmetry duplicates")
     uniq_structures = _remove_duplicates(
         uniq_structures, multithread=multithread)
-
-    # Scale everything to at least 2x2x2 supercell.
-    # prototype, uniq_structures = \
-    #     __scale_structures_maybe(prototype, uniq_structures)
 
     # Inform user about structure numbers
     logger.info("Assigning indices")
