@@ -105,7 +105,6 @@ def get_matched_structure(
 
     return Structure.from_sites(
         result_sites,
-        charge=target_struct.charge,
         properties=target_struct.properties
     )
 
