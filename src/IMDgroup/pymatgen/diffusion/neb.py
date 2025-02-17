@@ -333,6 +333,15 @@ class NEB_Graph(MultiDiGraph):
             visited[start_idx] = True
             all_distances_sorted = np.unique(
                 [dist for _, _, dist in self.edges(data='distance')])
+            prev_d = all_distances_sorted[0]
+            tmp = [prev_d]
+            # Avoid iterating over distances that are very close.
+            # Ensure at least 1% increment.
+            for d in all_distances_sorted[1:]:
+                if prev_d * 1.01 < d:
+                    prev_d = d
+                    tmp.append(d)
+            all_distances_sorted = tmp
             for max_dist in all_distances_sorted:
                 logger.debug(
                     "Trying to reach all the sites via <=%.2fÅ long paths",
