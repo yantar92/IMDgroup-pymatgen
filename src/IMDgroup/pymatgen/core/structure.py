@@ -77,6 +77,7 @@ def get_matched_structure(
 
     result_sites = []
 
+    already_matched = True
     # Assign the closest site with the same species
     for idx, row in enumerate(dist_matrix):
         ind = np.argsort(row)
@@ -88,9 +89,14 @@ def get_matched_structure(
                 matched[matched_idx] = True
                 result_sites.append(target_struct[matched_idx])
                 found_mapping = True
+                if idx != matched_idx:
+                    already_matched = False
                 break
         if not found_mapping:
             raise ValueError("Unable to reliably match structures")
+
+    if already_matched:
+        return target_struct.copy()
 
     # If there are more sites in target_struct, add them to the end.
     for idx, site_matched in enumerate(matched):
