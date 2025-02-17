@@ -206,12 +206,13 @@ def structure_interpolate2(
         nimages: int = 10,
         frac_tol: float = 0.5,
         center: bool | float = 0.5,
+        match_first: bool = True,
         **kwargs) -> list[Structure]:
     """Like Structure.interpolate, but make sure that images are valid.
     Valid means that no atoms in the images are very close
     (structure_is_valid2), no closer than FRAC_TOL*sum of specie radiuses.
 
-    A new parameter CENTER (default: 0.5Å) will adjust STRUCTURE2 to
+    With CENTER set to non-False (default: 0.5Å), adjust STRUCTURE2 to
     match STRUCTURE1 geometric center of mass before interpolation.
     CENTER may either be a boolean (True to adjust structure centers)
     or a float to adjust structure centers only when the distance
@@ -237,7 +238,8 @@ def structure_interpolate2(
                 diff, frac_coords=True, to_unit_cell=True
             )
 
-    structure2 = get_matched_structure(structure1, structure2)
+    if match_first:
+        structure2 = get_matched_structure(structure1, structure2)
 
     images = structure1.interpolate(structure2, nimages=nimages, **kwargs)
 
