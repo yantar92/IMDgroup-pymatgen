@@ -106,7 +106,7 @@ class NEB_Graph(MultiDiGraph):
             to_idx, from_idx,
             distance=distance,
             vector=-np.array(vector),
-            energy_barrier=energy_barrier
+            energy_barrier=-energy_barrier
         )
 
     @staticmethod
