@@ -679,7 +679,11 @@ def __neb_diffusion_get_inputset(idx, beg, end, args, auto_nimages=False):
         method=args.path_method,
         frac_tol=frac_tol,
         user_incar_settings={'IMAGES': nimages})
-    inputset.update_images(beg, end)
+    # Disable period boundaries and structure adjustment to force
+    # diffusion path as is.
+    inputset.update_images(
+        beg, end,
+        pbc=False, center=False, match_first=False)
     output_dir_suffix = f"NEB.{idx:02}"
     inputset.name = output_dir_suffix
     return inputset

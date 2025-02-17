@@ -15,7 +15,7 @@ from IMDgroup.pymatgen.core.structure import\
 from IMDgroup.pymatgen.transformations.symmetry_clone\
     import SymmetryCloneTransformation
 from IMDgroup.pymatgen.core.structure import\
-    structure_diff, structure_distance, get_matched_structure
+    structure_diff, get_matched_structure
 
 logger = logging.getLogger(__name__)
 
@@ -156,6 +156,19 @@ class NEB_Graph(MultiDiGraph):
                 for to_idx, to_struct in enumerate(self.structures)
                 if from_idx <= to_idx
             ]
+
+    def debug_print_graph(self):
+        for from_idx, to_idx, key, data in self.edges(data=True, keys=True):
+            max_v = [0, 0, 0]
+            for v in data['vector']:
+                if np.linalg.norm(v) > np.linalg.norm(max_v):
+                    max_v = v
+            with np.printoptions(precision=2, suppress=True):
+                logger.debug(
+                    "%d -> %d (%d): %f.2Å; %s",
+                    from_idx, to_idx, key,
+                    data['distance'], max_v
+                )
 
     def connected(self, idxs: list[int] | None = None):
         """Return True when graph is connected.
@@ -503,11 +516,6 @@ def get_neb_pairs(
     of possible unique sites for interstitial/substitutional atom (or
     atoms).
 
-    IMPORTANT: STRUCTURES must be at least 2x2x2 supercells.  If not,
-    they will be scaled up to become 2x2x2 by appending PROTOTYPE.
-    (This is done to ensure for technical reasons so that we can cover
-    self->self diffusion paths)
-
     The algorithm assumes that applying symmetry operation for
     PROTOTYPE on any element STRUCTURES produces a valid alternative
     diffusion start/end point.
@@ -537,6 +545,10 @@ def get_neb_pairs(
     two lists: (unique_pairs, all_pairs). all_pairs will represent the
     full resulting diffusion graph including symmetrically equivalent
     diffusion pairs.
+
+    The returned tuples will contain initial and final points of
+    diffusion without normalizing coordinates to unit cell.  The
+    returned structures will also have 1-to-1 site matching.
     """
     # Arrange 1-to-1 site matching in all the provided structures
     # including prototype (needed to detect insertion sites)
@@ -559,8 +571,8 @@ def get_neb_pairs(
         uniq_structures, multithread=multithread)
 
     # Scale everything to at least 2x2x2 supercell.
-    prototype, uniq_structures = \
-        __scale_structures_maybe(prototype, uniq_structures)
+    # prototype, uniq_structures = \
+    #     __scale_structures_maybe(prototype, uniq_structures)
 
     # Inform user about structure numbers
     logger.info("Assigning indices")
@@ -592,12 +604,17 @@ def get_neb_pairs(
     logger.info("Found %d clones", len(all_clones))
 
     # Build diffusion graph connecting all the clones
-    neb_graph = NEB_Graph(all_clones, multithread=multithread)
+    neb_graph = NEB_Graph(
+        all_clones,
+        jimage_idxs=list(range(len(prototype), len(structures[0])))
+        if len(structures[0]) > len(prototype) else None,
+        multithread=multithread)
 
     # Select structures that must remain connected in the graph
     # Currently, we simply maintain connectivity of the lowest-energy
     # structures (maybe through higher-energy intermediates).
     energies = []
+    assert neb_graph.structures is not None
     for idx, struct in enumerate(neb_graph.structures):
         energy = struct.properties.get('final_energy')
         if energy is None:
@@ -640,6 +657,8 @@ def get_neb_pairs(
             n_edges += 1
     logger.info("Found %d paths shorter than cutoff (%f)", n_edges, cutoff)
 
+    neb_graph.debug_print_graph()
+
     def _connected_and_infinite():
         is_connected = neb_graph.connected(low_en_idxs)
         is_infinite = False
@@ -665,10 +684,14 @@ def get_neb_pairs(
             data = neb_graph.edges[from_idx, to_idx, key]
             neb_graph.remove_edge(from_idx, to_idx, key)
             if _connected_and_infinite():
-                logger.info("%d -> %d: removed (%feV)", from_idx, to_idx, en)
+                logger.info(
+                    "%d -> %d (%d): removed (%feV)",
+                    from_idx, to_idx, key, en)
                 n_removed += 1
             else:
-                logger.info("%d -> %d: kept (%feV)", from_idx, to_idx, en)
+                logger.info(
+                    "%d -> %d (%d): kept (%feV)",
+                    from_idx, to_idx, key, en)
                 neb_graph.add_edges_from([(from_idx, to_idx, data)])
             progress_bar()  # pylint: disable=not-callable
     logger.info("Removed %d high-energy barriers", n_removed)
@@ -688,14 +711,14 @@ def get_neb_pairs(
                 neb_graph.remove_edge(from_idx, to_idx, key)
                 if _connected_and_infinite():
                     logger.debug(
-                        "%d -> %d (%fÅ): removed",
-                        from_idx, to_idx, edge_len
+                        "%d -> %d (%d): removed (%fÅ)",
+                        from_idx, to_idx, key, edge_len
                     )
                     n_edges -= 1
                 else:
                     logger.info(
-                        "%d -> %d (%fÅ): kept",
-                        from_idx, to_idx, edge_len
+                        "%d -> %d (%d): kept (%fÅ)",
+                        from_idx, to_idx, key, edge_len
                     )
                     neb_graph.add_edges_from([(from_idx, to_idx, data)])
                 progress_bar()  # pylint: disable=not-callable
@@ -705,10 +728,11 @@ def get_neb_pairs(
         "Final diffusion graph: %s",
         [(from_idx, to_idx) for from_idx, to_idx, _ in neb_graph.edges]
     )
+    neb_graph.debug_print_graph()
 
     # Get rid of symmetrically equivalent diffusion paths.
     logger.info("Searching unique diffusion paths")
-    pairs = []
+    unique_edges = []
     merged_pairs = []
     _known_dists = []
     edges = []
@@ -736,22 +760,33 @@ def get_neb_pairs(
                 logger.debug("%s path is non-unique", (from_idx, to_idx))
                 progress_bar()  # pylint: disable=not-callable
                 continue
-            pairs.append((all_clones[from_idx], all_clones[to_idx]))
+            unique_edges.append((dist, from_idx, to_idx, key))
             merged_pairs.append(merged)
             _known_dists.append(dist)
             progress_bar()  # pylint: disable=not-callable
-    logger.info("Found %d unique paths", len(pairs))
+    logger.info("Found %d unique paths", len(unique_edges))
 
     # Sort by lentgh
-    pairs = sorted(
-        pairs,
-        key=lambda pair: structure_distance(
-            pair[0], pair[1], tol=0.5, match_first=False))
+    unique_edges = sorted(unique_edges)
+
+    def get_pair(from_idx, to_idx, key):
+        origin_struct = all_clones[from_idx]
+        target_struct = origin_struct.copy()
+        for idx, v in enumerate(neb_graph.edges[from_idx, to_idx, key]['vector']):
+            target_struct.translate_sites(
+                [idx], v,
+                frac_coords=False, to_unit_cell=False)
+        return (origin_struct, target_struct)
+
+    # Use full displacement vector to produce final diffusion point.
+    pairs = []
+    for _, from_idx, to_idx, key in unique_edges:
+        pairs.append(get_pair(from_idx, to_idx, key))
 
     if return_unfiltered:
         unfiltered_pairs = [
-            (all_clones[from_idx], all_clones[to_idx])
-            for from_idx, to_idx, _ in neb_graph.edges
+            get_pair(from_idx, to_idx, key)
+            for from_idx, to_idx, key in neb_graph.edges(keys=True)
         ]
         return pairs, unfiltered_pairs
 
