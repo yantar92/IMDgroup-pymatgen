@@ -816,7 +816,7 @@ def neb_diffusion(args):
             assert inputset.images is not None
             for image in inputset.images:
                 graph_images.append(image.structure)
-        graph_combined = merge_structures(graph_images, tol=0.1)
+        graph_combined = merge_structures(graph_images, tol=0.3)
         graph_combined.to_file(graph_file)
 
     return {'inputsets': result}
