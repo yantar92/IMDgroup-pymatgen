@@ -6,7 +6,7 @@ from multiprocessing import Pool
 from alive_progress import alive_bar
 import numpy as np
 import networkx as nx
-from networkx import MultiDiGraph, MultiGraph
+from networkx import MultiDiGraph
 from networkx.algorithms.cycles import _johnson_cycle_search\
     as johnson_cycle_search
 from pymatgen.core import Structure
@@ -80,7 +80,8 @@ class NEB_Graph(MultiDiGraph):
                                    for k in range(-1, 2)]:
                         vec2 = vec.copy()
                         for idx in jimage_idxs:
-                            site_from = structures[from_idx][idx].to_unit_cell()
+                            site_from =\
+                                structures[from_idx][idx].to_unit_cell()
                             site_to = structures[to_idx][idx].to_unit_cell()
                             assert site_from is not None
                             assert site_to is not None
@@ -135,14 +136,14 @@ class NEB_Graph(MultiDiGraph):
         """Compute all structure diff vectors for the NEB graph."""
         if self.multithread:
             return self._compute_vecs_multithreaded()
-        else:
-            return self._compute_vecs_singlethreaded()
+        return self._compute_vecs_singlethreaded()
 
     def _compute_vecs_multithreaded(self):
         """Compute vectors using multithreading."""
         with alive_bar(
                 None, title='Computing distance matrix') as progress_bar:
             with Pool() as pool:
+                # pylint: disable=not-callable
                 progress_bar(len(self.structures) ** 2 / 2)
                 return pool.starmap(
                     self._get_vec,
@@ -677,7 +678,7 @@ def get_neb_pairs(
         "Final diffusion graph: %s",
         [(from_idx, to_idx) for from_idx, to_idx, _ in neb_graph.edges]
     )
-    
+
     for from_idx, to_idx, key, data in neb_graph.edges(data=True, keys=True):
         max_v = [0, 0, 0]
         for v in data['vector']:
@@ -685,9 +686,9 @@ def get_neb_pairs(
                 max_v = v
         with np.printoptions(precision=2, suppress=True):
             logger.info(
-                "%d -> %d (%d): %f.2Å; %s",
+                "%d -> %d (%d): %fÅ; %feV; %s",
                 from_idx, to_idx, key,
-                data['distance'], max_v
+                data['distance'], data['energy_barrier'], max_v
             )
 
     # Get rid of symmetrically equivalent diffusion paths.
@@ -733,7 +734,8 @@ def get_neb_pairs(
     def get_pair(from_idx, to_idx, key):
         origin_struct = all_clones[from_idx]
         target_struct = origin_struct.copy()
-        for idx, v in enumerate(neb_graph.edges[from_idx, to_idx, key]['vector']):
+        for idx, v in enumerate(
+                neb_graph.edges[from_idx, to_idx, key]['vector']):
             target_struct.translate_sites(
                 [idx], v,
                 frac_coords=False, to_unit_cell=False)
