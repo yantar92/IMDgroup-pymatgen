@@ -60,6 +60,7 @@ class NEB_Graph(MultiDiGraph):
         else:
             self.structures = structures
         self.multithread = multithread
+        self.jimage_idxs = jimage_idxs
         self.__cycle_cache = []
 
         if structures is None:
@@ -95,7 +96,18 @@ class NEB_Graph(MultiDiGraph):
     def __add_edge(self, from_idx: int, to_idx: int, vector):
         def get_distance(vec):
             distance = 0
-            for v in vec:
+            for idx, v in enumerate(vec):
+                # When we consider self-self paths, there is no way
+                # computing real side displacemnts along the way and
+                # we can only know how much jimage_idxs sites move.
+                # But then such self-self paths cannot be compared to
+                # full distance between distint structures as we do
+                # have other site displacement then.
+                # To be consistent, only consider displacements of
+                # jimage_idxs, when they are provided.
+                if self.jimage_idxs is not None and\
+                   idx not in self.jimage_idxs:
+                    continue
                 d = np.linalg.norm(v)
                 if d > 0.5:
                     distance += d
