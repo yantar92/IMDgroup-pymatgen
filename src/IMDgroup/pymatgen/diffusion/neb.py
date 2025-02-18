@@ -55,8 +55,12 @@ class NEB_Graph(MultiDiGraph):
 
         super().__init__()
 
-        self.structures = structures
+        if structures is None:
+            self.structures = []
+        else:
+            self.structures = structures
         self.multithread = multithread
+        self.__cycle_cache = []
 
         if structures is None:
             return
