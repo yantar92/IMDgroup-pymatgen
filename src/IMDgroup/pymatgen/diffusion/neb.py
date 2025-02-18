@@ -620,17 +620,22 @@ def get_neb_pairs(
     # Loop over largest known (or estimated as energy difference)
     # barriers and remove as many as possible.  Always keep <=0 barriers.
     n_removed = 0
-    barriers = [(barrier, from_idx, to_idx, key)
-                for from_idx, to_idx, key, barrier in
-                neb_graph.edges(keys=True, data='energy_barrier')
-                if barrier >= 1E-9]
+    # We use rounding here because exact values will have floating
+    # point errors.
+    barriers = [(np.round(data['energy_barrier'], 5),
+                 np.round(data['distance'], 2),
+                 from_idx, to_idx, key)
+                for from_idx, to_idx, key, data in
+                neb_graph.edges(keys=True, data=True)
+                if data['energy_barrier'] >= 1E-9]
     logger.info('Removing high-energy barriers')
     with alive_bar(
             len(barriers),
             title='Removing high-energy barriers',
     ) as progress_bar:
         # Try removing one by one, starting from the highest.
-        for en, from_idx, to_idx, key in sorted(barriers, reverse=True):
+        # For the same energy barrier, remove longer paths first.
+        for en, _, from_idx, to_idx, key in sorted(barriers, reverse=True):
             data = neb_graph.edges[from_idx, to_idx, key]
             neb_graph.remove_edge(from_idx, to_idx, key)
             if _connected_and_infinite():
