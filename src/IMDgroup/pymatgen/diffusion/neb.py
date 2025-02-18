@@ -222,8 +222,8 @@ class NEB_Graph(MultiDiGraph):
             if full_cycle is None:
                 full_cycle = cycle
 
-            logger.debug(
-                "tot=%f (%s -- %s)", np.linalg.norm(acc), full_cycle, cycle)
+            # logger.debug(
+            #     "tot=%f (%s -- %s)", np.linalg.norm(acc), full_cycle, cycle)
 
             if len(cycle) <= 1:
                 assert full_cycle is not None
