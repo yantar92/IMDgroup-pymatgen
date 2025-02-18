@@ -584,7 +584,7 @@ def get_neb_pairs(
         if energy is None:
             origin_path = struct.properties.get('origin_path')
             raise ValueError(f"Energy data is missing for {origin_path}")
-        logger.debug("Energy %d: %f", idx, energy)
+        logger.info("Energy %d: %f", idx, energy)
         energies.append(energy)
     # Only take the lowest-energy structure
     # +1E-9 is to counter floating point error where structure clones
