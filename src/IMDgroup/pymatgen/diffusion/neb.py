@@ -165,19 +165,6 @@ class NEB_Graph(MultiDiGraph):
                 if from_idx <= to_idx
             ]
 
-    def debug_print_graph(self):
-        for from_idx, to_idx, key, data in self.edges(data=True, keys=True):
-            max_v = [0, 0, 0]
-            for v in data['vector']:
-                if np.linalg.norm(v) > np.linalg.norm(max_v):
-                    max_v = v
-            with np.printoptions(precision=2, suppress=True):
-                logger.debug(
-                    "%d -> %d (%d): %f.2Å; %s",
-                    from_idx, to_idx, key,
-                    data['distance'], max_v
-                )
-
     def connected(self, idxs: list[int] | None = None):
         """Return True when graph is connected.
         Otherwise, return False.
@@ -621,8 +608,6 @@ def get_neb_pairs(
             n_edges += 1
     logger.info("Found %d paths shorter than cutoff (%f)", n_edges, cutoff)
 
-    # neb_graph.debug_print_graph()
-
     def _connected_and_infinite():
         is_connected = neb_graph.connected(low_en_idxs)
         is_infinite = False
@@ -692,7 +677,18 @@ def get_neb_pairs(
         "Final diffusion graph: %s",
         [(from_idx, to_idx) for from_idx, to_idx, _ in neb_graph.edges]
     )
-    neb_graph.debug_print_graph()
+    
+    for from_idx, to_idx, key, data in neb_graph.edges(data=True, keys=True):
+        max_v = [0, 0, 0]
+        for v in data['vector']:
+            if np.linalg.norm(v) > np.linalg.norm(max_v):
+                max_v = v
+        with np.printoptions(precision=2, suppress=True):
+            logger.info(
+                "%d -> %d (%d): %f.2Å; %s",
+                from_idx, to_idx, key,
+                data['distance'], max_v
+            )
 
     # Get rid of symmetrically equivalent diffusion paths.
     logger.info("Searching unique diffusion paths")
