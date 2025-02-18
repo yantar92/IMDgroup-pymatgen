@@ -806,15 +806,18 @@ def neb_diffusion(args):
 
     result = __neb_diffusion_get_inputsets(pairs, args)
     if args.write_graph:
-        graph_inputs = __neb_diffusion_get_inputsets(
-            unfiltered_pairs, args, auto_nimages=True)
+        graph_file = "imdg-full-graph.cif"
+        logger.info("Writing diffusion graph summary to %s", graph_file)
+        with warnings.catch_warnings(action="ignore"):
+            graph_inputs = __neb_diffusion_get_inputsets(
+                unfiltered_pairs, args, auto_nimages=True)
         graph_images = []
         for inputset in graph_inputs:
             assert inputset.images is not None
             for image in inputset.images:
                 graph_images.append(image.structure)
         graph_combined = merge_structures(graph_images, tol=0.1)
-        graph_combined.to_file("imdg-full-graph.cif")
+        graph_combined.to_file(graph_file)
 
     return {'inputsets': result}
 
