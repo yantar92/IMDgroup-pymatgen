@@ -6,7 +6,7 @@ from multiprocessing import Pool
 from alive_progress import alive_bar
 import numpy as np
 import networkx as nx
-from networkx import MultiDiGraph
+from networkx import MultiDiGraph, MultiGraph
 from networkx.algorithms.cycles import _johnson_cycle_search\
     as johnson_cycle_search
 from pymatgen.core import Structure
@@ -214,54 +214,74 @@ class NEB_Graph(MultiDiGraph):
         logger.debug(
             "Searching infinite diffusion paths including %d", start_idx)
 
+        def _check_cycle(cycle, acc=0, full_cycle=None):
+            if full_cycle is None:
+                full_cycle = cycle
+
+            logger.debug(
+                "tot=%f (%s -- %s)", np.linalg.norm(acc), full_cycle, cycle)
+
+            if len(cycle) <= 1:
+                assert full_cycle is not None
+                if np.isclose(np.linalg.norm(acc), 0):
+                    return False
+                return True
+
+            for _, to, vec in self.edges(cycle[0], data='vector'):
+                if to == cycle[1] and _check_cycle(
+                        cycle[1:], acc + vec, full_cycle):
+                    return True
+
+            return False
+
+        def _debug_found(cycle, cached=False):
+            logger.debug(
+                    "%sFound infinite diffusion path for %d: %s",
+                    "(cached) " if cached else "",
+                    start_idx,
+                    " -> ".join([str(i) for i in cycle])
+                )
+
+        self.__cycle_cache = [
+            cycle for cycle in self.__cycle_cache
+            if start_idx not in cycle or
+            _check_cycle(cycle)
+        ]
+        # Now, all the cached cycles containing start_idx are valid.
+        # Check if there are any left.
+        for cycle in self.__cycle_cache:
+            if start_idx in cycle:
+                _debug_found(cycle, cached=True)
+                return True
+
         components = nx.strongly_connected_components(self)
-        G = None
+        subgraph = None
         for c in components:
             if start_idx in c:
-                G = self.subgraph(c)
+                subgraph = self.subgraph(c)
                 break
-        assert G is not None
-        assert start_idx in G.nodes()
-
-        def _check_cycle(cycle):
-            if start_idx in cycle:
-                cycle += [cycle[0]]
-                tot_vecs = [0]
-                prev_idx = cycle[0]
-                for next_idx in cycle[1:]:
-                    new_vecs = []
-                    for _, to, vec in self.edges(prev_idx, data='vector'):
-                        if to == next_idx:
-                            for tot_v in tot_vecs:
-                                new_vecs.append(tot_v + vec)
-                    tot_vecs = new_vecs
-                    prev_idx = next_idx
-                for v in tot_vecs:
-                    if not np.isclose(np.linalg.norm(v), 0):
-                        logger.debug(
-                            "Found infinite diffusion path for %d: %s (%f)",
-                            start_idx,
-                            " -> ".join([str(i) for i in cycle]),
-                            np.linalg.norm(v)
-                        )
-                        return True
-            return False
+        assert subgraph is not None
+        assert start_idx in subgraph.nodes()
 
         n_skipped = 0
         max_skipped = int(1E6)
-        for cycle in johnson_cycle_search(G, [start_idx]):
+        for cycle in johnson_cycle_search(subgraph, [start_idx]):
+            if start_idx not in cycle:
+                continue
+            cycle = cycle + [cycle[0]]
             if _check_cycle(cycle):
+                self.__cycle_cache.append(cycle)
+                _debug_found(cycle, cached=False)
                 return True
-            if start_idx in cycle:
-                n_skipped += 1
-                # logger.debug("skipped closed cycle: %d", n_skipped)
-                if n_skipped > max_skipped:
-                    warnings.warn(
-                        "Unable to find infinite diffusion path"
-                        f" for {start_idx} after attempting"
-                        f" {max_skipped} paths"
-                    )
-                    break
+            n_skipped += 1
+            # logger.debug("skipped closed cycle: %d", n_skipped)
+            if n_skipped > max_skipped:
+                warnings.warn(
+                    "Unable to find infinite diffusion path"
+                    f" for {start_idx} after attempting"
+                    f" {max_skipped} paths"
+                )
+                break
         return False
 
     def all_diffusion_paths_infinite(
