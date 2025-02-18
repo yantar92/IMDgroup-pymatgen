@@ -191,7 +191,7 @@ class NEB_Graph(MultiDiGraph):
             from_idx = queue.pop(0)
             visited[from_idx] = True
             for _, to_idx in self.edges(from_idx):
-                if not visited[to_idx]:
+                if not visited[to_idx] and to_idx not in queue:
                     queue.append(to_idx)
 
         return all(visited[idx] for idx in idxs)
@@ -324,7 +324,8 @@ class NEB_Graph(MultiDiGraph):
                         in self.edges(from_idx, data='distance')
                         if not visited[to_idx]]
                     for distance, to_idx in sorted(distances):
-                        if not visited[to_idx] and not distance > dist_cutoff:
+                        if not visited[to_idx] and not distance > dist_cutoff\
+                           and to_idx not in queue:
                             logger.debug(
                                 "coverage: %s -> %s (%fÅ)",
                                 from_idx, to_idx, distance
