@@ -621,7 +621,7 @@ def get_neb_pairs(
             n_edges += 1
     logger.info("Found %d paths shorter than cutoff (%f)", n_edges, cutoff)
 
-    neb_graph.debug_print_graph()
+    # neb_graph.debug_print_graph()
 
     def _connected_and_infinite():
         is_connected = neb_graph.connected(low_en_idxs)
@@ -641,14 +641,14 @@ def get_neb_pairs(
     logger.info('Removing high-energy barriers')
     with alive_bar(
             len(barriers),
-            title='Removing high-energy barriers'
+            title='Removing high-energy barriers',
     ) as progress_bar:
         # Try removing one by one, starting from the highest.
         for en, from_idx, to_idx, key in sorted(barriers, reverse=True):
             data = neb_graph.edges[from_idx, to_idx, key]
             neb_graph.remove_edge(from_idx, to_idx, key)
             if _connected_and_infinite():
-                logger.info(
+                logger.debug(
                     "%d -> %d (%d): removed (%feV)",
                     from_idx, to_idx, key, en)
                 n_removed += 1
@@ -701,7 +701,8 @@ def get_neb_pairs(
     _known_dists = []
     edges = []
     dists = []
-    for from_idx, to_idx, key, dist in neb_graph.edges(data='distance', keys=True):
+    for from_idx, to_idx, key, dist in\
+            neb_graph.edges(data='distance', keys=True):
         edges.append((from_idx, to_idx, key))
         dists.append(dist)
     n_edges = len(edges)
