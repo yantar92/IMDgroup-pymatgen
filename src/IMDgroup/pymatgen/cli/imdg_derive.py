@@ -669,14 +669,16 @@ def __neb_diffusion_get_inputset(idx, beg, end, args, auto_nimages=False):
         max_disp = np.max(np.linalg.norm(diff, axis=1))
         nimages = max(args.nimages, int(np.ceil(max_disp/0.5)))
         frac_tol = 0
+        method = 'linear'
     else:
         nimages = args.nimages
         frac_tol = args.frac_tol
+        method = args.path_method
     inputset = IMDNEBVaspInputSet(
         directory=beg.properties['origin_path'],
         target_directory=end.properties['origin_path'],
         fix_cutoff=args.fix_dist if args.fix_dist > 0 else None,
-        method=args.path_method,
+        method=method,
         frac_tol=frac_tol,
         user_incar_settings={'IMAGES': nimages})
     # Disable period boundaries and structure adjustment to force
