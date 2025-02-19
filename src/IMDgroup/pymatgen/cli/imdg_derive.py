@@ -815,7 +815,14 @@ def neb_diffusion(args):
         for inputset in graph_inputs:
             assert inputset.images is not None
             for image in inputset.images:
-                graph_images.append(image.structure)
+                # Remove all but inserted atoms.
+                struct = image.structure
+                assert struct is not None
+                struct = struct.copy()
+                # Assume that gen_neb_pairs arranges 1-to-1 site
+                # matching.
+                struct.remove_sites(list(range(len(prototype))))
+                graph_images.append(struct)
         graph_combined = merge_structures(graph_images, tol=0.1)
         graph_combined.to_file(graph_file)
 
