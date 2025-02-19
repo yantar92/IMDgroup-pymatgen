@@ -113,7 +113,7 @@ class IMDVaspInputSet(VaspInputSet):
             return
         if self.images is not None and\
            new_structure is not None and\
-           new_structure is not self.structure:
+           new_structure != self.structure:
             raise AttributeError("Cannot set structure for NEB inputset.")
         self.__structure = new_structure
 
