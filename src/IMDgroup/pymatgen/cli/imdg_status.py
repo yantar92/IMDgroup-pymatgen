@@ -317,6 +317,14 @@ def add_args(parser):
         help="Dirs matching this Python regexp pattern will be excluded",
         type=str,
     )
+    parser.add_argument(
+        "--nowarn",
+        help="List of warnings to ignore",
+        nargs="+",
+        choices=[key for key in VASP_WARNINGS
+                 if '__' not in key],
+        default=None
+    )
 
 
 def print_seconds(seconds):
@@ -419,7 +427,9 @@ def status(args):
                 progress = " N/A"
             warn_data = get_vasp_logs(log_file, VASP_WARNINGS)
             warning_list = ""
-            for _, data in warn_data.items():
+            for warn_name, data in warn_data.items():
+                if args.nowarn is not None and warn_name in args.nowarn:
+                    continue
                 warning_list += "\n" +\
                     colored(f"⮤Warning ({data['count']}x): ", "yellow") +\
                     data['message']
