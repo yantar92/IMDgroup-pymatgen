@@ -10,11 +10,11 @@ from glob import glob
 from pathlib import Path
 from dataclasses import dataclass, fields
 from typing import Self
+from pymatgen.core import Species, DummySpecies, Structure
 from pymatgen.io.vasp.sets import VaspInputSet, BadInputSetWarning
 from pymatgen.io.vasp.inputs import Potcar, Kpoints, Poscar
 from pymatgen.io.vasp.outputs import Vasprun
 from pymatgen.util.due import Doi, due
-from pymatgen.core import Structure
 from pymatgen.ext.matproj import MPRester
 from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
 from pymatgen.io.ase import AseAtomsAdaptor
@@ -25,8 +25,6 @@ from IMDgroup.pymatgen.core.structure import\
     merge_structures, structure_interpolate2, structure_is_valid2
 from IMDgroup.pymatgen.io.vasp.inputs import\
     Incar, _load_yaml_config, nebp, neb_dirs
-from IMDgroup.pymatgen.cli.imdg_visualize import\
-    write_selective_dynamics_summary_maybe
 
 # ase uses pairs of 'Si': '_suffix'.  Convert them into 'Si': 'Si_suffix'
 POTCAR_RECOMMENDED = dict(
@@ -48,6 +46,41 @@ def _load_mp(name):
         structure = m.get_structure_by_material_id(name)  # carbon
         assert structure.is_valid()
     return structure
+
+
+def write_selective_dynamics_summary_maybe(structure, fname):
+    """Visualize site constrains in STRUCTURE and write to FNAME.
+    Do nothing when STUCTURE does not have non-trivial constraints.
+    Return True when FNAME has been produced.
+    """
+    has_fixed = False
+    structure = structure.copy()
+    for site in structure:
+        site.label = None
+        if 'selective_dynamics' in site.properties and\
+           np.array_equal(site.properties['selective_dynamics'],
+                          [False, False, False]):
+            has_fixed = True
+            site.species = Species('Fe')  # fixed
+        elif 'selective_dynamics' in site.properties and\
+             site.properties['selective_dynamics'] is not None and\
+             False in site.properties['selective_dynamics']:
+            has_fixed = True
+            site.species = Species('Co')  # partially fixed
+        elif 'selective_dynamics' in site.properties and\
+             site.properties['selective_dynamics'] is None:
+            site.species = DummySpecies('X')  # unknown
+            site.properties['selective_dynamics'] = [False, False, False]
+        else:
+            site.species = Species('Ni')  # not fixed
+    if has_fixed:
+        logger.debug(
+            "Writing selective dynamics visualization to %s",
+            fname
+        )
+        structure.to_file(fname)
+        return True
+    return False
 
 
 @dataclass

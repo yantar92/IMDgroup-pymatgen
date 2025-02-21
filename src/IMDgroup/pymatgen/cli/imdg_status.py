@@ -8,14 +8,19 @@ import logging
 import warnings
 import subprocess
 import shutil
+import numpy as np
+from pathlib import Path
 from monty.io import zopen
 from termcolor import colored
 from xml.etree.ElementTree import ParseError
 from pymatgen.io.vasp.outputs import UnconvergedVASPWarning
+from pymatgen.core import Structure
 from IMDgroup.pymatgen.io.vasp.outputs import Outcar
 from IMDgroup.pymatgen.io.vasp.inputs import nebp, neb_dirs
 from IMDgroup.pymatgen.cli.imdg_analyze\
     import read_vaspruns, IMDGVaspToComputedEnrgyDrone
+from IMDgroup.pymatgen.io.vasp.sets import IMDDerivedInputSet
+from IMDgroup.pymatgen.core.structure import structure_distance
 
 logger = logging.getLogger(__name__)
 # Adapted (and modified) from custodian/src/custodian/vasp/handlers.py
@@ -479,7 +484,40 @@ def status(args):
                     progress = f" | {final_energy:.4f}eV" +\
                         f" CPU time: {cpu_time} ({n_cores} cores)" + progress
         mtime = vasp_output_time(wdir)
+        assert mtime is not None
         delta = mtime - datetime.datetime.now().timestamp()
+        if nebp(wdir):
+            neb_structures = []
+            neb_structures_initial = []
+            for p in neb_dirs(wdir):
+                contcar = Path(p) / "CONTCAR"
+                poscar = Path(p) / "POSCAR"
+                contcar_struct = None
+                if contcar.is_file():
+                    contcar_struct = Structure.from_file(contcar)
+                poscar_struct = Structure.from_file(poscar)
+                if contcar_struct is not None:
+                    neb_structures.append(contcar_struct)
+                else:
+                    neb_structures.append(poscar_struct)
+                neb_structures_initial.append(poscar_struct)
+
+            def get_dists(structs):
+                dists = [
+                    structure_distance(str1, str2)
+                    for str1, str2 in zip(structs, structs[1:])
+                ]
+                return [f"{idx+1:02d}: " +
+                        colored(f"{dist:.2f}Å",
+                                "red" if np.isclose(dist, 0) else "white")
+                        for idx, dist in enumerate(dists)]
+            neb_dists_initial =\
+                colored("IMAGE DISTANCES (initial) ", "magenta")\
+                + " ".join(get_dists(neb_structures_initial))
+            neb_dists =\
+                colored("IMAGE DISTANCES           ", "magenta")\
+                + " ".join(get_dists(neb_structures))
+            progress = progress + "\n" + neb_dists_initial + "\n" + neb_dists
         print(
             f"[{print_seconds(delta): >15}]",
             colored(f"{wdir.replace("./", "")}:", attrs=['bold']),
