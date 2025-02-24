@@ -514,7 +514,7 @@ def status(args):
 
             def get_dists(structs):
                 dists = [
-                    structure_distance(str1, str2)
+                    structure_distance(str1, str2, tol=0)
                     for str1, str2 in zip(structs, structs[1:])
                 ]
                 return [f"{idx+1:02d}: " +
