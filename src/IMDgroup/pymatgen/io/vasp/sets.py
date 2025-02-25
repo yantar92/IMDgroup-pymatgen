@@ -392,7 +392,7 @@ class IMDDerivedInputSet(IMDVaspInputSet):
     def incar(self):
         """Return None when previous dir has no INCAR.
         """
-        if self.prev_incar is None:
+        if self.prev_incar is None and self.force_prev_incar_file:
             return None
         return super().incar
 
@@ -400,7 +400,7 @@ class IMDDerivedInputSet(IMDVaspInputSet):
     def kpoints(self):
         """Return None when previous dir has no KPOINTS.
         """
-        if self.prev_kpoints is None:
+        if self.prev_kpoints is None and self.force_prev_kpoints_file:
             return None
         return super().kpoints
 
