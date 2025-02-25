@@ -471,9 +471,14 @@ class IMDDerivedInputSet(IMDVaspInputSet):
                 os.path.join(self.directory, "KPOINTS")
             )
             self.prev_kpoints = kpoints
+        elif self.force_prev_kpoints_file:
+            self.prev_kpoints = None
         else:
-            if self.force_prev_kpoints_file:
-                self.prev_kpoints = None
+            parent_dir = os.path.dirname(os.path.abspath(self.directory))
+            parent_kpoints_path = os.path.join(parent_dir, "KPOINTS")
+            if nebp(parent_dir) and os.path.isfile(parent_kpoints_path):
+                incar = Incar.from_file(parent_kpoints_path)
+                self.prev_kpoints = incar
 
         incar_path = os.path.join(self.directory, "INCAR")
         if os.path.isfile(incar_path):
