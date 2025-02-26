@@ -445,12 +445,16 @@ class IMDDerivedInputSet(IMDVaspInputSet):
                 "Reading previous VASP output from %s", self.directory)
             self.override_from_prev_calc(prev_calc_dir=self.directory)
         except ValueError as exc:
-            logger.debug("No VASP output found.  Reading input instead")
+            if os.path.isfile(os.path.join(self.directory, "CONTCAR")):
+                structure_file = os.path.join(self.directory, "CONTCAR")
+            else:
+                logger.debug("No VASP output found.  Reading input instead")
+                structure_file = os.path.join(self.directory, "POSCAR")
             # No VASP output found.  Try to ingest VASP input.
-            if os.path.isfile(os.path.join(self.directory, "POSCAR")) and\
+            if os.path.isfile(structure_file) and\
                self.images is None:
                 poscar = Poscar.from_file(
-                    os.path.join(self.directory, "POSCAR"),
+                    structure_file,
                     # https://github.com/materialsproject/pymatgen/issues/4140
                     # We do not care about consistency between POSCAR and
                     # POTCAR here.  POTCAR will be re-generated anyway.
