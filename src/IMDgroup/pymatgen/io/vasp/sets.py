@@ -551,7 +551,8 @@ class IMDStandardVaspInputSet(IMDVaspInputSet):
     def __post_init__(self) -> None:
 
         if self.structure is not None:
-            if len(self.structure) < self.CONFIG['INCAR']['NCORE']:
+            if self.CONFIG['INCAR'].get('NCORE') is None or\
+               len(self.structure) < self.CONFIG['INCAR']['NCORE']:
                 self.CONFIG['INCAR']['NCORE'] = max(
                     2,
                     min(
