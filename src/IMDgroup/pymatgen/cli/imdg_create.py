@@ -81,7 +81,7 @@ def create(args):
     """
     if os.path.isfile(args.what):
         structure = create_from_file(args.what)
-        inputset = IMDStandardVaspInputSet(structure)
+        inputset = IMDStandardVaspInputSet(structure=structure)
     elif match := re.match(
             r'([A-Z][a-z]) +([0-9]+)x([0-9]+)x([0-9]+)',
             args.what):
@@ -89,14 +89,13 @@ def create(args):
             match[1],
             [float(match[2]), float(match[3]), float(match[4])])
         inputset = IMDStandardVaspInputSet(
-            structure,
+            structure=structure,
             user_incar_settings={'SYSTEM': f'{match[1]}.boxed'},
             # Single k-point
             user_kpoints_settings={'length': 1})
     else:
         structure = create_from_mpid(args.what)
-        inputset = IMDStandardVaspInputSet(structure)
-
+        inputset = IMDStandardVaspInputSet(structure=structure)
     inputset.write_input(output_dir=inputset.incar['SYSTEM'])
 
     return 0
