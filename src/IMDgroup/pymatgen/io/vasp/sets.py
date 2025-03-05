@@ -122,33 +122,33 @@ class IMDVaspInputSet(VaspInputSet):
 
     CONFIG = {'INCAR': {}, 'POTCAR_FUNCTIONAL': "PBE_64"}
 
-    @property
-    def structure(self):
-        """Get set's structure.
-        """
-        if self.images is not None:
-            structure = self.images[0].structure
-        else:
-            structure = self.__structure
-        # Group species in the structure to avoid duplicate species in POSCAR
-        # https://github.com/materialsproject/pymatgen/issues/1633
-        if structure is not None:
-            # Note that get_sorted_structure uses built-in sort, which
-            # is stable. So, we will preserve species order for the
-            # same species.
-            structure = structure.get_sorted_structure(
-                key=lambda site: site.species.average_electroneg)
-        return structure
+    # @property
+    # def structure(self):
+    #     """Get set's structure.
+    #     """
+    #     if self.images is not None:
+    #         structure = self.images[0].structure
+    #     else:
+    #         structure = self.__structure
+    #     # Group species in the structure to avoid duplicate species in POSCAR
+    #     # https://github.com/materialsproject/pymatgen/issues/1633
+    #     if structure is not None:
+    #         # Note that get_sorted_structure uses built-in sort, which
+    #         # is stable. So, we will preserve species order for the
+    #         # same species.
+    #         structure = structure.get_sorted_structure(
+    #             key=lambda site: site.species.average_electroneg)
+    #     return structure
 
-    @structure.setter
-    def structure(self, new_structure: None | Structure):
-        if new_structure is self.structure:
-            return
-        if self.images is not None and\
-           new_structure is not None and\
-           new_structure != self.structure:
-            raise AttributeError("Cannot set structure for NEB inputset.")
-        self.__structure = new_structure
+    # @structure.setter
+    # def structure(self, new_structure: None | Structure):
+    #     if new_structure is self.structure:
+    #         return
+    #     if self.images is not None and\
+    #        new_structure is not None and\
+    #        new_structure != self.structure:
+    #         raise AttributeError("Cannot set structure for NEB inputset.")
+    #     self.__structure = new_structure
 
     @property
     def kpoints(self) -> Kpoints | None:
