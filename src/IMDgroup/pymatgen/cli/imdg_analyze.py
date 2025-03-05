@@ -12,7 +12,7 @@ from pymatgen.apps.borg.hive import VaspToComputedEntryDrone
 from pymatgen.apps.borg.queen import BorgQueen
 from pymatgen.io.vasp.inputs import Poscar
 from IMDgroup.pymatgen.io.vasp.outputs import Outcar
-from IMDgroup.pymatgen.io.vasp.inputs import Incar
+from IMDgroup.pymatgen.io.vasp.inputs import Incar, Poscar
 
 SAVE_FILE = "vasp_data_imdg.gz"
 logger = logging.getLogger(__name__)
@@ -151,6 +151,14 @@ class IMDGVaspToComputedEnrgyDrone(VaspToComputedEntryDrone):
             # Try to deduce parameters from OUTCAR + CONTCAR instead
             logger.debug("Trying to deduce run parameters from OUTCAR and CONTCAR")
             contcar = Poscar.from_file(os.path.join(path, 'CONTCAR'))
+            if os.path.exists(os.path.join(path, 'INCAR')):
+                incar = Incar.from_file(os.path.join(path, 'INCAR'))
+            else:
+                incar = None
+            if os.path.exists(os.path.join(path, 'POSCAR')):
+                initial_structure = Poscar.from_file(os.path.join(path, 'POSCAR')).structure
+            else:
+                initial_structure = None
             final_energy = outcar.final_energy
             assert isinstance(final_energy, float)
             outcar.read_pattern(
@@ -177,6 +185,8 @@ class IMDGVaspToComputedEnrgyDrone(VaspToComputedEntryDrone):
                 composition=contcar.structure.composition,
                 energy=final_energy,
                 data={
+                    'incar': incar,
+                    'initial_structure': initial_structure,
                     'converged': converged_ionic and converged_electronic,
                     'filename': outcar_path,
                     'final_energy': final_energy})
