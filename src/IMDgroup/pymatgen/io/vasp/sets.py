@@ -10,6 +10,7 @@ from glob import glob
 from pathlib import Path
 from dataclasses import dataclass, fields
 from typing import Self
+import numpy as np
 from pymatgen.core import Species, DummySpecies, Structure
 from pymatgen.io.vasp.sets import VaspInputSet, BadInputSetWarning
 from pymatgen.io.vasp.inputs import Potcar, Kpoints, Poscar
