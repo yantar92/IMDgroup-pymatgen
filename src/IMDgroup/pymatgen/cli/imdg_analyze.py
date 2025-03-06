@@ -151,7 +151,7 @@ class IMDGVaspToComputedEnrgyDrone(VaspToComputedEntryDrone):
             # Try to deduce parameters from OUTCAR + CONTCAR instead
             logger.debug("Trying to deduce run parameters from OUTCAR and CONTCAR")
             contcar_path = os.path.join(path, 'CONTCAR')
-            if os.path.exists(contcar_path) and os.path.getsize(contacar_path) > 0:
+            if os.path.exists(contcar_path) and os.path.getsize(contcar_path) > 0:
                 contcar = Poscar.from_file(os.path.join(path, 'CONTCAR'))
             else:
                 return None
