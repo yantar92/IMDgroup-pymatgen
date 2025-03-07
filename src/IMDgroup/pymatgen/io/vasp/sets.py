@@ -260,27 +260,6 @@ class IMDVaspInputSet(VaspInputSet):
                 "See https://www.vasp.at/wiki/index.php/NCORE",
                 BadInputSetWarning,
             )
-        # pylint:disable=invalid-name
-        NCORE = incar['NCORE'] if 'NCORE' in incar else None
-        if 'NPAR' in incar:
-            # https://www.vasp.at/wiki/index.php/KPAR
-            KPAR = incar['KPAR'] if 'KPAR' in incar else 1
-            NCORE = incar['NPAR'] * KPAR
-        if NCORE == 1:
-            warnings.warn(
-                "NCORE = 1 is only useful for up to 8 cores. "
-                "See https://www.vasp.at/wiki/index.php/NCORE",
-                BadInputSetWarning,
-            )
-        if NCORE is not None and NCORE > 2 and\
-           NCORE * 25 > len(self.structure):
-            warnings.warn(
-                "NCORE/NPAR parameter in the input set is too large"
-                f" ({NCORE} ({'NPAR' if 'NPAR' in incar else 'NCORE'}) * 25"
-                f" > {len(self.structure)} atoms)"
-                "\n See https://www.vasp.at/wiki/index.php/NCORE",
-                BadInputSetWarning,
-            )
         return incar
 
     @property
