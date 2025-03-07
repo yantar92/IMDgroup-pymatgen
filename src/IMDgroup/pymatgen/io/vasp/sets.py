@@ -544,30 +544,16 @@ class IMDStandardVaspInputSet(IMDVaspInputSet):
                   # By default, do not write WAVECAR and CHGCAR - save space
                   'LWAVE': False,
                   'LCHARG': False,
+                  # https://www.vasp.at/wiki/index.php/NCORE has some
+                  # recommendations, but they are not really universal.
+                  # In particular, too small values may severely
+                  # degrade CPU utilization on supercomputers.
+                  # So, we use larger value as the default.
+                  'NCORE': 16,
               },
               'KPOINTS': {'grid_density': 10000},
               'POTCAR_FUNCTIONAL': 'PBE_64',
               'POTCAR': POTCAR_RECOMMENDED}
-
-    def __post_init__(self) -> None:
-
-        if self.structure is not None:
-            if self.CONFIG['INCAR'].get('NCORE') is None or\
-               len(self.structure) < self.CONFIG['INCAR']['NCORE']:
-                self.CONFIG['INCAR']['NCORE'] = max(
-                    2,
-                    min(
-                        # https://www.vasp.at/wiki/index.php/NCORE
-                        # suggests NCORE = 4 for 100 atoms
-                        # NCORE = 12-16 for 400 atoms
-                        int(len(self.structure)/25),
-                        # Never go beyond 16 as it may not fit number
-                        # of CPUs in a given node
-                        16
-                    )
-                )
-
-        super().__post_init__()
 
 
 class IMDNEBVaspInputSetWarning(UserWarning):
