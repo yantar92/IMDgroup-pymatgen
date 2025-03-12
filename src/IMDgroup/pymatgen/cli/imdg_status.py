@@ -190,7 +190,8 @@ def convergedp(path, entries_dict, reread=False):
                 data=['final_energy', 'converged']
             )
             computed_entry = drone.assimilate(path)
-            assert computed_entry is not None
+            if computed_entry is None:
+                return False
             return computed_entry.data['final_energy']\
                 if computed_entry.data['converged'] else False
         return False
