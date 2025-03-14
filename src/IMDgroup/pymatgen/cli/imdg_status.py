@@ -367,6 +367,9 @@ def vasp_output_time(path):
     outcar = os.path.join(path, 'OUTCAR')
     if os.path.isfile(outcar):
         return os.path.getmtime(outcar)
+    vasprun = os.path.join(path, 'vasprun.xml')
+    if os.path.isfile(vasprun):
+        return os.path.getmtime(vasprun)
     return None
 
 class ParseOutcarWarning(UserWarning):
