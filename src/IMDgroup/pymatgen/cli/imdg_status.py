@@ -510,7 +510,12 @@ def status(args):
                 poscar = Path(p) / "POSCAR"
                 contcar_struct = None
                 if contcar.is_file():
-                    contcar_struct = Structure.from_file(contcar)
+                    try:
+                        contcar_struct = Structure.from_file(contcar)
+                    # There is VASP bug when we have -1.00000-2.000
+                    # numbers without space.  Bail out when encoutnered.
+                    except ValueError:
+                        contcar_struct = None
                 poscar_struct = Structure.from_file(poscar)
                 if contcar_struct is not None:
                     neb_structures.append(contcar_struct)
