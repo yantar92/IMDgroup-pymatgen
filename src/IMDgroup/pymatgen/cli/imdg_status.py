@@ -495,7 +495,8 @@ def status(args):
                     progress = f" | {final_energy:.4f}eV" +\
                         f" CPU time: {cpu_time} ({n_cores} cores)" + progress
         mtime = vasp_output_time(wdir)
-        assert mtime is not None
+        if mtime is None:
+            continue
         delta = mtime - datetime.datetime.now().timestamp()
         if nebp(wdir):
             neb_structures = []
