@@ -7,6 +7,7 @@ import os
 import hashlib
 from tabulate import tabulate
 
+import numpy as np
 from alive_progress import alive_bar
 from pymatgen.entries.computed_entries import ComputedStructureEntry
 from pymatgen.apps.borg.hive import VaspToComputedEntryDrone
@@ -169,6 +170,7 @@ class IMDGVaspToComputedEnrgyDrone(VaspToComputedEntryDrone):
                 warnings.warn(
                     f"Problems reading final energy (={final_energy}) from {outcar_path}."
                 )
+                final_energy = np.nan
             outcar.read_pattern(
                 {'converged_ionic':
                  r'(reached required accuracy - stopping structural energy minimisation|writing wavefunctions)'},
