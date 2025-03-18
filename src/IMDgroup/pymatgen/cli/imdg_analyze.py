@@ -2,6 +2,7 @@
 Based on pymatgen's pymatgen.cli.pmg_analyze
 """
 import logging
+import warnings
 import os
 import hashlib
 from tabulate import tabulate
@@ -164,7 +165,10 @@ class IMDGVaspToComputedEnrgyDrone(VaspToComputedEntryDrone):
             else:
                 initial_structure = None
             final_energy = outcar.final_energy
-            assert isinstance(final_energy, float)
+            if not isinstance(final_energy, float):
+                warnings.warn(
+                    f"Problems reading final energy (={final_energy}) from {outcar_path}."
+                )
             outcar.read_pattern(
                 {'converged_ionic':
                  r'(reached required accuracy - stopping structural energy minimisation|writing wavefunctions)'},
