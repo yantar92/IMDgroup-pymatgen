@@ -232,7 +232,7 @@ def vasp_log_file(path):
     for f in files:
         # slurm-XXX.log (produced by slurm with default settings)
         # stdout (produced by VASP itself)
-        if "slurm" in f or "stdout" in f:
+        if "slurm" in f or "stdout" in f or "vasp.out" in f:
             matching.append(os.path.join(path, f))
     if len(matching) > 0:
         newest = matching[0]
