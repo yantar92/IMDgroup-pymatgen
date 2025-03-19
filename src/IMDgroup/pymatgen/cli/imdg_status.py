@@ -328,6 +328,11 @@ def add_args(parser):
                  if '__' not in key],
         default=None
     )
+    parser.add_argument(
+        "--problematic",
+        help="Only show runs with warnings",
+        action="store_true"
+    )
 
 
 def print_seconds(seconds):
@@ -542,6 +547,9 @@ def status(args):
                 colored("IMAGE DISTANCES           ", "magenta")\
                 + " ".join(get_dists(neb_structures))
             progress = progress + "\n" + neb_dists_initial + "\n" + neb_dists
+        if args.problematic and warning_list == ""\
+           and run_status == "converged":
+            continue
         print(
             f"[{print_seconds(delta): >15}]",
             colored(f"{wdir.replace("./", "")}:", attrs=['bold']),
