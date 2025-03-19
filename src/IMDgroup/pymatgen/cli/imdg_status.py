@@ -427,9 +427,11 @@ def status(args):
                     break
     paths = sorted(paths)
     for wdir in paths:
-        outcar_path = [os.path.join(wdir, 'OUTCAR')]
+        outcar_path = os.path.join(wdir, 'OUTCAR')
         if not os.path.isfile(outcar_path):
             outcar_path = False
+        else:
+            outcar_path = [outcar_path]
         if log_files := (vasp_log_files(wdir) or outcar_path):
             logger.debug("Found VASP logs in %s: %s", wdir, log_files)
             progress_data = get_vasp_logs(log_files[-1], VASP_PROGRESS)
