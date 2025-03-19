@@ -221,9 +221,10 @@ def slurm_runningp(path):
     return False
 
 
-def vasp_log_file(path):
-    """Return VASP log file in PATH.
-    Return None, if the log file is not found.
+def vasp_log_files(path):
+    """Return a list of VASP log files in PATH.
+    The files are sorted by modification date.
+    Return None, if log files are not found.
     """
     files = [f for f in os.listdir(path)
              if os.path.isfile(os.path.join(path, f))]
@@ -235,14 +236,15 @@ def vasp_log_file(path):
         if "slurm" in f or "stdout" in f or "vasp.out" in f:
             matching.append(os.path.join(path, f))
     if len(matching) > 0:
-        newest = matching[0]
-        mtime_newest = os.stat(newest).st_mtime
-        for f in matching:
-            mtime = os.stat(f).st_mtime
-            if mtime_newest < mtime:
-                mtime_newest = mtime
-                newest = f
-        return newest
+        return sorted(matching, key=lambda f: os.stat(f).st_mtime)
+        # newest = matching[0]
+        # mtime_newest = os.stat(newest).st_mtime
+        # for f in matching:
+        #     mtime = os.stat(f).st_mtime
+        #     if mtime_newest < mtime:
+        #         mtime_newest = mtime
+        #         newest = f
+        # return newest
     return None
 
 
@@ -423,21 +425,22 @@ def status(args):
         outcar_path = os.path.join(wdir, 'OUTCAR')
         if not os.path.isfile(outcar_path):
             outcar_path = False
-        if log_file := (vasp_log_file(wdir) or outcar_path):
-            logger.debug("Found VASP logs in %s: %s", wdir, log_file)
-            progress_data = get_vasp_logs(log_file, VASP_PROGRESS)
+        if log_files := (vasp_log_files(wdir) or outcar_path):
+            logger.debug("Found VASP logs in %s: %s", wdir, log_files)
+            progress_data = get_vasp_logs(log_files[-1], VASP_PROGRESS)
             if len(progress_data.values()) > 0:
                 progress = " | " + list(progress_data.values())[-1]['message']
             else:
                 progress = " N/A"
-            warn_data = get_vasp_logs(log_file, VASP_WARNINGS)
             warning_list = ""
-            for warn_name, data in warn_data.items():
-                if args.nowarn is not None and warn_name in args.nowarn:
-                    continue
-                warning_list += "\n" +\
-                    colored(f"⮤Warning ({data['count']}x): ", "yellow") +\
-                    data['message']
+            for log_file in log_files:
+                warn_data = get_vasp_logs(log_file, VASP_WARNINGS)
+                for warn_name, data in warn_data.items():
+                    if args.nowarn is not None and warn_name in args.nowarn:
+                        continue
+                    warning_list += "\n" +\
+                        colored(f"⮤Warning ({data['count']}x): ", "yellow") +\
+                        data['message']
         else:
             logger.debug("Slurm log file not found in %s", wdir)
             progress = ""
