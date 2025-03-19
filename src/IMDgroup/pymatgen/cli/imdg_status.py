@@ -452,12 +452,15 @@ def status(args):
             warning_list = ""
 
         run_status = colored("unknown", "red")
+        converged = None
+        running = False
         if nebp(wdir):
             # NEB-like calculation
             run_prefix = colored("IMAGES ", "magenta")
         else:
             run_prefix = ""
         if slurm_runningp(wdir):
+            running = True
             run_status = colored("running", "yellow")
         else:
             try:
@@ -548,7 +551,7 @@ def status(args):
                 + " ".join(get_dists(neb_structures))
             progress = progress + "\n" + neb_dists_initial + "\n" + neb_dists
         if args.problematic and warning_list == ""\
-           and run_status == "converged":
+           and (converged or running):
             continue
         print(
             f"[{print_seconds(delta): >15}]",
