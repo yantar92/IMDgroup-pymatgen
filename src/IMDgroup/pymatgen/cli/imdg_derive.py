@@ -19,6 +19,9 @@ from IMDgroup.pymatgen.io.vasp.sets\
 from IMDgroup.pymatgen.io.vasp.inputs import Incar
 from IMDgroup.pymatgen.transformations.insert_molecule\
     import InsertMoleculeTransformation
+from IMDgroup.pymatgen.transformations.symmetry_clone\
+    import SymmetryFillTransformation
+
 
 logger = logging.getLogger(__name__)
 
@@ -94,6 +97,9 @@ Write them to <prefix><output name><subdir>."""
 
     parser_delete = subparsers.add_parser("del")
     delete_add_args(parser_delete)
+
+    parser_fill = subparsers.add_parser("fill")
+    fill_add_args(parser_fill)
 
     parser_neb = subparsers.add_parser("neb")
     neb_add_args(parser_neb)
@@ -573,6 +579,92 @@ def delete(args):
         warnings.warn("Nothing was deleted")
     output_dir_suffix = ",".join(args.what)
     inputset.name = output_dir_suffix
+    return {'inputsets': [inputset]}
+
+
+def fill_add_args(parser):
+    """Setup parser arguments for filling sites.
+    Args:
+      parser: subparser
+    """
+    parser.help = "Fill in all possible inserttion sites and output structure"
+    parser.set_defaults(func_derive=fill)
+    parser.add_argument(
+        "--uniq_sites",
+        help="VASP output dirs containing equilibrium insert sites",
+        nargs="+",
+        required=True,
+        type=str
+    )
+    parser.add_argument(
+        "--selective-dynamics",
+        dest="selective_dynamics",
+        help="Selective dynamics to be applied to prototype sites"
+        "(example: True, True, False)",
+        nargs=3,
+        type=_str_to_bool,
+        default=None
+    )
+
+
+def fill(args):
+    """Create a structure file with all insertion sites filled.
+    Take prototype structure and a set of relaxed configurations with
+    inserted atoms and generate a structure with all possible sites
+    for insertions completely filled.
+    """
+    logger.info("Reading prototype from %s", args.input_directory)
+    if os.path.isdir(args.input_directory):
+        prototype_run = Vasprun(os.path.join(
+            args.input_directory, 'vasprun.xml'))
+        prototype = prototype_run.final_structure
+    else:
+        # Try to load structure from file
+        prototype = pmg.Structure.from_file(args.input_directory)
+
+    trans = SymmetryFillTransformation(prototype, ['X'])
+    structures = []
+    for struct_path in args.uniq_sites:
+        logger.info("Reading structure from %s", struct_path)
+        structure_run = Vasprun(os.path.join(struct_path, 'vasprun.xml'))
+        assert structure_run.converged
+        structure = structure_run.final_structure
+        structure = get_matched_structure(prototype, structure)
+        if len(structure) > len(prototype):
+            idxs = list(range(len(prototype), len(structure)))
+            logger.debug(
+                "Found inserted sites: %s",
+                [structure[idx] for idx in idxs]
+            )
+            for idx in idxs:
+                structure[idx].properties['__species'] = structure[idx].species
+                structure[idx].species = pmg.DummySpecie('X')
+            structure = trans.apply_transformation(structure)
+            for site in structure:
+                if site.specie == pmg.DummySpecie('X'):
+                    site.species = site.properties['__species']
+            structure = structure.remove_site_property('__species')
+        else:
+            raise ValueError(
+                f"{struct_path} does not"
+                " contain added atoms to {args.input_directory}")
+
+        structure.properties['origin_path'] = struct_path
+        structure.properties['final_energy'] = structure_run.final_energy
+        structures.append(structure)
+
+    filled_structure = merge_structures(structures, tol=0.1)
+    inputset = IMDDerivedInputSet(
+        directory=args.uniq_sites[0],
+    )
+    inputset.structure = filled_structure
+    inputset.name = "fill"
+
+    if args.selective_dynamics is not None:
+        for site in inputset.structure:
+            site.properties['selective_dynamics'] =\
+                args.selective_dynamics
+
     return {'inputsets': [inputset]}
 
 
