@@ -4,7 +4,7 @@
 import logging
 from multiprocessing import Pool, cpu_count
 from pymatgen.transformations.transformation_abc import AbstractTransformation
-from pymatgen.core import (SymmOp, Structure, Element)
+from pymatgen.core import (SymmOp, Structure, get_el_sp)
 from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
 from pymatgen.util.typing import SpeciesLike
 from alive_progress import alive_bar
@@ -28,7 +28,7 @@ class SymmetryFillTransformation(AbstractTransformation):
            operations.
          species_list: List of species to be cloned.
         """
-        self.element_set = set(map(Element, element_list))
+        self.element_set = set(map(get_el_sp, element_list))
 
         if isinstance(sym_operations, Structure):
             analyzer = SpacegroupAnalyzer(sym_operations)
@@ -58,7 +58,7 @@ class SymmetryFillTransformation(AbstractTransformation):
           property 'symop' be set to symmetry operation used to
           generate the clone.
         """
-        all_elements = map(Element, structure.species)
+        all_elements = map(get_el_sp, structure.species)
         elements_to_remove = set(all_elements) - self.element_set
         filled_structure = structure.copy()
         identity_op = SymmOp.from_xyz_str('x,y,z')
