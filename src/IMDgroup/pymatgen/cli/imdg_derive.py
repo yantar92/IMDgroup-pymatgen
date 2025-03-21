@@ -523,7 +523,7 @@ def insert(args):
         transformer = InsertMoleculeTransformation(
             args.atom,
             step=args.step,
-            step_noise=args.spet_noise,
+            step_noise=args.step_noise,
             proximity_threshold=args.threshold,
             selective_dynamics=[True, True, True],
             matcher=None,
@@ -533,7 +533,7 @@ def insert(args):
         transformer = InsertMoleculeTransformation(
             args.atom,
             step=args.step,
-            step_noise=args.spet_noise,
+            step_noise=args.step_noise,
             proximity_threshold=args.threshold,
             selective_dynamics=[True, True, True],
             multithread=args.multithread,
