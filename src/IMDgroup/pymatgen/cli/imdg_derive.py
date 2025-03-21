@@ -251,6 +251,11 @@ def relax_add_args(parser):
             "RELAX_POS_VOL", "FIX_SHAPE"
         ]
     )
+    parser.add_argument(
+        "auto_encut",
+        help="Set ENCUT automatically",
+        action="store_true"
+    )
 
 
 def relax(args):
@@ -268,22 +273,23 @@ def relax(args):
         'EDIFF': 1e-06,
         'EDIFFG': -0.01
     }
-    # 550eV recommended for _volume/shape_ relaxation During
-    # volume/shape relaxation, initial automatic k-point grid
-    # calculated for original volume becomes slightly less accurate
-    # unless we increase ENCUT
-    if relax_overrides['ISIF'] != Incar.ISIF_FIX_SHAPE_VOL:
-        logger.info("Shape/volume relaxation.  Setting ENCUT=550.0")
-        warnings.warn(
-            "Shape/volume relaxation.  Setting ENCUT=550.0"
-        )
-        relax_overrides['ENCUT'] = 550.0
-    else:
-        logger.info("Shape and volume are fixed.  Setting ENCUT=500.0")
-        warnings.warn(
-            "Shape and volume are fixed.  Setting ENCUT=500.0"
-        )
-        relax_overrides['ENCUT'] = 500.0
+    if args.auto_encut:
+        # 550eV recommended for _volume/shape_ relaxation During
+        # volume/shape relaxation, initial automatic k-point grid
+        # calculated for original volume becomes slightly less accurate
+        # unless we increase ENCUT
+        if relax_overrides['ISIF'] != Incar.ISIF_FIX_SHAPE_VOL:
+            logger.info("Shape/volume relaxation.  Setting ENCUT=550.0")
+            warnings.warn(
+                "Shape/volume relaxation.  Setting ENCUT=550.0"
+            )
+            relax_overrides['ENCUT'] = 550.0
+        else:
+            logger.info("Shape and volume are fixed.  Setting ENCUT=500.0")
+            warnings.warn(
+                "Shape and volume are fixed.  Setting ENCUT=500.0"
+            )
+            relax_overrides['ENCUT'] = 500.0
 
     inputset = IMDDerivedInputSet(
         directory=args.input_directory,
