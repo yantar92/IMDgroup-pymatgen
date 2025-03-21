@@ -60,7 +60,10 @@ def get_matched_structure(
     if len(target_struct) < len(reference_struct):
         raise ValueError("Target structure has too few sites!")
 
-    if not reference_struct.lattice == target_struct.lattice:
+    if not np.all(np.isclose(
+            reference_struct.lattice.parameters,
+            target_struct.lattice.parameters,
+            rtol=1e-05)):
         raise ValueError("Structures with different lattices!")
 
     start_coords = np.array(reference_struct.frac_coords)
