@@ -514,10 +514,7 @@ def insert(args):
     """Create setup for inserted molecules/atoms.
     Return {'inputsets': [<list of inputsets>]}
     """
-    inputset = IMDDerivedInputSet(
-        directory=args.input_directory,
-        user_incar_settings={'NSW': 0, 'IBRION': -1},
-    )
+    inputset = IMDDerivedInputSet(directory=args.input_directory)
 
     if args.no_matcher:
         transformer = InsertMoleculeTransformation(
