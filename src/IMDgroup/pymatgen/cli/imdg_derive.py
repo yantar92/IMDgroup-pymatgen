@@ -149,7 +149,7 @@ def perturb(args):
         for orig_site, new_site in zip(orig_structure, inputset.structure):
             for coord_idx, move in enumerate(
                     orig_site.properties['selective_dynamics']):
-                if move:
+                if not move:
                     new_site.frac_coords[coord_idx] =\
                         orig_site.frac_coords[coord_idx]
     output_dir_suffix = f"PERTURB.{args.distance}"
