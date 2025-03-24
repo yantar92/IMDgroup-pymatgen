@@ -140,7 +140,18 @@ def perturb(args):
     """
     inputset = IMDDerivedInputSet(directory=args.input_directory)
 
+    orig_structure = inputset.structure
     inputset.structure.perturb(args.distance)
+    if 'selective_dynamics' in orig_structure[0].properties:
+        warnings.warn(
+            "Not perturbing site coordinates restricted by selective_dynamics"
+        )
+        for orig_site, new_site in zip(orig_structure, inputset.structure):
+            for coord_idx, move in enumerate(
+                    orig_site.properties['selective_dynamics']):
+                if move:
+                    new_site.frac_coords[coord_idx] =\
+                        orig_site.frac_coords[coord_idx]
     output_dir_suffix = f"PERTURB.{args.distance}"
     inputset.name = output_dir_suffix
 
