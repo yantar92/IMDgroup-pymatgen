@@ -140,7 +140,7 @@ def perturb(args):
     """
     inputset = IMDDerivedInputSet(directory=args.input_directory)
 
-    orig_structure = inputset.structure
+    orig_structure = inputset.structure.copy()
     inputset.structure.perturb(args.distance)
     if 'selective_dynamics' in orig_structure[0].properties:
         warnings.warn(
