@@ -13,7 +13,7 @@ from typing import Self
 import numpy as np
 from pymatgen.core import Species, DummySpecies, Structure
 from pymatgen.io.vasp.sets import VaspInputSet, BadInputSetWarning
-from pymatgen.io.vasp.inputs import Potcar, Kpoints, Poscar
+from pymatgen.io.vasp.inputs import Potcar, Kpoints, Poscar, BadPoscarWarning
 from pymatgen.io.vasp.outputs import Vasprun
 from pymatgen.util.due import Doi, due
 from pymatgen.ext.matproj import MPRester
@@ -433,13 +433,23 @@ class IMDDerivedInputSet(IMDVaspInputSet):
             # No VASP output found.  Try to ingest VASP input.
             if os.path.isfile(structure_file) and\
                self.images is None:
-                poscar = Poscar.from_file(
-                    structure_file,
-                    # https://github.com/materialsproject/pymatgen/issues/4140
-                    # We do not care about consistency between POSCAR and
-                    # POTCAR here.  POTCAR will be re-generated anyway.
-                    check_for_potcar=False,
-                )
+                with warnings.catch_warnings():
+                    warnings.simplefilter("error", BadPoscarWarning)
+                    try:
+                        poscar = Poscar.from_file(
+                            structure_file,
+                            # https://github.com/materialsproject/pymatgen/issues/4140
+                            # We do not care about consistency between POSCAR and
+                            # POTCAR here.  POTCAR will be re-generated anyway.
+                            check_for_potcar=False,
+                        )
+                    except BadPoscarWarning:
+                        # POSCAR does not contain element info
+                        # Try reading from POTCAR after all
+                        poscar = Poscar.from_file(
+                            structure_file,
+                            check_for_potcar=True,
+                        )
                 self.structure = poscar.structure
             elif self.images is not None:
                 pass
