@@ -350,7 +350,8 @@ def analyze(args):
                 else:
                     val = "unreliable"
             elif field == 'total_mag':
-                val = e.data['outcar']['total_magnetization']
+                if e.data['outcar'] is not None:
+                    val = e.data['outcar']['total_magnetization']
                 if val is None:
                     val = "None"
             elif field == '%vol':
