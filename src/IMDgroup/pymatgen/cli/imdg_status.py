@@ -321,6 +321,11 @@ def add_args(parser):
         type=str,
     )
     parser.add_argument(
+        "--include",
+        help="*Only* dirs matching this Python regexp pattern will be included",
+        type=str,
+    )
+    parser.add_argument(
         "--nowarn",
         help="List of warnings to ignore",
         nargs="+",
@@ -391,6 +396,8 @@ def status(args):
 
     def exclude_dirp(p):
         if args.exclude is not None and re.search(args.exclude, p):
+            return True
+        if args.include is not None and not re.search(args.include, p):
             return True
         return False
 
