@@ -222,12 +222,16 @@ def read_vaspruns(rootdir, path_filter=None):
         inc_structure=True,
         data=["filename", "initial_structure", "incar", 'converged'])
 
+    if os.access(rootdir, os.W_OK):
+        dump_file = os.path.join(rootdir, SAVE_FILE)
+    else:
+        dump_file = SAVE_FILE
     queen = IMDGBorgQueen(
         drone,
         rootpath=rootdir,
-        dump_file=SAVE_FILE,
+        dump_file=dump_file,
         path_filter=path_filter)
-    queen.save_data(SAVE_FILE)
+    queen.save_data(dump_file)
 
     entries = queen.get_data()
     entries = [e for e in entries if e is not None]
