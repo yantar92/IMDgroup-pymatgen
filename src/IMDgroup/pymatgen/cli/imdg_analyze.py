@@ -325,11 +325,14 @@ def analyze(args):
 
     def _energy_reliable_p(entry):
         """Return True when ENTRY's energy is reliable.
-        Energy is not very reliable when using volume relaxation.
+        Energy is not very reliable when using volume relaxation or
+        when the calculation is not converged.
         """
         incar = entry.data['incar']
         if incar.get('IBRION') in Incar.IBRION_IONIC_RELAX_values and\
            incar.get('ISIF') != Incar.ISIF_FIX_SHAPE_VOL:
+            return False
+        if not entry.data.get('converged', False):
             return False
         return True
 
