@@ -351,16 +351,22 @@ def analyze(args):
                     val = f"{e.energy:.5f}"
                 else:
                     val = "unreliable"
+                if not e.data.get('converged', False):
+                    val = "unconverged"
             elif field == 'e_per_atom':
                 if _energy_reliable_p(e):
                     val = f"{e.energy_per_atom:.5f}"
                 else:
                     val = "unreliable"
+                if not e.data.get('converged', False):
+                    val = "unconverged"
             elif field == 'total_mag':
                 if e.data['outcar'] is not None:
                     val = e.data['outcar']['total_magnetization']
                 if val is None:
                     val = "None"
+                if not e.data.get('converged', False):
+                    val = "unconverged"
             elif field == '%vol':
                 vol0 = e.data["initial_structure"].volume
                 val = e.structure.volume/vol0 - 1
