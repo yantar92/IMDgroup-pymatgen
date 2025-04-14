@@ -9,6 +9,7 @@ import logging
 from multiprocessing import Pool
 import numpy as np
 import pymatgen.core as pmg
+from pathlib import Path
 from pymatgen.io.vasp.outputs import Vasprun
 from pymatgen.core import Structure, PeriodicSite
 from IMDgroup.pymatgen.core.structure import\
@@ -106,6 +107,9 @@ Write them to <prefix><output name><subdir>."""
 
     parser_neb_diffusion = subparsers.add_parser("neb_diffusion")
     neb_diffusion_add_args(parser_neb_diffusion)
+
+    parser_atat = subparsers.add_parser("atat")
+    atat_add_args(parser_atat)
 
 
 def _str_to_bool(value):
@@ -672,6 +676,62 @@ def fill(args):
         for site in inputset.structure:
             site.properties['selective_dynamics'] =\
                 args.selective_dynamics
+
+    return {'inputsets': [inputset]}
+
+
+def atat_add_args(parser):
+    """Setup parser arguments for ATAT input.
+    Args:
+      parser: subparser
+    """
+    parser.help = "Create ATAT VASP input from str.out"
+    parser.set_defaults(func_derive=atat)
+    parser.add_argument(
+        "atat_structure",
+        help="Path to str.out structure",
+        type=str)
+    parser.add_argument(
+        "--kpoints",
+        help="Kpoints density",
+        required=True,
+        type=float)
+
+
+def atat(args):
+    """Create ATAT input according to str.out.
+    Preserve selective dynamics settings from the original POSCAR.
+    Return {'inputsets': [inputset]}
+    """
+    inputset = IMDDerivedInputSet(
+        directory=args.input_directory,
+        user_kpoints_settings={'grid_density': args.kpoints})
+    output_dir_suffix = "ATAT"
+    inputset.name = output_dir_suffix
+
+    from pymatgen.io.atat import Mcsqs
+    # We manually replace Vac with X instances that can be read by pymatgen.
+    atat_structure_text = Path(args.atat_structure).read_text().replace("Vac", "X")
+    structure = Mcsqs.structure_from_str(atat_structure_text)
+
+    ref_structure = inputset.structure
+
+    # str.out must contain multiple of initial structure sites in POSCAR
+    if not len(structure) % len(ref_structure) == 0:
+        raise ValueError(
+            "Inconsistent structure lengths. ref:"
+            f" {len(ref_structure)}; ATAT: {len(structure)}")
+
+    # Assign selective dynamics as in original POSCAR
+    if 'selective_dynamics' in ref_structure[0].properties:
+        for idx, site in enumerate(structure):
+            site.properties['selective_dynamics'] =\
+                ref_structure[idx % len(ref_structure)].properties['selective_dynamics']
+
+    # Cleanup vacancies
+    structure.remove_species(['X'])
+
+    inputset.structure = structure
 
     return {'inputsets': [inputset]}
 
