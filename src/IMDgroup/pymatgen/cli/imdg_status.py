@@ -202,14 +202,22 @@ def convergedp(path, entries_dict, reread=False):
 
 
 @cachetools.func.ttl_cache(maxsize=None, ttl=10)
-def slurm_runningp(path):
-    """Is slurm running in DIR?
+def _slurm_get_queue():
+    """Get current slurm queue, as a list of strings.
+    The returned list is from the output of squeue -O %Z command.
     """
     if shutil.which("squeue") is None:
         return False
     result = subprocess.check_output(
         "squeue -o %Z | tail -n +2",
         shell=True).split()
+    return result
+
+
+def slurm_runningp(path):
+    """Is slurm running in DIR?
+    """
+    result = _slurm_get_queue()
     if os.path.abspath(path) in [s.decode('utf-8') for s in result]:
         return True
     # For NEB and similar calculations, vasp might be running in parent dir.
