@@ -8,8 +8,6 @@ import logging
 import warnings
 import subprocess
 import shutil
-import functools
-import time
 import numpy as np
 from pathlib import Path
 from monty.io import zopen
@@ -202,25 +200,9 @@ def convergedp(path, entries_dict, reread=False):
     return final_energy if converged else False
 
 
-def slurm_runningp(path, timeout=10):
-    """Is slurm running in DIR? Cache result for timeout seconds if specified.
+def slurm_runningp(path):
+    """Is slurm running in DIR?
     """
-    if timeout is not None:
-        return _cached_slurm_runningp(path, timeout)
-    return _slurm_runningp(path)
-
-
-@functools.lru_cache(maxsize=None)
-def _cached_slurm_runningp(path, timeout):
-    current_time = time.time()
-    result, timestamp = _cached_slurm_runningp.cache.get(path, (None, 0))
-    if result is None or current_time - timestamp > timeout:
-        result = _slurm_runningp(path)
-        _cached_slurm_runningp.cache[path] = (result, current_time)
-    return result
-
-
-def _slurm_runningp(path):
     if shutil.which("squeue") is None:
         return False
     result = subprocess.check_output(
