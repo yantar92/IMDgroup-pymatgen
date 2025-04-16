@@ -685,7 +685,8 @@ def atat_add_args(parser):
     Args:
       parser: subparser
     """
-    parser.help = "Create ATAT VASP input from str.out"
+    parser.help = """Create ATAT VASP input from str.out
+If INCAR is present use it instead of parent dir."""
     parser.set_defaults(func_derive=atat)
     parser.add_argument(
         "atat_structure",
@@ -732,6 +733,12 @@ def atat(args):
     structure.remove_species(['X'])
 
     inputset.structure = structure
+
+    # If INCAR is present alongside str.out, use it.
+    incar_file = Path("INCAR")
+    if incar_file.is_file():
+        incar = Incar(incar_file)
+        inputset.prev_incar = incar
 
     return {'inputsets': [inputset]}
 
