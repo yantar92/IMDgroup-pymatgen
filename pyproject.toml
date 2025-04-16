@@ -25,7 +25,8 @@ dependencies = [
 "alive_progress==3.1.5",
 "ase==3.23.0",
 "termcolor",
-"networkx"
+"networkx",
+"cachetools"
 ]
 
 [project.urls]

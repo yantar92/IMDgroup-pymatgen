@@ -8,6 +8,7 @@ import logging
 import warnings
 import subprocess
 import shutil
+import cachetools.func
 import numpy as np
 from pathlib import Path
 from monty.io import zopen
@@ -200,6 +201,7 @@ def convergedp(path, entries_dict, reread=False):
     return final_energy if converged else False
 
 
+@cachetools.func.ttl_cache(maxsize=None, ttl=10)
 def slurm_runningp(path):
     """Is slurm running in DIR?
     """
