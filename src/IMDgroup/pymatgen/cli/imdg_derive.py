@@ -737,7 +737,7 @@ def atat(args):
     # If INCAR is present alongside str.out, use it.
     incar_file = Path("INCAR")
     if incar_file.is_file():
-        incar = Incar(incar_file)
+        incar = Incar.from_file(incar_file)
         inputset.prev_incar = incar
 
     return {'inputsets': [inputset]}
