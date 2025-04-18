@@ -463,7 +463,7 @@ def status(args):
                     if args.nowarn is not None and warn_name in args.nowarn:
                         continue
                     warning_list += "\n" +\
-                        colored(f"⮤Warning ({data['count']}x): ", "yellow") +\
+                        colored(f"⮤Warning ({data['count']}x) {warn_name}: ", "yellow") +\
                         data['message']
         else:
             logger.debug("Slurm log file not found in %s", wdir)
