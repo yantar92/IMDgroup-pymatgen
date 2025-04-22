@@ -76,7 +76,7 @@ VASP_WARNINGS = {
         "tetrahedron method fails",
         "Routine TETIRR needs special values",
         "Tetrahedron method fails (number of k-points < 4)",
-        "BZINTS",
+        # "BZINTS",
     ],
     "ksymm": [
         "Fatal error detecting k-mesh",
