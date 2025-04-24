@@ -11,6 +11,7 @@ import numpy as np
 import pymatgen.core as pmg
 from pathlib import Path
 from pymatgen.io.vasp.outputs import Vasprun
+from pymatgen.io.vasp.inputs import Kpoints
 from pymatgen.core import Structure, PeriodicSite
 from IMDgroup.pymatgen.core.structure import\
     get_matched_structure, merge_structures, structure_diff, structure_is_valid2
@@ -705,16 +706,51 @@ def atat(args):
     Preserve selective dynamics settings from the original POSCAR.
     Return {'inputsets': [inputset]}
     """
-    inputset = IMDDerivedInputSet(
-        directory=args.input_directory,
-        user_kpoints_settings={'grid_density': args.kpoints})
-    output_dir_suffix = "ATAT"
-    inputset.name = output_dir_suffix
-
     from pymatgen.io.atat import Mcsqs
     # We manually replace Vac with X instances that can be read by pymatgen.
     atat_structure_text = Path(args.atat_structure).read_text().replace("Vac", "X")
     structure = Mcsqs.structure_from_str(atat_structure_text)
+
+    # Generate kpoints using ATAT's algo rather than
+    # built-in pymatgens'.  ATAT's algo is more reliable
+    # when unit cell has very different lattice parameters.
+
+    # Following ATAT's approach, we norm the KPPRA by the number of
+    # sites, including vacancies; not by number of actual atoms.
+    n_kpoints = args.kpoints/len(structure)
+    lattice_vector_str = '\n'.join(
+        ' '.join(map(str, row))
+        for row in structure.lattice.matrix)
+    import subprocess
+    result = subprocess.run(
+        ['kmesh', '-q', '-r'],
+        input=f"{n_kpoints}\n{lattice_vector_str}\n",
+        text=True,
+        capture_output=True
+    )
+    atat_grid_str = result.stdout
+    atat_divs = map(int, tuple(atat_grid_str.split(sep=" ")))
+    is_hexagonal: bool = structure.lattice.is_hexagonal()
+    is_face_centered: bool = structure.get_space_group_info()[0][0] == "F"
+    has_odd: bool = any(idx % 2 == 1 for idx in atat_divs)
+    if has_odd or is_hexagonal or is_face_centered:
+        style = Kpoints.supported_modes.Gamma
+    else:
+        style = Kpoints.supported_modes.Monkhorst
+    atat_kpoints = Kpoints(
+        f"ATAT (kmesh) with grid density = {args.kpoints}"
+        " / number of atoms + vacancies",
+        0,
+        style,
+        [atat_divs],
+        (0, 0, 0),
+    )
+
+    inputset = IMDDerivedInputSet(
+        directory=args.input_directory,
+        user_kpoints_settings=atat_kpoints)
+    output_dir_suffix = "ATAT"
+    inputset.name = output_dir_suffix
 
     ref_structure = inputset.structure
 
