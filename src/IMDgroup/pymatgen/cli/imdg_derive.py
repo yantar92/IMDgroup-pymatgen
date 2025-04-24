@@ -729,7 +729,7 @@ def atat(args):
         capture_output=True
     )
     atat_grid_str = result.stdout
-    atat_divs = map(int, tuple(atat_grid_str.split(sep=" ")))
+    atat_divs = tuple(map(int, atat_grid_str.split(sep=" ")))
     is_hexagonal: bool = structure.lattice.is_hexagonal()
     is_face_centered: bool = structure.get_space_group_info()[0][0] == "F"
     has_odd: bool = any(idx % 2 == 1 for idx in atat_divs)
