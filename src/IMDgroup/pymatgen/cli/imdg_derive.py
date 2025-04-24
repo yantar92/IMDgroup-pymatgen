@@ -717,7 +717,7 @@ def atat(args):
 
     # Following ATAT's approach, we norm the KPPRA by the number of
     # sites, including vacancies; not by number of actual atoms.
-    n_kpoints = args.kpoints/len(structure)
+    n_kpoints = int(args.kpoints)/len(structure)
     lattice_vector_str = '\n'.join(
         ' '.join(map(str, row))
         for row in structure.lattice.matrix)
