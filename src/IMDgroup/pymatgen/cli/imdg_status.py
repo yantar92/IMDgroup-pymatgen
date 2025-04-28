@@ -37,7 +37,11 @@ VASP_WARNINGS = {
         ],
         'brmix': [
             "This is expected to happen once in charged systems"
-        ]
+        ],
+        # Test data in 2025.graphite.Li.CE/03.CE.fix_lattice.KPOINTS.10k/AA/strain.c.0.00/18111/ATAT.SCF.FIXSUBSPACEMATRIX
+        'subspacematrix': [
+            "As long as converged, should not affect final energy"
+        ],
     },
     "slurm_error": [
         "slurmstepd: error.+",
