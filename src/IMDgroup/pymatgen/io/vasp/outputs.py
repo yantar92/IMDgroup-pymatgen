@@ -256,6 +256,9 @@ class Vasplog(MSONable):
             if any(re.match(regexp, f.name)
                    for regexp in Vasplog.VASP_LOG_FILES):
                 matching.append(f)
+        if len(matching) > 1:
+            # Ignore OUTCAR (huge) unless we have no choice
+            matching = [f for f in matching if 'OUTCAR' != f.name]
         if len(matching) > 0:
             return sorted(matching, key=lambda f: f.stat().st_mtime)
         return None
