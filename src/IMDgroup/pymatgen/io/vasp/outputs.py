@@ -257,7 +257,7 @@ class Vasplog(MSONable):
                    for regexp in Vasplog.VASP_LOG_FILES):
                 matching.append(f)
         if len(matching) > 0:
-            return sorted(matching, key=lambda f: f.stats().st_mtime)
+            return sorted(matching, key=lambda f: f.stat().st_mtime)
         return None
 
     def parse(self, log_matchers):
