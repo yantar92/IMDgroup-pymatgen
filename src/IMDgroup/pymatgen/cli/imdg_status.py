@@ -8,154 +8,21 @@ import logging
 import warnings
 import subprocess
 import shutil
+from pathlib import Path
+from xml.etree.ElementTree import ParseError
 import cachetools.func
 import numpy as np
-from pathlib import Path
-from monty.io import zopen
 from termcolor import colored
-from xml.etree.ElementTree import ParseError
 from pymatgen.io.vasp.outputs import UnconvergedVASPWarning
 from pymatgen.core import Structure
 from IMDgroup.pymatgen.io.vasp.outputs import Outcar
 from IMDgroup.pymatgen.io.vasp.inputs import nebp, neb_dirs
 from IMDgroup.pymatgen.cli.imdg_analyze\
     import read_vaspruns, IMDGVaspToComputedEnrgyDrone
-from IMDgroup.pymatgen.io.vasp.sets import IMDDerivedInputSet
 from IMDgroup.pymatgen.core.structure import structure_distance
+from IMDgroup.pymatgen.io.vasp.outputs import Vasplog
 
 logger = logging.getLogger(__name__)
-# Adapted (and modified) from custodian/src/custodian/vasp/handlers.py
-VASP_WARNINGS = {
-    "__exclude": [
-        # false positives to be filtered out
-        " *kinetic energy error for atom=.+",
-    ],
-    # Additional message to clarify a warning
-    "__extra_message": {
-        'slurm_error': [
-            "VASP crashed.  Possible causes: time limit exceeded, not enough memory, VASP bug, cluster problem"
-        ],
-        'brmix': [
-            "This is expected to happen once in charged systems"
-        ],
-        # Test data in 2025.graphite.Li.CE/03.CE.fix_lattice.KPOINTS.10k/AA/strain.c.0.00/18111/ATAT.SCF.FIXSUBSPACEMATRIX
-        'subspacematrix': [
-            "As long as converged, should not affect final energy"
-        ],
-    },
-    "slurm_error": [
-        "slurmstepd: error.+",
-        "prterun noticed.+",
-    ],
-    # "mag_init": [
-    #     r"You use a magnetic or noncollinear calculation.+\n.+"
-    # ],
-    "kpoints_parser": [
-        "Error reading KPOINTS file.+\n.+\n.+\n.+"
-    ],
-    "vasp_bug": [
-        "Please submit a bug report.",
-    ],
-    "fortran_runtime_error": [
-        "Fortran runtime error.+"
-    ],
-    "vasp_runtime_error": [
-        "Error termination.+\n.+\n.+"
-    ],
-    # "relaxation_step": [
-    #     # Very large atom displacement during relaxation
-    #     # >=0.06
-    #     "^.*dis= [1-9].*$",
-    #     "^.*dis= 0.[1-9].*$",
-    #     "^.*dis= 0.0[6-9].*$",
-    #     "^.*maximal distance =[1-9].*$",
-    #     "^.*maximal distance =0.[1-9].*$",
-    #     "^.*maximal distance =0.0[6-9].*$",
-    # ],
-    "electron_convergance": [
-        "The electronic self-consistency was not achieved in the given.+"
-    ],
-    "tet": [
-        "Tetrahedron method fails",
-        "tetrahedron method fails",
-        "Routine TETIRR needs special values",
-        "Tetrahedron method fails (number of k-points < 4)",
-        # "BZINTS",
-    ],
-    "ksymm": [
-        "Fatal error detecting k-mesh",
-        "Fatal error: unable to match k-point",
-    ],
-    "inv_rot_mat": ["rotation matrix was not found (increase SYMPREC)"],
-    "brmix": ["BRMIX: very serious problems"],
-    "subspacematrix": ["WARNING: Sub-Space-Matrix is not hermitian in DAV"],
-    "tetirr": ["Routine TETIRR needs special values"],
-    "incorrect_shift": ["Could not get correct shifts"],
-    "real_optlay": ["REAL_OPTLAY: internal error", "REAL_OPT: internal ERROR"],
-    "rspher": ["ERROR RSPHER"],
-    "dentet": ["DENTET"],  # reason for this warning is
-    # that the Fermi level cannot be determined accurately
-    # enough by the tetrahedron method
-    # https://vasp.at/forum/viewtopic.php?f=3&t=416&p=4047&hilit=dentet#p4047
-    "too_few_bands": ["TOO FEW BANDS"],
-    "triple_product": ["ERROR: the triple product of the basis vectors"],
-    "rot_matrix": [
-        "Found some non-integer element in rotation matrix", "SGRCON"],
-    "brions": ["BRIONS problems: POTIM should be increased"],
-    "pricel": ["internal error in subroutine PRICEL"],
-    "zpotrf": ["LAPACK: Routine ZPOTRF failed", "Routine ZPOTRF ZTRTRI"],
-    "amin": ["One of the lattice vectors is very long (>50 A), but AMIN"],
-    "zbrent": [
-        "ZBRENT: fatal internal in",
-        "ZBRENT: fatal error in bracketing.+\n.+\n.+",
-        "ZBRENT:  can not reach accuracy",
-        # "ZBRENT: can't locate minimum, use default step"
-    ],
-    # Note that PSSYEVX and PDSYEVX errors are identical up to LAPACK routine:
-    # P<prec>SYEVX uses <prec> = S(ingle) or D(ouble) precision
-    "pssyevx": ["ERROR in subspace rotation PSSYEVX"],
-    "pdsyevx": ["ERROR in subspace rotation PDSYEVX"],
-    "eddrmm": ["WARNING in EDDRMM: call to ZHEGV failed"],
-    "edddav": ["Error EDDDAV: Call to ZHEGV failed"],
-    "algo_tet": ["ALGO=A and IALGO=5X tend to fail"],
-    "grad_not_orth": ["EDWAV: internal error, the gradient is not orthogonal"],
-    "nicht_konv": ["ERROR: SBESSELITER : nicht konvergent"],
-    "zheev": ["ERROR EDDIAG: Call to routine ZHEEV failed!"],
-    "eddiag": ["ERROR in EDDIAG: call to ZHEEV/ZHEEVX/DSYEV/DSYEVX failed"],
-    "elf_kpar": ["ELF: KPAR>1 not implemented"],
-    "elf_ncl": ["WARNING: ELF not implemented for non collinear case"],
-    "rhosyg": ["RHOSYG"],
-    "posmap": ["POSMAP"],
-    "point_group": ["group operation missing"],
-    "pricelv": [
-        "PRICELV: current lattice and primitive lattice are incommensurate"],
-    "symprec_noise": [
-        "determination of the symmetry of your systems shows a strong"],
-    "dfpt_ncore": [
-        "PEAD routines do not work for NCORE",
-        "remove the tag NPAR from the INCAR file"],
-    "bravais": ["Inconsistent Bravais lattice"],
-    "nbands_not_sufficient": ["number of bands is not sufficient"],
-    "hnform": ["HNFORM: k-point generating"],
-    "coef": ["while reading plane", "while reading WAVECAR"],
-    "set_core_wf": ["internal error in SET_CORE_WF"],
-    "read_error": ["Error reading item", "Error code was IERR= 5"],
-    "auto_nbands": ["The number of bands has been changed"],
-    "unclassified": ["^.*error.*$"],
-}
-
-VASP_PROGRESS = {
-    "00SCF": [
-        r"DAV:.+",
-    ],
-    "01relax": [
-        r"step:.+harm=.+dis=.+next Energy=.+dE=.+",
-        r"opt step +=.+harmonic.+distance.+",
-        r"next E +=.+d E +=.+",
-        r"BRION:.+",
-        r"g.Force. *= .+g.Stress.=.+",
-    ],
-}
 
 
 def custom_showwarning(
@@ -235,87 +102,6 @@ def slurm_runningp(path):
     return False
 
 
-def vasp_log_files(path):
-    """Return a list of VASP log files in PATH.
-    The files are sorted by modification date.
-    Return None, if log files are not found.
-    """
-    files = [f for f in os.listdir(path)
-             if os.path.isfile(os.path.join(path, f))]
-    logger.debug("Searching slurm logs in %s across %s", path, files)
-    matching = []
-    for f in files:
-        # slurm-XXX.log (produced by slurm with default settings)
-        # stdout (produced by VASP itself)
-        if "slurm" in f or "stdout" in f or "vasp.out" in f:
-            matching.append(os.path.join(path, f))
-    if len(matching) > 0:
-        return sorted(matching, key=lambda f: os.stat(f).st_mtime)
-        # newest = matching[0]
-        # mtime_newest = os.stat(newest).st_mtime
-        # for f in matching:
-        #     mtime = os.stat(f).st_mtime
-        #     if mtime_newest < mtime:
-        #         mtime_newest = mtime
-        #         newest = f
-        # return newest
-    return None
-
-
-def get_vasp_logs(log_file, log_matchers):
-    """Return VASP logs in LOG_FILE matching LOG_MATCHERS.
-    Returns: Dict of
-     {log_type :
-       {'message': <message text>,
-        'count': <number of occurances>}}
-    """
-    result = {}
-    logger.debug("Scanning log file %s", log_file)
-    with zopen(log_file, mode="rt", encoding="UTF-8") as f:
-        text = f.read()
-        logger.debug("Ingested log text")
-        excluded = []
-        if '__exclude' in log_matchers:
-            excluded = log_matchers['__exclude']
-        for warn_name, matchers in log_matchers.items():
-            if warn_name == "__exclude":
-                continue
-            for matcher in matchers:
-                matches = re.findall(matcher, text, flags=re.MULTILINE)
-                filtered_matches = []
-                for m in matches:
-                    valid = True
-                    for exclude_re in excluded:
-                        if re.match(exclude_re, m):
-                            valid = False
-                            break
-                    if valid:
-                        filtered_matches.append(m)
-                matches = filtered_matches
-                num = len(matches)
-                if num > 0:
-                    if warn_name in result:
-                        result[warn_name]['count'] += num
-                    else:
-                        extra = None
-                        if '__extra_message' in log_matchers:
-                            extra_lines = log_matchers['__extra_message'].get(warn_name)
-                            if extra_lines is not None:
-                                extra = ""
-                                for line in extra_lines:
-                                    extra += "\n" + colored(
-                                        " ➙ TIP: ", "magenta", attrs=['bold']) +\
-                                        line
-                        result[warn_name] = {
-                            'message': matches[-1] +
-                            (extra if extra is not None else ""),
-                            'count': num
-                        }
-        logger.debug("Finished processing")
-    logger.debug("Done scanning log file %s", log_file)
-    return result
-
-
 def add_args(parser):
     """Setup parser arguments.
     Args:
@@ -343,7 +129,7 @@ def add_args(parser):
         "--nowarn",
         help="List of warnings to ignore",
         nargs="+",
-        choices=[key for key in VASP_WARNINGS
+        choices=[key for key in Vasplog.VASP_WARNINGS
                  if '__' not in key],
         default=None
     )
@@ -399,6 +185,7 @@ def vasp_output_time(path):
         return os.path.getmtime(vasprun)
     return None
 
+
 class ParseOutcarWarning(UserWarning):
     """Warning when there is a problem parsing OUTCAR."""
 
@@ -453,22 +240,24 @@ def status(args):
             outcar_path = False
         else:
             outcar_path = [outcar_path]
-        if log_files := (vasp_log_files(wdir) or outcar_path):
-            logger.debug("Found VASP logs in %s: %s", wdir, log_files)
-            progress_data = get_vasp_logs(log_files[-1], VASP_PROGRESS)
+        if logs := Vasplog.from_dir(wdir):
+            logger.debug(
+                "Found VASP logs in %s: %s",
+                wdir, [log.file.name for log in logs])
+            progress_data = logs[-1].progress
             if len(progress_data.values()) > 0:
                 progress = " | " + list(progress_data.values())[-1]['message']
             else:
                 progress = " N/A"
             warning_list = ""
-            for log_file in log_files:
-                warn_data = get_vasp_logs(log_file, VASP_WARNINGS)
-                for warn_name, data in warn_data.items():
+            for log in logs:
+                for warn_name, data in log.warnings.items():
                     if args.nowarn is not None and warn_name in args.nowarn:
                         continue
                     warning_list += "\n" +\
-                        colored(f"⮤Warning ({data['count']}x) {warn_name}: ", "yellow") +\
-                        data['message']
+                        colored(
+                            f"⮤Warning ({data['count']}x) {warn_name}: ",
+                            "yellow") + data['message']
         else:
             logger.debug("Slurm log file not found in %s", wdir)
             progress = ""
