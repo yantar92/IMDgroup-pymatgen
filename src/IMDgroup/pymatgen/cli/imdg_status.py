@@ -258,6 +258,11 @@ def status(args):
                         colored(
                             f"⮤Warning ({data['count']}x) {warn_name}: ",
                             "yellow") + data['message']
+                    if tips := data.get('tips'):
+                        for tip in tips:
+                            warning_list += '\n' + colored(
+                                " ➙ TIP: ", "magenta", attrs=['bold'])\
+                                + tip
         else:
             logger.debug("Slurm log file not found in %s", wdir)
             progress = ""

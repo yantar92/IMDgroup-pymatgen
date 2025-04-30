@@ -7,7 +7,6 @@ import re
 from pathlib import Path
 from monty.json import MSONable
 from monty.io import zopen
-from termcolor import colored
 from pymatgen.util.typing import PathLike
 from pymatgen.io.vasp.outputs import Vasprun as pmgVasprun
 from pymatgen.io.vasp.outputs import Outcar as pmgOutcar
@@ -275,11 +274,12 @@ class Vasplog(MSONable):
         to unconditionally exclude matching certain regexps (false-positives)
 
         "__extra_message": {'log_item_name': ["message_line_1", "message_line_2", ...]}
-        will append to matched text in the results.
+        contains extra information about log records (e.g. tips about some warnings).
 
         Returns: Dict of
          {log_type :
            {'message': <matched text>,
+            'tips': [<__extra_message lines about log_type>],
             'count': <number of occurances>}}
         """
         result = {}
@@ -306,19 +306,13 @@ class Vasplog(MSONable):
                     if warn_name in result:
                         result[warn_name]['count'] += num
                     else:
-                        extra = None
+                        extra_lines = None
                         if '__extra_message' in log_matchers:
                             extra_lines =\
                                 log_matchers['__extra_message'].get(warn_name)
-                            if extra_lines is not None:
-                                extra = ""
-                                for line in extra_lines:
-                                    extra += "\n" + colored(
-                                        " ➙ TIP: ", "magenta", attrs=['bold']) +\
-                                        line
                         result[warn_name] = {
-                            'message': matches[-1] +
-                            (extra if extra is not None else ""),
+                            'message': matches[-1],
+                            'tips': extra_lines,
                             'count': num
                         }
         logger.debug("Finished processing")
