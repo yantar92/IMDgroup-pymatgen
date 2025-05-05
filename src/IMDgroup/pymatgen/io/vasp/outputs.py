@@ -211,7 +211,13 @@ class Vasplog(MSONable):
         self._warnings = None
         self._progress = None
         with zopen(self.file, mode="rt", encoding="UTF-8") as f:
-            self.lines = f.readlines()
+            lines = f.readlines()
+            self.lines = []
+            prev_line = None
+            for line in lines:
+                if line != prev_line:
+                    self.lines.append(line)
+                    prev_line = line
 
     @property
     def warnings(self):
