@@ -221,7 +221,7 @@ def read_vaspruns(rootdir, path_filter=None):
     """
     drone = IMDGVaspToComputedEnrgyDrone(
         inc_structure=True,
-        data=["filename", "initial_structure", "incar", 'converged'])
+        data=["filename", "initial_structure", "incar", 'converged', 'logs'])
 
     if os.access(rootdir, os.W_OK):
         dump_file = os.path.join(rootdir, SAVE_FILE)
