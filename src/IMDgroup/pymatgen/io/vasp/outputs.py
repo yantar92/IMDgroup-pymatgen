@@ -331,8 +331,8 @@ class Vasplog(MSONable):
                 context = config['context']
                 if any(p.search(line) for p in patterns):
                     # Collect context
-                    end_idx = min(i + context + 1, n_lines)
-                    context_block = '\n'.join(self.lines[i:end_idx])
+                    end_idx = min(i-1 + context + 1, n_lines)
+                    context_block = '\n'.join(self.lines[i-1:end_idx])
 
                     # Update results
                     if warn_name not in result:
