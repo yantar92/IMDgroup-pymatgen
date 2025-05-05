@@ -13,7 +13,7 @@ from pymatgen.entries.computed_entries import ComputedStructureEntry
 from pymatgen.apps.borg.hive import VaspToComputedEntryDrone
 from pymatgen.apps.borg.queen import BorgQueen
 from pymatgen.io.vasp.inputs import Poscar
-from IMDgroup.pymatgen.io.vasp.outputs import Outcar
+from IMDgroup.pymatgen.io.vasp.outputs import Outcar, Vasplog
 from IMDgroup.pymatgen.io.vasp.inputs import Incar
 
 SAVE_FILE = "vasp_data_imdg.gz"
@@ -195,6 +195,7 @@ class IMDGVaspToComputedEnrgyDrone(VaspToComputedEntryDrone):
                 composition=contcar.structure.composition,
                 energy=final_energy,
                 data={
+                    'logs': Vasplog.from_dir(path),
                     'incar': incar,
                     'initial_structure': initial_structure,
                     'converged': converged_ionic and converged_electronic,
@@ -220,7 +221,7 @@ def read_vaspruns(rootdir, path_filter=None):
     """
     drone = IMDGVaspToComputedEnrgyDrone(
         inc_structure=True,
-        data=["filename", "initial_structure", "incar", 'converged'])
+        data=["filename", "initial_structure", "incar", 'converged', 'logs'])
 
     if os.access(rootdir, os.W_OK):
         dump_file = os.path.join(rootdir, SAVE_FILE)
