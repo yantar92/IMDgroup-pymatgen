@@ -412,3 +412,51 @@ def structure_matches(
                 _warn(known)
                 return True
     return False
+
+
+def structure_perturb(
+        structure: Structure,
+        distance: float,
+        min_distance: float | None = None,
+        frac_tol: float = 0.5,
+):
+    """Perform a random perturbation of the sites in STRUCTURE to break
+        symmetries. Modify structure in place.
+
+        Unlike pymatgen.core.Structure.perturb, honor selective dynamics.
+        Also, make sure that the resulting structure does not have sites
+        too close from one another.
+
+        Args:
+            distance (float): Distance in angstroms by which to perturb each site.
+            min_distance (None, int, or float): if None, all displacements will
+                be equal amplitude. If int or float, perturb each site a
+                distance drawn from the uniform distribution between
+                'min_distance' and 'distance'.
+            frac_tol (float): Fracture tolerance for site proximity.
+            The value is the minimal allowed distance in the units of sum
+            of atomic radii of site species.
+
+        Returns:
+            Structure: self with perturbed sites.
+        """
+    assert structure_is_valid2(structure, frac_tol)
+    orig_structure = structure.copy()
+
+    while True:
+        structure.perturb(distance, min_distance)
+        if 'selective_dynamics' in orig_structure[0].properties:
+            warnings.warn(
+                "Not perturbing site coordinates restricted by selective_dynamics"
+            )
+            for orig_site, new_site in zip(orig_structure, structure):
+                for coord_idx, move in enumerate(
+                        orig_site.properties['selective_dynamics']):
+                    if not move:
+                        new_site.frac_coords[coord_idx] =\
+                            orig_site.frac_coords[coord_idx]
+        if structure_is_valid2(structure, frac_tol):
+            break
+        for orig_site, new_site in zip(orig_structure, structure):
+            new_site.frac_coords = orig_site.frac_coords
+    return structure

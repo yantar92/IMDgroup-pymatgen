@@ -14,7 +14,8 @@ from pymatgen.io.vasp.outputs import Vasprun
 from pymatgen.io.vasp.inputs import Kpoints
 from pymatgen.core import Structure, PeriodicSite
 from IMDgroup.pymatgen.core.structure import\
-    get_matched_structure, merge_structures, structure_diff, structure_is_valid2
+    get_matched_structure, merge_structures, structure_diff, \
+    structure_is_valid2, structure_perturb
 from IMDgroup.pymatgen.diffusion.neb import get_neb_pairs
 from IMDgroup.pymatgen.io.vasp.sets\
     import (IMDDerivedInputSet, IMDNEBVaspInputSet)
@@ -137,6 +138,12 @@ def perturb_add_args(parser):
         type=float,
         default=0.1
     )
+    parser.add_argument(
+        "--frac_tol",
+        help="Fractional tolerance for distances in resulting structure (default: 0.5)",
+        type=float,
+        default=0.5
+    )
 
 
 def perturb(args):
@@ -145,18 +152,7 @@ def perturb(args):
     """
     inputset = IMDDerivedInputSet(directory=args.input_directory)
 
-    orig_structure = inputset.structure.copy()
-    inputset.structure.perturb(args.distance)
-    if 'selective_dynamics' in orig_structure[0].properties:
-        warnings.warn(
-            "Not perturbing site coordinates restricted by selective_dynamics"
-        )
-        for orig_site, new_site in zip(orig_structure, inputset.structure):
-            for coord_idx, move in enumerate(
-                    orig_site.properties['selective_dynamics']):
-                if not move:
-                    new_site.frac_coords[coord_idx] =\
-                        orig_site.frac_coords[coord_idx]
+    structure_perturb(inputset.structure, args.distance, args.frac_tol)
     output_dir_suffix = f"PERTURB.{args.distance}"
     inputset.name = output_dir_suffix
 
