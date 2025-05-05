@@ -152,7 +152,11 @@ def perturb(args):
     """
     inputset = IMDDerivedInputSet(directory=args.input_directory)
 
-    structure_perturb(inputset.structure, args.distance, args.frac_tol)
+    structure_perturb(
+        structure=inputset.structure,
+        distance=args.distance,
+        min_distance=None,
+        frac_tol=args.frac_tol)
     output_dir_suffix = f"PERTURB.{args.distance}"
     inputset.name = output_dir_suffix
 
