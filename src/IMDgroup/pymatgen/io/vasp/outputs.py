@@ -210,8 +210,16 @@ class Vasplog(MSONable):
         self.file = Path(filename)
         self._warnings = None
         self._progress = None
+        self.line_counts = {}
+        self.lines = []
         with zopen(self.file, mode="rt", encoding="UTF-8") as f:
-            self.lines = f.readlines()
+            for line in f:
+                line = line.strip()
+                if line in self.line_counts:
+                    self.line_counts[line] += 1
+                else:
+                    self.lines.append(line)
+                    self.line_counts[line] = 1
 
     @property
     def warnings(self):
@@ -333,7 +341,7 @@ class Vasplog(MSONable):
                             'tips': extra_msgs.get(warn_name),
                             'count': 0
                         }
-                    result[warn_name]['count'] += 1
+                    result[warn_name]['count'] += self.line_counts[line]
                     result[warn_name]['message'] = context_block
                     break  # only count one match per line
 
