@@ -66,6 +66,13 @@ class Vasplog(MSONable):
             # false positives to be filtered out
             " *kinetic energy error for atom=.+",
         ],
+        # Additional context lines to include in the match
+        "__context": {
+            "kpoints_parser": 3,
+            "vasp_runtime_error": 2,
+            "mag_init": 1,
+            "zbrent": 2,
+        },
         # Additional message to clarify a warning
         "__extra_message": {
             'slurm_error': [
@@ -80,23 +87,23 @@ class Vasplog(MSONable):
             ],
         },
         "slurm_error": [
-            "slurmstepd: error.+",
-            "prterun noticed.+",
+            "slurmstepd: error",
+            "prterun noticed",
         ],
         # "mag_init": [
-        #     r"You use a magnetic or noncollinear calculation.+\n.+"
+        #     r"You use a magnetic or noncollinear calculation"
         # ],
         "kpoints_parser": [
-            "Error reading KPOINTS file.+\n.+\n.+\n.+"
+            "Error reading KPOINTS file"
         ],
         "vasp_bug": [
             "Please submit a bug report.",
         ],
         "fortran_runtime_error": [
-            "Fortran runtime error.+"
+            "Fortran runtime error"
         ],
         "vasp_runtime_error": [
-            "Error termination.+\n.+\n.+"
+            "Error termination"
         ],
         # "relaxation_step": [
         #     # Very large atom displacement during relaxation
@@ -109,7 +116,7 @@ class Vasplog(MSONable):
         #     "^.*maximal distance =0.0[6-9].*$",
         # ],
         "electron_convergance": [
-            "The electronic self-consistency was not achieved in the given.+"
+            "The electronic self-consistency was not achieved in the given"
         ],
         "tet": [
             "Tetrahedron method fails",
@@ -143,7 +150,7 @@ class Vasplog(MSONable):
         "amin": ["One of the lattice vectors is very long (>50 A), but AMIN"],
         "zbrent": [
             "ZBRENT: fatal internal in",
-            "ZBRENT: fatal error in bracketing.+\n.+\n.+",
+            "ZBRENT: fatal error in bracketing",
             "ZBRENT:  can not reach accuracy",
             # "ZBRENT: can't locate minimum, use default step"
         ],
@@ -177,7 +184,7 @@ class Vasplog(MSONable):
         "set_core_wf": ["internal error in SET_CORE_WF"],
         "read_error": ["Error reading item", "Error code was IERR= 5"],
         "auto_nbands": ["The number of bands has been changed"],
-        "unclassified": ["^.*error.*$"],
+        "unclassified": ["error"],
     }
 
     VASP_PROGRESS = {
@@ -204,7 +211,7 @@ class Vasplog(MSONable):
         self._warnings = None
         self._progress = None
         with zopen(self.file, mode="rt", encoding="UTF-8") as f:
-            self.text = f.read()
+            self.lines = f.readlines()
 
     @property
     def warnings(self):
@@ -276,45 +283,59 @@ class Vasplog(MSONable):
         "__extra_message": {'log_item_name': ["message_line_1", "message_line_2", ...]}
         contains extra information about log records (e.g. tips about some warnings).
 
+        "__context": {'log_item_name': number of extra context lines to include}
+        will make <matched text> include that number of following lines.
+
         Returns: Dict of
          {log_type :
            {'message': <matched text>,
             'tips': [<__extra_message lines about log_type>],
             'count': <number of occurances>}}
         """
-        result = {}
-        excluded = []
-        if '__exclude' in log_matchers:
-            excluded = log_matchers['__exclude']
-        for warn_name, matchers in log_matchers.items():
-            if warn_name == "__exclude":
-                continue
-            for matcher in matchers:
-                matches = re.findall(matcher, self.text, flags=re.MULTILINE)
-                filtered_matches = []
-                for m in matches:
-                    valid = True
-                    for exclude_re in excluded:
-                        if re.match(exclude_re, m):
-                            valid = False
-                            break
-                    if valid:
-                        filtered_matches.append(m)
-                matches = filtered_matches
-                num = len(matches)
-                if num > 0:
-                    if warn_name in result:
-                        result[warn_name]['count'] += num
-                    else:
-                        extra_lines = None
-                        if '__extra_message' in log_matchers:
-                            extra_lines =\
-                                log_matchers['__extra_message'].get(warn_name)
-                        result[warn_name] = {
-                            'message': matches[-1],
-                            'tips': extra_lines,
-                            'count': num
-                        }
-        logger.debug("Finished processing")
-        return result
+        # Pre-compile all patterns
+        exclude_re = [re.compile(p) for p in log_matchers.get('__exclude', [])]
+        context_rules = log_matchers.get('__context', {})
+        extra_msgs = log_matchers.get('__extra_message', {})
 
+        # Build matcher dictionary {compiled_pattern: warn_name}
+        warn_patterns = {}
+        for warn_name, matchers in log_matchers.items():
+            if warn_name.startswith('__'):
+                continue
+            warn_patterns[warn_name] = {
+                'patterns': [re.compile(m) for m in matchers],
+                'context': context_rules.get(warn_name, 0)
+            }
+
+        result = {}
+        # Process text line by line for memory efficiency
+        i = 0
+        n_lines = len(self.lines)
+        while i < n_lines:
+            line = self.lines[i]
+            i += 1
+            # Check exclusions first
+            if any(re.search(p, line) for p in exclude_re):
+                continue
+            # Check warning patterns
+            for warn_name, config in warn_patterns.items():
+                patterns = config['patterns']
+                context = config['context']
+                if any(p.search(line) for p in patterns):
+                    # Collect context
+                    end_idx = min(i + context + 1, n_lines)
+                    context_block = '\n'.join(self.lines[i:end_idx])
+
+                    # Update results
+                    if warn_name not in result:
+                        result[warn_name] = {
+                            'message': context_block,
+                            'tips': extra_msgs.get(warn_name),
+                            'count': 0
+                        }
+                    result[warn_name]['count'] += 1
+                    result[warn_name]['message'] = context_block
+                    break  # only count one match per line
+
+        logger.debug("Found %d log patterns", len(result))
+        return result
