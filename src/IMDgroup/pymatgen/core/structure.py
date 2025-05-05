@@ -457,6 +457,7 @@ def structure_perturb(
                             orig_site.frac_coords[coord_idx]
         if structure_is_valid2(structure, frac_tol):
             break
+        logger.debug("structure_perturb: Re-generating unlucky perturbation")
         for orig_site, new_site in zip(orig_structure, structure):
             new_site.frac_coords = orig_site.frac_coords
     return structure
