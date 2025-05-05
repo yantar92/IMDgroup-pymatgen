@@ -443,6 +443,7 @@ def structure_perturb(
     assert structure_is_valid2(structure, frac_tol)
     orig_structure = structure.copy()
 
+    counter = 0
     while True:
         structure.perturb(distance, min_distance)
         if 'selective_dynamics' in orig_structure[0].properties:
@@ -457,6 +458,13 @@ def structure_perturb(
                             orig_site.frac_coords[coord_idx]
         if structure_is_valid2(structure, frac_tol):
             break
+        counter += 1
+        if counter > 100:
+            raise ValueError(
+                "Cannot generate sufficiently sparse"
+                " perturbed structure after 100 attempts ::"
+                f" distance={distance}; min_distance={min_distance};"
+                f" frac_tol={frac_tol}")
         logger.debug("structure_perturb: Re-generating unlucky perturbation")
         for orig_site, new_site in zip(orig_structure, structure):
             new_site.frac_coords = orig_site.frac_coords
