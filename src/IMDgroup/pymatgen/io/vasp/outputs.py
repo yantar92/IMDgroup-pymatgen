@@ -311,17 +311,9 @@ class Vasplog(MSONable):
         # Process text line by line for memory efficiency
         i = 0
         n_lines = len(self.lines)
-        line_cache = {}
         while i < n_lines:
             line = self.lines[i]
             i += 1
-            # Check if we have already processed the same line
-            line_hash = hash(line)
-            if line_hash in line_cache:
-                if warn_name := line_cache[line_hash]:
-                    result[warn_name]['count'] += 1
-                else:  # no match for a line
-                    continue
             # Check exclusions first
             if any(re.search(p, line) for p in exclude_re):
                 continue
@@ -343,7 +335,6 @@ class Vasplog(MSONable):
                         }
                     result[warn_name]['count'] += 1
                     result[warn_name]['message'] = context_block
-                    line_cache[line_hash] = warn_name
                     break  # only count one match per line
 
         logger.debug("Found %d log patterns", len(result))
