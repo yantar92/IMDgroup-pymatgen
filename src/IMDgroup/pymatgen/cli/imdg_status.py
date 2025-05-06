@@ -327,7 +327,8 @@ def status(args):
                 progress = " N/A" + progress
             else:
                 progress = f" | {final_energy:.4f}eV" +\
-                    f" CPU time: {cpu_time} ({n_cores} cores)" + progress
+                    f" CPU time: {cpu_time} ({n_cores} cores)" if outcar is not None\
+                    + progress
         mtime = vasp_output_time(wdir)
         if mtime is None:
             continue
