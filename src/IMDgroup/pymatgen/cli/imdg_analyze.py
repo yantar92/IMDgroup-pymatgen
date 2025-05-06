@@ -219,7 +219,8 @@ class IMDGVaspToComputedEnrgyDrone(VaspToComputedEntryDrone):
             computed_entry.data['total_magnetization'] = None
         else:
             computed_entry.data['total_magnetization'] =\
-                oszicar.ionic_steps[-1]['mag']
+                oszicar.ionic_steps[-1]['mag']\
+                if len(oszicar.ionic_steps) > 0 else None
 
         return computed_entry
 
