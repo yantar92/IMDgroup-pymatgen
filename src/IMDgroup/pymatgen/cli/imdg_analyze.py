@@ -13,6 +13,7 @@ from pymatgen.entries.computed_entries import ComputedStructureEntry
 from pymatgen.apps.borg.hive import VaspToComputedEntryDrone
 from pymatgen.apps.borg.queen import BorgQueen
 from pymatgen.io.vasp.inputs import Poscar
+from pymatgen.io.vasp.outputs import Oszicar
 from IMDgroup.pymatgen.io.vasp.outputs import Outcar
 from IMDgroup.pymatgen.io.vasp.inputs import Incar
 from IMDgroup.pymatgen.core.structure import structure_distance
@@ -137,18 +138,25 @@ class IMDGVaspToComputedEnrgyDrone(VaspToComputedEntryDrone):
         """
         computed_entry = super().assimilate(path)
 
-        outcar_path = os.path.join(path, "OUTCAR")
-        try:
-            outcar = Outcar(outcar_path)
-        except Exception as exc:
-            if computed_entry is None:
-                # Cannot read anything
-                logger.debug("Failed to read vasprun.xml/OUTCAR in %s", path)
-                return None
-            logger.debug("error reading %s: %s", outcar_path, exc)
-            outcar = None
+        oszicar_path = os.path.join(path, 'OSZICAR')
+        if os.path.exists(oszicar_path):
+            oszicar = Oszicar(oszicar_path)
+        else:
+            oszicar = None
+
+        outcar = None
 
         if computed_entry is None:
+            outcar_path = os.path.join(path, "OUTCAR")
+            try:
+                outcar = Outcar(outcar_path)
+            except Exception as exc:
+                if computed_entry is None:
+                    # Cannot read anything
+                    logger.debug("Failed to read vasprun.xml/OUTCAR in %s", path)
+                    return None
+                logger.debug("error reading %s: %s", outcar_path, exc)
+                outcar = None
             assert outcar is not None
             # Vasprun not complete
             # Try to deduce parameters from OUTCAR + CONTCAR instead
@@ -206,6 +214,12 @@ class IMDGVaspToComputedEnrgyDrone(VaspToComputedEntryDrone):
             computed_entry.data['outcar'] = None
         else:
             computed_entry.data['outcar'] = outcar.as_dict()
+
+        if oszicar is None:
+            computed_entry.data['total_magnetization'] = None
+        else:
+            computed_entry.data['total_magnetization'] =\
+                oszicar.ionic_steps[-1]['mag']
 
         return computed_entry
 
@@ -363,8 +377,7 @@ def analyze(args):
                 if not e.data.get('converged', False):
                     val = "unconverged"
             elif field == 'total_mag':
-                if e.data['outcar'] is not None:
-                    val = e.data['outcar']['total_magnetization']
+                val = e.data['total_magnetization']
                 if val is None:
                     val = "None"
                 if not e.data.get('converged', False):
