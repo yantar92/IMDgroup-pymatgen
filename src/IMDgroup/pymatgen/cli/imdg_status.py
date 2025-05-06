@@ -307,6 +307,8 @@ def status(args):
                         f"Failed to read {os.path.join(wdir, "OUTCAR")}: {exc}",
                         ParseOutcarWarning
                     )
+            cpu_time = "N/A"
+            n_cores = "N/A"
             if outcar is not None:
                 if final_energy is None:
                     final_energy = outcar['final_energy']
@@ -318,14 +320,14 @@ def status(args):
                 except KeyError:
                     cpu_time = "N/A"
                 n_cores = outcar['run_stats']['cores']
-                if converged:
-                    # Clear progress logs
-                    progress = ""
-                if final_energy is None:
-                    progress = " N/A" + progress
-                else:
-                    progress = f" | {final_energy:.4f}eV" +\
-                        f" CPU time: {cpu_time} ({n_cores} cores)" + progress
+            if converged:
+                # Clear progress logs
+                progress = ""
+            if final_energy is None:
+                progress = " N/A" + progress
+            else:
+                progress = f" | {final_energy:.4f}eV" +\
+                    f" CPU time: {cpu_time} ({n_cores} cores)" + progress
         mtime = vasp_output_time(wdir)
         if mtime is None:
             continue
