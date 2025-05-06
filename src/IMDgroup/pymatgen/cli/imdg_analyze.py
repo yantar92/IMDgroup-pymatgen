@@ -15,6 +15,7 @@ from pymatgen.apps.borg.queen import BorgQueen
 from pymatgen.io.vasp.inputs import Poscar
 from IMDgroup.pymatgen.io.vasp.outputs import Outcar
 from IMDgroup.pymatgen.io.vasp.inputs import Incar
+from IMDgroup.pymatgen.core.structure import structure_distance
 
 SAVE_FILE = "vasp_data_imdg.gz"
 logger = logging.getLogger(__name__)
@@ -258,7 +259,7 @@ def add_args(parser):
         default=".")
 
     all_fileds = [
-        'energy', 'e_per_atom', 'total_mag', '%vol',
+        'energy', 'e_per_atom', 'total_mag', '%vol', 'displ',
         'a', 'b', 'c', '%a', '%b', '%c',
         'alpha', 'beta', 'gamma',
         '%alpha', '%beta', '%gamma'
@@ -269,6 +270,7 @@ def add_args(parser):
 energy: Final energy
 e_per_atom: Final energy per atom
 %%vol: Volume change before/after the run
+displ: Total atom displacement
 a, b, c, alpha, beta, gamma: Lattice parameters
 %%a, %%b, %%c, %%alpa, %%beta, %%gamma: Change before/after the run
 """,
@@ -301,7 +303,7 @@ def analyze(args):
             ('dir', 'Directory'), ('incar_group', 'INCAR type'),
             ('energy', 'Energy'), ('e_per_atom', 'E/Atom'),
             ('total_mag', 'Magnetization'),
-            ('%vol', '%vol'),
+            ('%vol', '%vol'), ('displ', 'displacement'),
             ('a', 'a'), ('b', 'b'), ('c', 'c'),
             ('%a', '%a'), ('%b', '%b'), ('%c', '%c'),
             ('alpha', 'α'), ('beta', 'β'), ('gamma', 'γ'),
@@ -371,6 +373,10 @@ def analyze(args):
                 vol0 = e.data["initial_structure"].volume
                 val = e.structure.volume/vol0 - 1
                 val = f"{val * 100:.2f}"
+            elif field == 'displ':
+                displ = structure_distance(
+                    e.data["initial_structure"], e.structure)
+                val = f"{displ:.2f}"
             elif field == 'a':
                 val = e.structure.lattice.a
             elif field == '%a':
