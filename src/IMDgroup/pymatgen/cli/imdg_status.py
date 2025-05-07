@@ -223,17 +223,32 @@ def status(args):
             }
 
     paths = []
+    paths_no_output = []
     for wdir, _, files in os.walk(args.dir):
         if exclude_dirp(wdir):
             continue
         if 'vasprun.xml' in files or 'OUTCAR' in files:
             paths.append(wdir)
         else:
+            has_slurm = False
             for f in files:
                 if re.match('slurm-[0-9]+.out', f):
                     paths.append(wdir)
+                    has_slurm = True
                     break
+            if not has_slurm and any(
+                    f in files
+                    for f in ['INCAR', 'POSCAR',
+                              'KPOINTS', 'POTCAR']):
+                paths_no_output.append(wdir)
     paths = sorted(paths)
+    if len(paths_no_output) > 0:
+        print(colored(
+            "Directories containing VASP input but not output:",
+            "yellow"
+        ))
+        for wdir in paths_no_output:
+            print("  ", wdir)
     for wdir in paths:
         outcar_path = os.path.join(wdir, 'OUTCAR')
         if not os.path.isfile(outcar_path):
