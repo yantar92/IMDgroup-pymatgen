@@ -89,6 +89,7 @@ class Vasplog(MSONable):
         "slurm_error": [
             "slurmstepd: error",
             "prterun noticed",
+            "srun: error",
         ],
         # "mag_init": [
         #     r"You use a magnetic or noncollinear calculation"
