@@ -140,7 +140,10 @@ class IMDGVaspToComputedEnrgyDrone(VaspToComputedEntryDrone):
 
         oszicar_path = os.path.join(path, 'OSZICAR')
         if os.path.exists(oszicar_path):
-            oszicar = Oszicar(oszicar_path)
+            try:
+                oszicar = Oszicar(oszicar_path)
+            except IndexError:
+                oszicar = None
         else:
             oszicar = None
 
