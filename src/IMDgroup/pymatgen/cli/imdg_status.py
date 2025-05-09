@@ -249,6 +249,7 @@ def status(args):
         ))
         for wdir in paths_no_output:
             print("  ", wdir)
+    all_warn_names_present = set()
     for wdir in paths:
         outcar_path = os.path.join(wdir, 'OUTCAR')
         if not os.path.isfile(outcar_path):
@@ -269,6 +270,7 @@ def status(args):
                 for warn_name, data in log.warnings.items():
                     if args.nowarn is not None and warn_name in args.nowarn:
                         continue
+                    all_warn_names_present.add(warn_name)
                     warning_list += "\n" +\
                         colored(
                             f"⮤Warning ({data['count']}x) {warn_name}: ",
@@ -392,5 +394,8 @@ def status(args):
             f"[{print_seconds(delta): >15}]",
             colored(f"{wdir.replace("./", "")}:", attrs=['bold']),
             run_prefix + run_status + progress + warning_list)
+
+    if len(all_warn_names_present) > 0:
+        print(colored("Warnings found: ", "yellow"), all_warn_names_present)
 
     return 0
