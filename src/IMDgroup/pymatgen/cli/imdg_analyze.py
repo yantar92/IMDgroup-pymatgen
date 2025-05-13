@@ -391,8 +391,13 @@ def analyze(args):
                 val = e.structure.volume/vol0 - 1
                 val = f"{val * 100:.2f}"
             elif field == 'displ':
-                displ = structure_distance(
-                    e.data["initial_structure"], e.structure)
+                try:
+                    displ = structure_distance(
+                        e.data["initial_structure"], e.structure, match_first=True)
+                except ValueError:
+                    # structures are too different
+                    displ = structure_distance(
+                        e.data["initial_structure"], e.structure, match_first=False)
                 val = f"{displ:.2f}"
             elif field == 'a':
                 val = e.structure.lattice.a
