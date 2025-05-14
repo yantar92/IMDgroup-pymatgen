@@ -77,7 +77,7 @@ def read_field(field: str, vaspdir: IMDGVaspDir):
 
     if field == 'dir':
         val = Path(vaspdir.path).relative_to(Path.cwd())
-        val = val.replace("./", "")
+        val = str(val).replace("./", "")
     elif field == 'energy':
         val = vaspdir.final_energy_reliable
         if isinstance(val, float):
