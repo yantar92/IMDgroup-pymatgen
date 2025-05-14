@@ -239,15 +239,8 @@ def status(args):
         warnings.filterwarnings(
             "ignore", category=UnconvergedVASPWarning, append=True)
 
-        def read_dirp(p):
-            if exclude_dirp(p):
-                return False
-            if slurm_runningp(p):
-                return False
-            return True
-
         vaspdirs = IMDGVaspDir.read_vaspdirs(
-            args.dir, path_filter=read_dirp)
+            args.dir, path_filter=exclude_dirp)
 
     paths = []
     paths_no_output = []
