@@ -248,7 +248,6 @@ def status(args):
         has_slurm = False
         for f in Path(wdir).iterdir():
             if re.match('slurm-[0-9]+.out', f.name):
-                paths.append(wdir)
                 has_slurm = True
                 break
         if not has_slurm and any(
@@ -256,7 +255,7 @@ def status(args):
                 for f in ['INCAR', 'POSCAR',
                           'KPOINTS', 'POTCAR']):
             paths_no_output.append(wdir)
-    paths = sorted(paths)
+    paths = sorted([d for d in vaspdirs])
     if len(paths_no_output) > 0:
         print(colored(
             "Directories containing VASP input but not output:",
