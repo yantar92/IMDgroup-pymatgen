@@ -255,7 +255,8 @@ def status(args):
                 for f in ['INCAR', 'POSCAR',
                           'KPOINTS', 'POTCAR']):
             paths_no_output.append(wdir)
-    paths = sorted([d for d in vaspdirs])
+    paths = sorted(d for d in vaspdirs)
+    logger.debug("Found VASP dirs: %s", paths)
     if len(paths_no_output) > 0:
         print(colored(
             "Directories containing VASP input but not output:",
