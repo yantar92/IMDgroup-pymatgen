@@ -9,18 +9,13 @@ import warnings
 import subprocess
 import shutil
 from pathlib import Path
-from xml.etree.ElementTree import ParseError
 import cachetools.func
 import numpy as np
 from termcolor import colored
 from pymatgen.io.vasp.outputs import UnconvergedVASPWarning
-from pymatgen.core import Structure
-from IMDgroup.pymatgen.io.vasp.outputs import Outcar
-from IMDgroup.pymatgen.io.vasp.inputs import nebp, neb_dirs
-from IMDgroup.pymatgen.cli.imdg_analyze\
-    import read_vaspruns, IMDGVaspToComputedEnrgyDrone
 from IMDgroup.pymatgen.core.structure import structure_distance
 from IMDgroup.pymatgen.io.vasp.outputs import Vasplog
+from IMDgroup.pymatgen.io.vasp.vaspdir import IMDGVaspDir
 
 logger = logging.getLogger(__name__)
 
@@ -37,39 +32,6 @@ def custom_showwarning(
 
 
 warnings.showwarning = custom_showwarning
-
-
-def convergedp(path, entries_dict, reread=False):
-    """Return False when PATH is unconverged.
-    When PATH has vasprun.xml, return final energy when it is
-    converged.
-    If PATH is not in ENTRIES_DICT, return False unless REREAD
-    argument is True.  For REREAD=True, try reading vasprun.xml even
-    if it is not present in the ENTRIES_DICT.
-    """
-    if nebp(path):
-        logger.debug("NEB folder layout.  Scanning image folders for vasprun.xml/OUTCAR")
-        for image_path in neb_dirs(path, include_ends=False):
-            if not convergedp(image_path, entries_dict):
-                return False
-        return True
-    if path not in entries_dict:
-        logger.debug("%s not found in ENTRIES_DICT", path)
-        if reread:
-            drone = IMDGVaspToComputedEnrgyDrone(
-                inc_structure=False,
-                parameters=None,
-                data=['final_energy', 'converged']
-            )
-            computed_entry = drone.assimilate(path)
-            if computed_entry is None:
-                return False
-            return computed_entry.data['final_energy']\
-                if computed_entry.data['converged'] else False
-        return False
-    converged = entries_dict[path].data['converged']
-    final_energy = entries_dict[path].energy
-    return final_energy if converged else False
 
 
 @cachetools.func.ttl_cache(maxsize=None, ttl=10)
@@ -97,7 +59,7 @@ def slurm_runningp(path):
     # See https://www.vasp.at/wiki/index.php/IMAGES
     if re.match(r'[0-9]+', os.path.basename(path)):
         parent = os.path.dirname(path)
-        if nebp(parent):
+        if IMDGVaspDir(parent).nebp:
             return slurm_runningp(parent)
     return False
 
@@ -122,7 +84,8 @@ def add_args(parser):
     )
     parser.add_argument(
         "--include",
-        help="*Only* dirs matching this Python regexp pattern will be included",
+        help="*Only* dirs matching this Python regexp pattern"
+        " will be included",
         type=str,
     )
     parser.add_argument(
@@ -172,8 +135,11 @@ def vasp_output_time(path):
     """Return last VASP output modification time in PATH.
     If no VASP output is found, return None.
     """
-    if nebp(path):
-        times = [vasp_output_time(p) for p in neb_dirs(path)]
+    vaspdir = IMDGVaspDir(path)
+    if vaspdir.nebp:
+        neb_dirs = vaspdir.neb_dirs()
+        assert neb_dirs is not None
+        times = [vasp_output_time(d.path) for d in neb_dirs]
         times = [x for x in times if x is not None]
         return None if len(times) == 0 else max(times)
     outcar = os.path.join(path, 'OUTCAR')
@@ -186,15 +152,81 @@ def vasp_output_time(path):
     return None
 
 
-class ParseOutcarWarning(UserWarning):
-    """Warning when there is a problem parsing OUTCAR."""
+def _get_warning_list(
+        logs: list[Vasplog],
+        ignore_list: None | list[str] = None) -> tuple[str, set[str]]:
+    """Get warning list from list of LOGS.
+    Return a tuple (formatted_warning_list_string, warning_types_list)
+    """
+    warning_list = ""
+    all_warn_names_present = set()
+    for log in logs:
+        for warn_name, data in log.warnings.items():
+            if ignore_list is not None and warn_name in ignore_list:
+                continue
+            all_warn_names_present.add(warn_name)
+            warning_list += "\n" +\
+                colored(
+                    f"⮤Warning ({data['count']}x) {warn_name}: ",
+                    "yellow") + data['message']
+            if tips := data.get('tips'):
+                for tip in tips:
+                    warning_list += '\n' + colored(
+                        " ➙ TIP: ", "magenta", attrs=['bold'])\
+                        + tip
+    return (warning_list, all_warn_names_present)
+
+
+def _get_progress(logs: list[Vasplog]) -> str:
+    """Get formatted progress string from list of LOGS.
+    """
+    progress_data = logs[-1].progress
+    if len(progress_data.values()) > 0:
+        return list(progress_data.values())[-1]['message']
+    return "N/A"
+
+
+def _get_run_prefix(vaspdir: IMDGVaspDir) -> str:
+    """Get prefix to be displayed for VASPDIR run.
+    """
+    if vaspdir.nebp:
+        # NEB-like calculation
+        return colored("IMAGES ", "magenta")
+    return ""
+
+
+def _get_neb_summary(vaspdir: IMDGVaspDir) -> str:
+    """Get summary of NEB calculation.
+    """
+    neb_structures = []
+    neb_structures_initial = []
+    for nebimagedir in vaspdir.neb_dirs():
+        contcar_struct = nebimagedir.structure
+        poscar_struct = nebimagedir.initial_structure
+        neb_structures.append(contcar_struct or poscar_struct)
+        neb_structures_initial.append(poscar_struct)
+
+    def get_dists(structs):
+        dists = [
+            structure_distance(str1, str2, tol=0)
+            for str1, str2 in zip(structs, structs[1:])
+        ]
+        return [f"{idx+1:02d}: " +
+                colored(f"{dist:.2f}Å",
+                        "red" if np.isclose(dist, 0) else "white")
+                for idx, dist in enumerate(dists)]
+    neb_dists_initial =\
+        colored("IMAGE DISTANCES (initial) ", "magenta")\
+        + " ".join(get_dists(neb_structures_initial))
+    neb_dists =\
+        colored("IMAGE DISTANCES           ", "magenta")\
+        + " ".join(get_dists(neb_structures))
+    return neb_dists_initial + '\n' + neb_dists
 
 
 def status(args):
     """Main routine.
     """
-    entries_dict = {}
-
     def exclude_dirp(p):
         if args.exclude is not None and re.search(args.exclude, p):
             return True
@@ -214,13 +246,8 @@ def status(args):
                 return False
             return True
 
-        entries = read_vaspruns(
+        vaspdirs = IMDGVaspDir.read_vaspdirs(
             args.dir, path_filter=read_dirp)
-        if entries is not None:
-            entries_dict = {
-                os.path.dirname(e.data['filename']): e
-                for e in entries
-            }
 
     paths = []
     paths_no_output = []
@@ -251,142 +278,64 @@ def status(args):
             print("  ", wdir)
     all_warn_names_present = set()
     for wdir in paths:
-        outcar_path = os.path.join(wdir, 'OUTCAR')
-        if not os.path.isfile(outcar_path):
-            outcar_path = False
-        else:
-            outcar_path = [outcar_path]
-        if logs := Vasplog.from_dir(wdir):
+        vaspdir = vaspdirs.get(wdir)
+        nebp = vaspdir.nebp
+        converged = vaspdir.converged
+        if logs := Vasplog.from_dir(wdir) and not nebp:
             logger.debug(
                 "Found VASP logs in %s: %s",
                 wdir, [log.file.name for log in logs])
-            progress_data = logs[-1].progress
-            if len(progress_data.values()) > 0:
-                progress = " | " + list(progress_data.values())[-1]['message']
+            if not converged:
+                progress = _get_progress(logs)
             else:
-                progress = " N/A"
-            warning_list = ""
-            for log in logs:
-                for warn_name, data in log.warnings.items():
-                    if args.nowarn is not None and warn_name in args.nowarn:
-                        continue
-                    all_warn_names_present.add(warn_name)
-                    warning_list += "\n" +\
-                        colored(
-                            f"⮤Warning ({data['count']}x) {warn_name}: ",
-                            "yellow") + data['message']
-                    if tips := data.get('tips'):
-                        for tip in tips:
-                            warning_list += '\n' + colored(
-                                " ➙ TIP: ", "magenta", attrs=['bold'])\
-                                + tip
+                progress = ""
+            warning_list, warn_names = _get_warning_list(logs, args.nowarn)
+            all_warn_names_present = all_warn_names_present.union(warn_names)
         else:
-            logger.debug("Slurm log file not found in %s", wdir)
+            if not nebp:
+                logger.debug("Slurm log file not found in %s", wdir)
             progress = ""
             warning_list = ""
 
         run_status = colored("unknown", "red")
         converged = None
         running = False
-        if nebp(wdir):
-            # NEB-like calculation
-            run_prefix = colored("IMAGES ", "magenta")
-        else:
-            run_prefix = ""
+        run_prefix = _get_run_prefix(vaspdir)
+
         if slurm_runningp(wdir):
             running = True
             run_status = colored("running", "yellow")
         else:
-            try:
-                converged = convergedp(wdir, entries_dict, reread=True)
-                if converged is not None:
-                    run_status = colored("converged", "green")\
-                        if converged else colored("unconverged", "red")
-            except (ParseError, FileNotFoundError):
-                converged = False
+            run_status = colored("converged", "green") if converged\
+                else colored("unconverged", "red")
+            if vaspdir['vasprun.xml'] is None and\
+               (Path(wdir) / 'vasprun.xml').is_file():
                 run_status = colored("incomplete vasprun.xml", "red")
-            if not isinstance(converged, bool):
-                final_energy = converged
-            else:
-                final_energy = None
-            if wdir in entries_dict:
-                outcar = entries_dict[wdir].data['outcar']
-            elif nebp(wdir):
-                outcar = None
-                progress = ""
-            else:
-                logger.debug('Reading OUTCAR in %s', wdir)
-                try:
-                    outcar = Outcar(os.path.join(wdir, "OUTCAR")).as_dict()
-                except Exception as exc:
-                    outcar = None
-                    warnings.warn(
-                        f"Failed to read {os.path.join(wdir, "OUTCAR")}: {exc}",
-                        ParseOutcarWarning
-                    )
-            cpu_time = "N/A"
-            n_cores = "N/A"
+            outcar = vaspdir['OUTCAR']
             if outcar is not None:
-                if final_energy is None:
-                    final_energy = outcar['final_energy']
-                try:
-                    cpu_time_sec =\
-                        outcar['run_stats']['Total CPU time used (sec)']
-                    cpu_time =\
-                        str(datetime.timedelta(seconds=round(cpu_time_sec)))
-                except KeyError:
-                    cpu_time = "N/A"
+                cpu_time_sec =\
+                    outcar.get('run_stats', {}).get(
+                        'Total CPU time used (sec)')
+                cpu_time =\
+                    str(datetime.timedelta(seconds=round(cpu_time_sec)))\
+                    if cpu_time_sec is not None else None
                 n_cores = outcar['run_stats']['cores']
-            if converged:
-                # Clear progress logs
-                progress = ""
+            else:
+                cpu_time = None
+                n_cores = None
+            final_energy = vaspdir.final_energy
             if final_energy is None:
                 progress = " N/A" + progress
             else:
                 progress = f" | {final_energy:.4f}eV" +\
                     (f" CPU time: {cpu_time} ({n_cores} cores)"
-                     if outcar is not None else "") + progress
+                     if n_cores is not None else "") + progress
         mtime = vasp_output_time(wdir)
         if mtime is None:
             continue
         delta = mtime - datetime.datetime.now().timestamp()
-        if nebp(wdir):
-            neb_structures = []
-            neb_structures_initial = []
-            for p in neb_dirs(wdir):
-                contcar = Path(p) / "CONTCAR"
-                poscar = Path(p) / "POSCAR"
-                contcar_struct = None
-                if contcar.is_file():
-                    try:
-                        contcar_struct = Structure.from_file(contcar)
-                    # There is VASP bug when we have -1.00000-2.000
-                    # numbers without space.  Bail out when encoutnered.
-                    except ValueError:
-                        contcar_struct = None
-                poscar_struct = Structure.from_file(poscar)
-                if contcar_struct is not None:
-                    neb_structures.append(contcar_struct)
-                else:
-                    neb_structures.append(poscar_struct)
-                neb_structures_initial.append(poscar_struct)
-
-            def get_dists(structs):
-                dists = [
-                    structure_distance(str1, str2, tol=0)
-                    for str1, str2 in zip(structs, structs[1:])
-                ]
-                return [f"{idx+1:02d}: " +
-                        colored(f"{dist:.2f}Å",
-                                "red" if np.isclose(dist, 0) else "white")
-                        for idx, dist in enumerate(dists)]
-            neb_dists_initial =\
-                colored("IMAGE DISTANCES (initial) ", "magenta")\
-                + " ".join(get_dists(neb_structures_initial))
-            neb_dists =\
-                colored("IMAGE DISTANCES           ", "magenta")\
-                + " ".join(get_dists(neb_structures))
-            progress = progress + "\n" + neb_dists_initial + "\n" + neb_dists
+        if nebp:
+            progress = progress + "\n" + _get_neb_summary(vaspdir)
         if args.problematic and warning_list == ""\
            and (converged or running):
             continue

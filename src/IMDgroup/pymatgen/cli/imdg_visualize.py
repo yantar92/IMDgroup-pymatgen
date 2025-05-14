@@ -2,14 +2,11 @@
 """
 import logging
 import os
-import numpy as np
 from termcolor import colored
-from pymatgen.core import Species, DummySpecies, Structure
-from pymatgen.io.vasp.inputs import Incar
-from IMDgroup.pymatgen.cli.imdg_analyze import read_vaspruns
-from IMDgroup.pymatgen.cli.imdg_status import convergedp
-from IMDgroup.pymatgen.io.vasp.inputs import nebp
+from pymatgen.core import Structure
 from IMDgroup.pymatgen.core.structure import merge_structures
+from IMDgroup.pymatgen.io.vasp.vaspdir import IMDGVaspDir
+from IMDgroup.pymatgen.io.sets import write_selective_dynamics_summary_maybe
 
 logger = logging.getLogger(__name__)
 
@@ -49,37 +46,17 @@ def neb_add_args(parser):
 def neb(args):
     """Create NEB visualization.
     """
-    entries = read_vaspruns(
-        args.dir,
-        # Parent directory is NEB
-        path_filter=lambda p: nebp(os.path.dirname(p)))
-    entries_dict = {}
-    if entries is not None:
-        entries_dict = {
-            os.path.dirname(e.data['filename']): e
-            for e in entries
-        }
-    else:
-        logger.info("No NEB runs found")
-        return 0
     for wdir, subdirs, _ in os.walk(args.dir):
         subdirs.sort()  # this will make loop go in order
-        if not nebp(wdir):
+        vaspdir = IMDGVaspDir(wdir)
+        if not vaspdir.nebp:
             continue
-        if not convergedp(wdir, entries_dict):
+        if not vaspdir.converged:
             logger.info("Skipping unconverged run at %s", wdir)
             continue
-        incar = Incar.from_file(os.path.join(wdir, 'INCAR'))
-        images = [f"{n:02d}" for n in range(1, 1 + incar['IMAGES'])]
-        neb_structures = []
-        neb_structures.append(
-            Structure.from_file(os.path.join(wdir, "00", "POSCAR")))
-        for image in images:
-            neb_structures.append(
-                entries_dict[os.path.join(wdir, image)].structure)
-        neb_structures.append(
-            Structure.from_file(os.path.join(
-                wdir, f"{1 + incar['IMAGES']:02d}", "POSCAR")))
+        neb_structures = [
+            (imagedir.final_structure or imagedir.structure)
+            for imagedir in vaspdir.neb_dirs()]
         trajectory = merge_structures(neb_structures)
         cif_name = 'NEB_trajectory_converged.cif'
         output_cif = os.path.join(wdir, cif_name)

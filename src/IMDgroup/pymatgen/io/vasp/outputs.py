@@ -348,3 +348,5 @@ class Vasplog(MSONable):
 
         logger.debug("Found %d log patterns", len(result))
         return result
+
+

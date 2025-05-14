@@ -25,7 +25,8 @@ from ase.mep import idpp_interpolate
 from IMDgroup.pymatgen.core.structure import\
     merge_structures, structure_interpolate2, structure_is_valid2
 from IMDgroup.pymatgen.io.vasp.inputs import\
-    Incar, _load_yaml_config, nebp, neb_dirs
+    Incar, _load_yaml_config
+from IMDgroup.pymatgen.io.vasp.vaspdir import IMDGVaspDir
 
 # ase uses pairs of 'Si': '_suffix'.  Convert them into 'Si': 'Si_suffix'
 POTCAR_RECOMMENDED = dict(
@@ -203,7 +204,8 @@ class IMDVaspInputSet(VaspInputSet):
         if self.no_incar:
             return None
         incar = super().incar
-
+        # Use IMDG version of Incar class
+        incar = Incar(incar)
         # Empty incar.  Do nothing.
         if incar is None or not list(incar):
             return incar
@@ -311,8 +313,9 @@ class IMDVaspInputSet(VaspInputSet):
     def write_input(self, output_dir, **kwargs) -> None:
         """Write a set of VASP input to OUTPUT_DIR."""
         super().write_input(output_dir, **kwargs)
+        output_dir = Path(output_dir)
         # Write inputset info
-        log_file = os.path.join(output_dir, "IMDVaspInputSet.log")
+        log_file = output_dir / "IMDVaspInputSet.log"
         with open(log_file, "w", encoding='utf-8') as f:
             for field in fields(self.__class__):
                 if field.name not in ['images']:
@@ -321,35 +324,30 @@ class IMDVaspInputSet(VaspInputSet):
         if self.images is None and self.structure is not None:
             write_selective_dynamics_summary_maybe(
                 self.structure,
-                os.path.join(output_dir, "selective_dynamics.cif")
+                output_dir / "selective_dynamics.cif"
             )
         # Maybe remove empty INCAR written
         if self.incar is None or not list(self.incar):
-            f = os.path.join(output_dir, "INCAR")
-            if os.path.isfile(f):
-                os.remove(f)
+            (output_dir / "INCAR").unlink(missing_ok=True)
         # Maybe remove POSCAR written
         if self.no_poscar:
-            f = os.path.join(output_dir, "POSCAR")
-            if os.path.isfile(f):
-                os.remove(f)
+            (output_dir / "POSCAR").unlink(missing_ok=True)
         # NEB input
         if self.images is not None:
             # Write images
-            for d, image in zip(neb_dirs(output_dir), self.images):
-                image.write_input(d, **kwargs)
+            for d, image in zip(self.incar.image_dir_names(), self.images):
+                image.write_input(output_dir / d, **kwargs)
             logger.debug(
                 "Writing trajectory file %s",
-                os.path.join(output_dir, 'NEB_trajectory.cif'))
+                output_dir / 'NEB_trajectory.cif')
             # Store NEB path snapshot
             trajectory = merge_structures(
                 [img.structure for img in self.images])
-            trajectory.to_file(
-                os.path.join(output_dir, 'NEB_trajectory.cif'))
+            trajectory.to_file(output_dir / 'NEB_trajectory.cif')
             # Visualize information about fixed/not fixed sites, if any
             write_selective_dynamics_summary_maybe(
                 trajectory,
-                os.path.join(output_dir, 'NEB_fixed_sites.cif')
+                output_dir / 'NEB_fixed_sites.cif'
             )
 
 
@@ -395,14 +393,21 @@ class IMDDerivedInputSet(IMDVaspInputSet):
         return super().kpoints_updates
 
     def __post_init__(self) -> None:
+        # FIXME: We should make heaver use of caching IMDGVaspDir
 
-        if nebp(self.directory):
+        if isinstance(self.directory, IMDGVaspDir):
+            self._vaspdir = self.directory
+            self.directory = self._vaspdir.path
+        else:
+            self._vaspdir = IMDGVaspDir(self.directory)
+
+        if self._vaspdir.nebp:
             self.images = []
             logger.debug(
                 "Found NEB input in %s",
                 self.directory
             )
-            for subdir in neb_dirs(self.directory):
+            for subdir in self._vaspdir.neb_dirs():
                 # Re-use user-specified class parameters
                 # overriding directory
                 kwargs = {
@@ -470,7 +475,7 @@ class IMDDerivedInputSet(IMDVaspInputSet):
         else:
             parent_dir = os.path.dirname(os.path.abspath(self.directory))
             parent_kpoints_path = os.path.join(parent_dir, "KPOINTS")
-            if nebp(parent_dir) and os.path.isfile(parent_kpoints_path):
+            if IMDGVaspDir(parent_dir).nebp and os.path.isfile(parent_kpoints_path):
                 kpoints = Kpoints.from_file(parent_kpoints_path)
                 self.prev_kpoints = kpoints
 
@@ -487,7 +492,7 @@ class IMDDerivedInputSet(IMDVaspInputSet):
         else:
             parent_dir = os.path.dirname(os.path.abspath(self.directory))
             parent_incar_path = os.path.join(parent_dir, "INCAR")
-            if nebp(parent_dir) and os.path.isfile(parent_incar_path):
+            if IMDGVaspDir(parent_dir).nebp and os.path.isfile(parent_incar_path):
                 incar = Incar.from_file(parent_incar_path)
                 self.prev_incar = incar
 

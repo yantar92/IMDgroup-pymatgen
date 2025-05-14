@@ -27,32 +27,6 @@ def _load_yaml_config(fname):
     return config
 
 
-def nebp(path):
-    """Return True when PATH is a NEB-like run.
-    """
-    incar_path = os.path.join(path, 'INCAR')
-    if os.path.isfile(incar_path):
-        incar = Incar.from_file(incar_path)
-        if 'IMAGES' in incar:
-            return True
-    return False
-
-
-def neb_dirs(path, include_ends=True):
-    """Return a list of NEB dirs in PATH.
-    When optional argument INCLUDE_ENDS is False, do not include the
-    first and the last image.
-    """
-    if nebp(path):
-        incar = Incar.from_file(os.path.join(path, "INCAR"))
-        nimages = incar['IMAGES']
-        rng = range(0, nimages + 2) if include_ends else range(1, nimages + 1)
-        paths = [os.path.join(path, f"{n:02d}") for n in rng]
-        return paths
-        # return [p for p in paths if os.path.isdir(p)]
-    return None
-
-
 class Incar(pmgIncar):
     """Modified version of pymatgen's Incar class, which see.
     Extensions:
@@ -82,6 +56,18 @@ class Incar(pmgIncar):
         IBRION_IONIC_RELAX_FORCE_FAST,
         IBRION_IONIC_RELAX_CGA,
         IBRION_IONIC_RELAX_DAMPED_MD]
+
+    def image_dir_names(self, include_ends: bool = True) -> list[str] | None:
+        """Return a list of NEB image dir names.
+        Return None when IMAGES parameter is not set.
+        When INCLUDE_ENDS is False, do not include the very first (00)
+        and the very last images.
+        """
+        if nimages := self.get('IMAGES'):
+            rng = range(0, nimages + 2)
+            dirs = [f"{n:02d}" for n in rng]
+            return dirs if include_ends else dirs[1:-1]
+        return None
 
     # FIXME: This should better be contributed upstream as I cannot
     # override the checks in the Incar instances used from pymatgen
