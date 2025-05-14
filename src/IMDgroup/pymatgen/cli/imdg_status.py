@@ -227,15 +227,12 @@ def _get_neb_summary(vaspdir: IMDGVaspDir) -> str:
 def status(args):
     """Main routine.
     """
-    def exclude_dirp(p):
-        logger.debug('Checking VASP dir candidate %s', p)
-        logger.debug('exclude: %s, include: %s', args.exclude, args.include)
+    def include_dirp(p):
         if args.exclude is not None and re.search(args.exclude, p):
-            return True
+            return False
         if args.include is not None and not re.search(args.include, p):
-            return True
-        logger.debug('Rejected %s', p)
-        return False
+            return False
+        return True
 
     with warnings.catch_warnings():
         warnings.filterwarnings("ignore", category=UserWarning)
@@ -243,7 +240,7 @@ def status(args):
             "ignore", category=UnconvergedVASPWarning, append=True)
 
         vaspdirs = IMDGVaspDir.read_vaspdirs(
-            args.dir, path_filter=exclude_dirp)
+            args.dir, path_filter=include_dirp)
 
     paths = []
     paths_no_output = []
