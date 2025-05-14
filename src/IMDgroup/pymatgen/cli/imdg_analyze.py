@@ -180,11 +180,10 @@ def analyze(args):
             all_data[field].append(val)
 
     if len(all_data) > 0 and len(vaspdirs) > 0:
-        df = pd.DataFrame(all_data.items())
+        df = pd.DataFrame(all_data)
         if args.group:
             df = df.sort_values('incar_group')
         else:
-            print(df.columns)
             df = df.sort_values('dir')
         print(tabulate(df, headers=df.columns, tablefmt="orgtbl"))
 
