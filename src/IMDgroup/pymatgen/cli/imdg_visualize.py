@@ -6,7 +6,7 @@ from termcolor import colored
 from pymatgen.core import Structure
 from IMDgroup.pymatgen.core.structure import merge_structures
 from IMDgroup.pymatgen.io.vasp.vaspdir import IMDGVaspDir
-from IMDgroup.pymatgen.io.sets import write_selective_dynamics_summary_maybe
+from IMDgroup.pymatgen.io.vasp.sets import write_selective_dynamics_summary_maybe
 
 logger = logging.getLogger(__name__)
 
