@@ -181,9 +181,10 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
                 f"Unable to parse {item}. "
                 f"Supported files are {list(self.FILE_MAPPINGS.keys())}.")
 
-        raise ValueError(
-            f"{item} not found in {self.path}. "
-            f"List of files are {self.files}.")
+        return None
+        # raise ValueError(
+        #     f"{item} not found in {self.path}. "
+        #     f"List of files are {self.files}.")
 
     @staticmethod
     def _get_file_hash(filename: Path | str) -> str:
