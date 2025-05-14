@@ -286,14 +286,13 @@ def status(args):
             warning_list = ""
 
         run_status = colored("unknown", "red")
-        converged = None
-        running = False
         run_prefix = _get_run_prefix(vaspdir)
 
         if slurm_runningp(wdir):
             running = True
             run_status = colored("running", "yellow")
         else:
+            running = False
             run_status = colored("converged", "green") if converged\
                 else colored("unconverged", "red")
             if vaspdir['vasprun.xml'] is None and\
