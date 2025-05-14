@@ -183,6 +183,6 @@ def analyze(args):
         df = pd.DataFrame(dict(zip(ALL_FIELDS.values(), all_data.values())))
         if args.group:
             df = df.sort_values('incar_group')
-        print(tabulate(df, tablefmt="orgtbl"))
+        print(tabulate(df, headers=df.columns, tablefmt="orgtbl"))
 
     return 0
