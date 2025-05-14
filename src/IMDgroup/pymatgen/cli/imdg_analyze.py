@@ -78,7 +78,9 @@ def read_field(field: str, vaspdir: IMDGVaspDir):
         val = vaspdir.path
         val = val.replace("./", "")
     elif field == 'energy':
-        val = f"{vaspdir.final_energy_reliable:.5f}"
+        val = vaspdir.final_energy_reliable
+        if isinstance(val, float):
+            val = f"{vaspdir.final_energy_reliable:.5f}"
     elif field == 'e_per_atom':
         val = vaspdir.final_energy_reliable
         if not isinstance(val, str):
