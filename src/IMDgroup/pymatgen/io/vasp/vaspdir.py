@@ -119,7 +119,7 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
             for vaspfile in ['OUTCAR', 'vasprun.xml', 'POSCAR', 'OSZICAR']:
                 if vaspfile in files and (
                         path_filter is None or
-                        path_filter(vaspfile)):
+                        path_filter(parent)):
                     valid_paths[str(parent)] = IMDGVaspDir(parent)
                     break
         return valid_paths
