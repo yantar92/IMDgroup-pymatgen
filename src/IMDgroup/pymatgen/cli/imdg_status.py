@@ -256,7 +256,7 @@ def status(args):
                           'KPOINTS', 'POTCAR']):
             paths_no_output.append(wdir)
     paths = sorted(d for d in vaspdirs)
-    logger.debug("Found VASP dirs: %s", vaspdirs)
+    logger.debug("Found VASP dirs: %s", paths)
     if len(paths_no_output) > 0:
         print(colored(
             "Directories containing VASP input but not output:",
@@ -269,7 +269,7 @@ def status(args):
         vaspdir = vaspdirs.get(wdir)
         nebp = vaspdir.nebp
         converged = vaspdir.converged
-        if logs := Vasplog.from_dir(wdir) and not nebp:
+        if logs := (not nebp) and Vasplog.from_dir(wdir):
             logger.debug(
                 "Found VASP logs in %s: %s",
                 wdir, [log.file.name for log in logs])
