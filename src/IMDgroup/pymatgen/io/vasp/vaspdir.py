@@ -77,8 +77,7 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
         "WSWQ": pmgWSWQ,
     }
 
-
-    def __init__(self, dirname: str | Path | 'IMDGVaspDir'):
+    def __init__(self, dirname: str | Path):
         """
         Args:
             dirname: The directory containing the VASP calculation.
