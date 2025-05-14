@@ -233,6 +233,7 @@ def status(args):
             return True
         if args.include is not None and not re.search(args.include, p):
             return True
+        logger.debug('Rejected %s', p)
         return False
 
     with warnings.catch_warnings():
