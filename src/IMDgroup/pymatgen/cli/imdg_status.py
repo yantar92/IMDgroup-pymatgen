@@ -306,7 +306,7 @@ def status(args):
                 cpu_time =\
                     str(datetime.timedelta(seconds=round(cpu_time_sec)))\
                     if cpu_time_sec is not None else None
-                n_cores = outcar['run_stats']['cores']
+                n_cores = outcar.run_stats['cores']
             else:
                 cpu_time = None
                 n_cores = None
