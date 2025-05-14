@@ -237,8 +237,8 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
         assert incar is not None
         if incar.get('IBRION') in Incar.IBRION_IONIC_RELAX_values and\
            incar.get('ISIF') != Incar.ISIF_FIX_SHAPE_VOL:
-            return self.final_energy
-        return "unreliable"
+            return "unreliable"
+        return self.final_energy
 
     @property
     def initial_structure(self) -> Structure:
