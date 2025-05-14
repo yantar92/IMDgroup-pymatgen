@@ -155,7 +155,7 @@ def analyze(args):
     """
 
     vaspdirs = IMDGVaspDir.read_vaspdirs(args.dir)
-    all_data = {field: [] for field in ALL_FIELDS}
+    all_data = {field: [] for field in args.fields}
 
     file_groups = {}
     if args.group:
