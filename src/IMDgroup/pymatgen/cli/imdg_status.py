@@ -229,6 +229,7 @@ def status(args):
     """
     def exclude_dirp(p):
         logger.debug('Checking VASP dir candidate %s', p)
+        logger.debug('exclude: %s, include: %s', args.exclude, args.include)
         if args.exclude is not None and re.search(args.exclude, p):
             return True
         if args.include is not None and not re.search(args.include, p):
