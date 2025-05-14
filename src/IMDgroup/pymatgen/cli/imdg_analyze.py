@@ -155,7 +155,7 @@ def analyze(args):
     """
 
     vaspdirs = IMDGVaspDir.read_vaspdirs(args.dir)
-    all_data = {field: [] for field in args.fields}
+    all_data = {field: [] for field in ALL_FIELDS}
 
     file_groups = {}
     if args.group:
@@ -180,8 +180,13 @@ def analyze(args):
             all_data[field].append(val)
 
     if len(all_data) > 0 and len(vaspdirs) > 0:
-        df = pd.DataFrame({
-            ALL_FIELDS[field]: data for field, data in all_data.items()})
+        df = pd.DataFrame(
+            {
+                ALL_FIELDS[field]: data
+                for field, data in all_data.items()
+                if field in args.fields or field in ['dir', 'incar_group']
+            }
+        )
         if args.group:
             df = df.sort_values('incar_group')
         print(tabulate(df, headers=df.columns, tablefmt="orgtbl"))
