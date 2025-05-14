@@ -302,8 +302,7 @@ def status(args):
             outcar = vaspdir['OUTCAR']
             if outcar is not None:
                 cpu_time_sec =\
-                    outcar.get('run_stats', {}).get(
-                        'Total CPU time used (sec)')
+                    outcar.run_stats.get('Total CPU time used (sec)')
                 cpu_time =\
                     str(datetime.timedelta(seconds=round(cpu_time_sec)))\
                     if cpu_time_sec is not None else None
