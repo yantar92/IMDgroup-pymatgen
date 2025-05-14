@@ -180,13 +180,7 @@ def analyze(args):
             all_data[field].append(val)
 
     if len(all_data) > 0 and len(vaspdirs) > 0:
-        df = pd.DataFrame(
-            {
-                ALL_FIELDS[field]: data
-                for field, data in all_data.items()
-                if field in args.fields or field in ['dir', 'incar_group']
-            }
-        )
+        df = pd.DataFrame(all_data.items())
         if args.group:
             df = df.sort_values('incar_group')
         else:
