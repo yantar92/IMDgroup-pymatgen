@@ -2,6 +2,7 @@
 Based on pymatgen's pymatgen.cli.pmg_analyze
 """
 import logging
+from pathlib import Path
 from tabulate import tabulate
 import pandas as pd
 from IMDgroup.pymatgen.io.vasp.inputs import Incar
@@ -75,7 +76,7 @@ def read_field(field: str, vaspdir: IMDGVaspDir):
     val = None
 
     if field == 'dir':
-        val = vaspdir.path
+        val = Path(vaspdir.path).relative_to(Path.cwd())
         val = val.replace("./", "")
     elif field == 'energy':
         val = vaspdir.final_energy_reliable
