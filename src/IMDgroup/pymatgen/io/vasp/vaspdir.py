@@ -82,12 +82,6 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
         Args:
             dirname: The directory containing the VASP calculation.
         """
-        if isinstance(dirname, IMDGVaspDir):
-            self.path = dirname.path
-            self._cache = dirname._cache
-            self._neb_vaspdirs = dirname._neb_vaspdirs
-            self._parsed_files = dirname._parsed_files
-            return
         self.path = str(Path(dirname).resolve())
         self._cache = None
         self._neb_vaspdirs = None
