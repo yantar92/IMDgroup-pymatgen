@@ -265,7 +265,7 @@ class Vasplog(MSONable):
         if not path.is_dir():
             return None
         files = [f for f in path.iterdir() if f.is_file()]
-        logger.debug("Searching slurm logs in %s across %s", path, files)
+        # logger.debug("Searching slurm logs in %s across %s", path, files)
         matching = []
         for f in files:
             if any(re.match(regexp, f.name)
