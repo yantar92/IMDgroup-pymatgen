@@ -301,6 +301,12 @@ def status(args):
             running = False
             run_status = colored("converged", "green") if converged\
                 else colored("unconverged", "red")
+
+        if args.problematic and warning_list == ""\
+           and (converged or running):
+            continue
+
+        if not running:
             if vaspdir['vasprun.xml'] is None and\
                (Path(wdir) / 'vasprun.xml').is_file():
                 run_status = colored("incomplete vasprun.xml", "red")
@@ -328,9 +334,6 @@ def status(args):
         delta = mtime - datetime.datetime.now().timestamp()
         if nebp:
             progress = progress + "\n" + _get_neb_summary(vaspdir)
-        if args.problematic and warning_list == ""\
-           and (converged or running):
-            continue
         print(
             f"[{print_seconds(delta): >15}]",
             colored(f"{wdir.replace("./", "")}:", attrs=['bold']),
