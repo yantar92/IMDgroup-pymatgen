@@ -303,21 +303,21 @@ def status(args):
             if vaspdir['vasprun.xml'] is None and\
                (Path(wdir) / 'vasprun.xml').is_file():
                 run_status = colored("incomplete vasprun.xml", "red")
-            outcar = vaspdir['OUTCAR']
-            if outcar is not None:
-                cpu_time_sec =\
-                    outcar.run_stats.get('Total CPU time used (sec)')
-                cpu_time =\
-                    str(datetime.timedelta(seconds=round(cpu_time_sec)))\
-                    if cpu_time_sec is not None else None
-                n_cores = outcar.run_stats['cores']
-            else:
-                cpu_time = None
-                n_cores = None
             final_energy = vaspdir.final_energy
             if final_energy is None:
                 progress = " N/A" + progress
             else:
+                outcar = vaspdir['OUTCAR']
+                if outcar is not None:
+                    cpu_time_sec =\
+                        outcar.run_stats.get('Total CPU time used (sec)')
+                    cpu_time =\
+                        str(datetime.timedelta(seconds=round(cpu_time_sec)))\
+                        if cpu_time_sec is not None else None
+                    n_cores = outcar.run_stats['cores']
+                else:
+                    cpu_time = None
+                    n_cores = None
                 progress = f" | {final_energy:.4f}eV" +\
                     (f" CPU time: {cpu_time} ({n_cores} cores)"
                      if n_cores is not None else "") + progress
