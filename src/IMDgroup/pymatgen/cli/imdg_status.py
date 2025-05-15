@@ -14,6 +14,7 @@ from alive_progress import alive_it
 import numpy as np
 from termcolor import colored
 from pymatgen.io.vasp.outputs import UnconvergedVASPWarning
+from IMDgroup.pymatgen.io.vasp.outputs import VasprunWarning
 from IMDgroup.pymatgen.core.structure import structure_distance
 from IMDgroup.pymatgen.io.vasp.outputs import Vasplog
 from IMDgroup.pymatgen.io.vasp.vaspdir import IMDGVaspDir
@@ -240,6 +241,8 @@ def status(args):
         warnings.filterwarnings("ignore", category=UserWarning)
         warnings.filterwarnings(
             "ignore", category=UnconvergedVASPWarning, append=True)
+        warnings.filterwarnings(
+            "ignore", category=VasprunWarning, append=True)
 
         vaspdirs = IMDGVaspDir.read_vaspdirs(
             args.dir, path_filter=include_dirp)
