@@ -274,6 +274,7 @@ def status(args):
         vaspdir = vaspdirs.get(wdir)
         nebp = vaspdir.nebp
         converged = vaspdir.converged
+        logger.debug('%s: converged = %s', wdir, converged)
         if logs := (not nebp) and Vasplog.from_dir(wdir):
             logger.debug(
                 "Found VASP logs in %s: %s",
