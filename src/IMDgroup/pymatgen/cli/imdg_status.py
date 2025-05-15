@@ -248,14 +248,14 @@ def status(args):
     paths_no_output = []
     for wdir in vaspdirs:
         has_slurm = False
+        # Assume that vaspdir is valid as long as it has slurm logs
+        # Examples: ATAT input dir, top-level NEB input.
         for f in Path(wdir).iterdir():
             if re.match('slurm-[0-9]+.out', f.name):
                 has_slurm = True
                 break
-        if not has_slurm and any(
-                (Path(wdir) / f).is_file()
-                for f in ['INCAR', 'POSCAR',
-                          'KPOINTS', 'POTCAR']):
+        has_outcar = (Path(wdir) / 'OUTCAR').is_file()
+        if not (has_slurm or has_outcar):
             paths_no_output.append(wdir)
     paths = sorted(d for d in vaspdirs)
     logger.debug("Found VASP dirs: %s", paths)
