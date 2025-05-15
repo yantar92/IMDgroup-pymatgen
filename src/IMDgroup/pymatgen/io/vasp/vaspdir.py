@@ -9,6 +9,7 @@ import logging
 from pathlib import Path
 from monty.json import MSONable
 from diskcache import Cache
+from alive_progress import alive_it
 from pymatgen.core import Structure
 from pymatgen.io.vasp.inputs import Poscar as pmgPoscar
 from pymatgen.io.vasp.inputs import Kpoints as pmgKpoints
@@ -115,7 +116,7 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
         """
         rootpath = Path(rootpath)
         valid_paths = {}
-        for parent, _, files in rootpath.walk():
+        for parent, _, files in alive_it(rootpath.walk()):
             for vaspfile in ['OUTCAR', 'vasprun.xml', 'POSCAR', 'OSZICAR']:
                 if vaspfile in files and (
                         path_filter is None or
