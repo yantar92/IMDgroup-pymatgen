@@ -307,6 +307,7 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
             return False
         return False
 
+    @property
     def converged(self) -> bool:
         """Return whether vasp run converged.
         """
