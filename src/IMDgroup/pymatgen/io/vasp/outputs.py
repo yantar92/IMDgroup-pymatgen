@@ -256,10 +256,10 @@ class Vasplog(MSONable):
         return [Vasplog(f) for f in Vasplog.vasp_log_files(dirname)]
 
     @staticmethod
-    def vasp_log_files(path: PathLike):
+    def vasp_log_files(path: PathLike) -> list[str]:
         """Return a list of VASP log files in PATH.
         The files are sorted by modification date.
-        Return None, if log files are not found.
+        Return [], if log files are not found.
         """
         path = Path(path)
         if not path.is_dir():
@@ -274,9 +274,7 @@ class Vasplog(MSONable):
         if len(matching) > 1:
             # Ignore OUTCAR (huge) unless we have no choice
             matching = [f for f in matching if 'OUTCAR' != f.name]
-        if len(matching) > 0:
-            return sorted(matching, key=lambda f: f.stat().st_mtime)
-        return None
+        return sorted(matching, key=lambda f: f.stat().st_mtime)
 
     def parse(self, log_matchers):
         """Return VASP logs matching LOG_MATCHERS.
