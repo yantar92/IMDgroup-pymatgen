@@ -266,7 +266,7 @@ def status(args):
         for wdir in paths_no_output:
             print("  ", wdir)
     all_warn_names_present = set()
-    for wdir in alive_it(paths):
+    for wdir in alive_it(paths, enrich_print=False):
         vaspdir = vaspdirs.get(wdir)
         nebp = vaspdir.nebp
         converged = vaspdir.converged
