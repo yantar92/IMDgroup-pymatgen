@@ -334,7 +334,7 @@ def status(args):
         print(
             f"[{print_seconds(delta): >15}]",
             colored(f"{wdir.replace("./", "")}:", attrs=['bold']),
-            run_prefix + run_status + progress + warning_list)
+            " ".join([run_prefix, run_status, progress]) + warning_list)
 
     if len(all_warn_names_present) > 0:
         print(colored("Warnings found: ", "yellow"), all_warn_names_present)
