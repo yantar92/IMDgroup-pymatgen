@@ -325,9 +325,11 @@ def status(args):
                 else:
                     cpu_time = None
                     n_cores = None
-                progress = f" | {final_energy:.4f}eV" +\
+                final_energy_str = "" if np.isnan(final_energy)\
+                    else f"{final_energy:.4f}eV"
+                progress = f" | {final_energy_str}" +\
                     (f" CPU time: {cpu_time} ({n_cores} cores)"
-                     if n_cores is not None else "") + progress
+                     if n_cores is not None else "") + " " + progress
         mtime = vasp_output_time(wdir)
         if mtime is None:
             continue
