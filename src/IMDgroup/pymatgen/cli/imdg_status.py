@@ -229,6 +229,7 @@ def status(args):
     """Main routine.
     """
     def include_dirp(p):
+        p = str(p)
         if args.exclude is not None and re.search(args.exclude, p):
             return False
         if args.include is not None and not re.search(args.include, p):
