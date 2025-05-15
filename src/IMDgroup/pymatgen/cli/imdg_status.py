@@ -10,6 +10,7 @@ import subprocess
 import shutil
 from pathlib import Path
 import cachetools.func
+from alive_progress import alive_it
 import numpy as np
 from termcolor import colored
 from pymatgen.io.vasp.outputs import UnconvergedVASPWarning
@@ -265,7 +266,7 @@ def status(args):
         for wdir in paths_no_output:
             print("  ", wdir)
     all_warn_names_present = set()
-    for wdir in paths:
+    for wdir in alive_it(paths):
         vaspdir = vaspdirs.get(wdir)
         nebp = vaspdir.nebp
         converged = vaspdir.converged
