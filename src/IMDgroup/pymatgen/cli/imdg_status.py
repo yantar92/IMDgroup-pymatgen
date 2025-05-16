@@ -273,7 +273,20 @@ def status(args):
     for wdir in alive_it(paths, enrich_print=False, title="Reading VASP outputs"):
         vaspdir = vaspdirs.get(wdir)
         nebp = vaspdir.nebp
-        converged = vaspdir.converged
+
+        run_status = colored("unknown", "red")
+        run_prefix = _get_run_prefix(vaspdir)
+
+        if slurm_runningp(wdir):
+            running = True
+            converged = False
+            run_status = colored("running", "yellow")
+        else:
+            running = False
+            converged = vaspdir.converged
+            run_status = colored("converged", "green") if converged\
+                else colored("unconverged", "red")
+
         logger.debug('%s: converged = %s', wdir, converged)
         if logs := (not nebp) and Vasplog.from_dir(wdir):
             logger.debug(
@@ -290,17 +303,6 @@ def status(args):
                 logger.debug("Slurm log file not found in %s", wdir)
             progress = ""
             warning_list = ""
-
-        run_status = colored("unknown", "red")
-        run_prefix = _get_run_prefix(vaspdir)
-
-        if slurm_runningp(wdir):
-            running = True
-            run_status = colored("running", "yellow")
-        else:
-            running = False
-            run_status = colored("converged", "green") if converged\
-                else colored("unconverged", "red")
 
         if args.problematic and warning_list == ""\
            and (converged or running):
