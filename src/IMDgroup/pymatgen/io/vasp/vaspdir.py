@@ -106,8 +106,14 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
         cache_val = self._cache.get(self.path)
         assert cache_val is None or isinstance(cache_val, dict)
         if cache_val and cache_val['hash'] == self._get_hash():
+            logger.debug(
+                "Using cached data for [%s] %s",
+                cache_val['hash'], self.path)
             self._parsed_files = cache_val['parsed_files']
         else:
+            logger.debug(
+                "Initializing cache for [%s] %s",
+                cache_val['hash'], self.path)
             self._dump_to_cache()
 
     def __init__(self, dirname: str | Path):
