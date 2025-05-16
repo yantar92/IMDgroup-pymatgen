@@ -287,7 +287,9 @@ def status(args):
             run_status = colored("converged", "green") if converged\
                 else colored("unconverged", "red")
 
-        logger.debug('%s: running = %s, converged = %s', wdir, runnig, converged)
+        logger.debug(
+            '%s: running = %s, converged = %s',
+            wdir, running, converged)
         if logs := (not nebp) and Vasplog.from_dir(wdir):
             logger.debug(
                 "Found VASP logs in %s: %s",
