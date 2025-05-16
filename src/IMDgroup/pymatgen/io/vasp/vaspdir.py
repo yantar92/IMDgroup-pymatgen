@@ -114,7 +114,7 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
             self._dump_to_cache()
             logger.debug(
                 "Initialized cache for [%s] %s",
-                cache_val['hash'], self.path)
+                self._cache.get(self.path)['hash'], self.path)
 
     def __init__(self, dirname: str | Path):
         """
