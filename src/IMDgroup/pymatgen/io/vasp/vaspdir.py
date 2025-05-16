@@ -147,9 +147,13 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
         else:
             rootpath = [Path(rootpath)]
         valid_paths = {}
+        paths_str = str(map(str, rootpath))
+        max_len = 40
+        if len(paths_str) > max_len:
+            paths_str = paths_str[:max_len] + "…"
         for parent, _, files in alive_it(
                 itertools.chain.from_iterable([p.walk() for p in rootpath]),
-                title=f"Scanning {rootpath} for VASP directories"):
+                title=f"Scanning {map(str, rootpath)} for VASP directories"):
             for vaspfile in ['OUTCAR', 'vasprun.xml', 'POSCAR', 'OSZICAR']:
                 if vaspfile in files and (
                         path_filter is None or
