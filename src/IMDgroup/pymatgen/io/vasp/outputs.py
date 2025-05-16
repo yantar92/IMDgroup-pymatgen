@@ -60,6 +60,10 @@ class Vasplog(MSONable):
       progress: Progress records in the log
     """
 
+    # Maximum log file size to be read
+    # Larger files are read partially (first MAX_SIZE bytes)
+    MAX_SIZE = 100 * 1000 * 1000
+
     # Adapted (and modified) from custodian/src/custodian/vasp/handlers.py
     VASP_WARNINGS = {
         "__exclude": [
@@ -214,8 +218,15 @@ class Vasplog(MSONable):
         self.line_counts = {}
         self.lines = []
         logger.debug("Reading VASP log file: %s", self.file)
+        file_size = self.file.stat().st_size
+        if file_size > self.MAX_SIZE:
+            warnings.warn(
+                f"{filename} is too large: {file_size} > {self.MAX_SIZE}."
+                " Reading partially",
+                ResourceWarning
+            )
         with zopen(self.file, mode="rt", encoding="UTF-8") as f:
-            full_lines = f.readlines()
+            full_lines = f.read(self.MAX_SIZE)
             for line in full_lines:
                 line = line.strip()
                 if line in self.line_counts:
