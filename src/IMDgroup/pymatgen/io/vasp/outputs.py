@@ -213,6 +213,7 @@ class Vasplog(MSONable):
         self._progress = None
         self.line_counts = {}
         self.lines = []
+        logger.debug("Reading VASP log file: %s", self.file)
         with zopen(self.file, mode="rt", encoding="UTF-8") as f:
             for line in f:
                 line = line.strip()
