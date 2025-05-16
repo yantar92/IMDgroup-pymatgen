@@ -82,6 +82,8 @@ def read_field(field: str, vaspdir: IMDGVaspDir):
         val = vaspdir.final_energy_reliable
         if isinstance(val, float):
             val = f"{vaspdir.final_energy_reliable:.5f}"
+    elif not vaspdir.converged:
+        val = "unconverged"
     elif field == 'e_per_atom':
         val = vaspdir.final_energy_reliable
         if not isinstance(val, str):
@@ -91,8 +93,6 @@ def read_field(field: str, vaspdir: IMDGVaspDir):
         val = vaspdir.total_magnetization
         if val is None:
             val = "None"
-        if not vaspdir.converged:
-            val = "unconverged"
     elif field == '%vol':
         vol0 = vaspdir.initial_structure.volume
         val = vaspdir.structure.volume/vol0 - 1
