@@ -34,10 +34,10 @@ def add_args(parser):
 
     parser.add_argument(
         "dir",
-        help="""Directory to read (recusrively); defaults to current dir""",
+        help="""Directory(ies) to read (recusrively); defaults to current dir""",
         type=str,
-        nargs="?",
-        default=".")
+        nargs="*",
+        default=["."])
 
     all_fields = [
         k for k in ALL_FIELDS

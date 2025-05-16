@@ -6,6 +6,7 @@ import hashlib
 import os
 import warnings
 import logging
+import itertools
 from pathlib import Path
 from monty.json import MSONable
 from diskcache import Cache
@@ -132,19 +133,22 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
 
     @staticmethod
     def read_vaspdirs(
-            rootpath: Path | str, path_filter=None
+            rootpath: Path | str | list[Path | str], path_filter=None
     ) -> dict[str, 'IMDGVaspDir']:
         """Read vasp directories recursively from ROOTPATH.
         Args:
-          rootdir (str | Path): Root directory.
+          rootdir (str | Path | list[str|Path]): Root directory.
           path_filter(function(PathLike): Function returning True for
           paths that should be read.
         Return a dict {'path': IMDGVaspDir object}
         """
-        rootpath = Path(rootpath)
+        if isinstance(rootpath, list):
+            rootpath = [Path(p) for p in rootpath]
+        else:
+            rootpath = [Path(rootpath)]
         valid_paths = {}
         for parent, _, files in alive_it(
-                rootpath.walk(),
+                itertools.chain(rootpath.walk()),
                 title=f"Scanning {rootpath} for VASP directories"):
             for vaspfile in ['OUTCAR', 'vasprun.xml', 'POSCAR', 'OSZICAR']:
                 if vaspfile in files and (
