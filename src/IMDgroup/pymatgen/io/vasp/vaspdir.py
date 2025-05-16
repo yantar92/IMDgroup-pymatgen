@@ -78,30 +78,55 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
         "WSWQ": pmgWSWQ,
     }
 
+    def reset(self):
+        """
+        Reset all loaded files and recheck the directory for files.
+        """
+        path = Path(self.path)
+        self.files = [str(f) for f in path.iterdir() if f.is_file()]
+        self._neb_vaspdirs = None
+        self._parsed_files = {}
+        self.__cache = None
+
+    def _dump_to_cache(self):
+        """Dump parsed data to cache.
+        """
+        self._cache.set(
+            self.path,
+            {
+                'hash': self._get_hash(),
+                'parsed_files': self._parsed_files
+            }
+        )
+
+    def refresh(self):
+        """Make sure that cache is up to date with disk.
+        """
+        cache_val = self._cache.get(self.path)
+        assert cache_val is None or isinstance(cache_val, dict)
+        if cache_val and cache_val['hash'] == self._get_hash():
+            self._parsed_files = cache_val['parsed_files']
+        else:
+            self._dump_to_cache()
+
     def __init__(self, dirname: str | Path):
         """
         Args:
             dirname: The directory containing the VASP calculation.
         """
         self.path = str(Path(dirname).resolve())
-        self._cache = None
-        self._neb_vaspdirs = None
+        self.__cache = None  # Pacify linter.  Same is done in reset().
         self.reset()
-        dir_hash = self._get_hash()
-        self._cache = Cache(self._get_cache_dir())
-        cache_val = self._cache.get(self.path)
-        assert cache_val is None or isinstance(cache_val, dict)
-        if cache_val and cache_val['hash'] == dir_hash:
-            self._parsed_files = cache_val['parsed_files']
-        else:
-            self._cache.set(
-                self.path,
-                {
-                    'hash': dir_hash,
-                    'parsed_files': self._parsed_files
-                }
-            )
-        self._cache.close()
+        self.refresh()
+
+    @property
+    def _cache(self) -> Cache:
+        """Disk cache associated with current Vasp directory.
+        """
+        if self.__cache is not None:
+            return self.__cache
+        self.__cache = Cache(self._get_cache_dir())
+        return self.__cache
 
     @staticmethod
     def read_vaspdirs(
@@ -127,35 +152,6 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
                     break
         return valid_paths
 
-    def refresh(self):
-        """Make sure that cache is up to date with disk.
-        """
-        assert isinstance(self._cache, Cache)
-        cache_val = self._cache.get(self.path)
-        assert isinstance(cache_val, dict)
-        if cache_val.get('hash') != self._get_hash():
-            self.reset()
-
-    def reset(self):
-        """
-        Reset all loaded files and recheck the directory for files.
-        """
-        path = Path(self.path)
-        self.files = [str(f) for f in path.iterdir() if f.is_file()]
-        self._parsed_files = {}
-        if self._cache is not None:
-            self._update_cache()
-
-    def _update_cache(self):
-        assert isinstance(self._cache, Cache)
-        self._cache.set(
-            self.path,
-            {
-                'hash': self._get_hash(),
-                'parsed_files': self._parsed_files
-            }
-        )
-
     def __len__(self):
         return len(self.files)
 
@@ -177,7 +173,7 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
                     # Parsing failed
                     logger.debug("Failed to read %s", (path / item))
                     self._parsed_files[item] = None
-                self._update_cache()
+                self._dump_to_cache()
                 return self._parsed_files[item]
         if (path / item).exists():
             raise RuntimeError(
