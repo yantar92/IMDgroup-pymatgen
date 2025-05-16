@@ -116,8 +116,8 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
         """
         self.path = str(Path(dirname).resolve())
         self.__cache = None  # Pacify linter.  Same is done in reset().
+        self._parsed_files = None  # Pacify linter.  Same is done in reset().
         self.reset()
-        self.refresh()
 
     @property
     def _cache(self) -> Cache:
@@ -126,6 +126,8 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
         if self.__cache is not None:
             return self.__cache
         self.__cache = Cache(self._get_cache_dir())
+        # note: will not recurse infinitely because __cache is not None
+        self.refresh()
         return self.__cache
 
     @staticmethod
