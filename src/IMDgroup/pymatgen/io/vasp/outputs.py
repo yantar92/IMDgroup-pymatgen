@@ -226,7 +226,7 @@ class Vasplog(MSONable):
                 ResourceWarning
             )
         with zopen(self.file, mode="rt", encoding="UTF-8") as f:
-            full_lines = f.read(self.MAX_SIZE)
+            full_lines = f.readlines(self.MAX_SIZE)
             for line in full_lines:
                 line = line.strip()
                 if line in self.line_counts:
