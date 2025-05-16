@@ -5,6 +5,7 @@ import logging
 from pathlib import Path
 from tabulate import tabulate
 import pandas as pd
+from alive_progress import alive_it
 from IMDgroup.pymatgen.io.vasp.inputs import Incar
 from IMDgroup.pymatgen.core.structure import structure_distance
 from IMDgroup.pymatgen.io.vasp.vaspdir import IMDGVaspDir
@@ -170,7 +171,8 @@ def analyze(args):
                 for incar in group:
                     file_groups[incar['SYSTEM'].upper()] = idx
 
-    for _, vaspdir in vaspdirs.items():
+    for _, vaspdir in alive_it(
+            vaspdirs.items(), title="Reading VASP outputs"):
         for field in all_data:
             if field == 'incar_group' and args.group:
                 val = file_groups[vaspdir.path.upper()]\
