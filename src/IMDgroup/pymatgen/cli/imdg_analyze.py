@@ -74,6 +74,17 @@ a, b, c, alpha, beta, gamma: Lattice parameters
 def read_field(field: str, vaspdir: IMDGVaspDir):
     """Read FIELD from VASPDIR.  Return the value read.
     """
+    try:
+        return _read_field_1(field, vaspdir)
+    except FileNotFoundError:
+        return "N/A"
+
+
+def _read_field_1(field: str, vaspdir: IMDGVaspDir):
+    """Read FIELD from VASPDIR.  Return the value read.
+    May throw FileNotFound error if field cannot be derived
+    from files in VASPDIR.
+    """
     val = None
 
     if field == 'dir':
@@ -83,8 +94,6 @@ def read_field(field: str, vaspdir: IMDGVaspDir):
         val = vaspdir.final_energy_reliable
         if isinstance(val, float):
             val = f"{vaspdir.final_energy_reliable:.5f}"
-    elif not vaspdir.converged:
-        val = "unconverged"
     elif field == 'e_per_atom':
         val = vaspdir.final_energy_reliable
         if not isinstance(val, str):
