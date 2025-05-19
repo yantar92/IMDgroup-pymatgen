@@ -9,7 +9,7 @@ import logging
 import itertools
 from pathlib import Path
 from monty.json import MSONable
-from diskcache import Cache
+from diskcache import FanoutCache
 from alive_progress import alive_it
 from pymatgen.core import Structure
 from pymatgen.io.vasp.inputs import Poscar as pmgPoscar
@@ -127,12 +127,15 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
         self.reset()
 
     @property
-    def _cache(self) -> Cache:
+    def _cache(self) -> FanoutCache:
         """Disk cache associated with current Vasp directory.
         """
         if self.__cache is not None:
             return self.__cache
-        self.__cache = Cache(self._get_cache_dir())
+        self.__cache = FanoutCache(
+            self._get_cache_dir(),
+            shards=1, timeout=5,
+            size_limit=int(8e9))
         # note: will not recurse infinitely because __cache is not None
         self.refresh()
         return self.__cache
