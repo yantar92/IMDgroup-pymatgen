@@ -157,12 +157,16 @@ def structure_distance(
         structure1: Structure, structure2: Structure,
         tol: float = 0.1,
         match_first=True,
-        max_dist=None) -> float:
+        max_dist=None,
+        norm=False) -> float:
     """Return tuple distance between two similar structures.
     The structures must have the same number of sites and species.
     The returned value is a square root of sum of squared distances
     between the nearest lattice sites.  Distances below TOL do not
     contribute to the sum.
+
+    When NORM is True (default: False), norm the distance by the number
+    of displacement above threshold.
 
     When MATCH_FIRST is True (default), call get_matched_structure
     first.
@@ -188,6 +192,7 @@ def structure_distance(
         mask=~np.eye(len(str1), dtype=bool),
         return_d2=True)
 
+    displaced_sites = 0
     tot_distance_square = 0
     max_dist_square = None
     if max_dist is not None:
@@ -195,11 +200,14 @@ def structure_distance(
     for idx, _ in enumerate(str1):
         distance_square = dist2_matrix[idx][idx]
         if np.sqrt(distance_square) > tol:
+            displaced_sites += 1
             tot_distance_square += distance_square
             if max_dist_square is not None and\
                tot_distance_square > max_dist_square:
                 return np.sqrt(tot_distance_square)
 
+    if norm and displaced_sites > 0:
+        return np.sqrt(tot_distance_square)/displaced_sites
     return np.sqrt(tot_distance_square)
 
 

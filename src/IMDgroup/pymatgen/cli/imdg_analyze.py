@@ -48,7 +48,7 @@ def add_args(parser):
 energy: Final energy
 e_per_atom: Final energy per atom
 %%vol: Volume change before/after the run
-displ: Total atom displacement
+displ: Total atom displacement / number of displaced atoms
 a, b, c, alpha, beta, gamma: Lattice parameters
 %%a, %%b, %%c, %%alpa, %%beta, %%gamma: Change before/after the run
 """,
@@ -103,13 +103,15 @@ def read_field(field: str, vaspdir: IMDGVaspDir):
             displ = structure_distance(
                 vaspdir.initial_structure,
                 vaspdir.structure,
-                match_first=True)
+                match_first=True,
+                norm=True)
         except ValueError:
             # structures are too different
             displ = structure_distance(
                 vaspdir.initial_structure,
                 vaspdir.structure,
-                match_first=False)
+                match_first=False,
+                norm=True)
         val = f"{displ:.2f}"
     elif field == 'a':
         val = vaspdir.structure.lattice.a
