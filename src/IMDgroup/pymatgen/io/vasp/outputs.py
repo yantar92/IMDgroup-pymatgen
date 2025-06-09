@@ -120,6 +120,9 @@ class Vasplog(MSONable):
         #     "^.*maximal distance =0.[1-9].*$",
         #     "^.*maximal distance =0.0[6-9].*$",
         # ],
+        "fexcf": [
+            "ERROR FEXCF: supplied exchange-correlation table"
+        ],
         "electron_convergance": [
             "The electronic self-consistency was not achieved in the given"
         ],
