@@ -103,7 +103,7 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
                 }
             )
             return True
-        except (DatabaseError, ValueError):
+        except (DatabaseError, ValueError, KeyError):
             # If can't cache, don't cache
             # Even if the cache fails, we can still give useful data
             return False
