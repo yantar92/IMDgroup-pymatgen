@@ -101,7 +101,7 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
                     'parsed_files': self._parsed_files
                 }
             )
-        except DatabaseError, ValueError:
+        except (DatabaseError, ValueError):
             # If can't cache, don't cache
             # Even if the cache fails, we can still give useful data
             pass
