@@ -90,8 +90,9 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
         self._parsed_files = {}
         self.__cache = None
 
-    def _dump_to_cache(self):
+    def _dump_to_cache(self) -> bool:
         """Dump parsed data to cache.
+        Return True when dump succeeds.  Otherwise, return False.
         """
         try:
             self._cache.set(
@@ -101,10 +102,11 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
                     'parsed_files': self._parsed_files
                 }
             )
+            return True
         except (DatabaseError, ValueError):
             # If can't cache, don't cache
             # Even if the cache fails, we can still give useful data
-            pass
+            return False
 
     def refresh(self):
         """Make sure that cache is up to date with disk.
@@ -117,10 +119,15 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
                 cache_val['hash'], self.path)
             self._parsed_files = cache_val['parsed_files']
         else:
-            self._dump_to_cache()
-            logger.debug(
-                "Initialized cache for [%s] %s",
-                self._cache.get(self.path)['hash'], self.path)
+            if self._dump_to_cache():
+                logger.debug(
+                    "Initialized cache for [%s] %s",
+                    self._cache.get(self.path)['hash'], self.path)
+            else:
+                logger.debug(
+                    "Failed to initialize cache for %s",
+                    self.path
+                )
 
     def __init__(self, dirname: str | Path):
         """
