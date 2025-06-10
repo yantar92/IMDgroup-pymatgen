@@ -10,6 +10,7 @@ import itertools
 from pathlib import Path
 from monty.json import MSONable
 from diskcache import FanoutCache
+from sqlite3 import DatabaseError
 from alive_progress import alive_it
 from pymatgen.core import Structure
 from pymatgen.io.vasp.inputs import Poscar as pmgPoscar
@@ -92,13 +93,18 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
     def _dump_to_cache(self):
         """Dump parsed data to cache.
         """
-        self._cache.set(
-            self.path,
-            {
-                'hash': self._get_hash(),
-                'parsed_files': self._parsed_files
-            }
-        )
+        try:
+            self._cache.set(
+                self.path,
+                {
+                    'hash': self._get_hash(),
+                    'parsed_files': self._parsed_files
+                }
+            )
+        except DatabaseError:
+            # If can't cache, don't cache
+            # Even if the cache fails, we can still give useful data
+            pass
 
     def refresh(self):
         """Make sure that cache is up to date with disk.
