@@ -401,4 +401,8 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
             self._prev_vaspdirs = sorted(
                 [IMDGVaspDir(d) for d in path.glob('gorun_*/') if d.is_dir()],
                 key=lambda d: d.ctime())
+            if len(self._prev_vaspdirs) > 0:
+                warnings.warn(
+                    f"{path} contains previous Vasp runs"
+                )
         return self._prev_vaspdirs
