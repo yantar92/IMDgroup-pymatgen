@@ -87,6 +87,7 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
         path = Path(self.path)
         self.files = [str(f) for f in path.iterdir() if f.is_file()]
         self._neb_vaspdirs = None
+        self._prev_vaspdirs = None
         self._parsed_files = {}
         self.__cache = None
 
@@ -137,6 +138,8 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
         self.path = str(Path(dirname).resolve())
         self.__cache = None  # Pacify linter.  Same is done in reset().
         self._parsed_files = None  # Pacify linter.  Same is done in reset().
+        self._prev_vaspdirs = None  # Pacify linter.  Same is done in reset().
+        self._neb_vaspdirs = None  # Pacify linter.  Same is done in reset().
         self.reset()
 
     @property
@@ -273,10 +276,16 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
     @property
     def initial_structure(self) -> Structure:
         """Get initial structure.
+        If prev_vaspdirs exist, use initial structure from
+        the oldest of those subdirectories.
         """
+        if prevs := self.prev_dirs():
+            return prevs[0].initial_structure
         if poscar := self['POSCAR']:
             return poscar.structure
-        raise FileNotFoundError("No POSCAR available")
+        if run := self['vasprun.xml']:
+            return run.initial_structure
+        raise FileNotFoundError("No vasprun.xml/POSCAR available")
 
     @property
     def structure(self) -> Structure:
@@ -369,3 +378,27 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
             return self._neb_vaspdirs if include_ends\
                 else self._neb_vaspdirs[1:-1]
         return None
+
+    def ctime(self) -> float:
+        """Return creation time of VASP run.
+        The creation time is the creation time of the directory itself
+        or, if earlier, the earliest creation time of prev_dirs.
+        """
+        path = Path(self.path)
+        ctimes = [path.stat().st_ctime]
+        prev_dirs = self.prev_dirs()
+        if prev_dirs:
+            for prev in prev_dirs:
+                ctimes.append(prev.ctime())
+        return min(ctimes)
+
+    def prev_dirs(self) -> list['IMDGVaspDir'] | None:
+        """Return a list of previous VASP runs, ordered by creation time.
+        Previous VASP runs are assumed to stay in gorun_* folders.
+        """
+        if self._prev_vaspdirs is None:
+            path = Path(self.path)
+            self._prev_vaspdirs = sorted(
+                [IMDGVaspDir(d) for d in path.glob('gorun_*/') if d.is_dir()],
+                key=lambda d: d.ctime())
+        return self._prev_vaspdirs
