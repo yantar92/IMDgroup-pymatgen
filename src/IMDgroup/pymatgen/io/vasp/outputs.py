@@ -62,7 +62,7 @@ class Vasplog(MSONable):
 
     # Maximum log file size to be read
     # Larger files are read partially (first MAX_SIZE bytes)
-    MAX_SIZE = 100 * 1000 * 1000
+    MAX_SIZE = 10 * 1000 * 1000
 
     # Adapted (and modified) from custodian/src/custodian/vasp/handlers.py
     VASP_WARNINGS = {
