@@ -272,6 +272,9 @@ def status(args):
     all_warn_names_present = set()
     for wdir in alive_it(paths, enrich_print=False, title="Reading VASP outputs"):
         vaspdir = vaspdirs.get(wdir)
+        # As we read VASP directories, they will take up more and more memory
+        # Avoid overflowing memory when reading too many dirs.
+        vaspdirs[wdir] = None
         nebp = vaspdir.nebp
 
         run_status = colored("unknown", "red")
