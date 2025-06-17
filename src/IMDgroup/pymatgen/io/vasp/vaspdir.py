@@ -403,6 +403,6 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
                 key=lambda d: d.ctime())
             if len(self._prev_vaspdirs) > 0:
                 warnings.warn(
-                    f"{path} contains previous Vasp runs"
+                    f"{self.path} contains previous Vasp runs"
                 )
         return self._prev_vaspdirs
