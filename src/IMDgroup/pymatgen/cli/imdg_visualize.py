@@ -278,7 +278,7 @@ def _atat_plot_calculated_energies(
 
     ax.set_title('Calculated Energies')
     ax.set_xlabel('Concentration')
-    ax.set_ylabel('Energy per reference cell, eV')
+    ax.set_ylabel('Cluster energy, eV')
     ax.set_xlim(0, 1)
 
     # Create colormap with blue for 0..0.1 and gradient for the rest
