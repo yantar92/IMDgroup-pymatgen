@@ -192,7 +192,7 @@ def _atat_plot_clusters(
         clusters: pd.DataFrame) -> None:
     """Plot ECI fit coefficients for all the clusters."""
     ax.set_xlabel("Diameter, Å")
-    ax.set_ylabel("Energy per reference cell, eV")
+    ax.set_ylabel("Cluster energy, eV")
     ax.set_title("ECI vs cluster diameter")
     ax.axhline(0, color='black', linewidth=0.5)
 
@@ -236,7 +236,7 @@ def _atat_plot_fitted_energies(
     ax.plot(
         newgs['concentration'], newgs['predicted_energy'],
         's', markersize=8, fillstyle='none', label='predicted gs', color='red')
-    ax.legend(loc='lower left', ncol=1)
+    ax.legend()
 
 
 def _atat_plot_calc_vs_fit_energies(
@@ -250,7 +250,7 @@ def _atat_plot_calc_vs_fit_energies(
     ax.set_xlim(0, 1)
     ax.plot(fit['concentration'], fit['energy'], 'P', label='calculated')
     ax.plot(fit['concentration'], fit['fitted energy'], 'o', label='fitted')
-    ax.legend(loc='lower left')
+    ax.legend()
 
 
 def _atat_plot_residuals(
@@ -309,7 +309,7 @@ def _atat_plot_calculated_energies(
     ax.plot(
         erred['concentration'], erred['energy'],
         'x', markersize=5, label='error', color='red')
-    ax.legend(loc='lower left')
+    ax.legend()
 
 
 def _atat_plot_sublattice_deviation(
