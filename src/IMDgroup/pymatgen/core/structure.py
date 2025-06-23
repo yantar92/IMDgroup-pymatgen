@@ -165,6 +165,10 @@ def structure_distance(
     between the nearest lattice sites.  Distances below TOL do not
     contribute to the sum.
 
+    When structures have similar, but not the same lattices, the
+    comparison is done by mapping the fractional site positions in
+    STRUCTURE2 onto lattice vectors of STRUCTURE1.
+
     When NORM is True (default: False), norm the distance by the number
     of displacement above threshold.
 
