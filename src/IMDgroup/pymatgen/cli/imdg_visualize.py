@@ -369,6 +369,12 @@ def _atat_1(wdir: str) -> None:
         fit.loc[fit['index'] == idx, 'sublattice deviation'] = displ
         gs.loc[gs['index'] == idx, 'sublattice deviation'] = displ
 
+    logger.info("Saving sublattice deviation to %s", 'fit2.out')
+    fit.to_csv("fit2.out", sep=' ')
+    print(colored(f"{wdir.replace("./", "")}: ", attrs=['bold'])
+          + colored("ATAT ", "magenta")
+          + "Saved sublattice deviations to fit2.out")
+
     global_title = str(Path(wdir).absolute())
 
     fig, axs = plt.subplots(2, 3, figsize=(19.2, 9.6))
