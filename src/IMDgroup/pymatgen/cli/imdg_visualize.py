@@ -253,6 +253,23 @@ def _atat_plot_calc_vs_fit_energies(
     ax.legend()
 
 
+def __blue_orrd_cmap(data_min, data_max, color='blue', split_val=0.1):
+    """Return colormap with COLOR for 0..SPLIT_VAL and gradient for the rest.
+    Return None when data_min == data_max.
+    """
+    if data_max == data_min:
+        return None
+    N = 256  # resolution
+    # Set the relative position of split_val
+    frac = (split_val - data_min) / (data_max - data_min)
+    n_fixed_color = int(frac * N)
+    n_orrd = N - n_fixed_color
+    greens = np.tile([to_rgba(color)], (n_fixed_color, 1))
+    orrd = plt.get_cmap("OrRd", n_orrd)
+    orrd_colors = orrd(np.linspace(0, 1, n_orrd))
+    return ListedColormap(np.vstack([greens, orrd_colors]))
+
+
 def _atat_plot_residuals(
         ax: plt.Axes,
         cve: str,
@@ -262,7 +279,17 @@ def _atat_plot_residuals(
     ax.set_title(f'Residuals of the fit ({cve})')
     ax.set_xlabel('Concentration')
     ax.set_ylabel('Energy per reference cell, eV')
-    ax.plot(fit['concentration'], fit['energy delta'], 'o', label='data')
+    displ = np.array(fit['sublattice deviation'], dtype=float)
+    cmap = __blue_orrd_cmap(
+        displ.min(), displ.max(),
+        color=ax._get_lines.get_next_color())
+    sc = ax.scatter(
+        fit['concentration'], fit['energy delta'],
+        c=displ, cmap=cmap, norm=Normalize(displ.min(), displ.max()),
+        marker='o', label='data')
+    if cmap is not None:
+        plt.colorbar(
+            sc, ax=ax, label='Sublattice deviation per displaced atom, Å')
 
 
 def _atat_plot_calculated_energies(
@@ -281,27 +308,17 @@ def _atat_plot_calculated_energies(
     ax.set_ylabel('Energy per reference cell, eV')
     ax.set_xlim(0, 1)
 
-    # Create colormap with blue for 0..0.1 and gradient for the rest
-    def blue_orrd_cmap(data_min, data_max, split_val=0.1):
-        N = 256  # resolution
-        # Set the relative position of split_val
-        frac = (split_val - data_min) / (data_max - data_min)
-        n_blue = int(frac * N)
-        n_orrd = N - n_blue
-        greens = np.tile(
-            [to_rgba(ax._get_lines.get_next_color())],
-            (n_blue, 1))
-        orrd = plt.get_cmap("OrRd", n_orrd)
-        orrd_colors = orrd(np.linspace(0, 1, n_orrd))
-        return ListedColormap(np.vstack([greens, orrd_colors]))
-
     displ = np.array(fit['sublattice deviation'], dtype=float)
-    cmap = blue_orrd_cmap(displ.min(), displ.max())
+    cmap = __blue_orrd_cmap(
+        displ.min(), displ.max(),
+        color=ax._get_lines.get_next_color())
     sc = ax.scatter(
         fit['concentration'], fit['energy'],
         c=displ, cmap=cmap, norm=Normalize(displ.min(), displ.max()),
         marker='P', label='known str')
-    plt.colorbar(sc, ax=ax, label='Sublattice deviation per displaced atom, Å')
+    if cmap is not None:
+        plt.colorbar(
+            sc, ax=ax, label='Sublattice deviation per displaced atom, Å')
     ax.plot(
         gs['concentration'], gs['energy'],
         'o-', fillstyle='none', color='black',
