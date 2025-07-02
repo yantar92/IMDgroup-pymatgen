@@ -102,3 +102,11 @@ From Python
 We welcome contributions in all forms. If you want to contribute,
 please fork this repository, make changes and send us a pull request!
 
+* Acknoledgements
+
+The authors acknowledge financial support from the National Centre for
+Research and Development (NCBR) under project
+WPC3/2022/50/KEYTECH/2024 and access to computational resources
+provided by PLGrid HPC centers (ACK Cyfronet AGH, WCSS) under projects
+number PLG/2024/017498, number PLL/2024/07/017633, and number
+PLG/2024/017498.
