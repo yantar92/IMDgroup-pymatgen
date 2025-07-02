@@ -21,16 +21,40 @@ research that is performed in [Inverse Materials Design group](https://www.oimal
 
 # Features
 
--   Command line tools to generate, monitor, and post-process VASP inputs
--   Finding all possible unique insertion sites of an atom or molecule
-    into a given structure
--   Finding all unique diffusion paths for an interstitial atom or
-    molecule
--   VASP input set optimized for cellulose relaxation.
-    See Yadav, Malyi 2024 Cellulose (doi: [10.1007/s10570-024-05754-7](https://doi.org/10.1007/s10570-024-05754-7))
+-   Command line tools to generate, alter, compare, and visualize VASP inputs and outpus
+    -   Generate VASP input from Materials Project structure IDs
+    -   Generate VASP inputs for typical VASP calculations like relaxation, SCF, etc
+    -   Alter an existing VASP input/output, modifying the resulting structure, kpoints,
+        functionals, incar parameters, etc
+    -   Compare and summarize VASP outputs
+    -   Generate inputs for ATAT runs from an existing VASP directory
+    -   Visualize NEB paths, ATAT convex hulls
+-   Command line tools to monitor completed and running VASP jobs
+    -   Automatically detect and highlight VASP warning occured during VASP runs
+    -   Display a summary of multiple running VASP runs, highlighting convergence and
+        other issues that may require human intervation
+-   Extensions to pymatgen's utility functions for structures
+-   Extensions to pymatgen's structure transormations
+    -   Finding all possible unique insertion sites of an atom or molecule
+        into a given structure
+    -   Generating a structure with all the unique insertion sites "filled in"
+-   Automatic analysis of unique diffusion paths for an interstitial
+    atom or molecule
+-   Extensions to pymatgen's VASP support
+    -   Support for working with VASP directories, including
+        NEB calculations nad directories containing multiple successive
+        VASP runs.  With caching support optimized for analysis of a large
+        number of VASP runs.
+    -   Dedicated support for working with VASP log files
+    -   Additional warnings for potential problems in VASP inputsets
+    -   New `IMDDerivedInputSet` class to create an inputset from an
+        existing VASP directory (including unfinished and finished VASP
+        runs and NEB calculatiosn)
+    -   New `IMDNEBVaspInputSet` to produce VASP NEB calcualtion inputs and
+        auto-generate the NEB paths
 
 
-# Usage
+# TODO Usage
 
 
 ## Loading VASP input sets from group publications
