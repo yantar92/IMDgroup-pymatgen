@@ -127,10 +127,13 @@ please fork this repository, make changes and send us a pull request!
 
 # Acknoledgements
 
-The authors acknowledge financial support from the National Centre for
-Research and Development (NCBR) under project
-WPC3/2022/50/KEYTECH/2024 and access to computational resources
-provided by PLGrid HPC centers (ACK Cyfronet AGH, WCSS) under projects
-number PLG/2024/017498, number PLL/2024/07/017633, and number
-PLG/2024/017498.
+We acknowledge financial support from the National Centre for Research
+and Development (NCBR) under project
+WPC3/2022/50/KEYTECH/2024. Computational resources were provided by
+the Polish high-performance computing infrastructure PLGrid, including
+access to the LUMI supercomputer—owned by the EuroHPC Joint
+Undertaking and hosted by CSC in Finland together with the LUMI
+Consortium—through allocation PLL/2024/07/017633, as well as
+additional resources at the PLGrid HPC centres ACK Cyfronet AGH and
+WCSS under allocation PLG/2024/017498.
 
