@@ -52,7 +52,7 @@ def merge_structures(
 
     merged = structs[0].copy()
 
-    sites_before = sum(len(s) for s in structs)
+    # sites_before = sum(len(s) for s in structs)
     for struct in structs[1:]:
         # Need to use copy to avoid merge_sites modifying site
         # properties by side effect.
