@@ -31,15 +31,16 @@ import logging
 import os
 from termcolor import colored
 from pathlib import Path
-from pymatgen.core import Structure
 from alive_progress import alive_it
 import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap, Normalize, to_rgba
 import numpy as np
+from IMDgroup.pymatgen.core.structure import IMDStructure as Structure
 from IMDgroup.pymatgen.core.structure import merge_structures, structure_distance
 from IMDgroup.pymatgen.io.vasp.vaspdir import IMDGVaspDir
 from IMDgroup.pymatgen.io.vasp.sets import write_selective_dynamics_summary_maybe
+import IMDgroup.pymatgen.io.atat as IMDatat
 
 logger = logging.getLogger(__name__)
 
@@ -308,11 +309,11 @@ def _atat_plot_residuals(
     ax.set_ylabel('Energy per reference cell, eV')
     displ = np.array(fit['sublattice deviation'], dtype=float)
     cmap = __blue_orrd_cmap(
-        displ.min(), displ.max(),
+        np.nanmin(displ), np.nanmax(displ),
         color=ax._get_lines.get_next_color())
     sc = ax.scatter(
         fit['concentration'], fit['energy delta'],
-        c=displ, cmap=cmap, norm=Normalize(displ.min(), displ.max()),
+        c=displ, cmap=cmap, norm=Normalize(np.nanmin(displ), np.nanmax(displ)),
         marker='o', label='data')
     if cmap is not None:
         plt.colorbar(
@@ -337,11 +338,11 @@ def _atat_plot_calculated_energies(
 
     displ = np.array(fit['sublattice deviation'], dtype=float)
     cmap = __blue_orrd_cmap(
-        displ.min(), displ.max(),
+        np.nanmin(displ), np.nanmax(displ),
         color=ax._get_lines.get_next_color())
     sc = ax.scatter(
         fit['concentration'], fit['energy'],
-        c=displ, cmap=cmap, norm=Normalize(displ.min(), displ.max()),
+        c=displ, cmap=cmap, norm=Normalize(np.nanmin(displ), np.nanmax(displ)),
         marker='P', label='known str')
     if cmap is not None:
         plt.colorbar(
@@ -392,7 +393,18 @@ def _atat_1(wdir: str) -> None:
                         title="Getting sublattice deviations"):
         vaspdir = IMDGVaspDir(f"{idx}/ATAT")
         tolerance = 0.2  # tested for graphite-Na/AA/0%
-        if vaspdir.converged:
+        sublattice = Structure.from_file(f"{idx}/str.out")
+        if not vaspdir.converged:
+            displ = np.nan
+        elif not IMDatat.check_volume_distortion(
+                vaspdir.initial_structure, vaspdir.structure):
+            displ = np.nan
+            print(colored(f"{vaspdir.path}: large volume distortion (this must not happen)", "red"))
+        elif not IMDatat.check_sublattice_flip(
+                vaspdir.initial_structure, vaspdir.structure, sublattice):
+            displ = np.nan
+            print(colored(f"{vaspdir.path}: sublattice flip (this must not happen)", "red"))
+        else:
             try:
                 displ = structure_distance(
                     vaspdir.initial_structure,
@@ -408,8 +420,6 @@ def _atat_1(wdir: str) -> None:
                     tol=tolerance,
                     match_first=False,
                     norm=True)
-        else:
-            displ = np.nan
         fit.loc[fit['index'] == idx, 'sublattice deviation'] = displ
         gs.loc[gs['index'] == idx, 'sublattice deviation'] = displ
 
