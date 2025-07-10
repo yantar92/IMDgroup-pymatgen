@@ -93,6 +93,7 @@ class IMDStructure(Structure):
         return super().from_file(
             filename, primitive, sort, merge_tol, **kwargs)
 
+
 def merge_structures(
         structs: list[Structure],
         tol: float = 0.01,
@@ -126,7 +127,8 @@ def merge_structures(
 def get_matched_structure(
         reference_struct: Structure,
         target_struct: Structure,
-        pbc: bool = True
+        pbc: bool = True,
+        match_species: bool = True
         ):
     """Find the best site match between REFERENCE_STRUCT and TARGET_STRUCT.
     Return modified TARGET_STRUCT with sites rearranged in such a way that
@@ -137,6 +139,8 @@ def get_matched_structure(
     must contain sites of REFERENCE_STRUCT as a subset.
 
     When PBC is False, do not use boundary conditions to compute distances.
+
+    When MATCH_SPECIES is False, do not require species to match.
     """
     # Check length of structures
     if len(target_struct) < len(reference_struct):
@@ -169,8 +173,9 @@ def get_matched_structure(
         found_mapping = False
         for matched_idx in ind:
             if not matched[matched_idx] and\
-               reference_struct[idx].species ==\
-               target_struct[matched_idx].species:
+               ((not match_species) or
+               reference_struct[idx].species ==
+               target_struct[matched_idx].species):
                 matched[matched_idx] = True
                 result_sites.append(target_struct[matched_idx])
                 found_mapping = True
