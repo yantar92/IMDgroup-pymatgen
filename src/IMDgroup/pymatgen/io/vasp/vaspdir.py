@@ -85,6 +85,9 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
     - neb_dirs (list of NEB dirs, if any)
     """
 
+    # Shared cache object across instances
+    __CACHE = None
+
     FILE_MAPPINGS: typing.ClassVar = {
         "INCAR": Incar,
         "POSCAR": pmgPoscar,
@@ -157,12 +160,13 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
                     self.path
                 )
 
-    def __init__(self, dirname: str | Path):
+    def __init__(self, dirname: str | Path) -> None:
         """
         Args:
             dirname: The directory containing the VASP calculation.
         """
-        self.path = str(Path(dirname).resolve())
+        self.path = str(Path(dirname).absolute())
+        # This was slower: self.path = str(Path(dirname).resolve())
         self.__cache = None  # Pacify linter.  Same is done in reset().
         self._parsed_files = None  # Pacify linter.  Same is done in reset().
         self._prev_vaspdirs = None  # Pacify linter.  Same is done in reset().
@@ -175,9 +179,13 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
         """
         if self.__cache is not None:
             return self.__cache
-        self.__cache = FanoutCache(
-            self._get_cache_dir(),
-            timeout=5, size_limit=int(8e9))
+        if IMDGVaspDir.__CACHE is not None:
+            self.__cache = IMDGVaspDir.__CACHE
+        else:
+            self.__cache = FanoutCache(
+                self._get_cache_dir(),
+                timeout=5, size_limit=int(8e9))
+            IMDGVaspDir.__CACHE = self.__cache
         # note: will not recurse infinitely because __cache is not None
         self.refresh()
         return self.__cache
@@ -220,6 +228,8 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
         return iter(self.files)
 
     def __getitem__(self, item):
+        if not self.__cache:
+            self.refresh()
         if item in self._parsed_files:
             return self._parsed_files[item]
         path = Path(self.path)
