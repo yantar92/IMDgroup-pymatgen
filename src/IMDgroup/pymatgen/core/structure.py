@@ -508,3 +508,14 @@ def structure_perturb(
         for orig_site, new_site in zip(orig_structure, structure):
             new_site.frac_coords = orig_site.frac_coords
     return structure
+
+
+def structure_strain(structure1: Structure, structure2: Structure):
+    """Compute strain required to deform STRUCTURE1 lattice into STRUCTURE2.
+    Return strain, as a matrix.
+    """
+    lat_before = structure1.lattice.matrix
+    lat_after = structure2.lattice.matrix
+    transform = np.dot(np.linalg.inv(lat_before), lat_after) - np.eye(3)
+    strain = (transform + transform.transpose())/2.0
+    return strain
