@@ -29,14 +29,69 @@
 """
 import logging
 import warnings
+import os
+from pathlib import Path
 from multiprocessing import Pool
 import numpy as np
 from pymatgen.core import Structure
 from pymatgen.analysis.structure_matcher import StructureMatcher
 from pymatgen.util.coord import pbc_shortest_vectors
+from pymatgen.util.typing import PathLike
+from typing_extensions import Self
 
 logger = logging.getLogger(__name__)
 
+
+# FIXME: Contribute upstream
+# FIXME: cannot read lat.in because it will have >1 occupancies
+# when calling Mcsqs.structure_from_str.  Need to modify Mcsqs
+class IMDStructure(Structure):
+    """IMDGroup variant of Structure.
+    New features:
+    1. Read structure from str.out ATAT's file.
+    """
+    @classmethod
+    def from_file(
+            cls,
+            filename: PathLike,
+            primitive: bool = False,
+            sort: bool = False,
+            merge_tol: float = 0.0,
+            **kwargs,
+    ) -> Structure | Self:
+        """Read a structure from a file.
+        Support everything from pymatgen.Structure and also
+        ATAT's structures.  ATAT's structures will contain
+        vacancies (Vac) as dummy X species.
+
+        Args:
+            filename (PathLike): The file to read.
+            primitive (bool): Whether to convert to a primitive cell. Defaults to False.
+            sort (bool): Whether to sort sites. Default to False.
+            merge_tol (float): If this is some positive number, sites that are within merge_tol from each other will be
+                merged. Usually 0.01 should be enough to deal with common numerical issues.
+            kwargs: Passthrough to relevant reader. E.g. if the file has CIF format, the kwargs will be passed
+                through to CifParser.
+
+        Returns:
+            Structure.
+        """
+        filename = str(filename)
+        if os.path.basename(filename) in ("str.out"):  # , "lat.in"
+            from pymatgen.io.atat import Mcsqs
+            # We manually replace Vac with X instances that can be
+            # read by pymatgen.
+            atat_structure_text = Path(filename).read_text(encoding='utf-8')
+            atat_structure_text = atat_structure_text.replace("Vac", "X")
+            struct = Mcsqs.structure_from_str(atat_structure_text)
+            if sort:
+                struct = struct.get_sorted_structure()
+            if merge_tol:
+                struct.merge_sites(merge_tol)
+            struct.__class__ = cls
+            return struct
+        return super().from_file(
+            filename, primitive, sort, merge_tol, **kwargs)
 
 def merge_structures(
         structs: list[Structure],
