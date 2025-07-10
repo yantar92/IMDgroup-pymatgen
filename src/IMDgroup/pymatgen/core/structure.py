@@ -202,7 +202,8 @@ def get_matched_structure(
 def structure_diff(
         structure1: Structure, structure2: Structure,
         tol: float = 0.1,
-        match_first: bool = True
+        match_first: bool = True,
+        match_species: bool = True
         ):
     """Return translation vectors between two similar structures.
     The structures must have the same number of sites and species.
@@ -210,7 +211,8 @@ def structure_diff(
     result.
 
     When MATCH_FIRST is True (default), call get_matched_structure
-    first.
+    first.  When MATCH_FIRST is True and MATCH_SPECIES is false, match
+    structures ignoring species.
     """
     str1 = structure1
     # interpolate knows how to match similar sites, spitting out
@@ -218,7 +220,8 @@ def structure_diff(
     # This also performs the necessary assertions about structure
     # similarity
     if match_first:
-        str2 = get_matched_structure(structure1, structure2)
+        str2 = get_matched_structure(
+            structure1, structure2, match_species=match_species)
     else:
         str2 = structure2
 
@@ -245,7 +248,8 @@ def structure_distance(
         tol: float = 0.1,
         match_first=True,
         max_dist=None,
-        norm=False) -> float:
+        norm=False,
+        match_species: bool = True) -> float:
     """Return tuple distance between two similar structures.
     The structures must have the same number of sites and species.
     The returned value is a square root of sum of squared distances
@@ -260,7 +264,8 @@ def structure_distance(
     of displacement above threshold.
 
     When MATCH_FIRST is True (default), call get_matched_structure
-    first.
+    first.  MATCH_SPECIES (default: True) controls whether to
+    assert that species should match during structure matching.
 
     When MAX_DIST is provided, return immediately when computed
     distance exceeds MAX_DIST.
@@ -271,7 +276,8 @@ def structure_distance(
     # This also performs the necessary assertions about structure
     # similarity
     if match_first:
-        str2 = get_matched_structure(structure1, structure2)
+        str2 = get_matched_structure(
+            structure1, structure2, match_species=match_species)
     else:
         str2 = structure2
 
