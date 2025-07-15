@@ -1088,7 +1088,7 @@ def derive(args):
             output_dir = os.path.join(output_dir, args.subdir)
         write_input = True
         if os.path.isdir(output_dir) and os.listdir(output_dir):
-            if bool(args.overwrite_output):
+            if args.overwrite_output == "True":
                 warnings.warn(f"Overwriting non-empty dir: {output_dir}")
             else:
                 warnings.warn(f"Skipping non-empty dir: {output_dir}")
