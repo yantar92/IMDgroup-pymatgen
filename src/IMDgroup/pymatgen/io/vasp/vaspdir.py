@@ -287,7 +287,8 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
             final_energy = outcar.final_energy
             if not isinstance(final_energy, float):
                 warnings.warn(
-                    f"Problems reading final energy (={final_energy}) from {self.path}/OUTCAR."
+                    f"Problems reading final energy (={final_energy}) from"
+                    f" {os.path.relpath(self.path)}/OUTCAR."
                 )
                 final_energy = np.nan
             return final_energy

@@ -656,7 +656,7 @@ class IMDNEBVaspInputSet(IMDDerivedInputSet):
         except FileNotFoundError:
             end_run = None
             warnings.warn(
-                f"Failed to read Vasprun from {self.target_directory}.  "
+                f"Failed to read Vasprun from {os.path.relpath(self.target_directory)}.  "
                 "Falling back to reading POSCAR."
             )
         if end_run is not None:
@@ -679,7 +679,7 @@ class IMDNEBVaspInputSet(IMDDerivedInputSet):
             diff = source_incar.diff(target_incar)
             if len(diff['Different']) > 0:
                 warnings.warn(
-                    f"INCARs in {self.directory} and {self.target_directory}"
+                    f"INCARs in {self.directory} and {os.path.relpath(self.target_directory)}"
                     f" are inconsistent: {diff['Different']}",
                     BadInputSetWarning
                 )

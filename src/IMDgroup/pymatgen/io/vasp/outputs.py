@@ -31,6 +31,7 @@
 import warnings
 import logging
 import re
+import os
 from pathlib import Path
 from monty.json import MSONable
 from monty.io import zopen
@@ -251,7 +252,7 @@ class Vasplog(MSONable):
         file_size = self.file.stat().st_size
         if file_size > self.MAX_SIZE:
             warnings.warn(
-                f"{filename} is too large: {file_size} > {self.MAX_SIZE}."
+                f"{os.path.relpath(filename)} is too large: {file_size} > {self.MAX_SIZE}."
                 " Reading partially",
                 ResourceWarning
             )
