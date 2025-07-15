@@ -58,7 +58,7 @@ class IMDStructure(Structure):
             sort: bool = False,
             merge_tol: float = 0.0,
             **kwargs,
-    ) -> Structure | Self:
+    ) -> Self:
         """Read a structure from a file.
         Support everything from pymatgen.Structure and also
         ATAT's structures.  ATAT's structures will contain
@@ -90,8 +90,10 @@ class IMDStructure(Structure):
                 struct.merge_sites(merge_tol)
             struct.__class__ = cls
             return struct
-        return super().from_file(
-            filename, primitive, sort, merge_tol, **kwargs)
+        ret = super().from_file(filename, primitive, sort, merge_tol, **kwargs)
+        ret.__class__ = cls
+        return ret
+
 
 
 def merge_structures(
@@ -193,7 +195,7 @@ def get_matched_structure(
         if not site_matched:
             result_sites.append(target_struct[idx])
 
-    return Structure.from_sites(
+    return IMDStructure.from_sites(
         result_sites,
         properties=target_struct.properties
     )
