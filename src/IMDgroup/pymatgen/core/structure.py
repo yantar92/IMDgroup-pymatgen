@@ -39,7 +39,7 @@ from pymatgen.core.structure import FileFormats
 from pymatgen.analysis.structure_matcher import StructureMatcher
 from pymatgen.util.coord import pbc_shortest_vectors
 from pymatgen.util.typing import PathLike
-from typing import cast, Any
+from typing import cast, Any, Literal
 from typing_extensions import Self
 
 IMDFileFormats = Any(FileFormats, Literal['atat'])
