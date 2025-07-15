@@ -135,6 +135,15 @@ def atat_add_args(parser):
       parser: subparser
     """
     parser.help = "Visualize ATAT outputs"
+    parser.add_argument(
+        "--plot_extra",
+        help="Extra data to plot. "
+        "It is a list of paths mirroring ATAT folder structure. "
+        "the paths will be searched for structured from fit.out and "
+        "their energy will be plotted.",
+        type=str,
+        nargs="+"
+    )
     parser.set_defaults(func_derive=atat)
 
 
@@ -213,6 +222,43 @@ def _atat_read_clusters(path: Path) -> pd.DataFrame:
         'cluster_diameter': cluster_diams,
         'eci_weight': eci_weights
     })
+
+
+def _atat_read_extra(fit: pd.DataFrame, path: Path, e0: float, e1: float) -> pd.DataFrame:
+    """Read energies from PATH mirrowing ATAT folders.
+    Only consider structure indices from FIT + "1" folder containing
+    reference structure for energy normalization.
+    Return dataframe with 'concentration', 'energy', and 'index' fields.
+    The dataframe name will be set to PATH.
+    Energy is calculated from XXX/energy file contants, normalized by XXX/str.out
+    structure size vs. 1/str.out reference size.  The energy is then adjusted
+    for convex hull according to e0 and e1 energies (presumably from ref_energy.out).
+    """
+    concentrations = []
+    energies = []
+    indices = []
+    ref_structure_len = len(Structure.from_file(Path(path) / "1/str.out"))
+    for concentration, index in alive_it(
+            zip(fit['concentration'], fit['index']),
+            title=f'Reading extra energies from {path}',
+            total=len(fit)):
+        energy_file = Path(path) / str(index) / 'energy'
+        if not energy_file.is_file():
+            continue
+        tot_energy = float(energy_file.read_text(encoding='utf-8'))
+        structure_len = len(Structure.from_file(Path(path) / str(index) / "str.out"))
+        energy_per_cell = tot_energy / (structure_len / ref_structure_len)
+        energy = energy_per_cell - concentration * e1 - (1 - concentration) * e0
+        concentrations.append(concentration)
+        indices.append(index)
+        energies.append(energy)
+    df = pd.DataFrame({
+        'concentration': concentrations,
+        'energy': energies,
+        'index': indices
+    })
+    df.name = str(path)
+    return df
 
 
 def _atat_plot_clusters(
@@ -324,7 +370,9 @@ def _atat_plot_calculated_energies(
         ax: plt.Axes,
         predstr: pd.DataFrame,
         gs: pd.DataFrame,
-        fit: pd.DataFrame) -> None:
+        fit: pd.DataFrame,
+        extra: list[pd.DataFrame] | None = None
+        ) -> None:
     """Plot Fitted energies at AX axis.
     """
     erred = predstr[
@@ -347,6 +395,20 @@ def _atat_plot_calculated_energies(
     if cmap is not None:
         plt.colorbar(
             sc, ax=ax, label='Sublattice deviation per displaced atom, Å')
+    if extra is not None:
+        for df in extra:
+            concentrations = []
+            energies = []
+            for index, concentration, energy in zip(
+                    df['index'], df['concentration'], df['energy']):
+                orig_energy = fit.loc[fit['index'] == index, 'energy']
+                if np.isclose(energy, orig_energy, atol=0.0001):
+                    continue
+                concentrations.append(concentration)
+                energies.append(energy)
+            ax.plot(
+                concentrations, energies,
+                'o', fillstyle='none', markersize=8, label=df.name)
     ax.plot(
         gs['concentration'], gs['energy'],
         'o-', fillstyle='none', color='black',
@@ -371,7 +433,7 @@ def _atat_plot_sublattice_deviation(
     ax.legend()
 
 
-def _atat_1(wdir: str) -> None:
+def _atat_1(wdir: str, extra_dirs: list[str] | None = None) -> None:
     """Plot ATAT output in WDIR.
     """
     # Ignore directories that do not contain lat.in
@@ -388,6 +450,13 @@ def _atat_1(wdir: str) -> None:
             cve = lines[-1]
     except Exception:
         cve = ''
+    extra = []
+    if extra_dirs is not None:
+        with open(Path(wdir) / "ref_energy.out", 'r', encoding='utf-8') as ref_energy:
+            e0 = float(next(ref_energy))
+            e1 = float(next(ref_energy))
+        extra = [_atat_read_extra(fit, extra_dir, e0, e1)
+                 for extra_dir in extra_dirs]
 
     for idx in alive_it(fit['index'],
                         title="Getting sublattice deviations"):
@@ -437,7 +506,7 @@ def _atat_1(wdir: str) -> None:
     plt.rcParams['lines.markersize'] = 3
 
     _atat_plot_fitted_energies(axs[0, 0], predstr, gs, fit)
-    _atat_plot_calculated_energies(axs[0, 1], predstr, gs, fit)
+    _atat_plot_calculated_energies(axs[0, 1], predstr, gs, fit, extra)
     _atat_plot_calc_vs_fit_energies(axs[0, 2], fit)
     _atat_plot_residuals(axs[1, 0], cve, fit)
     _atat_plot_sublattice_deviation(axs[1, 1], gs, fit)
@@ -458,7 +527,7 @@ def atat(args):
     """
     for wdir, subdirs, _ in os.walk(args.dir):
         subdirs.sort()  # this will make loop go in order
-        _atat_1(wdir)
+        _atat_1(wdir, args.plot_extra)
     return 0
 
 
