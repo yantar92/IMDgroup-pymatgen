@@ -74,8 +74,8 @@ Write them to <prefix><output name><subdir>."""
         "--overwrite_output",
         help="Whether to overwrite non-empty output directories"
         "(default: True).",
-        type=bool,
-        default=True
+        type=str,
+        default="True"
     )
     parser.add_argument(
         "--output",
@@ -1088,7 +1088,7 @@ def derive(args):
             output_dir = os.path.join(output_dir, args.subdir)
         write_input = True
         if os.path.isdir(output_dir) and os.listdir(output_dir):
-            if args.overwrite_output:
+            if bool(args.overwrite_output):
                 warnings.warn(f"Overwriting non-empty dir: {output_dir}")
             else:
                 warnings.warn(f"Skipping non-empty dir: {output_dir}")
