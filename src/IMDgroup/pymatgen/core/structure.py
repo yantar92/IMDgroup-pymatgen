@@ -42,7 +42,7 @@ from pymatgen.util.typing import PathLike
 from typing import cast, Any, Literal
 from typing_extensions import Self
 
-IMDFileFormats = Any(FileFormats, Literal['atat'])
+IMDFileFormats = Any[FileFormats, Literal['atat']]
 logger = logging.getLogger(__name__)
 
 
