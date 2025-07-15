@@ -35,14 +35,11 @@ from multiprocessing import Pool
 import numpy as np
 from monty.io import zopen
 from pymatgen.core import Structure
-from pymatgen.core.structure import FileFormats
 from pymatgen.analysis.structure_matcher import StructureMatcher
 from pymatgen.util.coord import pbc_shortest_vectors
 from pymatgen.util.typing import PathLike
-from typing import cast, Any, Literal
 from typing_extensions import Self
 
-IMDFileFormats = Any[FileFormats, Literal['atat']]
 logger = logging.getLogger(__name__)
 
 
@@ -99,11 +96,11 @@ class IMDStructure(Structure):
         ret.__class__ = cls
         return ret
 
-    def to_file(self, filename: str = "", fmt: IMDFileFormats = "") -> str | None:
+    def to_file(self, filename: str = "", fmt="") -> str | None:
         """A more intuitive alias for .to()."""
         return self.to(filename, fmt)
 
-    def to(self, filename: PathLike = "", fmt: IMDFileFormats = "", **kwargs) -> str:
+    def to(self, filename: PathLike = "", fmt="", **kwargs) -> str:
         """Output the structure to a file or string.
         In addition to what pymatgen provides, write "str.out" file suitable
         for ATAT, replacing X0+ species with Vac and dropping occupancies.
@@ -127,7 +124,7 @@ class IMDStructure(Structure):
             str: String representation of molecule in given format. If a filename
                 is provided, the same string is written to the file.
         """
-        filename, fmt = str(filename), cast(IMDFileFormats, fmt.lower())
+        filename, fmt = str(filename), fmt.lower()
         if fmt == "atat" or os.path.basename(filename) in ("str.out"):
             from pymatgen.io.atat import Mcsqs
             res_str = Mcsqs(self).to_str().replace('X0+', 'Vac').replace('=1', '')
