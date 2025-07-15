@@ -33,12 +33,16 @@ import os
 from pathlib import Path
 from multiprocessing import Pool
 import numpy as np
+from monty.io import zopen
 from pymatgen.core import Structure
+from pymatgen.core.structure import FileFormats
 from pymatgen.analysis.structure_matcher import StructureMatcher
 from pymatgen.util.coord import pbc_shortest_vectors
 from pymatgen.util.typing import PathLike
+from typing import cast, Any
 from typing_extensions import Self
 
+IMDFileFormats = Any(FileFormats, Literal['atat'])
 logger = logging.getLogger(__name__)
 
 
@@ -49,6 +53,7 @@ class IMDStructure(Structure):
     """IMDGroup variant of Structure.
     New features:
     1. Read structure from str.out ATAT's file.
+    2. Write structure t ostr.out ATAT's file replacing X0+ with Vac
     """
     @classmethod
     def from_file(
@@ -94,6 +99,42 @@ class IMDStructure(Structure):
         ret.__class__ = cls
         return ret
 
+    def to_file(self, filename: str = "", fmt: IMDFileFormats = "") -> str | None:
+        """A more intuitive alias for .to()."""
+        return self.to(filename, fmt)
+
+    def to(self, filename: PathLike = "", fmt: IMDFileFormats = "", **kwargs) -> str:
+        """Output the structure to a file or string.
+        In addition to what pymatgen provides, write "str.out" file suitable
+        for ATAT, replacing X0+ species with Vac and dropping occupancies.
+        This corresponds to fmt="atat".
+
+        Args:
+            filename (PathLike): If provided, output will be written to a file. If
+                fmt is not specified, the format is determined from the
+                filename. Defaults is None, i.e. string output.
+            fmt (str): Format to output to. Defaults to JSON unless filename
+                is provided. If fmt is specifies, it overrides whatever the
+                filename is. Options include "cif", "poscar", "cssr", "json",
+                "xsf", "mcsqs", "prismatic", "yaml", "yml", "fleur-inpgen", "pwmat",
+                "aims".
+                Non-case sensitive.
+            **kwargs: Kwargs passthru to relevant methods. e.g. This allows
+                the passing of parameters like symprec to the
+                CifWriter.__init__ method for generation of symmetric CIFs.
+
+        Returns:
+            str: String representation of molecule in given format. If a filename
+                is provided, the same string is written to the file.
+        """
+        filename, fmt = str(filename), cast(IMDFileFormats, fmt.lower())
+        if fmt == "atat" or os.path.basename(filename) in ("str.out"):
+            from pymatgen.io.atat import Mcsqs
+            res_str = Mcsqs(self).to_str().replace('X0+', 'Vac').replace('=1', '')
+            with zopen(filename, mode="wt", encoding="utf8") as file:
+                file.write(res_str)
+            return res_str
+        return super().to(filename, fmt, **kwargs)
 
 
 def merge_structures(
