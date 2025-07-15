@@ -30,8 +30,9 @@
 
 import numpy as np
 from IMDgroup.pymatgen.core.structure import\
-    structure_strain, structure_distance
+    structure_strain, structure_distance, get_matched_structure
 from IMDgroup.pymatgen.core.structure import IMDStructure as Structure
+from pymatgen.core import DummySpecies
 
 
 def check_volume_distortion(
@@ -81,3 +82,25 @@ def check_sublattice_flip(
     if np.isclose(dist_relax, dist_sublattice, rtol=0.001):
         return True
     return False
+
+
+def fit_sublattice_to_structure(
+        sublattice: Structure, structure: Structure) -> Structure:
+    """Adjust SUBLATTICE to fit STRUCTURE.  Return the adjusted sublattice.
+    This function is useful to build a new sublattice (str.out) when STRUCTURE
+    flips away (see check_sublattice_flip) from the initial str.out guess.
+    Use 'X' dummy species in place of vacancies.
+    """
+    structure = structure.copy()
+    # Force the lattice to match.  Needed for get_matched_structure.
+    structure.lattice = sublattice.lattice
+    sublattice2 = get_matched_structure(
+        structure, sublattice, match_species=False)
+    for idx, site in enumerate(sublattice2):
+        if idx < len(structure):
+            site.species = structure[idx].species
+        else:
+            site.species = DummySpecies('X')
+    # keep the original site order
+    sublattice2 = get_matched_structure(sublattice, sublattice2, match_species=False)
+    return sublattice2
