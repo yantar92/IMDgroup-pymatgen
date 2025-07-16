@@ -184,9 +184,7 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
         else:
             self.__cache = FanoutCache(
                 self._get_cache_dir(),
-                timeout=5, size_limit=int(8e9),
-                disk_min_file_size=2**20  # 1Mb
-                )
+                timeout=5, size_limit=int(8e9))
             IMDGVaspDir.__CACHE = self.__cache
         # note: will not recurse infinitely because __cache is not None
         self.refresh()
