@@ -491,21 +491,13 @@ def _atat_1(
             displ = np.nan
             print(colored(f"{vaspdir.path}: sublattice flip (this must not happen)", "red"))
         else:
-            try:
-                displ = structure_distance(
-                    vaspdir.initial_structure,
-                    vaspdir.structure,
-                    match_first=True,
-                    tol=tolerance,
-                    norm=True)
-            except ValueError:
-                # structures are too different
-                displ = structure_distance(
-                    vaspdir.initial_structure,
-                    vaspdir.structure,
-                    tol=tolerance,
-                    match_first=False,
-                    norm=True)
+            str_after_normalized = vaspdir.structure.copy()
+            str_after_normalized.lattice = sublattice.lattice
+            displ = structure_distance(
+                str_after_normalized, sublattice,
+                # Compare specie-insensitively
+                match_first=True,
+                match_species=False)
         fit.loc[fit['index'] == idx, 'sublattice deviation'] = displ
         gs.loc[gs['index'] == idx, 'sublattice deviation'] = displ
 
