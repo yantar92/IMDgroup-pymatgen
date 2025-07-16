@@ -410,6 +410,7 @@ def _atat_plot_calculated_energies(
             for index, concentration, energy in zip(
                     df['index'], df['concentration'], df['energy']):
                 orig_energy = fit.loc[fit['index'] == index, 'energy']
+                print(orig_energy)
                 if np.isclose(energy, orig_energy, atol=df.threshold):
                     continue
                 if energy < orig_energy:
