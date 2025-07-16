@@ -419,7 +419,7 @@ def _atat_plot_calculated_energies(
                 concentrations.append(concentration)
                 energies.append(energy)
             ax.quiver(
-                concentrations, energies, directions*0.05,
+                concentrations, energies, np.array(directions)*0.05,
                 angles='xy', scale_units='xy', scale=1, headwidth=5, headlength=5
             )
             # ax.plot(
