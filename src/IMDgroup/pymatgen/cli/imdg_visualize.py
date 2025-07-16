@@ -413,9 +413,9 @@ def _atat_plot_calculated_energies(
                 if np.isclose(energy, orig_energy, atol=df.threshold):
                     continue
                 if energy < orig_energy:
-                    directions.append(-1)
+                    directions.append(-1.0)
                 else:
-                    directions.append(1)
+                    directions.append(1.0)
                 concentrations.append(concentration)
                 energies.append(energy)
             ax.quiver(
