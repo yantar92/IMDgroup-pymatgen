@@ -406,16 +406,25 @@ def _atat_plot_calculated_energies(
         for df in extra:
             concentrations = []
             energies = []
+            directions = []
             for index, concentration, energy in zip(
                     df['index'], df['concentration'], df['energy']):
                 orig_energy = fit.loc[fit['index'] == index, 'energy']
                 if np.isclose(energy, orig_energy, atol=df.threshold):
                     continue
+                if energy < orig_energy:
+                    directions.append(-1)
+                else:
+                    directions.append(1)
                 concentrations.append(concentration)
                 energies.append(energy)
-            ax.plot(
-                concentrations, energies,
-                'o', fillstyle='none', markersize=8, label=df.name)
+            ax.quiver(
+                concentrations, energies, directions*0.05,
+                angles='xy', scale_units='xy', scale=1, headwidth=5, headlength=5
+            )
+            # ax.plot(
+            #     concentrations, energies,
+            #     'o', fillstyle='none', markersize=8, label=df.name)
     ax.plot(
         gs['concentration'], gs['energy'],
         'o-', fillstyle='none', color='black',
