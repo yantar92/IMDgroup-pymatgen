@@ -297,6 +297,7 @@ def status(args):
         for wdir in paths_no_output:
             print("  ", wdir)
     all_warn_names_present = set()
+    dirs_with_warnings = {}  # warning_name: list of dirs
     for wdir in alive_it(paths, enrich_print=False, title="Reading VASP outputs"):
         vaspdir = vaspdirs.get(wdir)
         # As we read VASP directories, they will take up more and more memory
@@ -330,6 +331,11 @@ def status(args):
                 progress = ""
             warning_list, warn_names = _get_warning_list(logs, args.nowarn)
             all_warn_names_present = all_warn_names_present.union(warn_names)
+            for warn_name in warn_names:
+                if warn_name not in dirs_with_warnings:
+                    dirs_with_warnings[warn_name] = [wdir.replace("./", "")]
+                else:
+                    dirs_with_warnings[warn_name].append(wdir.replace("./", ""))
         else:
             if not nebp:
                 logger.debug("Slurm log file not found in %s", wdir)
@@ -377,5 +383,7 @@ def status(args):
 
     if len(all_warn_names_present) > 0:
         print(colored("Warnings found: ", "yellow"), all_warn_names_present)
+        for warn_name, dir_list in dirs_with_warnings.items():
+            print(colored(f"{warn_name}: ", "yellow") + f"{' '.join(dir_list)}")
 
     return 0
