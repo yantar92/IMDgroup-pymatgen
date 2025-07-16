@@ -147,7 +147,7 @@ def atat_add_args(parser):
     parser.add_argument(
         "--plot_extra_threshold",
         help="Minimal energy difference for --plot_extra data to appear on the plot. "
-        "(default: 0.01eV/reference cell)"
+        "(default: 0.01eV/reference cell)",
         type=float,
         default=0.01
     )
