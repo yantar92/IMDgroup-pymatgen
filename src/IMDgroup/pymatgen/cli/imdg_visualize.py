@@ -144,6 +144,13 @@ def atat_add_args(parser):
         type=str,
         nargs="+"
     )
+    parser.add_argument(
+        "--plot_extra_threshold",
+        help="Minimal energy difference for --plot_extra data to appear on the plot. "
+        "(default: 0.01eV/reference cell)"
+        type=float,
+        default=0.01
+    )
     parser.set_defaults(func_derive=atat)
 
 
@@ -402,7 +409,7 @@ def _atat_plot_calculated_energies(
             for index, concentration, energy in zip(
                     df['index'], df['concentration'], df['energy']):
                 orig_energy = fit.loc[fit['index'] == index, 'energy']
-                if np.isclose(energy, orig_energy, atol=0.0001):
+                if np.isclose(energy, orig_energy, atol=df.threshold):
                     continue
                 concentrations.append(concentration)
                 energies.append(energy)
@@ -433,8 +440,15 @@ def _atat_plot_sublattice_deviation(
     ax.legend()
 
 
-def _atat_1(wdir: str, extra_dirs: list[str] | None = None) -> None:
+def _atat_1(
+        wdir: str,
+        extra_dirs: list[str] | None = None,
+        extra_dirs_threshold: float = 0.01) -> None:
     """Plot ATAT output in WDIR.
+    If EXTRA_DIRS is provided, also plot additional ATAT caluclation points
+    from those dirs (mirrowing ATAT dir structure).  The points are only
+    plotted when their energies differ by more than EXTRA_DIRS_THRESHOLD
+    from the main ATAT calculation.
     """
     # Ignore directories that do not contain lat.in
     if not (Path(wdir) / 'lat.in').is_file():
@@ -457,6 +471,8 @@ def _atat_1(wdir: str, extra_dirs: list[str] | None = None) -> None:
             e1 = float(next(ref_energy))
         extra = [_atat_read_extra(fit, extra_dir, e0, e1)
                  for extra_dir in extra_dirs]
+        for df in extra:
+            df.threshold = extra_dirs_threshold
 
     for idx in alive_it(fit['index'],
                         title="Getting sublattice deviations"):
@@ -527,7 +543,7 @@ def atat(args):
     """
     for wdir, subdirs, _ in os.walk(args.dir):
         subdirs.sort()  # this will make loop go in order
-        _atat_1(wdir, args.plot_extra)
+        _atat_1(wdir, args.plot_extra, args.plot_extra_threshold)
     return 0
 
 
