@@ -494,8 +494,9 @@ def _atat_1(
                 vaspdir.initial_structure, vaspdir.structure):
             displ = np.nan
             print(colored(f"{vaspdir.path}: large volume distortion (this must not happen)", "red"))
-        elif not IMDatat.check_sublattice_flip(
-                vaspdir.initial_structure, vaspdir.structure, sublattice):
+        elif (not Path(f"{idx}/str.out.old").is_file()
+              and not IMDatat.check_sublattice_flip(
+                  vaspdir.initial_structure, vaspdir.structure, sublattice)):
             displ = np.nan
             print(colored(f"{vaspdir.path}: sublattice flip (this must not happen)", "red"))
         else:
