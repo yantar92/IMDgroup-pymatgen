@@ -415,7 +415,7 @@ def _atat_plot_calculated_energies(
                 energies.append(energy)
             ax.plot(
                 concentrations, energies,
-                'o', fillstyle='none', markersize=8, label=df.name)
+                's', fillstyle='none', markersize=8, label=df.name)
     ax.plot(
         gs['concentration'], gs['energy'],
         'o-', fillstyle='none', color='black',
