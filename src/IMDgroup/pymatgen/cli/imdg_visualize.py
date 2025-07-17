@@ -432,7 +432,7 @@ def _atat_plot_calculated_energies(
     red_shades = [(1, i / num_groups, i / num_groups) for i in range(num_groups)]
     for idx, (err_name, points) in enumerate(error_groups.items()):
         x_vals, y_vals = zip(*points)
-    ax.plot(x_vals, y_vals, 'x', markersize=5, color=red_shades[idx], label=err_name)
+        ax.plot(x_vals, y_vals, 'x', markersize=5, color=red_shades[idx], label=err_name)
     ax.legend()
 
 
