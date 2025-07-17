@@ -147,9 +147,9 @@ def atat_add_args(parser):
     parser.add_argument(
         "--plot_extra_threshold",
         help="Minimal energy difference for --plot_extra data to appear on the plot. "
-        "(default: 0.01eV/reference cell)",
+        "(default: 0.001eV/reference cell)",
         type=float,
-        default=0.01
+        default=0.001
     )
     parser.set_defaults(func_derive=atat)
 
@@ -443,7 +443,7 @@ def _atat_plot_sublattice_deviation(
 def _atat_1(
         wdir: str,
         extra_dirs: list[str] | None = None,
-        extra_dirs_threshold: float = 0.01) -> None:
+        extra_dirs_threshold: float = 0.001) -> None:
     """Plot ATAT output in WDIR.
     If EXTRA_DIRS is provided, also plot additional ATAT caluclation points
     from those dirs (mirrowing ATAT dir structure).  The points are only
