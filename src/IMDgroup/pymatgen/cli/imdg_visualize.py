@@ -420,9 +420,19 @@ def _atat_plot_calculated_energies(
         gs['concentration'], gs['energy'],
         'o-', fillstyle='none', color='black',
         markersize=8, label='calculated gs')
-    ax.plot(
-        erred['concentration'], erred['energy'],
-        'x', markersize=5, label='error', color='red')
+    error_groups = {}
+    for idx in erred['index']:
+        error_dir = Path(f"{idx}")
+        for err_file in error_dir.glob("error_*"):
+            error_groups.setdefault(err_file.name, []).append(
+                (erred.loc[erred['index'] == idx, 'concentration'].iloc[0],
+                 erred.loc[erred['index'] == idx, 'energy'].iloc[0])
+            )
+    num_groups = len(error_groups)
+    red_shades = [(1, i / num_groups, i / num_groups) for i in range(num_groups)]
+    for idx, (err_name, points) in enumerate(error_groups.items()):
+        x_vals, y_vals = zip(*points)
+    ax.plot(x_vals, y_vals, 'x', markersize=5, color=red_shades[idx], label=err_name)
     ax.legend()
 
 
