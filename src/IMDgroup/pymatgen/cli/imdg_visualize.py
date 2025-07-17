@@ -413,9 +413,9 @@ def _atat_plot_calculated_energies(
                     continue
                 concentrations.append(concentration)
                 energies.append(energy)
-            ax.plot(
-                concentrations, energies,
-                's', fillstyle='none', markersize=8, label=df.name)
+            if len(concentrations) > 0:
+                ax.plot(concentrations, energies,
+                        's', fillstyle='none', markersize=8, label=df.name)
     ax.plot(
         gs['concentration'], gs['energy'],
         'o-', fillstyle='none', color='black',
