@@ -489,6 +489,9 @@ def _atat_1(
                   vaspdir.initial_structure, vaspdir.structure, sublattice)):
             displ = np.nan
             print(colored(f"{vaspdir.path}: sublattice flip (this must not happen)", "red"))
+        elif Path(f"{idx}/sublattice_deviation").is_file():
+            with open(f"{idx}/sublattice_deviation", 'r', encoding='utf-8') as f:
+                displ = float(f.read().strip())
         else:
             str_after_normalized = vaspdir.structure.copy()
             str_after_normalized.lattice = sublattice.lattice
