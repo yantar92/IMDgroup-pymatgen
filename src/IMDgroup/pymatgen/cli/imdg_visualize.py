@@ -490,9 +490,15 @@ def _atat_1(
             displ = np.nan
             print(colored(f"{vaspdir.path}: sublattice flip (this must not happen)", "red"))
         elif Path(f"{idx}/sublattice_deviation").is_file():
+            logger.debug(
+                "Reading sublattice deviation from %s",
+                f"{idx}/sublattice_deviation")
             with open(f"{idx}/sublattice_deviation", 'r', encoding='utf-8') as f:
                 displ = float(f.read().strip())
         else:
+            logger.debug(
+                "Calculating sublattice deviation from %s",
+                f"{idx}/ATAT")
             str_after_normalized = vaspdir.structure.copy()
             str_after_normalized.lattice = sublattice.lattice
             displ = structure_distance(
