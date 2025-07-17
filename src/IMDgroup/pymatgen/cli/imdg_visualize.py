@@ -428,11 +428,12 @@ def _atat_plot_calculated_energies(
                 (erred.loc[erred['index'] == idx, 'concentration'].iloc[0],
                  erred.loc[erred['index'] == idx, 'energy'].iloc[0])
             )
-    num_groups = len(error_groups)
-    red_shades = [(1, i / num_groups, i / num_groups) for i in range(num_groups)]
+    colors = ["red", "brown", "black", "magenta"]
     for idx, (err_name, points) in enumerate(error_groups.items()):
         x_vals, y_vals = zip(*points)
-        ax.plot(x_vals, y_vals, 'x', markersize=5, color=red_shades[idx], label=err_name)
+        ax.plot(
+            x_vals, y_vals, 'x', markersize=5,
+            color=colors[idx % len(colors)], label=err_name)
     ax.legend()
 
 
