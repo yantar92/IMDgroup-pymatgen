@@ -477,7 +477,6 @@ def _atat_1(
     for idx in alive_it(fit['index'],
                         title="Getting sublattice deviations"):
         vaspdir = IMDGVaspDir(f"{idx}/ATAT")
-        tolerance = 0.2  # tested for graphite-Na/AA/0%
         sublattice = Structure.from_file(f"{idx}/str.out")
         if not vaspdir.converged:
             displ = np.nan
