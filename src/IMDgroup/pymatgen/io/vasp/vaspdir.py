@@ -34,10 +34,10 @@ import os
 import warnings
 import logging
 import itertools
+import tempfile
+import pickle
 from pathlib import Path
 from monty.json import MSONable
-from diskcache import FanoutCache
-from sqlite3 import DatabaseError
 from alive_progress import alive_it
 from pymatgen.core import Structure
 from pymatgen.io.vasp.inputs import Poscar as pmgPoscar
@@ -85,9 +85,6 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
     - neb_dirs (list of NEB dirs, if any)
     """
 
-    # Shared cache object across instances
-    __CACHE = None
-
     FILE_MAPPINGS: typing.ClassVar = {
         "INCAR": Incar,
         "POSCAR": pmgPoscar,
@@ -118,47 +115,7 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
         self.files = [str(f) for f in path.iterdir() if f.is_file()]
         self._neb_vaspdirs = None
         self._prev_vaspdirs = None
-        self._parsed_files = {}
-        self.__cache = None
-
-    def _dump_to_cache(self) -> bool:
-        """Dump parsed data to cache.
-        Return True when dump succeeds.  Otherwise, return False.
-        """
-        try:
-            self._cache.set(
-                self.path,
-                {
-                    'hash': self._get_hash(),
-                    'parsed_files': self._parsed_files
-                }
-            )
-            return True
-        except (DatabaseError, ValueError, KeyError):
-            # If can't cache, don't cache
-            # Even if the cache fails, we can still give useful data
-            return False
-
-    def refresh(self):
-        """Make sure that cache is up to date with disk.
-        """
-        cache_val = self._cache.get(self.path)
-        assert cache_val is None or isinstance(cache_val, dict)
-        if cache_val and cache_val['hash'] == self._get_hash():
-            logger.debug(
-                "Using cached data for [%s] %s",
-                cache_val['hash'], self.path)
-            self._parsed_files = cache_val['parsed_files']
-        else:
-            if self._dump_to_cache():
-                logger.debug(
-                    "Initialized cache for [%s] %s",
-                    self._cache.get(self.path)['hash'], self.path)
-            else:
-                logger.debug(
-                    "Failed to initialize cache for %s",
-                    self.path
-                )
+        self._parsed_files = None
 
     def __init__(self, dirname: str | Path) -> None:
         """
@@ -167,28 +124,80 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
         """
         self.path = str(Path(dirname).absolute())
         # This was slower: self.path = str(Path(dirname).resolve())
-        self.__cache = None  # Pacify linter.  Same is done in reset().
         self._parsed_files = None  # Pacify linter.  Same is done in reset().
         self._prev_vaspdirs = None  # Pacify linter.  Same is done in reset().
         self._neb_vaspdirs = None  # Pacify linter.  Same is done in reset().
         self.reset()
 
-    @property
-    def _cache(self) -> FanoutCache:
-        """Disk cache associated with current Vasp directory.
-        """
-        if self.__cache is not None:
-            return self.__cache
-        if IMDGVaspDir.__CACHE is not None:
-            self.__cache = IMDGVaspDir.__CACHE
-        else:
-            self.__cache = FanoutCache(
-                self._get_cache_dir(),
-                timeout=5, size_limit=int(8e9))
-            IMDGVaspDir.__CACHE = self.__cache
-        # note: will not recurse infinitely because __cache is not None
-        self.refresh()
-        return self.__cache
+    @staticmethod
+    def _get_cache_dir() -> Path:
+        cache_dir = os.getenv("XDG_CACHE_HOME")\
+            or os.path.expanduser("~/.cache")
+        return Path(cache_dir) / "imdgVASPDIRcache"
+
+    def _get_cache_path(self) -> Path:
+        """Get path for this directory's cache file"""
+        cache_dir = self._get_cache_dir()
+        # Create unique filename using path hash
+        path_hash = hashlib.md5(self.path.encode('utf-8')).hexdigest()
+        # I want the path to be in the usual form of cache_dir/XX/YYYYYYY.pkl
+        cache_subdir = path_hash[:2]
+        cache_dir = cache_dir / cache_subdir
+        return cache_dir / f"{path_hash[2:]}.pkl"
+
+    def _load_from_cache(self) -> dict | None:
+        """Load cached data from file if valid"""
+        cache_path = self._get_cache_path()
+        if not cache_path.exists():
+            return None
+        try:
+            with open(cache_path, 'rb') as f:
+                return pickle.load(f)
+        except Exception as e:
+            logger.warning("Cache load failed: %s", e)
+        return None
+
+    def _save_to_cache(self, data: dict) -> bool:
+        """Atomically save data to cache file"""
+        cache_path = self._get_cache_path()
+        cache_dir = cache_path.parent
+        tmp_path = None
+        try:
+            cache_dir.mkdir(parents=True, exist_ok=True)
+            # Write to temp file first
+            with tempfile.NamedTemporaryFile(
+                mode='wb',
+                dir=cache_dir,
+                delete=False
+            ) as tmp:
+                # Use highest protocol for efficiency
+                pickle.dump(data, tmp, protocol=pickle.HIGHEST_PROTOCOL)
+                tmp_path = tmp.name
+            # Atomic rename
+            os.rename(tmp_path, cache_path)
+            return True
+        except Exception as e:
+            logger.warning("Cache save failed: %s", e)
+            if tmp_path and Path(tmp_path).exists():
+                Path(tmp_path).unlink()
+            return False
+
+    def _dump_to_cache(self) -> bool:
+        """Dump parsed data to cache file atomically"""
+        return self._save_to_cache({
+            'hash': self._get_hash(),
+            'parsed_files': self._parsed_files
+        })
+
+    def refresh(self):
+        """Refresh from cache if valid"""
+        if cache_data := self._load_from_cache():
+            if cache_data.get('hash') == self._get_hash():
+                self._parsed_files = cache_data['parsed_files']
+                logger.debug("Loaded cache for %s", os.path.relpath(self.path))
+                return
+        self._parsed_files = {}
+        logger.debug("No valid cache for %s", os.path.relpath(self.path))
 
     @staticmethod
     def read_vaspdirs(
@@ -228,7 +237,7 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
         return iter(self.files)
 
     def __getitem__(self, item):
-        if not self.__cache:
+        if self._parsed_files is None:
             self.refresh()
         if item in self._parsed_files:
             return self._parsed_files[item]
@@ -236,25 +245,24 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
         for k, cls_ in self.FILE_MAPPINGS.items():
             if k in item and (path / item).exists():
                 try:
+                    # Standard parsing for all files
                     try:
-                        self._parsed_files[item] = cls_.from_file(path / item)
+                        obj = cls_.from_file(path / item)
                     except AttributeError:
-                        self._parsed_files[item] = cls_(path / item)
-                except Exception:
-                    # Parsing failed
-                    logger.debug("Failed to read %s", (path / item))
+                        obj = cls_(path / item)
+                    self._parsed_files[item] = obj
+                    self._dump_to_cache()
+                    return obj
+                except Exception as e:
+                    logger.debug("Failed to read %s: %s", path/item, e)
                     self._parsed_files[item] = None
-                self._dump_to_cache()
-                return self._parsed_files[item]
+                    self._dump_to_cache()
+                    return None
         if (path / item).exists():
             raise RuntimeError(
                 f"Unable to parse {item}. "
                 f"Supported files are {list(self.FILE_MAPPINGS.keys())}.")
-
         return None
-        # raise ValueError(
-        #     f"{item} not found in {self.path}. "
-        #     f"List of files are {self.files}.")
 
     @staticmethod
     def _get_file_hash(filename: Path | str) -> str:
@@ -269,12 +277,6 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
         combined_hash =\
             hashlib.md5("".join(hashes).encode('utf-8')).hexdigest()
         return str(combined_hash)
-
-    @staticmethod
-    def _get_cache_dir() -> Path:
-        cache_dir = os.getenv("XDG_CACHE_HOME")\
-            or os.path.expanduser("~/.cache")
-        return Path(cache_dir) / "imdgVASPDIRcache"
 
     @property
     def final_energy(self) -> float:

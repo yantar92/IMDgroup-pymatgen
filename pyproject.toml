@@ -27,7 +27,6 @@ dependencies = [
 "termcolor",
 "networkx",
 "cachetools",
-"diskcache"
 ]
 
 [project.urls]
