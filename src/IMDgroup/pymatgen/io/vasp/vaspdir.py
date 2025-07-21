@@ -117,11 +117,17 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
         self._prev_vaspdirs = None
         self._parsed_files = None
 
+    _cache_cleaned: typing.ClassVar[bool] = False
+    MAX_CACHE_SIZE: typing.ClassVar[int] = 8 * 1024 ** 3  # 8GB
+
     def __init__(self, dirname: str | Path) -> None:
         """
         Args:
             dirname: The directory containing the VASP calculation.
         """
+        if not IMDGVaspDir._cache_cleaned:
+            IMDGVaspDir._clean_cache_if_needed()
+            IMDGVaspDir._cache_cleaned = True
         self.path = str(Path(dirname).absolute())
         # This was slower: self.path = str(Path(dirname).resolve())
         self._parsed_files = None  # Pacify linter.  Same is done in reset().
@@ -134,6 +140,48 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
         cache_dir = os.getenv("XDG_CACHE_HOME")\
             or os.path.expanduser("~/.cache")
         return Path(cache_dir) / "imdgVASPDIRcache"
+
+    @classmethod
+    def _clean_cache_if_needed(cls):
+        cache_dir = cls._get_cache_dir()
+        if not cache_dir.exists():
+            return
+        files = list(cache_dir.rglob("*.pkl"))
+        # Sort by access time (oldest first)
+        files = [f for f in files if f.is_file()]
+        total_size = sum(f.stat().st_size for f in files)
+        if total_size <= cls.MAX_CACHE_SIZE:
+            return
+        files.sort(key=lambda f: f.stat().st_atime)
+        size_removed = 0
+        files_deleted = 0
+        subdirs_to_check = set()
+        for f in files:
+            try:
+                size = f.stat().st_size
+                subdirs_to_check.add(f.parent)
+                f.unlink()
+                logger.info(
+                    f"Deleted cache file %s (size=%.2f MB)", f, size/1024/1024
+                )
+                size_removed += size
+                files_deleted += 1
+            except Exception as e:
+                logger.warning(f"Could not delete cache file %s: %s", f, e)
+            if (total_size - size_removed) <= cls.MAX_CACHE_SIZE:
+                break
+        # Remove empty subdirs
+        for subdir in subdirs_to_check:
+            try:
+                if subdir.is_dir() and not any(subdir.iterdir()):
+                    subdir.rmdir()
+                    logger.info(f"Deleted empty cache subdir %s", subdir)
+            except Exception as e:
+                logger.warning(f"Could not delete cache subdir %s: %s", subdir, e)
+        logger.info(
+            "Cache cleanup complete: deleted %d files, freed %.2f MB; used %.2f MB now.",
+            files_deleted, size_removed/1024/1024, (total_size-size_removed)/1024/1024
+        )
 
     def _get_cache_path(self) -> Path:
         """Get path for this directory's cache file"""
@@ -152,7 +200,12 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
             return None
         try:
             with open(cache_path, 'rb') as f:
-                return pickle.load(f)
+                obj = pickle.load(f)
+            try:
+                os.utime(cache_path)
+            except Exception:
+                pass
+            return obj
         except Exception as e:
             logger.warning("Cache load failed: %s", e)
         return None
