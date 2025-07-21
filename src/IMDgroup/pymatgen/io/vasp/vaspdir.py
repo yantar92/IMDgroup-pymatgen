@@ -146,16 +146,44 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
         cache_dir = cls._get_cache_dir()
         if not cache_dir.exists():
             return
+
+        # 1. Remove irrelevant (non-.pkl) files throughout cache_dir
+        irrelevant_files = [f for f in cache_dir.rglob("*") if f.is_file() and not f.name.endswith(".pkl")]
+        nonpkl_deleted = 0
+        nonpkl_size = 0
+        nonpkl_dirs = set()
+        for f in irrelevant_files:
+            try:
+                sz = f.stat().st_size
+                parent = f.parent
+                f.unlink()
+                logger.info(f"Deleted irrelevant cache file %s (size=%.2f MB)", f, sz/1024/1024)
+                nonpkl_deleted += 1
+                nonpkl_size += sz
+                nonpkl_dirs.add(parent)
+            except Exception as e:
+                logger.warning(f"Could not delete irrelevant cache file %s: %s", f, e)
+        if nonpkl_deleted > 0:
+            logger.info("Deleted %d irrelevant cache files, freed %.2f MB.", nonpkl_deleted, nonpkl_size/1024/1024)
+
+        # 2. Normal .pkl deletion for cache size limitation
         files = list(cache_dir.rglob("*.pkl"))
-        # Sort by access time (oldest first)
         files = [f for f in files if f.is_file()]
         total_size = sum(f.stat().st_size for f in files)
         if total_size <= cls.MAX_CACHE_SIZE:
+            # Remove empty directories left after irrelevant file removals
+            for subdir in nonpkl_dirs:
+                try:
+                    if subdir.is_dir() and not any(subdir.iterdir()):
+                        subdir.rmdir()
+                        logger.info(f"Deleted empty cache subdir %s", subdir)
+                except Exception as e:
+                    logger.warning(f"Could not delete cache subdir %s: %s", subdir, e)
             return
-        files.sort(key=lambda f: f.stat().st_atime)
+        files.sort(key=lambda f: f.stat().st_atime)  # oldest access first
         size_removed = 0
         files_deleted = 0
-        subdirs_to_check = set()
+        subdirs_to_check = set(nonpkl_dirs)  # Start with dirs touched by irrelevant deletion
         for f in files:
             try:
                 size = f.stat().st_size
@@ -170,7 +198,7 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
                 logger.warning(f"Could not delete cache file %s: %s", f, e)
             if (total_size - size_removed) <= cls.MAX_CACHE_SIZE:
                 break
-        # Remove empty subdirs
+        # Remove empty subdirs (after both nonpkl and .pkl deletions)
         for subdir in subdirs_to_check:
             try:
                 if subdir.is_dir() and not any(subdir.iterdir()):
@@ -179,7 +207,7 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
             except Exception as e:
                 logger.warning(f"Could not delete cache subdir %s: %s", subdir, e)
         logger.info(
-            "Cache cleanup complete: deleted %d files, freed %.2f MB; used %.2f MB now.",
+            "Cache cleanup complete: deleted %d .pkl files, freed %.2f MB; used %.2f MB now.",
             files_deleted, size_removed/1024/1024, (total_size-size_removed)/1024/1024
         )
 
