@@ -194,7 +194,19 @@ def analyze(args):
     """
 
     vaspdirs = IMDGVaspDir.read_vaspdirs(args.dir)
-    all_data = {field: [] for field in ALL_FIELDS}
+    all_data = {}
+    for field in ALL_FIELDS:
+        if field == 'dir':
+            all_data[field] = []
+        elif field == 'incar_group':
+            if args.group:
+                all_data[field] = []
+        elif field not in args.fields:
+            continue
+        elif field in args.exclude_fields:
+            continue
+        else:
+            all_data[field] = []
 
     file_groups = {}
     if args.group:
