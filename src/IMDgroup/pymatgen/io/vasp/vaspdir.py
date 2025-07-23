@@ -135,6 +135,10 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
         self._neb_vaspdirs = None  # Pacify linter.  Same is done in reset().
         self.reset()
 
+    # Implementation note: We cannot use SQLite to store cache
+    # because SQLite is not reliable on LUSTRE file system
+    # in HPC.  So, we stick to very simple custom cache
+    # using pickle.
     @staticmethod
     def _get_cache_dir() -> Path:
         cache_dir = os.getenv("XDG_CACHE_HOME")\
