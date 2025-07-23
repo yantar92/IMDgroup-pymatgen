@@ -36,7 +36,9 @@ import logging
 import itertools
 import tempfile
 import pickle
+import gzip
 from pathlib import Path
+from monty.io import zopen
 from monty.json import MSONable
 from alive_progress import alive_it
 from pymatgen.core import Structure
@@ -151,8 +153,8 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
         if not cache_dir.exists():
             return
 
-        # 1. Remove irrelevant (non-.pkl) files throughout cache_dir
-        irrelevant_files = [f for f in cache_dir.rglob("*") if f.is_file() and not f.name.endswith(".pkl")]
+        # 1. Remove irrelevant (non-.pkl.gz) files throughout cache_dir
+        irrelevant_files = [f for f in cache_dir.rglob("*") if f.is_file() and not f.name.endswith(".pkl.gz")]
         nonpkl_deleted = 0
         nonpkl_size = 0
         nonpkl_dirs = set()
@@ -170,8 +172,8 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
         if nonpkl_deleted > 0:
             logger.info("Deleted %d irrelevant cache files, freed %.2f MB.", nonpkl_deleted, nonpkl_size/1024/1024)
 
-        # 2. Normal .pkl deletion for cache size limitation
-        files = list(cache_dir.rglob("*.pkl"))
+        # 2. Normal .pkl.gz deletion for cache size limitation
+        files = list(cache_dir.rglob("*.pkl.gz"))
         files = [f for f in files if f.is_file()]
         total_size = sum(f.stat().st_size for f in files)
         if total_size <= cls.MAX_CACHE_SIZE:
@@ -211,27 +213,27 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
             except Exception as e:
                 logger.warning(f"Could not delete cache subdir %s: %s", subdir, e)
         logger.info(
-            "Cache cleanup complete: deleted %d .pkl files, freed %.2f MB; used %.2f MB now.",
+            "Cache cleanup complete: deleted %d .pkl.gz files, freed %.2f MB; used %.2f MB now.",
             files_deleted, size_removed/1024/1024, (total_size-size_removed)/1024/1024
         )
 
     def _get_cache_path(self) -> Path:
-        """Get path for this directory's cache file"""
+        """Get path for this directory's cache file with .gz extension"""
         cache_dir = self._get_cache_dir()
-        # Create unique filename using path hash
         path_hash = hashlib.md5(self.path.encode('utf-8')).hexdigest()
-        # I want the path to be in the usual form of cache_dir/XX/YYYYYYY.pkl
         cache_subdir = path_hash[:2]
         cache_dir = cache_dir / cache_subdir
-        return cache_dir / f"{path_hash[2:]}.pkl"
+        # Add .gz extension for compressed files
+        return cache_dir / f"{path_hash[2:]}.pkl.gz"
 
     def _load_from_cache(self) -> dict | None:
-        """Load cached data from file if valid"""
+        """Load cached data from compressed file if valid"""
         cache_path = self._get_cache_path()
         if not cache_path.exists():
             return None
         try:
-            with open(cache_path, 'rb') as f:
+            # Use zopen for automatic compression handling
+            with zopen(cache_path, 'rb') as f:
                 obj = pickle.load(f)
             try:
                 os.utime(cache_path)
@@ -243,28 +245,30 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
         return None
 
     def _save_to_cache(self, data: dict) -> bool:
-        """Atomically save data to cache file"""
+        """Atomically save data to compressed cache file"""
         cache_path = self._get_cache_path()
         cache_dir = cache_path.parent
         tmp_path = None
         try:
             cache_dir.mkdir(parents=True, exist_ok=True)
-            # Write to temp file first
+            # Create temp file with .gz extension
             with tempfile.NamedTemporaryFile(
                 mode='wb',
                 dir=cache_dir,
-                delete=False
+                delete=False,
+                suffix='.tmp.gz'
             ) as tmp:
-                # Use highest protocol for efficiency
-                pickle.dump(data, tmp, protocol=pickle.HIGHEST_PROTOCOL)
-                tmp_path = tmp.name
+                tmp_path = Path(tmp.name)
+                # Write compressed data
+                with gzip.open(tmp_path, 'wb') as f:
+                    pickle.dump(data, f, protocol=pickle.HIGHEST_PROTOCOL)
             # Atomic rename
             os.rename(tmp_path, cache_path)
             return True
         except Exception as e:
             logger.warning("Cache save failed: %s", e)
-            if tmp_path and Path(tmp_path).exists():
-                Path(tmp_path).unlink()
+            if tmp_path and tmp_path.exists():
+                tmp_path.unlink()
             return False
 
     def _dump_to_cache(self) -> bool:
