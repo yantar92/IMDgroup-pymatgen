@@ -294,7 +294,7 @@ def status(args):
             "Directories containing VASP input but not output:",
             "yellow"
         ))
-        for wdir in paths_no_output:
+        for wdir in sorted(paths_no_output):
             print("  ", wdir)
     all_warn_names_present = set()
     dirs_with_warnings = {}  # warning_name: list of dirs
