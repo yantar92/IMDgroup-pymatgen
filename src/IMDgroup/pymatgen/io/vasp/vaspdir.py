@@ -153,8 +153,13 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
         if not cache_dir.exists():
             return
 
-        # 1. Remove irrelevant (non-.pkl.gz) files throughout cache_dir
-        irrelevant_files = [f for f in cache_dir.rglob("*") if f.is_file() and not f.name.endswith(".pkl.gz")]
+        # 1. Remove irrelevant files (non-.pkl.gz) but skip temporary .tmp.gz files
+        irrelevant_files = [
+            f for f in cache_dir.rglob("*")
+            if f.is_file()
+            and not f.name.endswith(".pkl.gz")
+            and not f.name.endswith(".tmp.gz")  # Skip temporary files
+        ]
         nonpkl_deleted = 0
         nonpkl_size = 0
         nonpkl_dirs = set()
@@ -169,6 +174,28 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
                 nonpkl_dirs.add(parent)
             except Exception as e:
                 logger.warning(f"Could not delete irrelevant cache file %s: %s", f, e)
+
+        # Additional cleanup: Remove orphaned temporary files older than 1 hour
+        # (safe to delete as they shouldn't be actively used by other processes)
+        import time
+        now = time.time()
+        temp_files = [f for f in cache_dir.rglob("*.tmp.gz") if f.is_file()]
+        temp_deleted = 0
+        temp_size = 0
+        for f in temp_files:
+            try:
+                # Delete only if last modified more than 1 hour ago
+                if now - f.stat().st_mtime > 3600:
+                    sz = f.stat().st_size
+                    f.unlink()
+                    logger.info(f"Deleted orphaned temporary file %s (size=%.2f MB)", f, sz/1024/1024)
+                    nonpkl_deleted += 1
+                    nonpkl_size += sz
+                    nonpkl_dirs.add(f.parent)
+                    temp_deleted += 1
+                    temp_size += sz
+            except Exception as e:
+                logger.warning(f"Could not delete temporary file %s: %s", f, e)
         if nonpkl_deleted > 0:
             logger.info("Deleted %d irrelevant cache files, freed %.2f MB.", nonpkl_deleted, nonpkl_size/1024/1024)
 
