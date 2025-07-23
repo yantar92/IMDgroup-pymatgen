@@ -486,7 +486,7 @@ def _atat_1(
             df.threshold = extra_dirs_threshold
             filename = str(df.name).replace('/', '') + ".out"
             logger.info("Saving extra energy points to %s", filename)
-            df.to_csv(filename, sep=' ')
+            df.to_csv(filename, sep=' ', index=False)
             print(colored(f"{wdir.replace("./", "")}: ", attrs=['bold'])
                   + colored("ATAT ", "magenta")
                   + f"Saved extra energy points to {filename}")
@@ -527,7 +527,7 @@ def _atat_1(
         gs.loc[gs['index'] == idx, 'sublattice deviation'] = displ
 
     logger.info("Saving sublattice deviation to %s", 'fit2.out')
-    fit.to_csv("fit2.out", sep=' ')
+    fit.to_csv("fit2.out", sep=' ', index=False)
     print(colored(f"{wdir.replace("./", "")}: ", attrs=['bold'])
           + colored("ATAT ", "magenta")
           + "Saved sublattice deviations to fit2.out")
