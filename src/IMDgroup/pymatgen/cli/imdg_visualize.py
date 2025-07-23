@@ -484,6 +484,11 @@ def _atat_1(
                  for extra_dir in extra_dirs]
         for df in extra:
             df.threshold = extra_dirs_threshold
+            logger.info("Saving extra energy points to %s", df.name)
+            df.to_csv(f"{df.name}.out", sep=' ')
+            print(colored(f"{wdir.replace("./", "")}: ", attrs=['bold'])
+                  + colored("ATAT ", "magenta")
+                  + f"Saved extra energy points to {df.name}.out")
 
     for idx in alive_it(fit['index'],
                         title="Getting sublattice deviations"):
