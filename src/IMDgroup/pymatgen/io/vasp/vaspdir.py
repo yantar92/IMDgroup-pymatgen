@@ -118,7 +118,7 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
         self._parsed_files = None
 
     _cache_cleaned: typing.ClassVar[bool] = False
-    MAX_CACHE_SIZE: typing.ClassVar[int] = 8 * 1024 ** 3  # 8GB
+    MAX_CACHE_SIZE: typing.ClassVar[int] = 6 * 1024 ** 3  # 6GB
 
     def __init__(self, dirname: str | Path) -> None:
         """
