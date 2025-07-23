@@ -484,9 +484,9 @@ def _atat_1(
                  for extra_dir in extra_dirs]
         for df in extra:
             df.threshold = extra_dirs_threshold
-            filename = str(df.name).replace('/','') + ".out"
+            filename = str(df.name).replace('/', '') + ".out"
             logger.info("Saving extra energy points to %s", filename)
-            df.to_csv(f"{df.name}.out", sep=' ')
+            df.to_csv(filename, sep=' ')
             print(colored(f"{wdir.replace("./", "")}: ", attrs=['bold'])
                   + colored("ATAT ", "magenta")
                   + f"Saved extra energy points to {filename}")
