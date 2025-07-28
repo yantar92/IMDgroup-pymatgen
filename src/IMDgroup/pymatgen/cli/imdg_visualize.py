@@ -469,12 +469,18 @@ def _atat_1(
     predstr = _atat_read_predstr(Path(wdir))
     gs = _atat_read_gs(Path(wdir))
     fit = _atat_read_fit(Path(wdir))
+    not_converged = False
     try:
         with open(Path(wdir) / 'maps.log', 'r', encoding='utf-8') as f:
-            lines = f.read().strip().split('\n')
-            cve = lines[-1]
+            content = f.read()
+            lines = content.strip().split('\n')
+            cve = lines[-1] if lines else ''
+            # Check for fit convergence warning
+            if "Among structures of known energy, true ground states differ from fitted ground states" in content:
+                not_converged = True
     except Exception:
-        cve = ''
+        cve = 'N/A'
+        not_converged = True
     extra = []
     if extra_dirs is not None:
         with open(Path(wdir) / "ref_energy.out", 'r', encoding='utf-8') as ref_energy:
@@ -535,9 +541,11 @@ def _atat_1(
           + "Saved sublattice deviations to fit2.out")
 
     global_title = str(Path(wdir).absolute())
+    if not_converged:
+        global_title += " [WARNING: Fit not converged!]"
 
     fig, axs = plt.subplots(2, 3, figsize=(19.2, 9.6))
-    fig.suptitle(global_title, fontsize=16)
+    fig.suptitle(global_title, fontsize=16, color='red' if not_converged else 'black')
 
     plt.rcParams['lines.markersize'] = 3
 
@@ -549,6 +557,16 @@ def _atat_1(
     _atat_plot_clusters(axs[1, 2], clusters)
 
     plt.tight_layout(rect=[0, 0.03, 1, 0.95])  # Leave space for suptitle
+
+    # Add warning text if fit not converged
+    if not_converged:
+        plt.figtext(
+            0.5, 0.01,
+            "WARNING: True and fitted ground states differ"
+            " - fit not converged!",
+            ha="center", fontsize=12,
+            bbox={"facecolor": "red", "alpha": 0.3, "pad": 5})
+
     output_png = 'atat-summary-test.png'
     plt.savefig(output_png, dpi=300)
 
