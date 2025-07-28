@@ -559,7 +559,7 @@ def _atat_1(
     # Add warning text if fit not converged
     if not_converged:
         plt.figtext(
-            0.5, 0.94,  # Adjusted to avoid overlapping with suptitle
+            0.5, 0.92,  # Adjusted to avoid overlapping with suptitle
             "WARNING: True and fitted ground states differ"
             " - fit not converged!",
             ha="center", fontsize=12,
