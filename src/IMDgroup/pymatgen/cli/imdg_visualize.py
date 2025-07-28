@@ -541,11 +541,9 @@ def _atat_1(
           + "Saved sublattice deviations to fit2.out")
 
     global_title = str(Path(wdir).absolute())
-    if not_converged:
-        global_title += " [WARNING: Fit not converged!]"
 
     fig, axs = plt.subplots(2, 3, figsize=(19.2, 9.6))
-    fig.suptitle(global_title, fontsize=16, color='red' if not_converged else 'black')
+    fig.suptitle(global_title, fontsize=16)
 
     plt.rcParams['lines.markersize'] = 3
 
@@ -561,7 +559,7 @@ def _atat_1(
     # Add warning text if fit not converged
     if not_converged:
         plt.figtext(
-            0.5, 0.01,
+            0.5, 0.98,
             "WARNING: True and fitted ground states differ"
             " - fit not converged!",
             ha="center", fontsize=12,
