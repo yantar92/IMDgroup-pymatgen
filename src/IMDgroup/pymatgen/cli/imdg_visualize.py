@@ -554,7 +554,7 @@ def _atat_1(
     _atat_plot_sublattice_deviation(axs[1, 1], gs, fit)
     _atat_plot_clusters(axs[1, 2], clusters)
 
-    plt.tight_layout(rect=[0, 0.03, 1, 0.92])  # Leave space for both suptitle and warning
+    plt.tight_layout(rect=[0, 0.03, 1, 0.94])  # Leave space for both suptitle and warning
 
     # Add warning text if fit not converged
     if not_converged:
