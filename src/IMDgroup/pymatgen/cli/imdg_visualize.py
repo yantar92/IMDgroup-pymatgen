@@ -491,6 +491,7 @@ def _atat_1(
         for df in extra:
             df.threshold = extra_dirs_threshold
             filename = str(df.name).replace('/', '') + ".out"
+            filename = Path(wdir)/filename
             logger.info("Saving extra energy points to %s", filename)
             df.sort_values('concentration').to_csv(
                 filename, sep=' ', index=False)
@@ -535,7 +536,7 @@ def _atat_1(
 
     logger.info("Saving sublattice deviation to %s", 'fit2.out')
     fit.sort_values('concentration').to_csv(
-        "fit2.out", sep=' ', index=False)
+        Path(wdir)/"fit2.out", sep=' ', index=False)
     print(colored(f"{wdir.replace("./", "")}: ", attrs=['bold'])
           + colored("ATAT ", "magenta")
           + "Saved sublattice deviations to fit2.out")
@@ -565,7 +566,7 @@ def _atat_1(
             ha="center", fontsize=12,
             bbox={"facecolor": "red", "alpha": 0.3, "pad": 5})
 
-    output_png = 'atat-summary-test.png'
+    output_png = Path(wdir)/'atat-summary-test.png'
     plt.savefig(output_png, dpi=300)
 
     logger.info("Saving ATAT plots to %s", output_png)
