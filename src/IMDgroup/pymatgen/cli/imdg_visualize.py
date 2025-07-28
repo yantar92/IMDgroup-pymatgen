@@ -579,9 +579,7 @@ def _atat_1(
 def atat(args):
     """Create ATAT visualization.
     """
-    for wdir, subdirs, _ in os.walk(args.dir):
-        subdirs.sort()  # this will make loop go in order
-        _atat_1(wdir, args.plot_extra, args.plot_extra_threshold)
+    _atat_1(args.dir, args.plot_extra, args.plot_extra_threshold)
     return 0
 
 
