@@ -535,11 +535,12 @@ def _atat_1(
         gs.loc[gs['index'] == idx, 'sublattice deviation'] = displ
 
     logger.info("Saving sublattice deviation to %s", 'fit2.out')
+    filename = Path(wdir)/"fit2.out"
     fit.sort_values('concentration').to_csv(
-        Path(wdir)/"fit2.out", sep=' ', index=False)
+        filename, sep=' ', index=False)
     print(colored(f"{wdir.replace("./", "")}: ", attrs=['bold'])
           + colored("ATAT ", "magenta")
-          + "Saved sublattice deviations to fit2.out")
+          + f"Saved sublattice deviations to {filename}")
 
     global_title = str(Path(wdir).absolute())
 
