@@ -326,7 +326,7 @@ def _atat_plot_fitted_energies(
         gs_filtered['fitted energy'].max(),
         newgs_filtered['predicted energy'].max()
     )
-    ax.set_ylim(y_min - 0.1 * (y_max - y_min), y_max + 0.1 * (y_max - y_min))
+    ax.set_ylim(y_min - 0.1 * (y_max - y_min), -y_min + 0.1 * (y_max - y_min))
 
     ax.plot(
         predstr['concentration'], predstr['predicted energy'],
@@ -361,7 +361,7 @@ def _atat_plot_calc_vs_fit_energies(
     # Calculate y-axis limits
     y_min = min(fit_filtered['energy'].min(), fit_filtered['fitted energy'].min())
     y_max = max(fit_filtered['energy'].max(), fit_filtered['fitted energy'].max())
-    ax.set_ylim(y_min - 0.1 * (y_max - y_min), y_max + 0.1 * (y_max - y_min))
+    ax.set_ylim(y_min - 0.1 * (y_max - y_min), -y_min + 0.1 * (y_max - y_min))
 
     ax.plot(fit['concentration'], fit['energy'], 'P', label='calculated')
     ax.plot(fit['concentration'], fit['fitted energy'], 'o', label='fitted')
@@ -444,7 +444,7 @@ def _atat_plot_calculated_energies(
     if len(erred_filtered) > 0:
         y_min = min(y_min, erred_filtered['energy'].min())
         y_max = max(y_max, erred_filtered['energy'].max())
-    ax.set_ylim(y_min - 0.1 * (y_max - y_min), y_max + 0.1 * (y_max - y_min))
+    ax.set_ylim(y_min - 0.1 * (y_max - y_min), -y_min + 0.1 * (y_max - y_min))
 
     displ = np.array(fit['sublattice deviation'], dtype=float)
     cmap = __blue_orrd_cmap(
