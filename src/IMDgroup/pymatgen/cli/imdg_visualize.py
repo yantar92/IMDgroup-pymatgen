@@ -306,29 +306,18 @@ def _atat_plot_fitted_energies(
     ax.set_xlabel('Concentration')
     ax.set_ylabel('Energy per reference cell, eV')
     ax.set_xlim(c_range[0], c_range[1])
-
-    def _get_mask(data):
-        return data['concentration'] >= c_range[0]\
-            & data['concentration'] <= c_range[1]
-
-    predstr_filtered = predstr[_get_mask(predstr)]
-    fit_filtered = fit[_get_mask(fit)]
-    gs_filtered = gs[_get_mask(gs)]
-    newgs_filtered = newgs[_get_mask(newgs)]
-
     ax.plot(
-        predstr_filtered['concentration'],
-        predstr_filtered['predicted energy'],
+        predstr['concentration'], predstr['predicted energy'],
         'o', label='predicted', markersize=1)
     ax.plot(
-        fit_filtered['concentration'], fit_filtered['fitted energy'],
+        fit['concentration'], fit['fitted energy'],
         'o', label='known str')
     ax.plot(
-        gs_filtered['concentration'], gs_filtered['fitted energy'],
+        gs['concentration'], gs['fitted energy'],
         'o-', fillstyle='none',
         label='fitted gs', color='black', markersize=8)
     ax.plot(
-        newgs_filtered['concentration'], newgs_filtered['predicted energy'],
+        newgs['concentration'], newgs['predicted energy'],
         's', markersize=8, fillstyle='none', label='predicted gs', color='red')
     ax.legend()
 
@@ -343,19 +332,8 @@ def _atat_plot_calc_vs_fit_energies(
     ax.set_xlabel('Concentration')
     ax.set_ylabel('Energy per reference cell, eV')
     ax.set_xlim(c_range[0], c_range[1])
-
-    def _get_mask(data):
-        return data['concentration'] >= c_range[0]\
-            & data['concentration'] <= c_range[1]
-
-    fit_filtered = fit[_get_mask(fit)]
-
-    ax.plot(
-        fit_filtered['concentration'], fit_filtered['energy'],
-        'P', label='calculated')
-    ax.plot(
-        fit_filtered['concentration'], fit_filtered['fitted energy'],
-        'o', label='fitted')
+    ax.plot(fit['concentration'], fit['energy'], 'P', label='calculated')
+    ax.plot(fit['concentration'], fit['fitted energy'], 'o', label='fitted')
     ax.legend()
 
 
@@ -417,17 +395,12 @@ def _atat_plot_calculated_energies(
     ax.set_ylabel('Energy per reference cell, eV')
     ax.set_xlim(c_range[0], c_range[1])
 
-    def _get_mask(data):
-        return data['concentration'] >= c_range[0]\
-            & data['concentration'] <= c_range[1]
-
     displ = np.array(fit['sublattice deviation'], dtype=float)
     cmap = __blue_orrd_cmap(
         np.nanmin(displ), np.nanmax(displ),
         color=ax._get_lines.get_next_color())
-    fit_filtered = fit[_get_mask(fit)]
     sc = ax.scatter(
-        fit_filtered['concentration'], fit_filtered['energy'],
+        fit['concentration'], fit['energy'],
         c=displ, cmap=cmap, norm=Normalize(np.nanmin(displ), np.nanmax(displ)),
         marker='P', label='known str')
     if cmap is not None:
@@ -437,11 +410,8 @@ def _atat_plot_calculated_energies(
         for df in extra:
             concentrations = []
             energies = []
-            df_filtered = df[_get_mask(df)]
             for index, concentration, energy in zip(
-                    df_filtered['index'],
-                    df_filtered['concentration'],
-                    df_filtered['energy']):
+                    df['index'], df['concentration'], df['energy']):
                 orig_energy = fit.loc[fit['index'] == index, 'energy'].iloc[0]
                 if np.isclose(energy, orig_energy, atol=df.threshold):
                     continue
@@ -450,19 +420,17 @@ def _atat_plot_calculated_energies(
             if len(concentrations) > 0:
                 ax.plot(concentrations, energies,
                         's', fillstyle='none', markersize=8, label=df.name)
-    gs_filtered = gs[_get_mask(gs)]
     ax.plot(
-        gs_filtered['concentration'], gs_filtered['energy'],
+        gs['concentration'], gs['energy'],
         'o-', fillstyle='none', color='black',
         markersize=8, label='calculated gs')
     error_groups = {}
-    erred_filtered = erred[_get_mask(erred)]
-    for idx in erred_filtered['index']:
+    for idx in erred['index']:
         error_dir = Path(f"{idx}")
         for err_file in error_dir.glob("error_*"):
             error_groups.setdefault(err_file.name, []).append(
-                (erred_filtered.loc[erred_filtered['index'] == idx, 'concentration'].iloc[0],
-                 erred_filtered.loc[erred_filtered['index'] == idx, 'energy'].iloc[0])
+                (erred.loc[erred['index'] == idx, 'concentration'].iloc[0],
+                 erred.loc[erred['index'] == idx, 'energy'].iloc[0])
             )
     colors = ["red", "brown", "black", "magenta"]
     for idx, (err_name, points) in enumerate(error_groups.items()):
