@@ -311,10 +311,10 @@ def _atat_plot_fitted_energies(
         return data['concentration'] >= c_range[0]\
             & data['concentration'] <= c_range[1]
 
-    predstr_filtered = predstr.loc[_get_mask(predstr)]
-    fit_filtered = fit.loc[_get_mask(fit)]
-    gs_filtered = gs.loc[_get_mask(gs)]
-    newgs_filtered = newgs.loc[_get_mask(newgs)]
+    predstr_filtered = predstr[_get_mask(predstr)]
+    fit_filtered = fit[_get_mask(fit)]
+    gs_filtered = gs[_get_mask(gs)]
+    newgs_filtered = newgs[_get_mask(newgs)]
 
     ax.plot(
         predstr_filtered['concentration'],
@@ -348,7 +348,7 @@ def _atat_plot_calc_vs_fit_energies(
         return data['concentration'] >= c_range[0]\
             & data['concentration'] <= c_range[1]
 
-    fit_filtered = fit.loc[_get_mask(fit)]
+    fit_filtered = fit[_get_mask(fit)]
 
     ax.plot(
         fit_filtered['concentration'], fit_filtered['energy'],
@@ -425,7 +425,7 @@ def _atat_plot_calculated_energies(
     cmap = __blue_orrd_cmap(
         np.nanmin(displ), np.nanmax(displ),
         color=ax._get_lines.get_next_color())
-    fit_filtered = fit.loc[_get_mask(fit)]
+    fit_filtered = fit[_get_mask(fit)]
     sc = ax.scatter(
         fit_filtered['concentration'], fit_filtered['energy'],
         c=displ, cmap=cmap, norm=Normalize(np.nanmin(displ), np.nanmax(displ)),
@@ -437,7 +437,7 @@ def _atat_plot_calculated_energies(
         for df in extra:
             concentrations = []
             energies = []
-            df_filtered = df.loc[_get_mask(df)]
+            df_filtered = df[_get_mask(df)]
             for index, concentration, energy in zip(
                     df_filtered['index'],
                     df_filtered['concentration'],
@@ -450,13 +450,13 @@ def _atat_plot_calculated_energies(
             if len(concentrations) > 0:
                 ax.plot(concentrations, energies,
                         's', fillstyle='none', markersize=8, label=df.name)
-    gs_filtered = gs.loc[_get_mask(gs)]
+    gs_filtered = gs[_get_mask(gs)]
     ax.plot(
         gs_filtered['concentration'], gs_filtered['energy'],
         'o-', fillstyle='none', color='black',
         markersize=8, label='calculated gs')
     error_groups = {}
-    erred_filtered = erred.loc[_get_mask(erred)]
+    erred_filtered = erred[_get_mask(erred)]
     for idx in erred_filtered['index']:
         error_dir = Path(f"{idx}")
         for err_file in error_dir.glob("error_*"):
