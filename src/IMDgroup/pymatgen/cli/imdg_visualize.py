@@ -495,6 +495,7 @@ def _atat_1(
         not_converged = True
         conc_range = (0.0, 1.0)
 
+    logger.debug('Read concentration range: %s', conc_range)
     # Determine reference energies for scaling
     if conc_range == (0.0, 1.0):
         with open(Path(wdir) / "ref_energy.out", 'r', encoding='utf-8') as ref_energy:
