@@ -307,7 +307,7 @@ def _atat_plot_fitted_energies(
     ax.set_ylabel('Energy per reference cell, eV')
     ax.set_xlim(c_range[0], c_range[1])
     ax.plot(
-        predstr['concentration'], predstr['predicted_energy'],
+        predstr['concentration'], predstr['predicted energy'],
         'o', label='predicted', markersize=1)
     ax.plot(
         fit['concentration'], fit['fitted energy'],
@@ -317,7 +317,7 @@ def _atat_plot_fitted_energies(
         'o-', fillstyle='none',
         label='fitted gs', color='black', markersize=8)
     ax.plot(
-        newgs['concentration'], newgs['predicted_energy'],
+        newgs['concentration'], newgs['predicted energy'],
         's', markersize=8, fillstyle='none', label='predicted gs', color='red')
     ax.legend()
 
