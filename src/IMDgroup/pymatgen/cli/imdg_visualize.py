@@ -29,6 +29,7 @@
 """
 import logging
 import os
+import re
 from termcolor import colored
 from pathlib import Path
 from alive_progress import alive_it
@@ -295,7 +296,8 @@ def _atat_plot_fitted_energies(
         ax: plt.Axes,
         predstr: pd.DataFrame,
         gs: pd.DataFrame,
-        fit: pd.DataFrame) -> None:
+        fit: pd.DataFrame,
+        c_range: tuple(float, float) = (0.0, 1.0)) -> None:
     """Plot Fitted energies at AX axis.
     """
     newgs = predstr[predstr['status'].str.contains('g')]
@@ -303,7 +305,7 @@ def _atat_plot_fitted_energies(
     ax.set_title('Fitted Energies')
     ax.set_xlabel('Concentration')
     ax.set_ylabel('Energy per reference cell, eV')
-    ax.set_xlim(0, 1)
+    ax.set_xlim(c_range[0], c_range[1])
     ax.plot(
         predstr['concentration'], predstr['predicted_energy'],
         'o', label='predicted', markersize=1)
@@ -322,13 +324,14 @@ def _atat_plot_fitted_energies(
 
 def _atat_plot_calc_vs_fit_energies(
         ax: plt.Axes,
-        fit: pd.DataFrame) -> None:
+        fit: pd.DataFrame,
+        c_range: tuple(float, float) = (0.0, 1.0)) -> None:
     """Plot Fitted vs Calculated energies at AX axis.
     """
     ax.set_title('Calculated and Fitted Energies')
     ax.set_xlabel('Concentration')
     ax.set_ylabel('Energy per reference cell, eV')
-    ax.set_xlim(0, 1)
+    ax.set_xlim(c_range[0], c_range[1])
     ax.plot(fit['concentration'], fit['energy'], 'P', label='calculated')
     ax.plot(fit['concentration'], fit['fitted energy'], 'o', label='fitted')
     ax.legend()
@@ -378,7 +381,8 @@ def _atat_plot_calculated_energies(
         predstr: pd.DataFrame,
         gs: pd.DataFrame,
         fit: pd.DataFrame,
-        extra: list[pd.DataFrame] | None = None
+        extra: list[pd.DataFrame] | None = None,
+        c_range: tuple(float, float) = (0.0, 1.0)
         ) -> None:
     """Plot Fitted energies at AX axis.
     """
@@ -389,7 +393,7 @@ def _atat_plot_calculated_energies(
     ax.set_title('Calculated Energies')
     ax.set_xlabel('Concentration')
     ax.set_ylabel('Energy per reference cell, eV')
-    ax.set_xlim(0, 1)
+    ax.set_xlim(c_range[0], c_range[1])
 
     displ = np.array(fit['sublattice deviation'], dtype=float)
     cmap = __blue_orrd_cmap(
@@ -478,26 +482,61 @@ def _atat_1(
             # Check for fit convergence warning
             if "Among structures of known energy, true ground states differ from fitted ground states" in content:
                 not_converged = True
+            # Check concentration range
+            conc_range = (0.0, 1.0)
+            match = re.search(
+                    r'Concentration range used for ground state checking:'
+                    r'\s*\[(.*?),(.*?)\]',
+                    content)
+            if match:
+                conc_range = (float(match.group(1)), float(match.group(2)))
     except Exception:
         cve = 'N/A'
         not_converged = True
-    extra = []
-    if extra_dirs is not None:
+        conc_range = (0.0, 1.0)
+
+    # Determine reference energies for scaling
+    if conc_range == (0.0, 1.0):
         with open(Path(wdir) / "ref_energy.out", 'r', encoding='utf-8') as ref_energy:
             e0 = float(next(ref_energy))
             e1 = float(next(ref_energy))
+    else:
+        # Find nearest ground state structures to boundaries
+        a, b = conc_range
+        gs_near_a = gs.iloc[(gs['concentration'] - a).abs().argsort()[:1]]
+        gs_near_b = gs.iloc[(gs['concentration'] - b).abs().argsort()[:1]]
+        e0 = fit.loc[fit['index'] == gs_near_a.iloc[0]['index'], 'energy'].values[0]
+        e1 = fit.loc[fit['index'] == gs_near_b.iloc[0]['index'], 'energy'].values[0]
+
+    extra = []
+    if extra_dirs is not None:
         extra = [_atat_read_extra(fit, extra_dir, e0, e1)
                  for extra_dir in extra_dirs]
-        for df in extra:
-            df.threshold = extra_dirs_threshold
-            filename = str(df.name).replace('/', '') + ".out"
-            filename = Path(wdir)/filename
-            logger.info("Saving extra energy points to %s", filename)
-            df.sort_values('concentration').to_csv(
-                filename, sep=' ', index=False)
-            print(colored(f"{wdir.replace("./", "")}: ", attrs=['bold'])
-                  + colored("ATAT ", "magenta")
-                  + f"Saved extra energy points to {filename}")
+
+    # Re-scale energies
+    if not conc_range == (0.0, 1.0):
+        logger.debug(
+            'Re-scaling energies for concentration range %s',
+            conc_range)
+        for data in [predstr, fit, gs] + extra:
+            data['energy'] = data.apply(
+                lambda row: row['energy'] - (
+                    e0 + (row['concentration'] - conc_range[0]) *
+                    (e1 - e0) / (conc_range[1] - conc_range[0])
+                ) if not np.isnan(row['energy']) else row['energy'],
+                axis=1
+            )
+
+    for df in extra:
+        df.threshold = extra_dirs_threshold
+        filename = str(df.name).replace('/', '') + ".out"
+        filename = Path(wdir)/filename
+        logger.info("Saving extra energy points to %s", filename)
+        df.sort_values('concentration').to_csv(
+            filename, sep=' ', index=False)
+        print(colored(f"{wdir.replace("./", "")}: ", attrs=['bold'])
+              + colored("ATAT ", "magenta")
+              + f"Saved extra energy points to {filename}")
 
     for idx in alive_it(fit['index'],
                         title="Getting sublattice deviations"):
@@ -549,9 +588,9 @@ def _atat_1(
 
     plt.rcParams['lines.markersize'] = 3
 
-    _atat_plot_fitted_energies(axs[0, 0], predstr, gs, fit)
-    _atat_plot_calculated_energies(axs[0, 1], predstr, gs, fit, extra)
-    _atat_plot_calc_vs_fit_energies(axs[0, 2], fit)
+    _atat_plot_fitted_energies(axs[0, 0], predstr, gs, fit, conc_range)
+    _atat_plot_calculated_energies(axs[0, 1], predstr, gs, fit, extra, conc_range)
+    _atat_plot_calc_vs_fit_energies(axs[0, 2], fit, conc_range)
     _atat_plot_residuals(axs[1, 0], cve, fit)
     _atat_plot_sublattice_deviation(axs[1, 1], gs, fit)
     _atat_plot_clusters(axs[1, 2], clusters)
