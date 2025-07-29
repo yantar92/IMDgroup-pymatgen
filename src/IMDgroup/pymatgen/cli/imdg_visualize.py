@@ -524,11 +524,11 @@ def _atat_1(
                 if field not in data:
                     continue
                 data[field] = data.apply(
-                    lambda row: row[field] - (
+                    lambda row, field: row[field] - (
                         e0 + (row['concentration'] - conc_range[0]) *
                         (e1 - e0) / (conc_range[1] - conc_range[0])
                     ) if not np.isnan(row[field]) else row[field],
-                    axis=1
+                    axis=1, args=(field)
                 )
 
     for df in extra:
