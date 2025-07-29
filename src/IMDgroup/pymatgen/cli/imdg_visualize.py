@@ -160,7 +160,7 @@ def _atat_read_predstr(path: Path) -> pd.DataFrame:
     """
     return pd.read_csv(
         path / 'predstr.out', sep=' ', header=None,
-        names=['concentration', 'energy', 'predicted_energy',
+        names=['concentration', 'energy', 'predicted energy',
                'index',
                # b = busy, e = error, u = unknown (not calculated),
                # bg/eg/ug = ground state
@@ -173,7 +173,7 @@ def _atat_read_gs(path: Path) -> pd.DataFrame:
     """
     return pd.read_csv(
         path / 'gs.out', sep=' ', header=None,
-        names=['concentration', 'energy', 'fitted_energy', 'index']
+        names=['concentration', 'energy', 'fitted energy', 'index']
     )
 
 
@@ -313,7 +313,7 @@ def _atat_plot_fitted_energies(
         fit['concentration'], fit['fitted energy'],
         'o', label='known str')
     ax.plot(
-        gs['concentration'], gs['fitted_energy'],
+        gs['concentration'], gs['fitted energy'],
         'o-', fillstyle='none',
         label='fitted gs', color='black', markersize=8)
     ax.plot(
@@ -520,13 +520,16 @@ def _atat_1(
             'Re-scaling energies for concentration range %s',
             conc_range)
         for data in [predstr, fit, gs] + extra:
-            data['energy'] = data.apply(
-                lambda row: row['energy'] - (
-                    e0 + (row['concentration'] - conc_range[0]) *
-                    (e1 - e0) / (conc_range[1] - conc_range[0])
-                ) if not np.isnan(row['energy']) else row['energy'],
-                axis=1
-            )
+            for field in ['energy', 'predicted energy', 'fitted energy']:
+                if field not in data:
+                    continue
+                data['energy'] = data.apply(
+                    lambda row: row['energy'] - (
+                        e0 + (row['concentration'] - conc_range[0]) *
+                        (e1 - e0) / (conc_range[1] - conc_range[0])
+                    ) if not np.isnan(row['energy']) else row['energy'],
+                    axis=1
+                )
 
     for df in extra:
         df.threshold = extra_dirs_threshold
