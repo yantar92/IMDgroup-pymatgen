@@ -523,11 +523,11 @@ def _atat_1(
             for field in ['energy', 'predicted energy', 'fitted energy']:
                 if field not in data:
                     continue
-                data['energy'] = data.apply(
-                    lambda row: row['energy'] - (
+                data[field] = data.apply(
+                    lambda row: row[field] - (
                         e0 + (row['concentration'] - conc_range[0]) *
                         (e1 - e0) / (conc_range[1] - conc_range[0])
-                    ) if not np.isnan(row['energy']) else row['energy'],
+                    ) if not np.isnan(row[field]) else row[field],
                     axis=1
                 )
 
