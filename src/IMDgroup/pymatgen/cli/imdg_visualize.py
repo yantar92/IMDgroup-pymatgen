@@ -297,7 +297,7 @@ def _atat_plot_fitted_energies(
         predstr: pd.DataFrame,
         gs: pd.DataFrame,
         fit: pd.DataFrame,
-        c_range: tuple(float, float) = (0.0, 1.0)) -> None:
+        c_range: tuple[float, float] = (0.0, 1.0)) -> None:
     """Plot Fitted energies at AX axis.
     """
     newgs = predstr[predstr['status'].str.contains('g')]
@@ -325,7 +325,7 @@ def _atat_plot_fitted_energies(
 def _atat_plot_calc_vs_fit_energies(
         ax: plt.Axes,
         fit: pd.DataFrame,
-        c_range: tuple(float, float) = (0.0, 1.0)) -> None:
+        c_range: tuple[float, float] = (0.0, 1.0)) -> None:
     """Plot Fitted vs Calculated energies at AX axis.
     """
     ax.set_title('Calculated and Fitted Energies')
@@ -382,7 +382,7 @@ def _atat_plot_calculated_energies(
         gs: pd.DataFrame,
         fit: pd.DataFrame,
         extra: list[pd.DataFrame] | None = None,
-        c_range: tuple(float, float) = (0.0, 1.0)
+        c_range: tuple[float, float] = (0.0, 1.0)
         ) -> None:
     """Plot Fitted energies at AX axis.
     """
