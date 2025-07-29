@@ -319,6 +319,8 @@ def _atat_plot_fitted_energies(
     ax.plot(
         newgs['concentration'], newgs['predicted energy'],
         's', markersize=8, fillstyle='none', label='predicted gs', color='red')
+    ax.relim()
+    ax.autoscale_view(scalex=False, scaley=True)
     ax.legend()
 
 
@@ -334,6 +336,8 @@ def _atat_plot_calc_vs_fit_energies(
     ax.set_xlim(c_range[0], c_range[1])
     ax.plot(fit['concentration'], fit['energy'], 'P', label='calculated')
     ax.plot(fit['concentration'], fit['fitted energy'], 'o', label='fitted')
+    ax.relim()
+    ax.autoscale_view(scalex=False, scaley=True)
     ax.legend()
 
 
@@ -438,6 +442,8 @@ def _atat_plot_calculated_energies(
         ax.plot(
             x_vals, y_vals, 'x', markersize=5,
             color=colors[idx % len(colors)], label=err_name)
+    ax.relim()
+    ax.autoscale_view(scalex=False, scaley=True)
     ax.legend()
 
 
