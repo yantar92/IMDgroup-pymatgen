@@ -232,7 +232,11 @@ def _atat_read_clusters(path: Path) -> pd.DataFrame:
     })
 
 
-def _atat_read_extra(fit: pd.DataFrame, path: Path, e0: float, e1: float) -> pd.DataFrame:
+def _atat_read_extra(
+        fit: pd.DataFrame,
+        path: Path,
+        e0: float, e1: float,
+        ref_structure_len: int) -> pd.DataFrame:
     """Read energies from PATH mirrowing ATAT folders.
     Only consider structure indices from FIT + "1" folder containing
     reference structure for energy normalization.
@@ -245,7 +249,6 @@ def _atat_read_extra(fit: pd.DataFrame, path: Path, e0: float, e1: float) -> pd.
     concentrations = []
     energies = []
     indices = []
-    ref_structure_len = len(Structure.from_file(Path(path) / "1/str.out"))
     for concentration, index in alive_it(
             zip(fit['concentration'], fit['index']),
             title=f'Reading extra energies from {path}',
@@ -566,7 +569,8 @@ def _atat_1(
 
     extra = []
     if extra_dirs is not None:
-        extra = [_atat_read_extra(fit, extra_dir, e0_atat, e1_atat)
+        ref_struture_len = len(Structure.from_file(Path('1/str.out')))
+        extra = [_atat_read_extra(fit, extra_dir, e0_atat, e1_atat, ref_struture_len)
                  for extra_dir in extra_dirs]
 
     # Re-scale energies
