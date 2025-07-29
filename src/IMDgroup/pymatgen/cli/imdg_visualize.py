@@ -496,11 +496,15 @@ def _atat_1(
         conc_range = (0.0, 1.0)
 
     logger.debug('Read concentration range: %s', conc_range)
+
+    with open(Path(wdir) / "ref_energy.out", 'r', encoding='utf-8') as ref_energy:
+        e0_atat = float(next(ref_energy))
+        e1_atat = float(next(ref_energy))
+
     # Determine reference energies for scaling
     if conc_range == (0.0, 1.0):
-        with open(Path(wdir) / "ref_energy.out", 'r', encoding='utf-8') as ref_energy:
-            e0 = float(next(ref_energy))
-            e1 = float(next(ref_energy))
+        e0 = e0_atat
+        e1 = e1_atat
     else:
         # Find nearest ground state structures to boundaries
         a, b = conc_range
@@ -511,7 +515,7 @@ def _atat_1(
 
     extra = []
     if extra_dirs is not None:
-        extra = [_atat_read_extra(fit, extra_dir, e0, e1)
+        extra = [_atat_read_extra(fit, extra_dir, e0_atat, e1_atat)
                  for extra_dir in extra_dirs]
 
     # Re-scale energies
