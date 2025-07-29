@@ -308,8 +308,8 @@ def _atat_plot_fitted_energies(
     ax.set_xlim(c_range[0], c_range[1])
 
     def _get_mask(data):
-        return (data['concentration'] >= c_range[0])\
-            & (data['concentration'] <= c_range[1])
+        return data['concentration'] >= c_range[0]\
+            & data['concentration'] <= c_range[1]
 
     predstr_filtered = predstr[_get_mask(predstr)]
     fit_filtered = fit[_get_mask(fit)]
