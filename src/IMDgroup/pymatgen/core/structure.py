@@ -50,7 +50,7 @@ class IMDStructure(Structure):
     """IMDGroup variant of Structure.
     New features:
     1. Read structure from str.out ATAT's file.
-    2. Write structure t ostr.out ATAT's file replacing X0+ with Vac
+    2. Write structure to str.out ATAT's file replacing X0+ with Vac
     """
     @classmethod
     def from_file(
@@ -127,7 +127,7 @@ class IMDStructure(Structure):
         filename, fmt = str(filename), fmt.lower()
         if fmt == "atat" or os.path.basename(filename) in ("str.out"):
             from pymatgen.io.atat import Mcsqs
-            res_str = Mcsqs(self).to_str().replace('X0+', 'Vac').replace('=1', '')
+            res_str = Mcsqs(self).to_str().replace('X0+', 'Vac').replace('=1', '').replace('=1.0','')
             with zopen(filename, mode="wt", encoding="utf8") as file:
                 file.write(res_str)
             return res_str
