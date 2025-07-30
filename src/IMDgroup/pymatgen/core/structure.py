@@ -127,7 +127,7 @@ class IMDStructure(Structure):
         filename, fmt = str(filename), fmt.lower()
         if fmt == "atat" or os.path.basename(filename) in ("str.out"):
             from pymatgen.io.atat import Mcsqs
-            res_str = Mcsqs(self).to_str().replace('X0+', 'Vac').replace('=1', '').replace('=1.0','')
+            res_str = Mcsqs(self).to_str().replace('X0+', 'Vac').replace('=1.0','').replace('=1', '')
             with zopen(filename, mode="wt", encoding="utf8") as file:
                 file.write(res_str)
             return res_str
