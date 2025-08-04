@@ -554,6 +554,10 @@ def _atat_1(
     with open(Path(wdir) / "ref_energy.out", 'r', encoding='utf-8') as ref_energy:
         e0_atat = float(next(ref_energy))
         e1_atat = float(next(ref_energy))
+    # Sometimes, ATAT uses smaller reference cell
+    with open(Path(wdir) / "0/energy", 'r', encoding='utf-8') as e0_file:
+        e0_energy = float(next(e0_file))
+        ref_structure_mult = round(e0_energy / e0_atat)
 
     # Determine reference energies for scaling
     if conc_range == (0.0, 1.0):
@@ -569,8 +573,9 @@ def _atat_1(
 
     extra = []
     if extra_dirs is not None:
-        ref_struture_len = len(Structure.from_file(Path('1/str.out')))
-        extra = [_atat_read_extra(fit, extra_dir, e0_atat, e1_atat, ref_struture_len)
+        ref_structure_len = len(Structure.from_file(Path('1/str.out')))
+        ref_structure_len /= ref_structure_mult
+        extra = [_atat_read_extra(fit, extra_dir, e0_atat, e1_atat, ref_structure_len)
                  for extra_dir in extra_dirs]
 
     # Re-scale energies
