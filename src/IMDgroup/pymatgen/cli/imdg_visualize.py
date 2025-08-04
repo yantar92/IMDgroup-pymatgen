@@ -316,21 +316,6 @@ def _atat_plot_fitted_energies(
     gs_filtered = gs[(gs['concentration'] >= c_range[0]) & (gs['concentration'] <= c_range[1])]
     newgs_filtered = newgs[(newgs['concentration'] >= c_range[0]) & (newgs['concentration'] <= c_range[1])]
 
-    # Calculate y-axis limits
-    y_min = min(
-        predstr_filtered['predicted energy'].min(),
-        fit_filtered['fitted energy'].min(),
-        gs_filtered['fitted energy'].min(),
-        newgs_filtered['predicted energy'].min()
-    )
-    y_max = max(
-        predstr_filtered['predicted energy'].max(),
-        fit_filtered['fitted energy'].max(),
-        gs_filtered['fitted energy'].max(),
-        newgs_filtered['predicted energy'].max()
-    )
-    ax.set_ylim(y_min - 0.1 * (y_max - y_min), -y_min + 0.1 * (y_max - y_min))
-
     ax.plot(
         predstr['concentration'], predstr['predicted energy'],
         'o', label='predicted', markersize=1)
@@ -360,11 +345,6 @@ def _atat_plot_calc_vs_fit_energies(
 
     # Filter data within xlim range
     fit_filtered = fit[(fit['concentration'] >= c_range[0]) & (fit['concentration'] <= c_range[1])]
-
-    # Calculate y-axis limits
-    y_min = min(fit_filtered['energy'].min(), fit_filtered['fitted energy'].min())
-    y_max = max(fit_filtered['energy'].max(), fit_filtered['fitted energy'].max())
-    ax.set_ylim(y_min - 0.1 * (y_max - y_min), -y_min + 0.1 * (y_max - y_min))
 
     ax.plot(fit['concentration'], fit['energy'], 'P', label='calculated')
     ax.plot(fit['concentration'], fit['fitted energy'], 'o', label='fitted')
@@ -433,21 +413,6 @@ def _atat_plot_calculated_energies(
     fit_filtered = fit[(fit['concentration'] >= c_range[0]) & (fit['concentration'] <= c_range[1])]
     gs_filtered = gs[(gs['concentration'] >= c_range[0]) & (gs['concentration'] <= c_range[1])]
     erred_filtered = erred[(erred['concentration'] >= c_range[0]) & (erred['concentration'] <= c_range[1])]
-
-    # Calculate y-axis limits
-    y_min = fit_filtered['energy'].min()
-    y_max = fit_filtered['energy'].max()
-    if extra is not None:
-        for df in extra:
-            df_filtered = df[(df['concentration'] >= c_range[0]) & (df['concentration'] <= c_range[1])]
-            y_min = min(y_min, df_filtered['energy'].min())
-            y_max = max(y_max, df_filtered['energy'].max())
-    y_min = min(y_min, gs_filtered['energy'].min())
-    y_max = max(y_max, gs_filtered['energy'].max())
-    if len(erred_filtered) > 0:
-        y_min = min(y_min, erred_filtered['energy'].min())
-        y_max = max(y_max, erred_filtered['energy'].max())
-    ax.set_ylim(y_min - 0.1 * (y_max - y_min), -y_min + 0.1 * (y_max - y_min))
 
     displ = np.array(fit['sublattice deviation'], dtype=float)
     cmap = __blue_orrd_cmap(
