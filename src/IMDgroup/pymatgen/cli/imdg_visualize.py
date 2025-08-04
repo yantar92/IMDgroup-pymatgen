@@ -243,7 +243,7 @@ def _atat_read_extra(
     Return dataframe with 'concentration', 'energy', and 'index' fields.
     The dataframe name will be set to PATH.
     Energy is calculated from XXX/energy file contants, normalized by XXX/str.out
-    structure size vs. 1/str.out reference size.  The energy is then adjusted
+    structure size vs. REF_STRUCTURE_LEN reference size.  The energy is then adjusted
     for convex hull according to e0 and e1 energies (presumably from ref_energy.out).
     """
     concentrations = []
