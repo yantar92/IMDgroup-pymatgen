@@ -244,11 +244,23 @@ def _atat_read_extra(
     The dataframe name will be set to PATH.
     Energy is calculated from XXX/energy file contants, normalized by XXX/str.out
     structure size vs. REF_STRUCTURE_LEN reference size.  The energy is then adjusted
-    for convex hull according to e0 and e1 energies (presumably from ref_energy.out).
+    for convex hull according to "0" and "1" energies.
+    When "0" or "1" is not available, e0 and e1 energies (presumably
+    from ref_energy.out) are used.
     """
     concentrations = []
     energies = []
     indices = []
+    e0_file = Path(path) / "0" / "energy"
+    e1_file = Path(path) / "1" / "energy"
+    if e0_file.is_file() and e1_file.is_file():
+        logger.debug("Reading reference energies from %s", path)
+        e0_len = len(Structure.from_file(Path(path) / "0" / "str.out"))
+        e0 = float(e0_file.read_text(encoding='utf-8')) / (e0_len / ref_structure_len)
+        e1_len = len(Structure.from_file(Path(path) / "1" / "str.out"))
+        e1 = float(e1_file.read_text(encoding='utf-8')) / (e1_len / ref_structure_len)
+    else:
+        raise IOError(f"0 and 1 reference energies are not available in {path}")
     for concentration, index in alive_it(
             zip(fit['concentration'], fit['index']),
             title=f'Reading extra energies from {path}',
@@ -526,15 +538,19 @@ def _atat_1(
 
     # Determine reference energies for scaling
     if conc_range == (0.0, 1.0):
+        e0_index = 0
         e0 = e0_atat
+        e1_index = 1
         e1 = e1_atat
     else:
         # Find nearest ground state structures to boundaries
         a, b = conc_range
         gs_near_a = gs.iloc[(gs['concentration'] - a).abs().argsort()[:1]]
         gs_near_b = gs.iloc[(gs['concentration'] - b).abs().argsort()[:1]]
-        e0 = fit.loc[fit['index'] == gs_near_a.iloc[0]['index'], 'energy'].values[0]
-        e1 = fit.loc[fit['index'] == gs_near_b.iloc[0]['index'], 'energy'].values[0]
+        e0_index = int(gs_near_a.iloc[0]['index'])
+        e0 = fit.loc[fit['index'] == e0_index, 'energy'].values[0]
+        e1_index = int(gs_near_b.iloc[0]['index'])
+        e1 = fit.loc[fit['index'] == e1_index, 'energy'].values[0]
 
     extra = []
     if extra_dirs is not None:
@@ -552,10 +568,23 @@ def _atat_1(
             for field in ['energy', 'predicted energy', 'fitted energy']:
                 if field not in data:
                     continue
+                try:
+                    if hasattr(data, 'name'):
+                        e0_here = data.loc[data['index'] == e0_index, 'energy'].values[0]
+                        e1_here = data.loc[data['index'] == e1_index, 'energy'].values[0]
+                    else:
+                        e0_here = e0
+                        e1_here = e1
+                except Exception:
+                    warnings.warn(
+                        f"Missing reference energy in extra folder {data.name}"
+                    )
+                    e0_here = e0
+                    e1_here = e1
                 data[field] = data.apply(
                     lambda row: row[field] - (
-                        e0 + (row['concentration'] - conc_range[0]) *
-                        (e1 - e0) / (conc_range[1] - conc_range[0])
+                        e0_here + (row['concentration'] - conc_range[0]) *
+                        (e1_here - e0_here) / (conc_range[1] - conc_range[0])
                     ) if not np.isnan(row[field]) else row[field],
                     axis=1
                 )
