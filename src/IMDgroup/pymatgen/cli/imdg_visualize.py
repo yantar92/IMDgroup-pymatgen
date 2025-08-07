@@ -30,6 +30,7 @@
 import logging
 import os
 import re
+import warnings
 from termcolor import colored
 from pathlib import Path
 from alive_progress import alive_it
@@ -151,6 +152,34 @@ def atat_add_args(parser):
         "(default: 0.001eV/reference cell)",
         type=float,
         default=0.001
+    )
+    parser.add_argument(
+        "--cmin",
+        help="Min concentration to be used for convex hull"
+        "(default: read from maps.log)",
+        type=float,
+        default=None
+    )
+    parser.add_argument(
+        "--cmax",
+        help="Max concentration to be used for convex hull"
+        "(default: read from maps.log)",
+        type=float,
+        default=None
+    )
+    parser.add_argument(
+        "--emin",
+        help="Min energy for displaying on convex hull"
+        "(default: auto)",
+        type=float,
+        default=None
+    )
+    parser.add_argument(
+        "--emax",
+        help="Max energy for displaying on convex hull"
+        "(default: auto)",
+        type=float,
+        default=None
     )
     parser.set_defaults(func_derive=atat)
 
@@ -312,7 +341,8 @@ def _atat_plot_fitted_energies(
         predstr: pd.DataFrame,
         gs: pd.DataFrame,
         fit: pd.DataFrame,
-        c_range: tuple[float, float] = (0.0, 1.0)) -> None:
+        c_range: tuple[float, float] = (0.0, 1.0),
+        erange: tuple[float, float] | None = None) -> None:
     """Plot Fitted energies at AX axis.
     """
     newgs = predstr[predstr['status'].str.contains('g')]
@@ -321,6 +351,8 @@ def _atat_plot_fitted_energies(
     ax.set_xlabel('Concentration')
     ax.set_ylabel('Energy per reference cell, eV')
     ax.set_xlim(c_range[0], c_range[1])
+    if erange:
+        ax.set_ylim(erange[0], erange[1])
 
     # Filter data within xlim range
     predstr_filtered = predstr[(predstr['concentration'] >= c_range[0]) & (predstr['concentration'] <= c_range[1])]
@@ -347,13 +379,17 @@ def _atat_plot_fitted_energies(
 def _atat_plot_calc_vs_fit_energies(
         ax: plt.Axes,
         fit: pd.DataFrame,
-        c_range: tuple[float, float] = (0.0, 1.0)) -> None:
+        c_range: tuple[float, float] = (0.0, 1.0),
+        erange: tuple[float, float] | None = None,
+        ) -> None:
     """Plot Fitted vs Calculated energies at AX axis.
     """
     ax.set_title('Calculated and Fitted Energies')
     ax.set_xlabel('Concentration')
     ax.set_ylabel('Energy per reference cell, eV')
     ax.set_xlim(c_range[0], c_range[1])
+    if erange:
+        ax.set_ylim(erange[0], erange[1])
 
     # Filter data within xlim range
     fit_filtered = fit[(fit['concentration'] >= c_range[0]) & (fit['concentration'] <= c_range[1])]
@@ -408,7 +444,8 @@ def _atat_plot_calculated_energies(
         gs: pd.DataFrame,
         fit: pd.DataFrame,
         extra: list[pd.DataFrame] | None = None,
-        c_range: tuple[float, float] = (0.0, 1.0)
+        c_range: tuple[float, float] = (0.0, 1.0),
+        erange: tuple[float, float] | None = None,
         ) -> None:
     """Plot Fitted energies at AX axis.
     """
@@ -420,6 +457,8 @@ def _atat_plot_calculated_energies(
     ax.set_xlabel('Concentration')
     ax.set_ylabel('Energy per reference cell, eV')
     ax.set_xlim(c_range[0], c_range[1])
+    if erange:
+        ax.set_ylim(erange[0], erange[1])
 
     # Filter data within xlim range
     fit_filtered = fit[(fit['concentration'] >= c_range[0]) & (fit['concentration'] <= c_range[1])]
@@ -489,7 +528,10 @@ def _atat_plot_sublattice_deviation(
 def _atat_1(
         wdir: str,
         extra_dirs: list[str] | None = None,
-        extra_dirs_threshold: float = 0.001) -> None:
+        extra_dirs_threshold: float = 0.001,
+        cmin: float | None = None,
+        cmax: float | None = None,
+        erange: tuple[float, float] | None = None) -> None:
     """Plot ATAT output in WDIR.
     If EXTRA_DIRS is provided, also plot additional ATAT caluclation points
     from those dirs (mirrowing ATAT dir structure).  The points are only
@@ -525,6 +567,15 @@ def _atat_1(
         cve = 'N/A'
         not_converged = True
         conc_range = (0.0, 1.0)
+
+    if (cmin is not None) and (cmax is not None):
+        conc_range = (cmin, cmax)
+    elif cmin is not None:
+        conc_range = (cmin, conc_range[1])
+    elif cmax is not None:
+        conc_range = (conc_range[0], cmax)
+    else:
+        pass
 
     logger.debug('Read concentration range: %s', conc_range)
 
@@ -650,9 +701,9 @@ def _atat_1(
 
     plt.rcParams['lines.markersize'] = 3
 
-    _atat_plot_fitted_energies(axs[0, 0], predstr, gs, fit, conc_range)
-    _atat_plot_calculated_energies(axs[0, 1], predstr, gs, fit, extra, conc_range)
-    _atat_plot_calc_vs_fit_energies(axs[0, 2], fit, conc_range)
+    _atat_plot_fitted_energies(axs[0, 0], predstr, gs, fit, conc_range, erange)
+    _atat_plot_calculated_energies(axs[0, 1], predstr, gs, fit, extra, conc_range, erange)
+    _atat_plot_calc_vs_fit_energies(axs[0, 2], fit, conc_range, erange)
     _atat_plot_residuals(axs[1, 0], cve, fit)
     _atat_plot_sublattice_deviation(axs[1, 1], gs, fit)
     _atat_plot_clusters(axs[1, 2], clusters)
@@ -680,7 +731,10 @@ def _atat_1(
 def atat(args):
     """Create ATAT visualization.
     """
-    _atat_1(args.dir, args.plot_extra, args.plot_extra_threshold)
+    _atat_1(
+        args.dir, args.plot_extra, args.plot_extra_threshold,
+        args.cmin, args.cmax,
+        (args.emin, args.emax) if (args.emin and args.emax) else None)
     return 0
 
 
