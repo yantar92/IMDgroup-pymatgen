@@ -80,7 +80,7 @@ def slurm_runningp(path):
     """Is slurm running in DIR?
     """
     result = _slurm_get_queue()
-    if os.path.abspath(path) in [s.decode('utf-8') for s in result]:
+    if result and os.path.abspath(path) in [s.decode('utf-8') for s in result]:
         return True
     # For NEB and similar calculations, vasp might be running in parent dir.
     # Then, current directory must be named as a number and parent
