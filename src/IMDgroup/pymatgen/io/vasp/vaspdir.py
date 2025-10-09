@@ -463,40 +463,12 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
                 if len(oszicar.ionic_steps) > 0 else None
         return None
 
-    def _last_volume_change(self) -> float | None:
-        """Return volume change between POSCAR and CONTCAR.
-        This function is ignoring previous runs and specifially
-        return the volume change during the last VASP run.
-        Return None when data is not available.
-        """
-        if run := self['vasprun.xml']:
-            final_volume = run.final_structure.volume
-            initial_volume = run.initial_structure.volume
-            return (final_volume - initial_volume) / initial_volume
-        elif (contcar := self['CONTCAR']) and (poscar := self['POSCAR']):
-            final_volume = contcar.structure.volume
-            initial_volume = poscar.structure.volume
-            return (final_volume - initial_volume) / initial_volume
-        return None
-
     @property
     def converged_ionic(self) -> bool:
         """Return whether run converged ionically.
         """
-
-        def _volume_change_reasonable(threshold: float = 0.03) -> bool:
-            """Return True when volume change is not too large.
-            """
-            if vol_change := self._last_volume_change():
-                if vol_change > threshold:
-                    warnings.warn(
-                        f"{os.path.relpath(self.path)}: "
-                        f"Considering vol%={vol_change}>{threshold} unconverged")
-                return vol_change <= threshold
-            return False
-
         if run := self['vasprun.xml']:
-            return run.converged_ionic and _volume_change_reasonable()
+            return run.converged_ionic
         if outcar := self['OUTCAR']:
             if 'converged_ionic' not in outcar.data:
                 outcar.read_pattern(
@@ -505,7 +477,7 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
                     reverse=True,
                     terminate_on_match=True
                 )
-            return outcar.data['converged_ionic'] and _volume_change_reasonable()
+            return outcar.data['converged_ionic']
         return False
 
     @property
