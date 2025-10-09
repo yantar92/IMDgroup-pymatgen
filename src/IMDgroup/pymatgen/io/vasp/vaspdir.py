@@ -493,8 +493,7 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
                         f"{os.path.relpath(self.path)}: "
                         f"Considering vol%={vol_change}>{threshold} unconverged")
                 return vol_change <= threshold
-            # No volume change data
-            return True
+            return False
 
         if run := self['vasprun.xml']:
             return run.converged_ionic and _volume_change_reasonable()
