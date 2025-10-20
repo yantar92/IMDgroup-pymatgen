@@ -127,9 +127,9 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
         Args:
             dirname: The directory containing the VASP calculation.
         """
-        if not IMDGVaspDir._cache_cleaned:
-            IMDGVaspDir._clean_cache_if_needed()
-            IMDGVaspDir._cache_cleaned = True
+        # if not IMDGVaspDir._cache_cleaned:
+        #     IMDGVaspDir._clean_cache_if_needed()
+        #     IMDGVaspDir._cache_cleaned = True
         self.path = str(Path(dirname).absolute())
         # This was slower: self.path = str(Path(dirname).resolve())
         self._parsed_files = None  # Pacify linter.  Same is done in reset().
@@ -398,6 +398,10 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
     def final_energy(self) -> float:
         """Final energy computed in current Vasp outputs.
         """
+        if not self.converged:
+            warnings.warn(
+                f"Reading final energy from unconverged run: {os.path.relpath(self.path)}"
+            )
         import numpy as np
         if run := self['vasprun.xml']:
             return run.final_energy
