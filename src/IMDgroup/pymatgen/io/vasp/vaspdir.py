@@ -398,7 +398,7 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
     def final_energy(self) -> float:
         """Final energy computed in current Vasp outputs.
         """
-        if not self.converged:
+        if not self.converged and (self['vasprun.xml'] or self['OUTCAR']):
             warnings.warn(
                 f"Reading final energy from unconverged run: {os.path.relpath(self.path)}"
             )
