@@ -118,6 +118,9 @@ class Vasplog(MSONable):
                 "As long as converged, should not affect final energy"
             ],
         },
+        "time_limit": [
+            r"JOB [0-9]+ ON [0-9a-z]+ CANCELLED AT [^ ]+ DUE TO TIME LIMIT",
+        ],
         "slurm_error": [
             "slurmstepd: error",
             "prterun noticed",
