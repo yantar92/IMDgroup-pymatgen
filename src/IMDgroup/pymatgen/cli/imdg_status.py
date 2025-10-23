@@ -337,6 +337,10 @@ def status(args):
                         dirs_with_warnings[warn_name] = [wdir.replace("./", "")]
                     else:
                         dirs_with_warnings[warn_name].append(wdir.replace("./", ""))
+                if len(warn_names) == 0:
+                    if 'UNCONVERGED' not in dirs_with_warnings:
+                        dirs_with_warnings['UNCONVERGED'] = []
+                    dirs_with_warnings['UNCONVERGED'].append(wdir.replace("./", ""))
         else:
             if not nebp:
                 logger.debug("Slurm log file not found in %s", wdir)
