@@ -165,6 +165,9 @@ class Vasplog(MSONable):
             "Fatal error detecting k-mesh",
             "Fatal error: unable to match k-point",
         ],
+        "ibzkpt": [
+            "IBZKPT: unable to construct a generating k-lattice suitable for use",
+        ],
         "inv_rot_mat": ["rotation matrix was not found (increase SYMPREC)"],
         "brmix": ["BRMIX: very serious problems"],
         "subspacematrix": ["WARNING: Sub-Space-Matrix is not hermitian in DAV"],
