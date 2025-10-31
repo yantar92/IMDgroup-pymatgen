@@ -14,6 +14,10 @@ pbesol:
   GGA: PS
 pbe+d2:
   IVDW: 1
+pbe+d3-0:
+  IVDW: 11
+pbe+d3-bj:
+  IVDW: 12
 pbe+ts:
   IVDW: 2
   PREC: Accurate
