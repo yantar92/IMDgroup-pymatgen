@@ -396,7 +396,7 @@ def functional_add_args(parser):
         choices=[
             'PBE', 'PBEsol', 'PBE+D2', 'PBE+TS',
             'vdW-DF', 'vdW-DF2',
-            'optB88-vdW', 'optB86b-vdW'],
+            'optB88-vdW', 'optB86b-vdW', 'PBE+D3-0', 'PBE+D3-BJ'],
         type=str)
 
 
