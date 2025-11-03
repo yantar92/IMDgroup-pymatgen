@@ -102,10 +102,10 @@ def add_args(parser):
 
     parser.add_argument(
         "dir",
-        help="""Directory to read (recusrively).  Defaults to current dir.""",
+        help="""Directories to read (recusrively).  Defaults to current dir.""",
         type=str,
-        nargs="?",
-        default=".")
+        nargs="*",
+        default=["."])
     parser.add_argument(
         "--exclude",
         help="Dirs matching this Python regexp pattern will be excluded",
