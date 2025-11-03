@@ -231,7 +231,7 @@ def analyze(args):
                 val = read_field(field, vaspdir)
             all_data[field].append(val)
         # Avoid using too much memory by holding all vaspdir objects
-        del vaspdirs[path]
+        vaspdirs[path] = None
 
     if len(all_data) > 0 and len(vaspdirs) > 0:
         df = pd.DataFrame(all_data)
