@@ -341,7 +341,7 @@ def status(args):
                 progress = ""
             warning_list, warn_names = _get_warning_list(logs, args.nowarn)
             all_warn_names_present = all_warn_names_present.union(warn_names)
-            if not converged:
+            if not converged and not running:
                 for warn_name in warn_names:
                     if warn_name not in dirs_with_warnings:
                         dirs_with_warnings[warn_name] = [wdir.replace("./", "")]
