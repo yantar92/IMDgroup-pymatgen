@@ -385,7 +385,7 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
         """Get hash of FILENAME.
         The hash is simply modification time."""
         f = Path(filename)
-        return str(f.stat().st_mtime) + f.name
+        return str(f.stat().st_mtime if f.exists() else "") + f.name
 
     def _get_hash(self) -> str:
         """Get hash of all files in path."""
