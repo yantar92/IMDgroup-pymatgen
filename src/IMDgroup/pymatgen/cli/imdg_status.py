@@ -130,6 +130,11 @@ def add_args(parser):
         help="Only show runs with warnings",
         action="store_true"
     )
+    parser.add_argument(
+        "--skip_converged",
+        help="Do not check converged runs",
+        action="store_true"
+    )
 
 
 def print_seconds(seconds):
@@ -321,6 +326,11 @@ def status(args):
         logger.debug(
             '%s: running = %s, converged = %s',
             wdir, running, converged)
+
+        if args.skip_converged and converged:
+            logger.debug('skipping converged run')
+            continue
+
         if logs := (not nebp) and Vasplog.from_dir(wdir):
             logger.debug(
                 "Found VASP logs in %s: %s",
