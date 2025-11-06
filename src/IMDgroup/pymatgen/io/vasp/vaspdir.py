@@ -115,7 +115,7 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
         Reset all loaded files and recheck the directory for files.
         """
         path = Path(self.path)
-        self.files = [str(f) for f in path.iterdir() if f.is_file()]
+        self.files = [f for f in path.iterdir() if f.is_file()]
         self._neb_vaspdirs = None
         self._prev_vaspdirs = None
         self._parsed_files = None
@@ -351,7 +351,7 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
         return len(self.files)
 
     def __iter__(self):
-        return iter(self.files)
+        return iter(f.name for f in self.files)
 
     def __getitem__(self, item):
         if self._parsed_files is None:
