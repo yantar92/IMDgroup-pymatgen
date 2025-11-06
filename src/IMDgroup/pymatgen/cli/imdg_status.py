@@ -319,9 +319,11 @@ def status(args):
             run_status = colored("running", "yellow")
         else:
             running = False
-            converged = vaspdir.converged
+            converged = vaspdir.converged_electronic and vaspdir.converged_ionic
             run_status = colored("converged", "green") if converged\
                 else colored("unconverged", "red")
+            if converged and not vaspdir.converged_sequence:
+                run_status = colored("converged; next step pending", "green")
 
         logger.debug(
             '%s: running = %s, converged = %s',
