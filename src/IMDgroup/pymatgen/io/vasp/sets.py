@@ -460,7 +460,7 @@ class IMDDerivedInputSet(IMDVaspInputSet):
             logger.debug(
                 "Reading previous VASP output from %s", self.directory)
             for extra_incar in Path(self.directory).glob('INCAR.[0-9]*'):
-                self.files_to_transfer[extra_incar] =\
+                self.files_to_transfer[str(extra_incar)] =\
                     Incar.from_file(extra_incar)
             self.override_from_prev_calc(prev_calc_dir=self.directory)
         except ValueError as exc:
