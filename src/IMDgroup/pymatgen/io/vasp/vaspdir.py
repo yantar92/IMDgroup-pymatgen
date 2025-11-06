@@ -511,7 +511,7 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
         These files signify that we need multi-step convergence to be
         done.
         """
-        return any(re.match(r'INCAR\.[0-9]+', file) for file in self)
+        return not any(re.match(r'INCAR\.[0-9]+', file) for file in self)
 
     @property
     def converged(self) -> bool:
