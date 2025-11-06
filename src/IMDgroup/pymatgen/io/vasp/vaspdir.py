@@ -31,6 +31,7 @@ import collections
 import typing
 import hashlib
 import os
+import re
 import warnings
 import logging
 import itertools
@@ -505,8 +506,16 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
         return False
 
     @property
+    def converged_sequence(self) -> bool:
+        """Return whether run no longer has INCAR.[0-9]+ files.
+        These files signify that we need multi-step convergence to be
+        done.
+        """
+        return any(re.match(r'INCAR\.[0-9]+', file) for file in self)
+
+    @property
     def converged(self) -> bool:
-        """Return whether vasp run converged.
+        """Return when VASP run converged and no more INCAR.D files remaining.
         """
         if self.nebp:
             neb_dirs = self.neb_dirs(include_ends=False)
@@ -515,7 +524,8 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
                 if not image_dir.converged:
                     return False
             return True
-        return self.converged_electronic and self.converged_ionic
+        return self.converged_electronic and self.converged_ionic\
+            and self.converged_sequence
 
     @property
     def nebp(self) -> bool:
