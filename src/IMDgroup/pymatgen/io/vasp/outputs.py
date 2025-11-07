@@ -121,6 +121,9 @@ class Vasplog(MSONable):
         "time_limit": [
             r"JOB [0-9]+ ON [0-9a-z]+ CANCELLED AT [^ ]+ DUE TO TIME LIMIT",
         ],
+        "canceled": [
+            r"JOB [0-9]+ ON [0-9a-z]+ CANCELLED AT",
+        ],
         "slurm_error": [
             "slurmstepd: error",
             "prterun noticed",
