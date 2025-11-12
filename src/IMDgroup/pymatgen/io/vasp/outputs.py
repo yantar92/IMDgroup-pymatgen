@@ -35,6 +35,7 @@ import os
 from pathlib import Path
 from monty.json import MSONable
 from monty.io import zopen
+import numpy as np
 from pymatgen.util.typing import PathLike
 from pymatgen.io.vasp.outputs import Vasprun as pmgVasprun
 from pymatgen.io.vasp.outputs import Outcar as pmgOutcar
@@ -65,6 +66,28 @@ class Vasprun(pmgVasprun):
             )
 
         return energy
+
+    PRESSURE_CONVERGENCE_THRESHOLD = 1
+
+    @property
+    def converged_ionic(self) -> bool:
+        """Whether ionic step convergence reached.
+        A wrapper around pymatgen's version, but
+        throws a warning when final pressure is >1kPa
+        (or Vasprun.PRESSURE_CONVERGENCE_THRESHOLD).
+        """
+        converged_ionic = super().converged_ionic
+        external_pressure = np.trace(self.ionic_steps[-1]['stress'])/3
+        if converged_ionic and\
+           external_pressure > self.PRESSURE_CONVERGENCE_THRESHOLD:
+            warnings.warn(
+                f"{Path(self.filename).relative_to(Path.cwd())}: "
+                f"Max stress is {external_pressure}"
+                f" > {self.PRESSURE_CONVERGENCE_THRESHOLD}",
+                VasprunWarning
+            )
+            print(self.ionic_steps[-1]['stress'])
+        return converged_ionic
 
 
 class Outcar(pmgOutcar):
