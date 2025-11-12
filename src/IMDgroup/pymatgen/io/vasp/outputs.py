@@ -86,7 +86,6 @@ class Vasprun(pmgVasprun):
                 f" > {self.PRESSURE_CONVERGENCE_THRESHOLD}",
                 VasprunWarning
             )
-            print(self.ionic_steps[-1]['stress'])
         return converged_ionic
 
 
