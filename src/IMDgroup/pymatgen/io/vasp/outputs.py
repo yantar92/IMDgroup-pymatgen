@@ -67,7 +67,7 @@ class Vasprun(pmgVasprun):
 
         return energy
 
-    PRESSURE_CONVERGENCE_THRESHOLD = 1
+    PRESSURE_CONVERGENCE_THRESHOLD = 3
 
     @property
     def converged_ionic(self) -> bool:
@@ -82,7 +82,7 @@ class Vasprun(pmgVasprun):
            external_pressure > self.PRESSURE_CONVERGENCE_THRESHOLD:
             warnings.warn(
                 f"{Path(self.filename).relative_to(Path.cwd())}: "
-                f"Max stress is {external_pressure}"
+                f"Hydrostatic stress is {external_pressure}"
                 f" > {self.PRESSURE_CONVERGENCE_THRESHOLD}",
                 VasprunWarning
             )
