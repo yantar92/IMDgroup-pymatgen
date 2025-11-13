@@ -472,9 +472,10 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
     def converged_ionic(self) -> bool:
         """Return whether run converged ionically.
         """
+        converged_ionic = False
         if run := self['vasprun.xml']:
-            return run.converged_ionic
-        if outcar := self['OUTCAR']:
+            converged_ionic = run.converged_ionic
+        elif outcar := self['OUTCAR']:
             if 'converged_ionic' not in outcar.data:
                 outcar.read_pattern(
                     {'converged_ionic':
@@ -482,8 +483,18 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
                     reverse=True,
                     terminate_on_match=True
                 )
-            return outcar.data['converged_ionic']
-        return False
+            converged_ionic = outcar.data['converged_ionic']
+        if converged_ionic and\
+           (self['INCAR'].get('IBRION') in Incar.IBRION_IONIC_RELAX_values):
+            space_group_before = self.initial_structure.get_space_group_info()
+            space_group_after = self.structure.get_space_group_info()
+            if space_group_before != space_group_after:
+                warnings.warn(
+                    f"{self.filename}: "
+                    "Space group changed after relaxation"
+                    f" {space_group_before} -> {space_group_after}",
+                )
+        return converged_ionic
 
     @property
     def converged_electronic(self) -> bool:
