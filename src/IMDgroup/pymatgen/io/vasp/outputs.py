@@ -78,8 +78,10 @@ class Vasprun(pmgVasprun):
         """
         converged_ionic = super().converged_ionic
         external_pressure = np.trace(self.ionic_steps[-1]['stress'])/3
-        if converged_ionic and\
-           external_pressure > self.PRESSURE_CONVERGENCE_THRESHOLD:
+        if converged_ionic\
+           and (self.incar.get('IBRION') in Incar.IBRION_IONIC_RELAX_values)\
+           and (self.incar.get('ISIF') not in [Incar.ISIF_RELAX_POS, 0, 1])\
+           and external_pressure > self.PRESSURE_CONVERGENCE_THRESHOLD:
             warnings.warn(
                 f"{Path(self.filename).relative_to(Path.cwd())}: "
                 f"Hydrostatic stress is {external_pressure}"
