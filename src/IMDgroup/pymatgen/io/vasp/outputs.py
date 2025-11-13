@@ -75,6 +75,7 @@ class Vasprun(pmgVasprun):
         A wrapper around pymatgen's version, but
         throws a warning when final pressure is >1kPa
         (or Vasprun.PRESSURE_CONVERGENCE_THRESHOLD).
+        Also, throw a warning when the space group changes.
         """
         converged_ionic = super().converged_ionic
         external_pressure = np.trace(self.ionic_steps[-1]['stress'])/3
@@ -88,6 +89,17 @@ class Vasprun(pmgVasprun):
                 f" > {self.PRESSURE_CONVERGENCE_THRESHOLD}",
                 VasprunWarning
             )
+        if converged_ionic and\
+           (self.incar.get('IBRION') in Incar.IBRION_IONIC_RELAX_values):
+            space_group_before = self.initial_structure.get_space_group_info()
+            space_group_after = self.final_structure.get_space_group_info()
+            if space_group_before != space_group_after:
+                warnings.warn(
+                    f"{Path(self.filename).relative_to(Path.cwd())}: "
+                    "Space group changed after relaxation"
+                    f" {space_group_before} -> {space_group_after}",
+                    VasprunWarning
+                )
         return converged_ionic
 
 
