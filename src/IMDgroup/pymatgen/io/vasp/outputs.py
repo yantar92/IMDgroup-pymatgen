@@ -84,7 +84,7 @@ class Vasprun(pmgVasprun):
            and (self.incar.get('ISIF') not in [Incar.ISIF_RELAX_POS, 0, 1])\
            and external_pressure > self.PRESSURE_CONVERGENCE_THRESHOLD:
             warnings.warn(
-                f"{Path(self.filename).relative_to(Path.cwd())}: "
+                f"{self.filename}: "
                 f"Hydrostatic stress is {external_pressure}"
                 f" > {self.PRESSURE_CONVERGENCE_THRESHOLD}",
                 VasprunWarning
@@ -95,7 +95,7 @@ class Vasprun(pmgVasprun):
             space_group_after = self.final_structure.get_space_group_info()
             if space_group_before != space_group_after:
                 warnings.warn(
-                    f"{Path(self.filename).relative_to(Path.cwd())}: "
+                    f"{self.filename}: "
                     "Space group changed after relaxation"
                     f" {space_group_before} -> {space_group_after}",
                     VasprunWarning
