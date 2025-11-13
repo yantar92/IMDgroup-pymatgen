@@ -490,7 +490,7 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
             space_group_after = self.structure.get_space_group_info()
             if space_group_before != space_group_after:
                 warnings.warn(
-                    f"{self.filename}: "
+                    f"{os.path.relpath(self.path)}: "
                     "Space group changed after relaxation"
                     f" {space_group_before} -> {space_group_after}",
                 )
