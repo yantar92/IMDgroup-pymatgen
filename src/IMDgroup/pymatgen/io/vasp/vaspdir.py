@@ -484,16 +484,6 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
                     terminate_on_match=True
                 )
             converged_ionic = outcar.data['converged_ionic']
-        if converged_ionic and\
-           (self['INCAR'].get('IBRION') in Incar.IBRION_IONIC_RELAX_values):
-            space_group_before = self.initial_structure.get_space_group_info()
-            space_group_after = self.structure.get_space_group_info()
-            if space_group_before != space_group_after:
-                warnings.warn(
-                    f"{os.path.relpath(self.path)}: "
-                    "Space group changed after relaxation"
-                    f" {space_group_before} -> {space_group_after}",
-                )
         return converged_ionic
 
     @property
