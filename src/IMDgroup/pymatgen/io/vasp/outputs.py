@@ -73,21 +73,35 @@ class Vasprun(pmgVasprun):
     def converged_ionic(self) -> bool:
         """Whether ionic step convergence reached.
         A wrapper around pymatgen's version, but
-        throws a warning when final pressure is >1kPa
-        (or Vasprun.PRESSURE_CONVERGENCE_THRESHOLD).
+        throws a warning when hydrostatic pressure or any of the
+        principal stress components is >3kPa (or
+        Vasprun.PRESSURE_CONVERGENCE_THRESHOLD)
         """
         converged_ionic = super().converged_ionic
-        external_pressure = np.trace(self.ionic_steps[-1]['stress'])/3
+        stress_tensor = self.ionic_steps[-1]['stress']
+        external_pressure = np.trace(stress_tensor)/3
+        if not np.allclose(stress_tensor, stress_tensor.T):
+            stress_tensor = (stress_tensor + stress_tensor.T) / 2
+        principal_stresses = np.linalg.eigvals(stress_tensor)
         if converged_ionic\
            and (self.incar.get('IBRION') in Incar.IBRION_IONIC_RELAX_values)\
            and (self.incar.get('ISIF') not in [Incar.ISIF_RELAX_POS, 0, 1])\
-           and external_pressure > self.PRESSURE_CONVERGENCE_THRESHOLD:
-            warnings.warn(
-                f"{self.filename}: "
-                f"Hydrostatic stress is {external_pressure}"
-                f" > {self.PRESSURE_CONVERGENCE_THRESHOLD}",
-                VasprunWarning
-            )
+           and (external_pressure > self.PRESSURE_CONVERGENCE_THRESHOLD or
+                np.any(principal_stresses > self.PRESSURE_CONVERGENCE_THRESHOLD)):
+            if external_pressure > self.PRESSURE_CONVERGENCE_THRESHOLD:
+                warnings.warn(
+                    f"{self.filename}: "
+                    f"Hydrostatic stress is {external_pressure}"
+                    f" > {self.PRESSURE_CONVERGENCE_THRESHOLD}",
+                    VasprunWarning
+                )
+            else:
+                warnings.warn(
+                    f"{self.filename}: "
+                    f"Principal stresses {principal_stresses}"
+                    f" > {self.PRESSURE_CONVERGENCE_THRESHOLD}",
+                    VasprunWarning
+                )
         return converged_ionic
 
 
