@@ -78,7 +78,7 @@ class Vasprun(pmgVasprun):
         Vasprun.PRESSURE_CONVERGENCE_THRESHOLD)
         """
         converged_ionic = super().converged_ionic
-        stress_tensor = self.ionic_steps[-1]['stress']
+        stress_tensor = np.array(self.ionic_steps[-1]['stress'])
         external_pressure = np.trace(stress_tensor)/3
         if not np.allclose(stress_tensor, stress_tensor.T):
             stress_tensor = (stress_tensor + stress_tensor.T) / 2
