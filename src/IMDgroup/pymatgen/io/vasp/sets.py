@@ -396,6 +396,7 @@ class IMDDerivedInputSet(IMDVaspInputSet):
     images = None
     force_prev_incar_file: bool = False
     force_prev_kpoints_file: bool = False
+    inherit_prev_incarpy: bool = False
 
     @property
     def incar(self):
