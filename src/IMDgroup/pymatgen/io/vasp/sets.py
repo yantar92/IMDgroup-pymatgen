@@ -464,7 +464,7 @@ class IMDDerivedInputSet(IMDVaspInputSet):
                 logger.info("Copying additional %s", extra_incar)
                 self.files_to_transfer[str(extra_incar.name)] = extra_incar
             incarpy = Path(self.directory) / "INCAR.py"
-            if incarpy.is_file():
+            if self.inherit_prev_incarpy and incarpy.is_file():
                 logger.info("Copying additional INCAR.py")
                 self.files_to_transfer[str(incarpy.name)] = incarpy
             self.override_from_prev_calc(prev_calc_dir=self.directory)
