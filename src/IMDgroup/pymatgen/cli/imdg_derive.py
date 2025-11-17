@@ -803,6 +803,9 @@ def atat(args):
     if incar_file.is_file():
         incar = Incar.from_file(incar_file)
         inputset.prev_incar = incar
+    incarpy_file = Path("INCAR.py")
+    if incarpy_file.is_file():
+        inputset.files_to_transfer["INCAR.py"] = incarpy_file
 
     return {'inputsets': [inputset]}
 
