@@ -87,7 +87,8 @@ class Vasprun(pmgVasprun):
            and (self.incar.get('IBRION') in Incar.IBRION_IONIC_RELAX_values)\
            and (self.incar.get('ISIF') not in [Incar.ISIF_RELAX_POS, 0, 1])\
            and (external_pressure > self.PRESSURE_CONVERGENCE_THRESHOLD or
-                np.any(principal_stresses > self.PRESSURE_CONVERGENCE_THRESHOLD)):
+                np.any(np.abs(principal_stresses) >\
+                       self.PRESSURE_CONVERGENCE_THRESHOLD)):
             if external_pressure > self.PRESSURE_CONVERGENCE_THRESHOLD:
                 warnings.warn(
                     f"{os.path.relpath(self.filename)}: "
