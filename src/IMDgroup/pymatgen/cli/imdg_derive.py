@@ -93,6 +93,11 @@ Write them to <prefix><output name><subdir>."""
         help="Write VASP input into a subdir instead of top level",
         type=str
     )
+    parser.add_argument(
+        "--inherit_prev_incarpy",
+        help="Inherit INCAR.py, if any (default: False)",
+        action="store_true"
+    )
 
     subparsers = parser.add_subparsers(required=True)
 
@@ -177,7 +182,9 @@ def perturb(args):
     """Create perturbed input
     Return {'inputsets': [<inputset>]}
     """
-    inputset = IMDDerivedInputSet(directory=args.input_directory)
+    inputset = IMDDerivedInputSet(
+        directory=args.input_directory,
+        inherit_prev_incarpy=args.inherit_prev_incarpy)
 
     structure_perturb(
         structure=inputset.structure,
@@ -233,7 +240,9 @@ def strain(args):
     """Create strained input
     Return {'inputsets': <list of inputsets>}
     """
-    inputset = IMDDerivedInputSet(directory=args.input_directory)
+    inputset = IMDDerivedInputSet(
+        directory=args.input_directory,
+        inherit_prev_incarpy=args.inherit_prev_incarpy)
 
     if args.selective_dynamics is not None:
         for site in inputset.structure:
@@ -374,6 +383,7 @@ def supercell(args):
     """
     inputset = IMDDerivedInputSet(
         directory=args.input_directory,
+        inherit_prev_incarpy=args.inherit_prev_incarpy,
         user_kpoints_settings={'grid_density': args.kpoint_density})
     # supercell: N1xN2xN3 string
     scaling = [int(x) for x in args.supercell_size.split("x")]
@@ -406,6 +416,7 @@ def functional(args):
     """
     inputset = IMDDerivedInputSet(
         directory=args.input_directory,
+        inherit_prev_incarpy=args.inherit_prev_incarpy,
         functional=args.functional_type)
     output_dir_suffix = args.functional_type
     inputset.name = output_dir_suffix
@@ -444,6 +455,7 @@ def incar(args):
 
     inputset = IMDDerivedInputSet(
         directory=args.input_directory,
+        inherit_prev_incarpy=args.inherit_prev_incarpy,
         user_incar_settings=incar_overrides,
     )
     output_dir_suffix = ','.join(
@@ -473,6 +485,7 @@ def kpoints(args):
     """
     inputset = IMDDerivedInputSet(
         directory=args.input_directory,
+        inherit_prev_incarpy=args.inherit_prev_incarpy,
         user_kpoints_settings={'grid_density': args.density},
     )
     output_dir_suffix = f"KPOINTS.{args.density}"
@@ -558,7 +571,9 @@ def insert(args):
     """Create setup for inserted molecules/atoms.
     Return {'inputsets': [<list of inputsets>]}
     """
-    inputset = IMDDerivedInputSet(directory=args.input_directory)
+    inputset = IMDDerivedInputSet(
+        directory=args.input_directory,
+        inherit_prev_incarpy=args.inherit_prev_incarpy)
 
     if args.no_matcher:
         transformer = InsertMoleculeTransformation(
@@ -613,7 +628,9 @@ def delete(args):
     """Delete a site/sites from structure.
     Return {'inputsets': [inputset]}
     """
-    inputset = IMDDerivedInputSet(directory=args.input_directory)
+    inputset = IMDDerivedInputSet(
+        directory=args.input_directory,
+        inherit_prev_incarpy=args.inherit_prev_incarpy)
     len_before = len(inputset.structure)
     inputset.structure.remove_species(args.what)
     if len(inputset.structure) == len_before:
@@ -697,6 +714,7 @@ def fill(args):
     filled_structure = merge_structures(structures, tol=0.1)
     inputset = IMDDerivedInputSet(
         directory=args.uniq_sites[0],
+        inherit_prev_incarpy=args.inherit_prev_incarpy
     )
     inputset.structure = filled_structure
     inputset.name = "fill"
@@ -775,6 +793,7 @@ def atat(args):
 
     inputset = IMDDerivedInputSet(
         directory=args.input_directory,
+        inherit_prev_incarpy=args.inherit_prev_incarpy,
         user_kpoints_settings=atat_kpoints)
     output_dir_suffix = "ATAT"
     inputset.name = output_dir_suffix
