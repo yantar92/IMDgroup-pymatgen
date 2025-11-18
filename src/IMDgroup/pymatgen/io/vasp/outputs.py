@@ -90,14 +90,14 @@ class Vasprun(pmgVasprun):
                 np.any(principal_stresses > self.PRESSURE_CONVERGENCE_THRESHOLD)):
             if external_pressure > self.PRESSURE_CONVERGENCE_THRESHOLD:
                 warnings.warn(
-                    f"{self.filename}: "
+                    f"{os.path.relpath(self.filename)}}: "
                     f"Hydrostatic stress is {external_pressure}"
                     f" > {self.PRESSURE_CONVERGENCE_THRESHOLD}",
                     VasprunWarning
                 )
             else:
                 warnings.warn(
-                    f"{self.filename}: "
+                    f"{os.path.relpath(self.filename)}: "
                     f"Principal stresses {principal_stresses}"
                     f" > {self.PRESSURE_CONVERGENCE_THRESHOLD}",
                     VasprunWarning
