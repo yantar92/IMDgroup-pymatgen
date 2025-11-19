@@ -29,6 +29,7 @@
 Based on pymatgen's pymatgen.cli.pmg_analyze
 """
 import logging
+import re
 from pathlib import Path
 from tabulate import tabulate
 import pandas as pd
@@ -65,6 +66,11 @@ def add_args(parser):
         type=str,
         nargs="*",
         default=["."])
+    parser.add_argument(
+        "--exclude",
+        help="Dirs matching this Python regexp pattern will be excluded",
+        type=str,
+    )
 
     all_fields = [
         k for k in ALL_FIELDS
@@ -192,8 +198,12 @@ def _read_field_1(field: str, vaspdir: IMDGVaspDir):
 def analyze(args):
     """Main routine.
     """
-
-    vaspdirs = IMDGVaspDir.read_vaspdirs(args.dir)
+    def include_dirp(p):
+        p = str(p)
+        if args.exclude is not None and re.search(args.exclude, p):
+            return False
+        return True
+    vaspdirs = IMDGVaspDir.read_vaspdirs(args.dir, path_filter=include_dirp)
     all_data = {}
     for field in ALL_FIELDS:
         if field == 'dir':
