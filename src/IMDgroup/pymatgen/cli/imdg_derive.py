@@ -98,6 +98,11 @@ Write them to <prefix><output name><subdir>."""
         help="Inherit INCAR.py, if any (default: False)",
         action="store_true"
     )
+    parser.add_argument(
+        "--force_running",
+        help="Force using input_directory containing RUNNNING file.",
+        action="store_true"
+    )
 
     subparsers = parser.add_subparsers(required=True)
 
@@ -1084,6 +1089,13 @@ def neb_diffusion(args):
 def derive(args):
     """Main routine.
     """
+
+    if not args.force_running and\
+       (Path(args.input_directory) / 'RUNNING').is_file():
+        raise IOError(
+            "Found RUNNING file."
+            "  Refusing to use runnig VASP as input.")
+
     data = args.func_derive(args)
     inputsets = data['inputsets']
 
