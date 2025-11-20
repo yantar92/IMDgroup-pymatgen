@@ -475,6 +475,9 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
         converged_ionic = False
         if run := self['vasprun.xml']:
             converged_ionic = run.converged_ionic
+        elif 'vasprun.xml' in run:
+            # vasprun.xml present but cannot be parsed
+            return False
         elif outcar := self['OUTCAR']:
             if 'converged_ionic' not in outcar.data:
                 outcar.read_pattern(
@@ -492,6 +495,9 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
         """
         if run := self['vasprun.xml']:
             return run.converged_electronic
+        if 'vasprun.xml' in run:
+            # vasprun.xml present but cannot be parsed
+            return False
         if outcar := self['OUTCAR']:
             if 'converged_electronic' not in outcar.data:
                 outcar.read_pattern(
