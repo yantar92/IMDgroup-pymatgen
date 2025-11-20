@@ -368,7 +368,7 @@ def status(args):
                (Path(wdir) / 'vasprun.xml').is_file():
                 run_status = colored("incomplete vasprun.xml", "red")
             final_energy = vaspdir.final_energy
-            if final_energy is None:
+            if final_energy is None or final_energy == np.nan:
                 progress = " N/A" + progress
             else:
                 outcar = vaspdir['OUTCAR']
