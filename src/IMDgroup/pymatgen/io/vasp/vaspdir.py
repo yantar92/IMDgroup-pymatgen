@@ -399,12 +399,14 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
     def final_energy(self) -> float:
         """Final energy computed in current Vasp outputs.
         """
-        if not self.converged and (self['vasprun.xml'] or self['OUTCAR']):
+        def warn_unconverged():
             warnings.warn(
                 f"Reading final energy from unconverged run: {os.path.relpath(self.path)}"
             )
         import numpy as np
         if run := self['vasprun.xml']:
+            if not self.converged:
+                warn_unconverged()
             return run.final_energy
         if outcar := self['OUTCAR']:
             final_energy = outcar.final_energy
@@ -414,6 +416,8 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
                     f" {os.path.relpath(self.path)}/OUTCAR."
                 )
                 final_energy = np.nan
+            elif not self.converged:
+                warn_unconverged()
             return final_energy
         return np.nan
 
