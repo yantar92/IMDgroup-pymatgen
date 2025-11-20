@@ -408,6 +408,9 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
             if not self.converged:
                 warn_unconverged()
             return run.final_energy
+        if 'vasprun.xml' in self:
+            # incomplete  vasprun.xml
+            return np.nan
         if outcar := self['OUTCAR']:
             final_energy = outcar.final_energy
             if not isinstance(final_energy, float):
