@@ -135,6 +135,11 @@ def add_args(parser):
         help="Do not check converged runs",
         action="store_true"
     )
+    parser.add_argument(
+        "--fast",
+        help="Do not parse OUTCAR to get run summary",
+        action="store_true"
+    )
 
 
 def print_seconds(seconds):
@@ -371,7 +376,7 @@ def status(args):
             if final_energy is None or final_energy == np.nan:
                 progress = " N/A" + progress
             else:
-                outcar = vaspdir['OUTCAR']
+                outcar = None if args.fast else vaspdir['OUTCAR']
                 if outcar is not None:
                     cpu_time_sec =\
                         outcar.run_stats.get('Total CPU time used (sec)')
