@@ -530,7 +530,11 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
     @property
     def converged(self) -> bool:
         """Return when VASP run converged and no more INCAR.D files remaining.
+        Also, return False when directory is explicitly marked unconverged
+        via UNCONVERGED file.
         """
+        if (Path(self.path) / "UNCONVERGED").is_file():
+            return False
         if self.nebp:
             neb_dirs = self.neb_dirs(include_ends=False)
             assert neb_dirs is not None
