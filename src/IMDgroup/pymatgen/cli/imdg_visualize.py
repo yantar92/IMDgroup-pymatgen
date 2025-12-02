@@ -682,10 +682,28 @@ def _atat_1(
 
     global_title = str(Path(wdir).absolute())
 
-    fig, axs = plt.subplots(2, 3, figsize=(8.27, 4.13))
-    fig.suptitle(global_title, fontsize=12)
+    # Adjust font sizes based on the provided font_size argument
+    DEFAULT_FONT_SIZE = 10
+    base_sz = DEFAULT_FONT_SIZE
+    base_markersize = base_sz * 0.5
+    plt.rcParams.update({
+        'font.size': base_sz,
+        'font.family': 'serif',
+        'font.serif': ['Times New Roman', 'DejaVu Serif'],
+        'mathtext.fontset': 'stix',
+        'axes.labelsize': base_sz,
+        'axes.titlesize': base_sz * 1.2,
+        'axes.linewidth': 1.0,
+        'lines.linewidth': 1.2,
+        'lines.markersize': base_markersize,
+        'xtick.labelsize': base_sz,
+        'ytick.labelsize': base_sz,
+        'legend.fontsize': base_sz,
+        'figure.titlesize': base_sz * 1.2,
+    })
 
-    plt.rcParams['lines.markersize'] = 3
+    fig, axs = plt.subplots(2, 3, figsize=(8.27, 4.13))
+    fig.suptitle(global_title)
 
     _atat_plot_fitted_energies(axs[0, 0], predstr, gs, fit, conc_range, erange)
     _atat_plot_calculated_energies(axs[0, 1], predstr, gs, fit, extra, conc_range, erange)
@@ -702,7 +720,7 @@ def _atat_1(
             0.5, 0.92,  # Adjusted to avoid overlapping with suptitle
             "WARNING: True and fitted ground states differ"
             " - fit not converged!",
-            ha="center", fontsize=12,
+            ha="center",
             bbox={"facecolor": "red", "alpha": 0.3, "pad": 5})
 
     output_png = Path(wdir)/'atat-summary-test.png'
