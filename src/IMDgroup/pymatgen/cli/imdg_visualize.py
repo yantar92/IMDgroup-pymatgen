@@ -702,7 +702,7 @@ def _atat_1(
         'figure.titlesize': base_sz * 1.2,
     })
 
-    fig, axs = plt.subplots(3, 2, figsize=(8.27, 12.41))
+    fig, axs = plt.subplots(3, 2, figsize=(8.27, 11.69))
     fig.suptitle(global_title)
 
     _atat_plot_fitted_energies(axs[0, 0], predstr, gs, fit, conc_range, erange)
