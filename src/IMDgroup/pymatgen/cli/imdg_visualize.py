@@ -702,7 +702,7 @@ def _atat_1(
         'figure.titlesize': base_sz * 1.2,
     })
 
-    width = 8.27*0.8  # 80% A4
+    width = 8.27*0.9  # 90% A4
     fig, axs = plt.subplots(3, 2, figsize=(width, 1.4*width))
     fig.suptitle(global_title)
 
