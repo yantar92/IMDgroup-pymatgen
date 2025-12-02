@@ -702,15 +702,15 @@ def _atat_1(
         'figure.titlesize': base_sz * 1.2,
     })
 
-    fig, axs = plt.subplots(2, 3, figsize=(8.27, 4.13))
+    fig, axs = plt.subplots(3, 1, figsize=(8.27, 4.13))
     fig.suptitle(global_title)
 
     _atat_plot_fitted_energies(axs[0, 0], predstr, gs, fit, conc_range, erange)
-    _atat_plot_calculated_energies(axs[0, 1], predstr, gs, fit, extra, conc_range, erange)
-    _atat_plot_calc_vs_fit_energies(axs[0, 2], fit, conc_range, erange)
-    _atat_plot_residuals(axs[1, 0], cve, fit)
-    _atat_plot_sublattice_deviation(axs[1, 1], gs, fit)
-    _atat_plot_clusters(axs[1, 2], clusters)
+    _atat_plot_calculated_energies(axs[1, 0], predstr, gs, fit, extra, conc_range, erange)
+    _atat_plot_calc_vs_fit_energies(axs[2, 0], fit, conc_range, erange)
+    _atat_plot_residuals(axs[0, 1], cve, fit)
+    _atat_plot_sublattice_deviation(axs[0, 2], gs, fit)
+    _atat_plot_clusters(axs[0, 3], clusters)
 
     plt.tight_layout(rect=[0, 0.03, 1, 0.94])  # Leave space for both suptitle and warning
 
