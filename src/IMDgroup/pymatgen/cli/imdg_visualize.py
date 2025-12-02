@@ -703,7 +703,7 @@ def _atat_1(
     })
 
     width = 8.27*0.8  # 80% A4
-    fig, axs = plt.subplots(3, 2, figsize=(width, 1.5*width))
+    fig, axs = plt.subplots(3, 2, figsize=(width, 1.4*width))
     fig.suptitle(global_title)
 
     _atat_plot_fitted_energies(axs[1, 0], predstr, gs, fit, conc_range, erange)
