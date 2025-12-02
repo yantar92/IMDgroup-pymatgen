@@ -683,7 +683,7 @@ def _atat_1(
     global_title = str(Path(wdir).absolute())
 
     # Adjust font sizes based on the provided font_size argument
-    DEFAULT_FONT_SIZE = 8
+    DEFAULT_FONT_SIZE = 10
     base_sz = DEFAULT_FONT_SIZE
     base_markersize = base_sz * 0.5
     plt.rcParams.update({
@@ -702,7 +702,8 @@ def _atat_1(
         'figure.titlesize': base_sz * 1.2,
     })
 
-    fig, axs = plt.subplots(3, 2, figsize=(8.27, 11.69))
+    width = 8.27*0.8  # 80% A4
+    fig, axs = plt.subplots(3, 2, figsize=(width, 1.5*width))
     fig.suptitle(global_title)
 
     _atat_plot_fitted_energies(axs[0, 0], predstr, gs, fit, conc_range, erange)
