@@ -538,6 +538,7 @@ def _atat_1(
             content = f.read()
             lines = content.strip().split('\n')
             cve = lines[-1] if lines else ''
+            cve.replace('Crossvalidation score', 'CV')
             # Check for fit convergence warning
             if "Among structures of known energy, true ground states differ from fitted ground states" in content:
                 not_converged = True
