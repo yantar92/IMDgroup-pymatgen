@@ -709,8 +709,8 @@ def _atat_1(
     _atat_plot_calculated_energies(axs[1, 0], predstr, gs, fit, extra, conc_range, erange)
     _atat_plot_calc_vs_fit_energies(axs[2, 0], fit, conc_range, erange)
     _atat_plot_residuals(axs[0, 1], cve, fit)
-    _atat_plot_sublattice_deviation(axs[0, 2], gs, fit)
-    _atat_plot_clusters(axs[0, 3], clusters)
+    _atat_plot_sublattice_deviation(axs[1, 1], gs, fit)
+    _atat_plot_clusters(axs[2, 1], clusters)
 
     plt.tight_layout(rect=[0, 0.03, 1, 0.94])  # Leave space for both suptitle and warning
 
