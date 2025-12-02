@@ -356,17 +356,17 @@ def _atat_plot_fitted_energies(
 
     ax.plot(
         predstr['concentration'], predstr['predicted energy'],
-        'o', label='predicted', markersize=1)
+        'o', label='predicted')
     ax.plot(
         fit['concentration'], fit['fitted energy'],
         'o', label='known str')
     ax.plot(
         gs['concentration'], gs['fitted energy'],
         'o-', fillstyle='none',
-        label='fitted gs', color='black', markersize=8)
+        label='fitted gs', color='black')
     ax.plot(
         newgs['concentration'], newgs['predicted energy'],
-        's', markersize=8, fillstyle='none', label='predicted gs', color='red')
+        's', fillstyle='none', label='predicted gs', color='red')
     ax.legend()
 
 
@@ -475,11 +475,11 @@ def _atat_plot_calculated_energies(
                 energies.append(energy)
             if len(concentrations) > 0:
                 ax.plot(concentrations, energies,
-                        's', fillstyle='none', markersize=8, label=df.name)
+                        's', fillstyle='none', label=df.name)
     ax.plot(
         gs['concentration'], gs['energy'],
         'o-', fillstyle='none', color='black',
-        markersize=8, label='calculated gs')
+        label='calculated gs')
     error_groups = {}
     for idx in erred['index']:
         error_dir = Path(f"{idx}")
@@ -492,7 +492,7 @@ def _atat_plot_calculated_energies(
     for idx, (err_name, points) in enumerate(error_groups.items()):
         x_vals, y_vals = zip(*points)
         ax.plot(
-            x_vals, y_vals, 'x', markersize=5,
+            x_vals, y_vals, 'x',
             color=colors[idx % len(colors)], label=err_name)
     ax.legend()
 
@@ -683,7 +683,7 @@ def _atat_1(
     global_title = str(Path(wdir).absolute())
 
     # Adjust font sizes based on the provided font_size argument
-    DEFAULT_FONT_SIZE = 10
+    DEFAULT_FONT_SIZE = 8
     base_sz = DEFAULT_FONT_SIZE
     base_markersize = base_sz * 0.5
     plt.rcParams.update({
