@@ -413,7 +413,7 @@ def _atat_plot_residuals(
         fit: pd.DataFrame) -> None:
     """Plot fit error at AX axis.
     """
-    ax.set_title(f'Residuals of the fit ({cve})')
+    ax.set_title(f'Residuals of the fit\n{cve}')
     ax.set_xlabel('Concentration')
     ax.set_ylabel('Energy per reference cell, eV')
     displ = np.array(fit['sublattice deviation'], dtype=float)
@@ -683,7 +683,7 @@ def _atat_1(
     global_title = str(Path(wdir).absolute())
 
     # Adjust font sizes based on the provided font_size argument
-    DEFAULT_FONT_SIZE = 10
+    DEFAULT_FONT_SIZE = 8
     base_sz = DEFAULT_FONT_SIZE
     base_markersize = base_sz * 0.5
     plt.rcParams.update({
