@@ -682,8 +682,8 @@ def _atat_1(
 
     global_title = str(Path(wdir).absolute())
 
-    fig, axs = plt.subplots(2, 3, figsize=(19.2, 9.6))
-    fig.suptitle(global_title, fontsize=16)
+    fig, axs = plt.subplots(2, 3, figsize=(8.27, 4.13))
+    fig.suptitle(global_title, fontsize=12)
 
     plt.rcParams['lines.markersize'] = 3
 
