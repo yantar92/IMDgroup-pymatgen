@@ -354,12 +354,6 @@ def _atat_plot_fitted_energies(
     if erange:
         ax.set_ylim(erange[0], erange[1])
 
-    # Filter data within xlim range
-    predstr_filtered = predstr[(predstr['concentration'] >= c_range[0]) & (predstr['concentration'] <= c_range[1])]
-    fit_filtered = fit[(fit['concentration'] >= c_range[0]) & (fit['concentration'] <= c_range[1])]
-    gs_filtered = gs[(gs['concentration'] >= c_range[0]) & (gs['concentration'] <= c_range[1])]
-    newgs_filtered = newgs[(newgs['concentration'] >= c_range[0]) & (newgs['concentration'] <= c_range[1])]
-
     ax.plot(
         predstr['concentration'], predstr['predicted energy'],
         'o', label='predicted', markersize=1)
@@ -391,9 +385,6 @@ def _atat_plot_calc_vs_fit_energies(
     if erange:
         ax.set_ylim(erange[0], erange[1])
 
-    # Filter data within xlim range
-    fit_filtered = fit[(fit['concentration'] >= c_range[0]) & (fit['concentration'] <= c_range[1])]
-
     ax.plot(fit['concentration'], fit['energy'], 'P', label='calculated')
     ax.plot(fit['concentration'], fit['fitted energy'], 'o', label='fitted')
     ax.legend()
@@ -405,11 +396,11 @@ def __blue_orrd_cmap(data_min, data_max, color='blue', split_val=0.1):
     """
     if data_max == data_min:
         return None
-    N = 256  # resolution
+    n = 256  # resolution
     # Set the relative position of split_val
     frac = (split_val - data_min) / (data_max - data_min)
-    n_fixed_color = int(frac * N)
-    n_orrd = N - n_fixed_color
+    n_fixed_color = int(frac * n)
+    n_orrd = n - n_fixed_color
     greens = np.tile([to_rgba(color)], (n_fixed_color, 1))
     orrd = plt.get_cmap("OrRd", n_orrd)
     orrd_colors = orrd(np.linspace(0, 1, n_orrd))
@@ -459,11 +450,6 @@ def _atat_plot_calculated_energies(
     ax.set_xlim(c_range[0], c_range[1])
     if erange:
         ax.set_ylim(erange[0], erange[1])
-
-    # Filter data within xlim range
-    fit_filtered = fit[(fit['concentration'] >= c_range[0]) & (fit['concentration'] <= c_range[1])]
-    gs_filtered = gs[(gs['concentration'] >= c_range[0]) & (gs['concentration'] <= c_range[1])]
-    erred_filtered = erred[(erred['concentration'] >= c_range[0]) & (erred['concentration'] <= c_range[1])]
 
     displ = np.array(fit['sublattice deviation'], dtype=float)
     cmap = __blue_orrd_cmap(
