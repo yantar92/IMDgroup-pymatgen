@@ -707,11 +707,13 @@ def _atat_1(
 
     output_png = Path(wdir)/'atat-summary-test.png'
     plt.savefig(output_png, dpi=300)
+    output_svg = Path(wdir)/'atat-summary-test.svg'
+    plt.savefig(output_svg, dpi=300)
 
     logger.info("Saving ATAT plots to %s", output_png)
     print(colored(f"{wdir.replace("./", "")}: ", attrs=['bold'])
           + colored("ATAT ", "magenta")
-          + f"Saved ATAT plots to {output_png}")
+          + f"Saved ATAT plots to {output_png} and {output_svg}")
 
 
 def atat(args):
