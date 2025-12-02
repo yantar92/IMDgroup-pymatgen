@@ -706,8 +706,8 @@ def _atat_1(
     fig, axs = plt.subplots(3, 2, figsize=(width, 1.5*width))
     fig.suptitle(global_title)
 
-    _atat_plot_fitted_energies(axs[0, 0], predstr, gs, fit, conc_range, erange)
-    _atat_plot_calculated_energies(axs[1, 0], predstr, gs, fit, extra, conc_range, erange)
+    _atat_plot_fitted_energies(axs[1, 0], predstr, gs, fit, conc_range, erange)
+    _atat_plot_calculated_energies(axs[0, 0], predstr, gs, fit, extra, conc_range, erange)
     _atat_plot_calc_vs_fit_energies(axs[2, 0], fit, conc_range, erange)
     _atat_plot_residuals(axs[0, 1], cve, fit)
     _atat_plot_sublattice_deviation(axs[1, 1], gs, fit)
