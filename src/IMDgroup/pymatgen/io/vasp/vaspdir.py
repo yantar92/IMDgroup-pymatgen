@@ -486,7 +486,7 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
             displacement = site.distance(self.structure[i])
             max_displacement = max(max_displacement, displacement)
         vol = self.structure.volume
-        avg_bond_length = (vol / len(self.final_structure))**(1/3)
+        avg_bond_length = (vol / len(self.structure))**(1/3)
         if max_displacement > 2.0 * avg_bond_length:
             warnings.warn(
                 f"{os.path.relpath(self.path)}: "
