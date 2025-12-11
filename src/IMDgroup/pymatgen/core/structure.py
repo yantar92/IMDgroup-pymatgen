@@ -486,6 +486,7 @@ def reduce_supercell(structure):
         constrain_latt=['alpha', 'beta', 'gamma'])
     return reduced_structure
 
+
 def get_supercell_size(structure):
     """Get supercell size for STRUCTURE.
     Return a tuple of intergers (A, B, C) for AxBxC supercell.
@@ -504,9 +505,11 @@ class StructureDuplicateWarning(UserWarning):
 # Global variable to hold the worker function.
 _global_worker = None
 
+
 def _worker_wrapper(args):
     """Top-level function that calls the global worker with unpacked arguments."""
     return _global_worker(*args)
+
 
 def structure_matches(
         struct: Structure,

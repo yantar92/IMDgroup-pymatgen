@@ -40,6 +40,7 @@ from pymatgen.util.typing import PathLike
 from pymatgen.io.vasp.outputs import Vasprun as pmgVasprun
 from pymatgen.io.vasp.outputs import Outcar as pmgOutcar
 from IMDgroup.pymatgen.io.vasp.inputs import Incar
+from IMDgroup.pymatgen.core.structure import structure_distance
 
 logger = logging.getLogger(__name__)
 
@@ -69,6 +70,137 @@ class Vasprun(pmgVasprun):
 
     PRESSURE_CONVERGENCE_THRESHOLD = 3
 
+    def check_stress(self) -> bool:
+        """Return True when stress is not too high.
+        Otherwise, print warning and return False.
+        """
+        stress_tensor = np.array(self.ionic_steps[-1]['stress'])
+        external_pressure = np.trace(stress_tensor)/3
+        # if not np.allclose(stress_tensor, stress_tensor.T):
+        #     stress_tensor = (stress_tensor + stress_tensor.T) / 2
+        # principal_stresses = np.linalg.eigvals(stress_tensor)
+        if external_pressure > self.PRESSURE_CONVERGENCE_THRESHOLD:
+            warnings.warn(
+                f"{os.path.relpath(self.filename)}: "
+                f"Hydrostatic stress is {external_pressure}"
+                f" > {self.PRESSURE_CONVERGENCE_THRESHOLD}",
+                VasprunWarning)
+            return False
+        return True
+
+    def check_volume_change(self) -> bool:
+        """Return True when volume change is not too high.
+        Otherwise, print warning and return False.
+        """
+        vol_delta = abs(self.final_structure.volume - self.initial_structure.volume)
+        vol_change = vol_delta / self.initial_structure.volume
+        if vol_change > 0.3:  # 30% threshold
+            warnings.warn(
+                f"{os.path.relpath(self.filename)}: "
+                f"Volume change {vol_change} > 30%",
+                VasprunWarning)
+            return False
+        return True
+
+    def check_displacements(self) -> bool:
+        """Return True when displacements are not too high.
+        Otherwise, print warning and return False.
+        """
+        max_displacement = 0
+        for i, site in enumerate(self.initial_structure):
+            displacement = site.distance(self.final_structure[i])
+            max_displacement = max(max_displacement, displacement)
+        vol = self.final_structure.volume
+        avg_bond_length = (vol / len(self.final_structure))**(1/3)
+        if max_displacement > 2.0 * avg_bond_length:
+            warnings.warn(
+                f"{os.path.relpath(self.filename)}: "
+                f"Large atomic displacement {max_displacement}",
+                VasprunWarning)
+            return False
+        return True
+
+    def check_forces(self, threshold=0.05) -> bool:
+        """Check forces, handling selective dynamics if present.
+
+        Args:
+            threshold: Force threshold in eV/Å
+        """
+        final_forces = np.array(self.ionic_steps[-1]['forces'])
+
+        # Get selective dynamics info if available
+        selective_dynamics = None
+        if hasattr(self.final_structure, 'site_properties')\
+           and 'selective_dynamics' in self.final_structure.site_properties:
+            selective_dynamics = self.final_structure.site_properties['selective_dynamics']
+
+        max_force = 0
+        for i, force in enumerate(final_forces):
+            if selective_dynamics and i < len(selective_dynamics):
+                # Only check force components in unconstrained directions
+                sd = selective_dynamics[i]  # [free_x, free_y, free_z]
+                constrained_force = 0
+                for j, free in enumerate(sd):
+                    if free:
+                        constrained_force += force[j]**2
+                force_mag = np.sqrt(constrained_force) if constrained_force > 0 else 0
+            else:
+                force_mag = np.linalg.norm(force)
+
+            max_force = max(max_force, force_mag)
+
+        if max_force > threshold:
+            warnings.warn(
+                f"{os.path.relpath(self.filename)}: "
+                f"Large force found {max_force:.3f} > {threshold}eV/Å",
+                VasprunWarning)
+            return False
+        return True
+
+    def check_framework_symmetry(
+            self, framework_elements=None,
+            symprec=0.1, max_rms_threshold=0.5) -> bool:
+        """Check symmetry changes, focusing on framework atoms.
+
+        Reduces false positives when mobile atoms break symmetry.
+        """
+        if framework_elements is None:
+            from collections import Counter
+            elements = Counter([str(site.specie) for site in self.initial_structure])
+            framework_elements = [elements.most_common(1)[0][0]]
+
+        # Create framework-only structures
+        def filter_framework(structure):
+            indices = [i for i, site in enumerate(structure)
+                       if str(site.specie) in framework_elements]
+            return structure.copy().remove_sites(
+                [i for i in range(len(structure)) if i not in indices]
+            )
+
+        init_framework = filter_framework(self.initial_structure)
+        final_framework = filter_framework(self.final_structure)
+
+        # Check if framework symmetry changed
+        init_sg = init_framework.get_space_group_info(symprec=symprec)
+        final_sg = final_framework.get_space_group_info(symprec=symprec)
+
+        if init_sg[0] != final_sg[0]:
+            # Calculate RMS displacement of framework atoms
+            try:
+                rms = structure_distance(
+                    init_framework, final_framework,
+                    norm=True, match_first=False)
+            except Exception:
+                rms = np.inf
+            if rms > max_rms_threshold:
+                warnings.warn(
+                    f"{os.path.relpath(self.filename)}: "
+                    f"Framework symmetry changed ({init_sg[0]}→{final_sg[0]}) "
+                    f"with large displacement (RMS={rms:.3f}Å)",
+                    VasprunWarning)
+                return False
+        return True
+
     @property
     def converged_ionic(self) -> bool:
         """Whether ionic step convergence reached.
@@ -77,33 +209,16 @@ class Vasprun(pmgVasprun):
         Vasprun.PRESSURE_CONVERGENCE_THRESHOLD)
         """
         converged_ionic = super().converged_ionic
-        stress_tensor = np.array(self.ionic_steps[-1]['stress'])
-        external_pressure = np.trace(stress_tensor)/3
-        # if not np.allclose(stress_tensor, stress_tensor.T):
-        #     stress_tensor = (stress_tensor + stress_tensor.T) / 2
-        # principal_stresses = np.linalg.eigvals(stress_tensor)
         if converged_ionic\
            and (self.incar.get('IBRION') in Incar.IBRION_IONIC_RELAX_values)\
-           and (self.incar.get('ISIF') not in [Incar.ISIF_RELAX_POS, 0, 1])\
-           and (external_pressure > self.PRESSURE_CONVERGENCE_THRESHOLD
-                #  or
-                # np.any(np.abs(principal_stresses) >\
-                #        self.PRESSURE_CONVERGENCE_THRESHOLD)
-                ):
-            if external_pressure > self.PRESSURE_CONVERGENCE_THRESHOLD:
-                warnings.warn(
-                    f"{os.path.relpath(self.filename)}: "
-                    f"Hydrostatic stress is {external_pressure}"
-                    f" > {self.PRESSURE_CONVERGENCE_THRESHOLD}",
-                    VasprunWarning
-                )
-            # else:
-            #     warnings.warn(
-            #         f"{os.path.relpath(self.filename)}: "
-            #         f"Principal stresses {principal_stresses}"
-            #         f" > {self.PRESSURE_CONVERGENCE_THRESHOLD}",
-            #         VasprunWarning
-            #     )
+           and (self.incar.get('ISIF') not in [0, 1]):
+            if self.incar.get('ISIF') != Incar.ISIF_RELAX_POS:
+                self.check_stress()
+                self.check_volume_change()
+                self.check_framework_symmetry()
+            self.check_displacements()
+            self.check_forces()
+
         return converged_ionic
 
 
