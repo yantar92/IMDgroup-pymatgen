@@ -494,19 +494,6 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
             return False
         return True
 
-    def check_volume_change(self) -> bool:
-        """Return True when volume change is not too high.
-        Otherwise, print warning and return False.
-        """
-        vol_delta = abs(self.structure.volume - self.initial_structure.volume)
-        vol_change = vol_delta / self.initial_structure.volume
-        if vol_change > 0.3:  # 30% threshold
-            warnings.warn(
-                f"{os.path.relpath(self.path)}: "
-                f"Volume change {vol_change} > 30%")
-            return False
-        return True
-
     def check_framework_symmetry(
             self, framework_elements=None,
             symprec=0.1, max_rms_threshold=0.5) -> bool:
@@ -570,7 +557,6 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
                 )
             converged_ionic = outcar.data['converged_ionic']
         if converged_ionic:
-            self.check_volume_change()
             self.check_framework_symmetry()
             self.check_displacements()
         return converged_ionic
