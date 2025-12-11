@@ -40,7 +40,6 @@ from pymatgen.util.typing import PathLike
 from pymatgen.io.vasp.outputs import Vasprun as pmgVasprun
 from pymatgen.io.vasp.outputs import Outcar as pmgOutcar
 from IMDgroup.pymatgen.io.vasp.inputs import Incar
-from IMDgroup.pymatgen.core.structure import structure_distance
 
 logger = logging.getLogger(__name__)
 
@@ -88,38 +87,6 @@ class Vasprun(pmgVasprun):
             return False
         return True
 
-    def check_volume_change(self) -> bool:
-        """Return True when volume change is not too high.
-        Otherwise, print warning and return False.
-        """
-        vol_delta = abs(self.final_structure.volume - self.initial_structure.volume)
-        vol_change = vol_delta / self.initial_structure.volume
-        if vol_change > 0.3:  # 30% threshold
-            warnings.warn(
-                f"{os.path.relpath(self.filename)}: "
-                f"Volume change {vol_change} > 30%",
-                VasprunWarning)
-            return False
-        return True
-
-    def check_displacements(self) -> bool:
-        """Return True when displacements are not too high.
-        Otherwise, print warning and return False.
-        """
-        max_displacement = 0
-        for i, site in enumerate(self.initial_structure):
-            displacement = site.distance(self.final_structure[i])
-            max_displacement = max(max_displacement, displacement)
-        vol = self.final_structure.volume
-        avg_bond_length = (vol / len(self.final_structure))**(1/3)
-        if max_displacement > 2.0 * avg_bond_length:
-            warnings.warn(
-                f"{os.path.relpath(self.filename)}: "
-                f"Large atomic displacement {max_displacement}",
-                VasprunWarning)
-            return False
-        return True
-
     def check_forces(self, threshold=0.05) -> bool:
         """Check forces, handling selective dynamics if present.
 
@@ -157,50 +124,6 @@ class Vasprun(pmgVasprun):
             return False
         return True
 
-    def check_framework_symmetry(
-            self, framework_elements=None,
-            symprec=0.1, max_rms_threshold=0.5) -> bool:
-        """Check symmetry changes, focusing on framework atoms.
-
-        Reduces false positives when mobile atoms break symmetry.
-        """
-        if framework_elements is None:
-            from collections import Counter
-            elements = Counter([str(site.specie) for site in self.initial_structure])
-            framework_elements = [elements.most_common(1)[0][0]]
-
-        # Create framework-only structures
-        def filter_framework(structure):
-            indices = [i for i, site in enumerate(structure)
-                       if str(site.specie) in framework_elements]
-            return structure.copy().remove_sites(
-                [i for i in range(len(structure)) if i not in indices]
-            )
-
-        init_framework = filter_framework(self.initial_structure)
-        final_framework = filter_framework(self.final_structure)
-
-        # Check if framework symmetry changed
-        init_sg = init_framework.get_space_group_info(symprec=symprec)
-        final_sg = final_framework.get_space_group_info(symprec=symprec)
-
-        if init_sg[0] != final_sg[0]:
-            # Calculate RMS displacement of framework atoms
-            try:
-                rms = structure_distance(
-                    init_framework, final_framework,
-                    norm=True, match_first=False)
-            except Exception:
-                rms = np.inf
-            if rms > max_rms_threshold:
-                warnings.warn(
-                    f"{os.path.relpath(self.filename)}: "
-                    f"Framework symmetry changed ({init_sg[0]}→{final_sg[0]}) "
-                    f"with large displacement (RMS={rms:.3f}Å)",
-                    VasprunWarning)
-                return False
-        return True
-
     @property
     def converged_ionic(self) -> bool:
         """Whether ionic step convergence reached.
@@ -214,9 +137,6 @@ class Vasprun(pmgVasprun):
            and (self.incar.get('ISIF') not in [0, 1]):
             if self.incar.get('ISIF') != Incar.ISIF_RELAX_POS:
                 self.check_stress()
-                self.check_volume_change()
-                self.check_framework_symmetry()
-            self.check_displacements()
             self.check_forces()
 
         return converged_ionic
