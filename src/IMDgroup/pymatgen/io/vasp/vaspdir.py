@@ -38,6 +38,7 @@ import itertools
 import tempfile
 import pickle
 import gzip
+import numpy as np
 from pathlib import Path
 from monty.io import zopen
 from monty.json import MSONable
@@ -541,7 +542,7 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
                     norm=True, match_first=False)
             except Exception:
                 rms = float('inf')
-            if rms > max_rms_threshold:
+            if rms > max_rms_threshold or np.isclose(rms, 0):
                 warnings.warn(
                     f"{os.path.relpath(self.path)}: "
                     f"Framework symmetry changed ({init_sg[0]}→{final_sg[0]}) "
