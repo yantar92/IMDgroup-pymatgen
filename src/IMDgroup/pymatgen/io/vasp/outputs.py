@@ -219,16 +219,6 @@ class Vasplog(MSONable):
         "vasp_runtime_error": [
             "Error termination"
         ],
-        # "relaxation_step": [
-        #     # Very large atom displacement during relaxation
-        #     # >=0.06
-        #     "^.*dis= [1-9].*$",
-        #     "^.*dis= 0.[1-9].*$",
-        #     "^.*dis= 0.0[6-9].*$",
-        #     "^.*maximal distance =[1-9].*$",
-        #     "^.*maximal distance =0.[1-9].*$",
-        #     "^.*maximal distance =0.0[6-9].*$",
-        # ],
         "fexcf": [
             "ERROR FEXCF: supplied exchange-correlation table"
         ],
