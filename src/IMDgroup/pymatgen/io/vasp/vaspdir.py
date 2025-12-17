@@ -532,7 +532,7 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
             if rms > max_rms_threshold or np.isclose(rms, 0):
                 warnings.warn(
                     f"{os.path.relpath(self.path)}: "
-                    f"Framework symmetry changed ({init_sg[0]}→{final_sg[0]}) "
+                    f"Framework symmetry changed ({init_sg[0]} to {final_sg[0]}) "
                     f"with large displacement (RMS={rms:.3f}Å)")
                 return False
         return True
