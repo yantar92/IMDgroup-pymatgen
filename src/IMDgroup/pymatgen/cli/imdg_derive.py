@@ -106,6 +106,9 @@ Write them to <prefix><output name><subdir>."""
 
     subparsers = parser.add_subparsers(required=True)
 
+    parser_fix = subparsers.add_parser("fix")
+    fix_add_args(parser_fix)
+
     parser_incar = subparsers.add_parser("incar")
     incar_add_args(parser_incar)
 
@@ -427,6 +430,81 @@ def functional(args):
     inputset.name = output_dir_suffix
     return {'inputsets': [inputset]}
 
+
+def fix_add_args(parser):
+    """Setup parser arguments for selective dynamics.
+    Args:
+      parser: subparser
+    """
+    parser.help = "Apply selective dynamics constraints to species"
+    parser.set_defaults(func_derive=fix)
+    parser.add_argument(
+        "constraints",
+        help="Constraints per species as a Python dict string. "
+             "Example: \"{'Na': [True, True, True], 'C': [False, False, False]}\"",
+        type=str
+    )
+    parser.add_argument(
+        "--discard_previous",
+        help="Discard existing selective dynamics constraints (default: False)",
+        action="store_true"
+    )
+
+
+def fix(args):
+    """Apply selective dynamics constraints.
+    Return {'inputsets': [inputset]}
+    """
+    import ast
+    inputset = IMDDerivedInputSet(
+        directory=args.input_directory,
+        inherit_prev_incarpy=args.inherit_prev_incarpy)
+
+    try:
+        constraints = ast.literal_eval(args.constraints)
+        if not isinstance(constraints, dict):
+            raise ValueError("Constraints must be a dictionary")
+    except (ValueError, SyntaxError) as e:
+        raise ValueError(f"Could not parse constraints: {args.constraints}") from e
+
+    # Clean constraints to ensure boolean lists
+    cleaned_constraints = {}
+    for sp, constr in constraints.items():
+        try:
+            cleaned_constraints[sp] = [bool(x) for x in constr]
+            if len(cleaned_constraints[sp]) != 3:
+                raise ValueError
+        except (ValueError, TypeError):
+            raise ValueError(f"Invalid constraint format for {sp}: {constr}")
+
+    structure = inputset.structure
+
+    # Check for existing constraints
+    has_existing = any(
+        site.properties.get('selective_dynamics') is not None
+        for site in structure
+    )
+
+    if has_existing:
+        if args.discard_previous:
+            logger.info("Discarding previous selective dynamics.")
+            for site in structure:
+                if 'selective_dynamics' in site.properties:
+                    site.properties['selective_dynamics'] = None
+        else:
+            warnings.warn("Keeping previous selective dynamics constraints.")
+
+    count = 0
+    for site in structure:
+        el = site.specie.symbol
+        if el in cleaned_constraints:
+            site.properties['selective_dynamics'] = cleaned_constraints[el]
+            count += 1
+
+    logger.info("Applied selective dynamics to %d sites.", count)
+
+    inputset.name = "selective_dynamics"
+    return {'inputsets': [inputset]}
 
 def incar_add_args(parser):
     """Setup parser arguments for incar.
