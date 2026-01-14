@@ -738,6 +738,12 @@ def fill_add_args(parser):
         type=str
     )
     parser.add_argument(
+        "--tol",
+        help="Tolerance when merging structures (default: 0.1A)",
+        type=float,
+        default=0.1
+    )
+    parser.add_argument(
         "--selective-dynamics",
         dest="selective_dynamics",
         help="Selective dynamics to be applied to prototype sites"
@@ -794,7 +800,7 @@ def fill(args):
         structure.properties['final_energy'] = structure_run.final_energy
         structures.append(structure)
 
-    filled_structure = merge_structures(structures, tol=0.1)
+    filled_structure = merge_structures(structures, tol=args.tol)
     inputset = IMDDerivedInputSet(
         directory=args.uniq_sites[0],
         inherit_prev_incarpy=args.inherit_prev_incarpy
