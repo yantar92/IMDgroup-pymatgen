@@ -2,127 +2,311 @@
 
 # IMDgroup-pymatgen
 
-This is a set of add-ons and helpers for [pymatgen](https://pymatgen.org/), that are tailored to
-research that is performed in [Inverse Materials Design group](https://www.oimalyi.org/).
+This package provides a set of add-ons and helpers for [pymatgen](https://pymatgen.org/),
+tailored to research performed in the [Inverse Materials Design group](https://www.oimalyi.org/).
+
+
+# Key Features & Optimizations
+
+
+## Optimized for High-Throughput (Caching)
+
+Unlike standard pymatgen tools, this library is specifically designed
+to handle **huge numbers of VASP outputs** efficiently.
+
+-   **Persistent Caching:** The core `IMDGVaspDir` class implements a
+    persistent disk cache (stored in `~/.cache/imdgVASPDIRcache` or
+    `XDG_CACHE_HOME`).
+-   **Lazy Loading:** Parsed VASP data is cached automatically. Subsequent
+    analysis of the same directories is orders of magnitude faster,
+    making it feasible to analyze thousands of calculations repeatedly
+    without re-parsing XML or OUTCAR files.
+
+
+## Extensions to pymatgen
+
+While heavily based on `pymatgen`, this library introduces several key
+differences:
+
+-   `imdg analyze` vs `pmg analyze`::
+    -   The `imdg analyze` command is built on the caching `IMDGVaspDir` class.
+    -   It focuses on **relative changes**: instead of just reporting
+        absolute values, it calculates changes between the initial and
+        final structures (e.g., volume change `%vol`, lattice parameter
+        changes `%a`, `%b`, `%c`, and total atomic displacement `displ`).
+    -   It supports grouping runs by identical `INCAR` parameters to
+        easily compare different calculation settings.
+-   **Enhanced Input Sets:** New input sets like `IMDDerivedInputSet` allow deriving new
+    calculations (relaxations, strains, NEB) directly from existing
+    output directories, preserving context/history.
+
+
+# Getting Help
+
+
+## Command Line
+
+You can get help for any command directly in the terminal:
+
+    # General help and list of subcommands
+    imdg --help
+    
+    # Help for a specific subcommand (e.g., arguments for analyze)
+    imdg analyze --help
+    imdg derive . ins --help
+
+
+## Python Code
+
+All classes and functions are documented with docstrings. You can
+access them using Python's built-in `help()` function:
+
+    from IMDgroup.pymatgen.io.vasp.vaspdir import IMDGVaspDir
+    help(IMDGVaspDir)
 
 
 # Installation
 
-    # Download the package and source dependencies
     git clone https://git.sr.ht/~yantar92/IMDgroup-pymatgen
+    cd IMDgroup-pymatgen
+    pip install .
+
+
+# Command Line Interface
+
+The package installs command line tool: `imdg` - the master script for
+VASP workflows.
+
+
+## `imdg status`
+
+Monitor the status of VASP calculations in the current or specified directories.
+
+    # Check status of all runs in current directory and subdirectories
+    imdg status
     
-    # Activate virtual environment
-    pip -m venv .venv
-    . .venv/bin/activate
+    # Only show problematic runs (warnings or failures)
+    imdg status --problematic
     
-    # Install into the environment
-    pip install IMDgroup-pymatgen
+    # Exclude specific directories using regex
+    imdg status --exclude "test_runs"
+
+Features:
+
+-   Identifies running SLURM jobs.
+-   Checks convergence (electronic, ionic, and multi-step sequences).
+-   Parses and highlights VASP warnings (e.g., convergence failures, internal errors).
+-   Displays NEB image convergence summaries.
 
 
-# Features
+## `imdg analyze`
 
--   Command line tools to generate, alter, compare, and visualize VASP inputs and outpus
-    -   Generate VASP input from Materials Project structure IDs
-    -   Generate VASP inputs for typical VASP calculations like relaxation, SCF, etc
-    -   Alter an existing VASP input/output, modifying the resulting structure, kpoints,
-        functionals, incar parameters, etc
-    -   Compare and summarize VASP outputs
-    -   Generate inputs for ATAT runs from an existing VASP directory
-    -   Visualize NEB paths, ATAT convex hulls
--   Command line tools to monitor completed and running VASP jobs
-    -   Automatically detect and highlight VASP warning occured during VASP runs
-    -   Display a summary of multiple running VASP runs, highlighting convergence and
-        other issues that may require human intervation
--   Extensions to pymatgen's utility functions for structures
--   Extensions to pymatgen's structure transormations
-    -   Finding all possible unique insertion sites of an atom or molecule
-        into a given structure
-    -   Generating a structure with all the unique insertion sites "filled in"
--   Automatic analysis of unique diffusion paths for an interstitial
-    atom or molecule
--   Extensions to pymatgen's VASP support
-    -   Support for working with VASP directories, including
-        NEB calculations nad directories containing multiple successive
-        VASP runs.  With caching support optimized for analysis of a large
-        number of VASP runs.
-    -   Dedicated support for working with VASP log files
-    -   Additional warnings for potential problems in VASP inputsets
-    -   New `IMDDerivedInputSet` class to create an inputset from an
-        existing VASP directory (including unfinished and finished VASP
-        runs and NEB calculatiosn)
-    -   New `IMDNEBVaspInputSet` to produce VASP NEB calcualtion inputs and
-        auto-generate the NEB paths
+Summarize key properties of VASP outputs in a tabular format. This
+tool uses caching to quickly re-analyze large directory trees.
 
-
-# TODO Usage
-
-
-## Loading VASP input sets from group publications
-
-From Python
-
-    from IMDgroup.pymatgen.io.vasp.sets import IMDRelaxCellulose
+    # Analyze all runs in the current directory
+    imdg analyze
     
-    # Create VASP input file generator, using default Cellulose ibeta
-    # structure from Yadav, Malyi 2024 Cellulose
-    input = IMDRelaxCellulose(structure='ibeta')
+    # Report specific fields only
+    imdg analyze --fields energy e_per_atom displ
     
-    # Write VASP input files into "test" directory
-    input.write_input(output_dir='test', potcar_spec=True)
+    # Group results by similar INCAR parameters
+    imdg analyze --group
+
+**Available Fields**:
+
+-   `energy`, `e_per_atom`: Final reliable energy and energy per atom.
+-   `%vol`: Percentage change in volume between initial and final structure.
+-   `displ`: Average atomic displacement between initial and final structure.
+-   `%a`, `%b`, `%c`, `%alpha`, `%beta`, `%gamma`: Percentage change in lattice parameters.
+-   `total_mag`: Total magnetization.
 
 
-## Inserting molecule into a given structure
+## `imdg create`
 
-From command line
+Generate fresh VASP inputs from various sources.
 
-    # Generate all possible inserts of water into cellulose_ibeta and
-    # write VASP input files into output_dir
-    pmg-insert-molecule water.xyz cellulose_ibeta.cif output_dir
+    # Create input from Materials Project ID
+    imdg create mp-48
+    
+    # Create input from a CIF/POSCAR file
+    imdg create structure.cif
+    
+    # Create a box with a single atom
+    imdg create "Li 10x10x10"
 
-From Python
 
-    from IMDgroup.pymatgen.transformations.insert_molecule\
-        import InsertMoleculeTransformation
-    from IMDgroup.pymatgen.io.vasp.sets import IMDRelaxCellulose
-    import pymatgen.io.vasp.sets as vaspset
-    import numpy as np
+## `imdg derive`
+
+This is the primary tool for chaining VASP calculations. It creates
+new input sets derived from existing VASP directories (inputs or
+outputs), allowing for complex workflows like relaxation chains,
+strain application, or NEB setup.
+
+
+### General usage
+
+    # Derive a new calculation in 'new_dir' based on 'old_dir'
+    imdg derive old_dir --output new_dir <subcommand> [args]
+
+
+### Subcommands
+
+-   `relax`: Set up relaxation (ISIF 2-7).
+    
+        imdg derive . --output relax_run relax RELAX_POS_SHAPE_VOL
+-   `scf`: Set up static self-consistent field calculation.
+-   `kpoints`: Change K-point density.
+    
+        imdg derive . --output dense_kpoints kpoints --density 5000
+-   `strain`: Apply lattice strain (e.g., for elastic constants).
+    
+        imdg derive . --output strain_run strain --amin 0.98 --amax 1.02 --asteps 3
+-   `perturb`: Perturb atomic positions (e.g., to break symmetry).
+-   `supercell`: Generate a supercell.
+-   `functional`: Switch DFT functional (e.g., `PBE`, `PBE+D3-BJ`, `optB88-vdW`).
+-   `incar`: Modify specific INCAR tags.
+    
+        imdg derive . --output high_prec incar PREC:Accurate EDIFF:1e-7
+-   `fix`: Apply selective dynamics constraints.
+-   `ins`: Insert atoms/molecules into voids (see `pmg-insert-molecule`).
+-   `fill`: Fill sites based on relaxed unique insertion points.
+-   `atat`: Generate input for ATAT (Alloy Theoretic Automated Toolkit) from a VASP run.
+
+
+### NEB and Diffusion
+
+`imdg derive` includes specialized tools for Nudged Elastic Band (NEB) calculations.
+
+    # Simple NEB between current dir and target dir
+    imdg derive . neb target_dir --nimages 5
+    
+    # Complex diffusion analysis: find all unique paths between stable sites
+    imdg derive prototype_dir neb_diffusion --diffusion_points site1_dir site2_dir site3_dir --nimages 5
+
+The `neb_diffusion` subcommand analyzes the topology of interstitial
+sites and automatically generates unique diffusion paths between them.
+
+
+## `imdg diff`
+
+Compare structures or input parameters between directories.
+
+    # Compare structures in directories, grouping identical ones
+    imdg diff structure dir1 dir2 dir3
+    
+    # Compare INCAR files, showing differences
+    imdg diff incar dir1 dir2
+
+
+## `imdg visualize`
+
+Generate visual summaries of calculations.
+
+    # Visualize NEB trajectory (creates .cif files)
+    imdg visualize neb
+    
+    # Visualize ATAT cluster expansion results (convex hull, residuals)
+    # Requires running inside an ATAT directory
+    imdg visualize atat
+
+
+## `pmg-insert-molecule`
+
+Systematically insert a molecule or atom into a host structure at
+various positions and orientations, making sure to cover all viable
+positions without overlaps.
+
+    # Insert water molecule into host.cif, stepping 0.5A grid, rotating 45 degrees
+    pmg-insert-molecule water.xyz host.cif output_dir --step 0.5 --anglestep 45
+
+There is also `imdg ins` subcommand counterpart that can directly use VASP
+folder as input.
+
+
+# Python API
+
+
+## VASP Directory Handling
+
+The `IMDGVaspDir` class provides a dictionary-like interface to VASP
+directories with aggressive caching to handle high-throughput analysis
+on file systems like Lustre.
+
+    from IMDgroup.pymatgen.io.vasp.vaspdir import IMDGVaspDir
+    
+    # Initialize (data will be loaded from cache if available)
+    vdir = IMDGVaspDir("path/to/vasp/calculation")
+    
+    # Access parsed pymatgen objects
+    structure = vdir.structure
+    energy = vdir.final_energy
+    incar = vdir["INCAR"]
+    
+    # Check convergence
+    if vdir.converged:
+        print("Calculation converged!")
+    
+    # Handling NEB directories
+    if vdir.nebp:
+        for image_dir in vdir.neb_dirs():
+            print(f"Image {image_dir.path}: {image_dir.final_energy}")
+
+
+## Transformations
+
+
+### Inserting Molecules
+
+Find void space and insert species.
+
+    from IMDgroup.pymatgen.transformations.insert_molecule import InsertMoleculeTransformation
     
     transformer = InsertMoleculeTransformation(
-        'water.xyz', step=2.0,
-        anglestep=np.radians(90),
-        matcher=None)
+        molecule='Li',  # or Molecule object
+        step=0.2,       # Grid spacing in Angstroms
+        proximity_threshold=0.75
+    )
     
-    structures = transformer.all_inserts('cellulose_ibeta.cif')
+    # Get list of all unique insertion structures
+    inserts = transformer.all_inserts('host_structure.cif')
+
+
+### Symmetry Cloning
+
+Generate all symmetrically equivalent configurations of a structure.
+
+    from IMDgroup.pymatgen.transformations.symmetry_clone import SymmetryCloneTransformation
+    from pymatgen.core import Structure
     
-    vaspset.batch_write_input(
-        structures,
-        vasp_input_set=IMDRelaxCellulose,
-        output_dir='output_dir',
-        potcar_spec=True)
-
-
-## Getting symmetrically equivalent structures
-
-    import pymatgen.core as pmg
-    from IMDgroup.pymatgen.transormation.symmetry_clone import SymmetryCloneTransformation
+    host = Structure.from_file("host.cif")
+    # Structure with one interstitial site
+    defect = Structure.from_file("defect.cif")
     
-    structure = pmg.Structure.from_file("path_to_structure")
-    prototype = pmg.Structure.from_file("path_to_prototype")
+    # Generate all symmetrically equivalent defects
+    # relative to the host symmetry
+    trans = SymmetryCloneTransformation(sym_operations=host)
+    clones = trans.get_all_clones(defect)
+
+
+## Diffusion Analysis
+
+The `get_neb_pairs` function automates the discovery of unique
+diffusion paths in a material.
+
+    from IMDgroup.pymatgen.diffusion.neb import get_neb_pairs
     
-    trans = SymmetryCloneTransformation(prototype)
-    all_clones = trans.get_all_clones(structure)
+    # Given a list of stable interstitial sites (structures) and the host prototype
+    # calculate all unique hops between them.
+    pairs = get_neb_pairs(
+        structures=stable_sites_list,
+        prototype=host_structure,
+        cutoff='auto',         # Automatically determine max hop distance
+        remove_compound=True   # Remove multi-step paths if single steps exist
+    )
     
-    for idx, clone in enumerate(all_clones):
-        clone.to_file(f"clone_{idx}.cif")
-
-
-# TODO Citing
-
-
-# Contributing
-
-We welcome contributions in all forms. If you want to contribute,
-please fork this repository, make changes and send us a pull request!
+    for start, end in pairs:
+        print(f"Path from {start} to {end}")
 
 
 # Acknowledgements
