@@ -19,6 +19,25 @@ to handle *huge numbers of VASP outputs* efficiently.
   making it feasible to analyze thousands of calculations repeatedly
   without re-parsing XML or OUTCAR files.
 
+** Automated Health Checks & Warnings
+The library proactively monitors VASP calculations for common
+pitfalls, essential for reliable high-throughput workflows:
+
+- VASP Warnings :: Automatically parses logs (e.g., ~vasp.out~,
+  ~slurm*.out~) to surface execution warnings like convergence
+  failures or grid errors.
+
+- Structural Integrity :: Checks for physical anomalies during
+  relaxation to catch problems early:
+
+  - *Large Displacements*: Warns if atoms move significantly more than
+    expected (e.g., indicating bond breaking or phase instability).
+  - *Symmetry Changes*: Detects if the framework symmetry breaks
+    during relaxation, which often indicates a failed calculation or
+    unwanted phase transition.
+  - *Stress & Forces*: Monitors for unexpected hydrostatic stress or
+    excessive residual forces.
+
 ** Extensions to pymatgen
 
 While heavily based on ~pymatgen~, this library introduces several key
