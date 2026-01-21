@@ -48,7 +48,8 @@ pitfalls, essential for reliable high-throughput workflows:
 While heavily based on `pymatgen`, this library introduces several key
 differences:
 
--   **`imdg analyze` vs `pmg analyze`:** -   The `imdg analyze` command is built on the caching `IMDGVaspDir` class.
+-   **`imdg analyze` vs `pmg analyze`**
+    -   The `imdg analyze` command is built on the caching `IMDGVaspDir` class.
     -   It focuses on **relative changes**: instead of just reporting
         absolute values, it calculates changes between the initial and
         final structures (e.g., volume change `%vol`, lattice parameter
