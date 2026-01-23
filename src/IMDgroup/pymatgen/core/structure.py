@@ -49,7 +49,7 @@ logger = logging.getLogger(__name__)
 class IMDStructure(Structure):
     """IMDGroup variant of Structure.
     New features:
-    1. Read structure from str.out ATAT's file.
+    1. Read structure from str.out (or any *.out) ATAT's file.
     2. Write structure to str.out ATAT's file replacing X0+ with Vac
     """
     @classmethod
@@ -79,7 +79,7 @@ class IMDStructure(Structure):
             Structure.
         """
         filename = str(filename)
-        if os.path.basename(filename) in ("str.out"):  # , "lat.in"
+        if Path(filename).suffix == ".out":  # "str.out"
             from pymatgen.io.atat import Mcsqs
             # We manually replace Vac with X instances that can be
             # read by pymatgen.
