@@ -792,13 +792,15 @@ def fill(args):
                     site.species = site.properties['__species']
             structure = structure.remove_site_property('__species')
         else:
-            raise ValueError(
-                f"{struct_path} does not"
-                " contain added atoms to {args.input_directory}")
+            logger.warning(
+                "%s does not contain added atoms to %s",
+                struct_path, args.input_directory
+            )
 
         structure.properties['origin_path'] = struct_path
         structure.properties['final_energy'] = structure_run.final_energy
-        structures.append(structure)
+        if len(structure) > len(prototype):
+            structures.append(structure)
 
     filled_structure = merge_structures(structures, tol=args.tol)
     inputset = IMDDerivedInputSet(
