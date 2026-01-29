@@ -165,7 +165,7 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
             return None
         cls._init_lmdb()
         try:
-            with cls._lmdb_env.begin(db=cls._lmdb_db, readonly=True) as txn:
+            with cls._lmdb_env.begin(db=cls._lmdb_db, write=False) as txn:
                 val = txn.get(key.encode())
                 if val is None:
                     return None
