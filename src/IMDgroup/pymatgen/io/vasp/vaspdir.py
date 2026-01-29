@@ -37,7 +37,7 @@ import logging
 import itertools
 import tempfile
 import pickle
-import gzip
+import gzip, threading, atexit
 import numpy as np
 from pathlib import Path
 from monty.io import zopen
@@ -124,6 +124,9 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
 
     _cache_cleaned: typing.ClassVar[bool] = False
     MAX_CACHE_SIZE: typing.ClassVar[int] = 6 * 1024 ** 3  # 6GB
+    _pending_writes: typing.ClassVar[dict[str, dict]] = {}
+    _pending_lock: typing.ClassVar[threading.Lock] = threading.Lock()
+    _flush_registered: typing.ClassVar[bool] = False
 
     def __init__(self, dirname: str | Path) -> None:
         """
@@ -274,9 +277,9 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
             logger.warning("Cache load failed: %s", e)
         return None
 
-    def _save_to_cache(self, data: dict) -> bool:
-        """Atomically save data to compressed cache file"""
-        cache_path = self._get_cache_path()
+    @staticmethod
+    def _write_cache_file(cache_path: Path, data: dict) -> bool:
+        """Atomically save data to compressed cache file."""
         cache_dir = cache_path.parent
         tmp_path = None
         try:
@@ -301,19 +304,66 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
                 tmp_path.unlink()
             return False
 
+    @classmethod
+    def _add_pending_write(cls, cache_path: Path, data: dict) -> None:
+        """Add a cache entry to the pending write buffer."""
+        with cls._pending_lock:
+            cls._pending_writes[str(cache_path)] = data
+            if not cls._flush_registered:
+                atexit.register(cls.flush_cache)
+                cls._flush_registered = True
+
+    @classmethod
+    def flush_cache(cls) -> None:
+        """Write all pending cache entries to disk."""
+        with cls._pending_lock:
+            if not cls._pending_writes:
+                return
+            writes = cls._pending_writes.copy()
+            cls._pending_writes.clear()
+        # Write outside lock to avoid holding lock during I/O
+        for cache_path_str, data in writes.items():
+            cache_path = Path(cache_path_str)
+            cls._write_cache_file(cache_path, data)
+        logger.debug("Flushed %d cache entries", len(writes))
+
+    def _save_to_cache(self, data: dict) -> bool:
+        """Atomically save data to compressed cache file."""
+        return self._write_cache_file(self._get_cache_path(), data)
+
     def _dump_to_cache(self) -> bool:
         """Dump parsed data to cache file atomically"""
-        return self._save_to_cache({
+        data = {
             'hash': self._get_hash(),
             'parsed_files': self._parsed_files
-        })
+        }
+        self._add_pending_write(self._get_cache_path(), data)
+        return True
 
     def refresh(self):
         """Refresh from cache if valid"""
+        cache_path = self._get_cache_path()
+        current_hash = self._get_hash()
+        # First check pending writes
+        with self._pending_lock:
+            pending = self._pending_writes.get(str(cache_path))
+        if pending is not None:
+            if pending.get('hash') == current_hash:
+                self._parsed_files = pending['parsed_files']
+                logger.debug(
+                    "Loaded pending cache for %s",
+                    os.path.relpath(self.path))
+                return
+            # Stale pending entry, remove it
+            with self._pending_lock:
+                self._pending_writes.pop(str(cache_path), None)
+        # Fall back to disk cache
         if cache_data := self._load_from_cache():
-            if cache_data.get('hash') == self._get_hash():
+            if cache_data.get('hash') == current_hash:
                 self._parsed_files = cache_data['parsed_files']
-                logger.debug("Loaded cache for %s", os.path.relpath(self.path))
+                logger.debug(
+                    "Loaded disk cache for %s",
+                    os.path.relpath(self.path))
                 return
         self._parsed_files = {}
         logger.debug("No valid cache for %s", os.path.relpath(self.path))
@@ -347,6 +397,7 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
                         path_filter(parent)):
                     valid_paths[str(parent)] = IMDGVaspDir(parent)
                     break
+        IMDGVaspDir.flush_cache()
         return valid_paths
 
     def __len__(self):
