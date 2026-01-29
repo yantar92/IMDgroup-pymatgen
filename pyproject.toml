@@ -27,6 +27,7 @@ dependencies = [
 "termcolor",
 "networkx",
 "cachetools",
+"lmdb"
 ]
 
 [project.urls]

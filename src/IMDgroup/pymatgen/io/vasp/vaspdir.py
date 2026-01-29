@@ -37,7 +37,7 @@ import logging
 import itertools
 import tempfile
 import pickle
-import gzip, threading, atexit
+import gzip, threading, atexit, time
 import numpy as np
 from pathlib import Path
 from monty.io import zopen
@@ -56,6 +56,12 @@ from pymatgen.io.vasp.outputs import Elfcar as pmgElfcar
 from pymatgen.io.vasp.outputs import WSWQ as pmgWSWQ
 from IMDgroup.pymatgen.io.vasp.inputs import Incar
 from IMDgroup.pymatgen.io.vasp.outputs import Vasprun, Outcar
+
+try:
+    import lmdb
+    HAS_LMDB = True
+except ImportError:
+    HAS_LMDB = False
 from IMDgroup.pymatgen.core.structure import structure_distance
 
 logger = logging.getLogger(__name__)
@@ -127,6 +133,73 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
     _pending_writes: typing.ClassVar[dict[str, dict]] = {}
     _pending_lock: typing.ClassVar[threading.Lock] = threading.Lock()
     _flush_registered: typing.ClassVar[bool] = False
+    _use_lmdb: typing.ClassVar[bool] = HAS_LMDB
+    _lmdb_env: typing.ClassVar[typing.Any] = None
+    _lmdb_db: typing.ClassVar[typing.Any] = None
+    @classmethod
+    def _init_lmdb(cls) -> None:
+        if not cls._use_lmdb or cls._lmdb_env is not None:
+            return
+        cache_dir = cls._get_cache_dir()
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        db_path = cache_dir / "cache.lmdb"
+        # 1GB map size, can be increased later
+        try:
+            cls._lmdb_env = lmdb.open(
+                str(db_path),
+                map_size=2**30,  # 1GB
+                max_dbs=1,
+                lock=True,
+                subdir=False,
+            )
+            cls._lmdb_db = cls._lmdb_env.open_db(b"vaspdir")
+        except Exception as e:
+            logger.warning("LMDB initialization failed, falling back to pickle cache: %s", e)
+            cls._use_lmdb = False
+            cls._lmdb_env = None
+            cls._lmdb_db = None
+
+    @classmethod
+    def _lmdb_get(cls, key: str) -> dict | None:
+        if not cls._use_lmdb:
+            return None
+        cls._init_lmdb()
+        try:
+            with cls._lmdb_env.begin(db=cls._lmdb_db, readonly=True) as txn:
+                val = txn.get(key.encode())
+                if val is None:
+                    return None
+                return pickle.loads(val)
+        except Exception as e:
+            logger.warning("LMDB get failed: %s", e)
+            return None
+
+    @classmethod
+    def _lmdb_set(cls, key: str, data: dict) -> bool:
+        if not cls._use_lmdb:
+            return False
+        cls._init_lmdb()
+        try:
+            with cls._lmdb_env.begin(db=cls._lmdb_db, write=True) as txn:
+                txn.put(key.encode(), pickle.dumps(data, protocol=pickle.HIGHEST_PROTOCOL))
+            return True
+        except Exception as e:
+            logger.warning("LMDB set failed: %s", e)
+            return False
+
+    @classmethod
+    def _lmdb_set_many(cls, items: dict[str, dict]) -> bool:
+        if not cls._use_lmdb:
+            return False
+        cls._init_lmdb()
+        try:
+            with cls._lmdb_env.begin(db=cls._lmdb_db, write=True) as txn:
+                for key, data in items.items():
+                    txn.put(key.encode(), pickle.dumps(data, protocol=pickle.HIGHEST_PROTOCOL))
+            return True
+        except Exception as e:
+            logger.warning("LMDB set_many failed: %s", e)
+            return False
 
     def __init__(self, dirname: str | Path) -> None:
         """
@@ -138,6 +211,7 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
         #     IMDGVaspDir._cache_cleaned = True
         self.path = str(Path(dirname).absolute())
         # This was slower: self.path = str(Path(dirname).resolve())
+        self._cache_key = hashlib.md5(self.path.encode('utf-8')).hexdigest()
         self._parsed_files = None  # Pacify linter.  Same is done in reset().
         self._prev_vaspdirs = None  # Pacify linter.  Same is done in reset().
         self._neb_vaspdirs = None  # Pacify linter.  Same is done in reset().
@@ -259,8 +333,19 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
         # Add .gz extension for compressed files
         return cache_dir / f"{path_hash[2:]}.pkl.gz"
 
+    @classmethod
+    def _cache_path_from_key(cls, key: str) -> Path:
+        """Convert a cache key (full hash) to the corresponding pickle cache file path."""
+        cache_dir = cls._get_cache_dir()
+        subdir = key[:2]
+        return cache_dir / subdir / f"{key[2:]}.pkl.gz"
+
     def _load_from_cache(self) -> dict | None:
-        """Load cached data from compressed file if valid"""
+        """Load cached data from cache backend if valid."""
+        key = self._cache_key
+        if self._use_lmdb:
+            return self._lmdb_get(key)
+        # Fallback to pickle file
         cache_path = self._get_cache_path()
         if not cache_path.exists():
             return None
@@ -305,10 +390,10 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
             return False
 
     @classmethod
-    def _add_pending_write(cls, cache_path: Path, data: dict) -> None:
+    def _add_pending_write(cls, key: str, data: dict) -> None:
         """Add a cache entry to the pending write buffer."""
         with cls._pending_lock:
-            cls._pending_writes[str(cache_path)] = data
+            cls._pending_writes[key] = data
             if not cls._flush_registered:
                 atexit.register(cls.flush_cache)
                 cls._flush_registered = True
@@ -322,10 +407,16 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
             writes = cls._pending_writes.copy()
             cls._pending_writes.clear()
         # Write outside lock to avoid holding lock during I/O
-        for cache_path_str, data in writes.items():
-            cache_path = Path(cache_path_str)
-            cls._write_cache_file(cache_path, data)
-        logger.debug("Flushed %d cache entries", len(writes))
+        if cls._use_lmdb:
+            # Batch write to LMDB
+            cls._lmdb_set_many(writes)
+            logger.debug("Flushed %d cache entries to LMDB", len(writes))
+        else:
+            # Write each entry to its pickle file
+            for key, data in writes.items():
+                cache_path = cls._cache_path_from_key(key)
+                cls._write_cache_file(cache_path, data)
+            logger.debug("Flushed %d cache entries to pickle", len(writes))
 
     def _save_to_cache(self, data: dict) -> bool:
         """Atomically save data to compressed cache file."""
@@ -337,16 +428,16 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
             'hash': self._get_hash(),
             'parsed_files': self._parsed_files
         }
-        self._add_pending_write(self._get_cache_path(), data)
+        self._add_pending_write(self._cache_key, data)
         return True
 
     def refresh(self):
         """Refresh from cache if valid"""
-        cache_path = self._get_cache_path()
+        key = self._cache_key
         current_hash = self._get_hash()
         # First check pending writes
         with self._pending_lock:
-            pending = self._pending_writes.get(str(cache_path))
+            pending = self._pending_writes.get(key)
         if pending is not None:
             if pending.get('hash') == current_hash:
                 self._parsed_files = pending['parsed_files']
@@ -356,7 +447,7 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
                 return
             # Stale pending entry, remove it
             with self._pending_lock:
-                self._pending_writes.pop(str(cache_path), None)
+                self._pending_writes.pop(key, None)
         # Fall back to disk cache
         if cache_data := self._load_from_cache():
             if cache_data.get('hash') == current_hash:
