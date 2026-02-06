@@ -594,7 +594,7 @@ class IMDStandardVaspInputSet_relax(IMDStandardVaspInputSet):
     """Standard input set for IMDGroup relaxation runs.
     Sets defaults for EDIFF and EDIFFG.
     """
-    CONFIG = IMDStandardVaspInputSet.CONFIG
+    CONFIG = IMDStandardVaspInputSet.CONFIG.copy()
     CONFIG['INCAR'].update({
         'ISTART': 0,
         # Volume relaxation
@@ -612,7 +612,7 @@ class IMDStandardVaspInputSet_scf(IMDStandardVaspInputSet):
     Sets defaults for EDIFF and EDIFFG.
     """
     # https://www.vasp.at/wiki/index.php/Smearing_technique#Which_method_to_use
-    CONFIG = IMDStandardVaspInputSet.CONFIG
+    CONFIG = IMDStandardVaspInputSet.CONFIG.copy()
     CONFIG['INCAR'].update({
         "NSW": 0,
         'IBRION': -1,
