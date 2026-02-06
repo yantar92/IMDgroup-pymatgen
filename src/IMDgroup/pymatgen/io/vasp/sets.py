@@ -589,6 +589,35 @@ class IMDStandardVaspInputSet(IMDVaspInputSet):
               'POTCAR': POTCAR_RECOMMENDED}
 
 
+@dataclass
+class IMDStandardVaspInputSet_relax(IMDStandardVaspInputSet):
+    """Standard input set for IMDGroup relaxation runs.
+    Sets defaults for EDIFF and EDIFFG.
+    """
+    CONFIG = IMDStandardVaspInputSet.CONFIG | {
+        'ISTART': 0,
+        # Volume relaxation
+        # 500 steps because 100 suggested in some online resources
+        # may not be enough in complex supercells.
+        "NSW": 500,
+        'EDIFF': 1e-06,
+        'EDIFFG': -0.01,
+        }
+
+
+@dataclass
+class IMDStandardVaspInputSet_scf(IMDStandardVaspInputSet):
+    """Standard input set for IMDGroup relaxation runs.
+    Sets defaults for EDIFF and EDIFFG.
+    """
+    # https://www.vasp.at/wiki/index.php/Smearing_technique#Which_method_to_use
+    CONFIG = IMDStandardVaspInputSet.CONFIG | {
+        "NSW": 0,
+        'IBRION': -1,
+        'ISMEAR': -5,
+        }
+
+
 class IMDNEBVaspInputSetWarning(UserWarning):
     """Warning from IMDNEBVaspInputSet."""
 
