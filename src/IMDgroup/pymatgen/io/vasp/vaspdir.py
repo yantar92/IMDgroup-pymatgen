@@ -491,6 +491,9 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
         IMDGVaspDir.flush_cache()
         return valid_paths
 
+    def __contains__(self, item):
+        return item in self.files
+
     def __len__(self):
         return len(self.files)
 
