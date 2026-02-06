@@ -27,7 +27,8 @@ dependencies = [
 "termcolor",
 "networkx",
 "cachetools",
-"lmdb"
+"lmdb",
+"typing-extensions"
 ]
 
 [project.urls]
