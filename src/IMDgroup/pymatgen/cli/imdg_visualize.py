@@ -185,7 +185,6 @@ def atat_add_args(parser):
         "--classic_residuals",
         help="When set, plot classic energy/energy correlation in the redisuals of the fit",
         action="store_true",
-        type=bool,
     )
     parser.set_defaults(func_derive=atat)
 
