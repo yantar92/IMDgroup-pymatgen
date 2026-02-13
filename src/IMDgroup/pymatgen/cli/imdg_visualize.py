@@ -181,6 +181,12 @@ def atat_add_args(parser):
         type=float,
         default=None
     )
+    parser.add_argument(
+        "--classic_residuals",
+        help="When set, plot classic energy/energy correlation in the redisuals of the fit",
+        action="store_true",
+        type=bool,
+    )
     parser.set_defaults(func_derive=atat)
 
 
@@ -410,20 +416,32 @@ def __blue_orrd_cmap(data_min, data_max, color='blue', split_val=0.1):
 def _atat_plot_residuals(
         ax: plt.Axes,
         cve: str,
-        fit: pd.DataFrame) -> None:
+        fit: pd.DataFrame,
+        classic_residuals: bool = False) -> None:
     """Plot fit error at AX axis.
+    When CLASSIC_RESIDUALS is True, plot classic energy/energy correlation
+    as residuals of the fit.
     """
     ax.set_title(f'Residuals of the fit\n{cve}')
-    ax.set_xlabel('Concentration')
-    ax.set_ylabel('Energy per reference cell, eV')
+    if classic_residuals:
+        ax.set_xlabel('DFT energy per reference cell, eV')
+        ax.set_ylabel('Predicted energy per reference cell, eV')
+    else:
+        ax.set_xlabel('Concentration')
+        ax.set_ylabel('Energy per reference cell, eV')
     displ = np.array(fit['sublattice deviation'], dtype=float)
     cmap = __blue_orrd_cmap(
         np.nanmin(displ), np.nanmax(displ),
         color=ax._get_lines.get_next_color())
     sc = ax.scatter(
-        fit['concentration'], fit['energy delta'],
+        fit['energy'] if classic_residuals else fit['concentration'],
+        fit['fitted energy'] if classic_residuals else fit['energy delta'],
         c=displ, cmap=cmap, norm=Normalize(np.nanmin(displ), np.nanmax(displ)),
         marker='o', label='data')
+    if classic_residuals:
+        ax.plot([np.min(fit['energy']), np.max(fit['energy'])],
+                [np.min(fit['fitted energy']), np.max(fit['fitted energy'])],
+                '-', label=None, color='black')
     if cmap is not None:
         plt.colorbar(
             sc, ax=ax, label='Sublattice deviation per displaced atom, Å')
@@ -517,12 +535,15 @@ def _atat_1(
         extra_dirs_threshold: float = 0.001,
         cmin: float | None = None,
         cmax: float | None = None,
-        erange: tuple[float, float] | None = None) -> None:
+        erange: tuple[float, float] | None = None,
+        classic_residuals: bool = False) -> None:
     """Plot ATAT output in WDIR.
     If EXTRA_DIRS is provided, also plot additional ATAT caluclation points
     from those dirs (mirrowing ATAT dir structure).  The points are only
     plotted when their energies differ by more than EXTRA_DIRS_THRESHOLD
     from the main ATAT calculation.
+    When CLASSIC_RESIDUALS is True, plot classic energy/energy correlation
+    as residuals of the fit.
     """
     # Ignore directories that do not contain lat.in
     if not (Path(wdir) / 'lat.in').is_file():
@@ -710,7 +731,7 @@ def _atat_1(
     _atat_plot_fitted_energies(axs[1, 0], predstr, gs, fit, conc_range, erange)
     _atat_plot_calculated_energies(axs[0, 0], predstr, gs, fit, extra, conc_range, erange)
     _atat_plot_calc_vs_fit_energies(axs[2, 0], fit, conc_range, erange)
-    _atat_plot_residuals(axs[0, 1], cve, fit)
+    _atat_plot_residuals(axs[0, 1], cve, fit, classic_residuals)
     _atat_plot_sublattice_deviation(axs[1, 1], gs, fit)
     _atat_plot_clusters(axs[2, 1], clusters)
 
@@ -742,7 +763,8 @@ def atat(args):
     _atat_1(
         args.dir, args.plot_extra, args.plot_extra_threshold,
         args.cmin, args.cmax,
-        (args.emin, args.emax) if (args.emin and args.emax) else None)
+        (args.emin, args.emax) if (args.emin and args.emax) else None,
+        args.classic_residuals)
     return 0
 
 
