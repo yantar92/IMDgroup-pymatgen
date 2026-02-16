@@ -531,6 +531,8 @@ class InsertMoleculeTransformation(AbstractTransformation):
                 key=lambda x: x[1])]
         for i, idx in enumerate(sorted_idx):
             result[i] = structure_inserts[idx]
+        if limit is not None:
+            return result[:limit]
         return result
 
     def all_inserts(
