@@ -501,6 +501,7 @@ def get_neb_pairs(
         cutoff: float | None | str = None,
         remove_compound: bool = False,
         multithread: bool = False,
+        limit: None | int = None,
         return_unfiltered: bool = False
 ) -> list[tuple[Structure, Structure]] |\
      tuple[list[tuple[Structure, Structure]],
@@ -534,6 +535,8 @@ def get_neb_pairs(
     lower compared to 1-2 + 2-3 combination.
 
     MULTITHREAD (default: False) enables multithreading.
+
+    When LIMIT is provided, limit the number of paths to that number.
 
     Returns a list of tuples containing begin/end structures.
     When RETURN_UNFILTERED (default: False) is True, return a tuple of
@@ -770,6 +773,8 @@ def get_neb_pairs(
             merged_pairs.append(merged)
             _known_dists.append(dist)
             progress_bar()  # pylint: disable=not-callable
+            if limit and len(unique_edges) >= limit:
+                break
     logger.info("Found %d unique paths", len(unique_edges))
 
     # Sort by lentgh

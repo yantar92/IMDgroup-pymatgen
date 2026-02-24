@@ -1012,6 +1012,11 @@ def neb_diffusion_add_args(parser):
         "--write_graph",
         help="Whether to write the full diffusion graph",
         action="store_true")
+    parser.add_argument(
+        "--limit",
+        help="Max number of paths to return.  Default: 0 (no limit)",
+        default=0,
+        type=int)
 
 
 def __neb_diffusion_get_inputset(idx, beg, end, args, auto_nimages=False):
@@ -1154,7 +1159,7 @@ def neb_diffusion(args):
 
     pairs, unfiltered_pairs = get_neb_pairs(
         structures, prototype, args.cutoff, args.remove_compound,
-        multithread=args.multithread, return_unfiltered=True)
+        multithread=args.multithread, return_unfiltered=True, limit=args.limit)
 
     result = __neb_diffusion_get_inputsets(pairs, args)
     if args.write_graph:
