@@ -592,7 +592,9 @@ def scf(args):
     inputset = IMDDerivedInputSet(
         directory=args.input_directory,
         # https://www.vasp.at/wiki/index.php/Smearing_technique#Which_method_to_use
-        user_incar_settings={'NSW': 0, 'IBRION': -1, 'ISMEAR': -5},
+        user_incar_settings={
+            'NSW': 0, 'IBRION': -1, 'ISMEAR': -5,
+            'IMAGES': None, 'SPRING': None},
     )
     output_dir_suffix = "SCF"
     inputset.name = output_dir_suffix
