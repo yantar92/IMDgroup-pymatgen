@@ -754,6 +754,9 @@ def get_neb_pairs(
             n_edges,
             title='Removing equivalent paths') as progress_bar:
         for dist, (from_idx, to_idx, key) in sorted(zip(dists, edges)):
+            if np.isclose(dist, 1e-7):
+                logger.info('Skipping too short path')
+                continue
             # Two paths are equivalent when they (1) form a
             # symmetrically unique structure when combined;
             # (2) when they length/vector is the same.
