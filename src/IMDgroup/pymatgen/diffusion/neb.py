@@ -754,6 +754,7 @@ def get_neb_pairs(
             n_edges,
             title='Removing equivalent paths') as progress_bar:
         for dist, (from_idx, to_idx, key) in sorted(zip(dists, edges)):
+            logger.debug('Processing path %d -> %d: %fÅ', from_idx, to_idx, dist)
             if np.isclose(dist, 1e-7):
                 logger.info('Skipping too short path')
                 continue
