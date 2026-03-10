@@ -156,7 +156,7 @@ class Incar(pmgIncar):
             if diff_fields is None:
                 diff_fields = {}
             for f in ignore_fields:
-                diff_fields.pop(f)
+                diff_fields.pop(f, None)
             return len(diff_fields) == 0
 
         def _incar_name(incar):
@@ -172,7 +172,7 @@ class Incar(pmgIncar):
             if common_incar is None:
                 common_incar = group[0].copy()
                 for f in ignore_fields:
-                    common_incar.pop(f)
+                    common_incar.pop(f, None)
             else:
                 for key, val in group[0].items():
                     if common_incar.get(key, None) != val:
