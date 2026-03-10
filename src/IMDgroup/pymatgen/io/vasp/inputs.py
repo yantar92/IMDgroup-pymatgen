@@ -142,7 +142,7 @@ class Incar(pmgIncar):
         raise ValueError(f"Unknown setup: {setup}")
 
     @staticmethod
-    def group_incars(incars, ignore_fields=['SYSTEM', 'NELM', 'NELMIN', 'ALGO']):
+    def group_incars(incars, ignore_fields=['SYSTEM', 'NELM', 'NELMIN', 'ALGO', 'SYMPREC']):
         """Group similar incars together.
         Returns: (common_incar, [[group1] [group2] ...]).
         Ignore differences in IGNORE_FILEDS.
