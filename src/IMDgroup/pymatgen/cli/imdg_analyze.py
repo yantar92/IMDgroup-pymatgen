@@ -98,8 +98,8 @@ a, b, c, alpha, beta, gamma: Lattice parameters
         default=[]
         )
     parser.add_argument(
-        "--group",
-        help="""Group by similar INCARs""",
+        "--nogroup",
+        help="""Do not group by similar INCARs""",
         action="store_true"
         )
 
@@ -219,7 +219,7 @@ def analyze(args):
             all_data[field] = []
 
     file_groups = {}
-    if args.group:
+    if not args.nogroup:
         incars = []
         for _, vaspdir in vaspdirs.items():
             incar = vaspdir['INCAR']
@@ -234,7 +234,7 @@ def analyze(args):
     for path, vaspdir in alive_it(
             vaspdirs.items(), title="Reading VASP outputs"):
         for field in all_data:
-            if field == 'incar_group' and args.group:
+            if field == 'incar_group' and (not args.nogroup):
                 val = file_groups[vaspdir.path.upper()]\
                     if len(file_groups) > 0 else 0
             else:
@@ -245,7 +245,7 @@ def analyze(args):
 
     if len(all_data) > 0 and len(vaspdirs) > 0:
         df = pd.DataFrame(all_data)
-        if args.group:
+        if not args.group:
             df = df.sort_values('incar_group')
         else:
             df = df.sort_values('dir')
