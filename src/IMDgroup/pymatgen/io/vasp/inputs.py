@@ -142,17 +142,22 @@ class Incar(pmgIncar):
         raise ValueError(f"Unknown setup: {setup}")
 
     @staticmethod
-    def group_incars(incars):
+    def group_incars(incars, ignore_fields=['SYSTEM', 'NELM', 'NELMIN']):
         """Group similar incars together.
         Returns: (common_incar, [[group1] [group2] ...]).
+        Ignore differences in IGNORE_FILEDS.
         """
         def _incar_eq(incar1, incar2):
             """Return True when INCAR1 is equal to INCAR2.
-            SYSTEM keyword is ignored.
+            ignore_fileds fields are ignored.
             """
             difference = incar1.diff(incar2)
-            return difference["Different"] is None\
-                or list(difference["Different"].keys()) == ["SYSTEM"]
+            diff_fields = difference["Different"]
+            if diff_fields is None:
+                diff_fields = []
+            for f in ignore_fields:
+                diff_fields.remove(f)
+            return len(diff_fields) == 0
 
         def _incar_name(incar):
             """Get INCAR name.
@@ -166,7 +171,8 @@ class Incar(pmgIncar):
         for group in groups:
             if common_incar is None:
                 common_incar = group[0].copy()
-                common_incar.pop('SYSTEM')
+                for f in ignore_fields:
+                    common_incar.pop(f)
             else:
                 for key, val in group[0].items():
                     if common_incar.get(key, None) != val:
