@@ -154,9 +154,9 @@ class Incar(pmgIncar):
             difference = incar1.diff(incar2)
             diff_fields = difference["Different"]
             if diff_fields is None:
-                diff_fields = []
+                diff_fields = {}
             for f in ignore_fields:
-                diff_fields.remove(f)
+                diff_fields.pop(f)
             return len(diff_fields) == 0
 
         def _incar_name(incar):
