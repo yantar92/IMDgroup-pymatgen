@@ -223,6 +223,8 @@ def analyze(args):
         incars = []
         for _, vaspdir in vaspdirs.items():
             incar = vaspdir['INCAR']
+            if incar is None:
+                incar = Incar()
             incar['SYSTEM'] = vaspdir.path
             incars.append(incar)
         _, groups = Incar.group_incars(incars)
