@@ -248,7 +248,7 @@ def analyze(args):
     if len(all_data) > 0 and len(vaspdirs) > 0:
         df = pd.DataFrame(all_data)
         if not args.nogroup:
-            df = df.sort_values('incar_group')
+            df = df.sort_values(by=['incar_group', 'dir'])
         else:
             df = df.sort_values('dir')
         print(tabulate(df, headers=df.columns, tablefmt="orgtbl", showindex=False))
