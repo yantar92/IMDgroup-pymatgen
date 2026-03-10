@@ -209,7 +209,7 @@ def analyze(args):
         if field == 'dir':
             all_data[field] = []
         elif field == 'incar_group':
-            if args.group:
+            if not args.nogroup:
                 all_data[field] = []
         elif field not in args.fields:
             continue
@@ -245,7 +245,7 @@ def analyze(args):
 
     if len(all_data) > 0 and len(vaspdirs) > 0:
         df = pd.DataFrame(all_data)
-        if not args.group:
+        if not args.nogroup:
             df = df.sort_values('incar_group')
         else:
             df = df.sort_values('dir')
