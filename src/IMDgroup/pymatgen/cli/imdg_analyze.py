@@ -46,6 +46,7 @@ ALL_FIELDS = {
     'energy': 'Energy', 'e_per_atom': 'E/Atom',
     'total_mag': 'Magnetization',
     '%vol': '%vol', 'displ': 'displacement',
+    'space_group': 'Space group',
     'a': 'a', 'b': 'b', 'c': 'c',
     '%a': '%a', '%b': '%b', '%c': '%c',
     'alpha': 'α', 'beta': 'β', 'gamma': 'γ',
@@ -82,7 +83,7 @@ energy: Final energy
 e_per_atom: Final energy per atom
 %%vol: Volume change before/after the run
 displ: Total atom displacement / number of displaced atoms
-a, b, c, alpha, beta, gamma: Lattice parameters
+space_gropu, a, b, c, alpha, beta, gamma: Lattice parameters
 %%a, %%b, %%c, %%alpa, %%beta, %%gamma: Change before/after the run
 """,
         nargs="+",
@@ -155,6 +156,8 @@ def _read_field_1(field: str, vaspdir: IMDGVaspDir):
                 match_first=False,
                 norm=True)
         val = f"{displ:.2f}"
+    elif field == 'space_group':
+        val = vaspdir.structure.get_space_group_info()[0]
     elif field == 'a':
         val = vaspdir.structure.lattice.a
     elif field == '%a':
