@@ -307,7 +307,7 @@ def status(args):
         ))
         for wdir in sorted(paths_no_output):
             print("  ", wdir)
-    incars = [vaspdir['INCAR'] for vaspdir in vaspdirs]
+    incars = [vaspdir['INCAR'] for vaspdir in vaspdirs.values()]
     common_incar, grouped_incars = Incar.group_incars(incars)
     all_warn_names_present = set()
     dirs_with_warnings = {}  # warning_name: list of dirs
