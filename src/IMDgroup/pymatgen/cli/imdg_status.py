@@ -45,6 +45,7 @@ from IMDgroup.pymatgen.io.vasp.outputs import VasprunWarning
 from IMDgroup.pymatgen.core.structure import structure_distance
 from IMDgroup.pymatgen.io.vasp.outputs import Vasplog
 from IMDgroup.pymatgen.io.vasp.vaspdir import IMDGVaspDir
+from IMDgroup.pymatgen.io.vasp.inputs import Incar
 
 logger = logging.getLogger(__name__)
 
@@ -306,6 +307,8 @@ def status(args):
         ))
         for wdir in sorted(paths_no_output):
             print("  ", wdir)
+    incars = [vaspdir['INCAR'] for vaspdir in vaspdirs]
+    common_incar, grouped_incars = Incar.group_incars(incars)
     all_warn_names_present = set()
     dirs_with_warnings = {}  # warning_name: list of dirs
     for wdir in alive_it(paths, enrich_print=False, title="Reading VASP outputs"):
@@ -408,5 +411,18 @@ def status(args):
         print(colored("Warnings found: ", "yellow"), all_warn_names_present)
         for warn_name, dir_list in dirs_with_warnings.items():
             print(colored(f"{warn_name}: ", "yellow") + f"{' '.join(dir_list)}")
+
+    if len(grouped_incars) > 1:
+        print(colored("Multiple INCARs found: ", "yellow"))
+        print(colored("Common INCAR parameters", attrs=['bold']))
+        print(common_incar.get_str(pretty=True))
+        for idx, group in enumerate(grouped_incars):
+            print(colored(f"Group {idx + 1}: ", attrs=['bold']), end='')
+            print(' '.join(incar['SYSTEM'] for incar in group))
+            print(
+                colored(f"Group {idx + 1} params: ", attrs=['bold']),
+                ' '.join(
+                    f"{key}:{val}" for key, val in group[0].items()
+                    if key not in common_incar and key != "SYSTEM"))
 
     return 0
