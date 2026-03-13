@@ -311,6 +311,7 @@ def status(args):
     for incar, dirname in zip(incars, vaspdirs.keys()):
         if incar is not None:
             incar['SYSTEM'] = dirname
+    incars = [x for x in incars if x is not None]
     common_incar, grouped_incars = Incar.group_incars(incars)
     all_warn_names_present = set()
     dirs_with_warnings = {}  # warning_name: list of dirs
