@@ -247,6 +247,12 @@ folder as input.
 # Python API
 
 
+## Opening ATAT structure files (`str.out`, `lat.in`)
+
+    from IMDgroup.pymatgen.core.structure import IMDStructure
+    s=IMDStructure.from_file('str.out') # Vacancies will be replaced with "X" atom species
+
+
 ## VASP Directory Handling
 
 The `IMDGVaspDir` class provides a dictionary-like interface to VASP
