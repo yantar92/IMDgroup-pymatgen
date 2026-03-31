@@ -83,13 +83,20 @@ energy: Final energy
 e_per_atom: Final energy per atom
 %%vol: Volume change before/after the run
 displ: Total atom displacement / number of displaced atoms
-space_gropu, a, b, c, alpha, beta, gamma: Lattice parameters
+space_group, a, b, c, alpha, beta, gamma: Lattice parameters
 %%a, %%b, %%c, %%alpa, %%beta, %%gamma: Change before/after the run
 """,
         nargs="+",
         choices=all_fields,
         default=all_fields
         )
+    parser.add_argument(
+        "--short",
+        help="""Only include a few fields: energy, e_per_atom,
+        %%vol, displ, space_group, a, b, and c.
+        """,
+        action="store_true"
+    )
     parser.add_argument(
         "--exclude-fields",
         dest='exclude_fields',
@@ -201,6 +208,11 @@ def _read_field_1(field: str, vaspdir: IMDGVaspDir):
 def analyze(args):
     """Main routine.
     """
+    if args.short:
+        args.exclude_fields += [
+            '%a', '%b', '%c',
+            'alpha', 'beta', 'gamma',
+            '%alpha', '%beta', '%gamma']
     def include_dirp(p):
         p = str(p)
         if args.exclude is not None and re.search(args.exclude, p):
