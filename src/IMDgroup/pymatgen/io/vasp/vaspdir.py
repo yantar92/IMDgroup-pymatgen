@@ -678,7 +678,7 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
                 warnings.warn(
                     f"{os.path.relpath(self.path)}: "
                     f"Framework symmetry changed ({init_sg[0]} to {final_sg[0]}) "
-                    f"with large displacement (RMS={rms:.3f}Å)")
+                    f"with displacement (RMS={rms:.3f}Å)")
                 return False
         return True
 
