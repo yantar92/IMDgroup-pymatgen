@@ -307,16 +307,15 @@ def status(args):
         ))
         for wdir in sorted(paths_no_output):
             print("  ", wdir)
-    incars = [vaspdir['INCAR'] for vaspdir in vaspdirs.values()]
-    for incar, dirname in zip(incars, vaspdirs.keys()):
-        if incar is not None:
-            incar['SYSTEM'] = dirname
-    incars = [x for x in incars if x is not None]
-    common_incar, grouped_incars = Incar.group_incars(incars)
+    incars = []
     all_warn_names_present = set()
     dirs_with_warnings = {}  # warning_name: list of dirs
     for wdir in alive_it(paths, enrich_print=False, title="Reading VASP outputs"):
         vaspdir = vaspdirs.get(wdir)
+        incar = vaspdir['INCAR']
+        if incar is not None:
+            incar['SYSTEM'] = wdir
+            incars.append(incar)
         # As we read VASP directories, they will take up more and more memory
         # Avoid overflowing memory when reading too many dirs.
         vaspdirs[wdir] = None
@@ -416,6 +415,7 @@ def status(args):
         for warn_name, dir_list in dirs_with_warnings.items():
             print(colored(f"{warn_name}: ", "yellow") + f"{' '.join(dir_list)}")
 
+    common_incar, grouped_incars = Incar.group_incars(incars)
     if len(grouped_incars) > 1:
         print(colored("Multiple INCARs found: ", "yellow"))
         print(colored("Common INCAR parameters", attrs=['bold']))
