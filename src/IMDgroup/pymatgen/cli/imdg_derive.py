@@ -581,7 +581,9 @@ def kpoints(args):
     if args.grid:
         inputset.prev_kpoints = Kpoints(
             kpts=[tuple(int(x) for x in args.grid.split('x'))])
-    output_dir_suffix = f"KPOINTS.{args.density}"
+        output_dir_suffix = f"KPOINTS.{args.grid}"
+    else:
+        output_dir_suffix = f"KPOINTS.{args.density}"
     inputset.name = output_dir_suffix
     return {'inputsets': [inputset]}
 
