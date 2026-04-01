@@ -192,6 +192,9 @@ class Vasplog(MSONable):
             'subspacematrix': [
                 "As long as converged, should not affect final energy"
             ],
+            'brions': [
+                "The system may be oscilating. Consider smaller POTIM or changing to IBRION=2 or 3"
+            ],
         },
         "time_limit": [
             r"JOB [0-9]+ ON [0-9a-z]+ CANCELLED AT [^ ]+ DUE TO TIME LIMIT",
