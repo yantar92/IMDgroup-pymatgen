@@ -560,17 +560,27 @@ def kpoints_add_args(parser):
         type=float,
         default=10000
     )
+    parser.add_argument(
+        "--grid",
+        help="K-point grid to be used (e.g. 1x1x5)",
+        type=str,
+        default=None
+    )
 
 
 def kpoints(args):
     """Create custom kpoints setup.
     Return {'inputsets': [inputset]}
     """
+    density = None if args.grid else {'grid_density': args.density}
     inputset = IMDDerivedInputSet(
         directory=args.input_directory,
         inherit_prev_incarpy=args.inherit_prev_incarpy,
-        user_kpoints_settings={'grid_density': args.density},
+        user_kpoints_settings=density,
     )
+    if args.grid:
+        inputset.prev_kpoints = Kpoints(
+            kpts=[tuple(int(x) for x in args.grid.split('x'))])
     output_dir_suffix = f"KPOINTS.{args.density}"
     inputset.name = output_dir_suffix
     return {'inputsets': [inputset]}
