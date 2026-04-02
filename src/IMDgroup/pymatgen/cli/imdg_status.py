@@ -422,7 +422,8 @@ def status(args):
         print(common_incar.get_str(pretty=True))
         for idx, group in enumerate(grouped_incars):
             print(colored(f"Group {idx + 1}: ", attrs=['bold']), end='')
-            print(' '.join(incar['SYSTEM'] for incar in group))
+            print(' '.join(incar['SYSTEM'] for incar in group[:3]),
+                  '...' if len(group) > 3 else '')
             print(
                 colored(f"Group {idx + 1} params: ", attrs=['bold']),
                 ' '.join(
