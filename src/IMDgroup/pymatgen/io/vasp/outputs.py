@@ -58,7 +58,11 @@ class Vasprun(pmgVasprun):
         energy = super().final_energy
 
         if self.incar.get('IBRION') in Incar.IBRION_IONIC_RELAX_values and\
-           self.incar.get('ISIF') != Incar.ISIF_FIX_SHAPE_VOL:
+           self.incar.get('ISIF') not in [
+               Incar.ISIF_FIX_SHAPE_VOL,
+               Incar.ISIF_FIX_SHAPE_VOL_TRACE,
+               Incar.ISIF_FIX_SHAPE_VOL_FAST,
+           ]:
             warnings.warn(
                 "Energy may not be accurate when using "
                 f"ISIF({self.incar.get('ISIF')})!={Incar.ISIF_FIX_SHAPE_VOL}",
