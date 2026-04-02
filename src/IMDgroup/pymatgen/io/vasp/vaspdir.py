@@ -143,7 +143,7 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
         cache_dir = cls._get_cache_dir()
         cache_dir.mkdir(parents=True, exist_ok=True)
         db_path = cache_dir / "cache.lmdb"
-        # 1GB map size, can be increased later
+        # 32GB map size, can be increased later
         try:
             cls._lmdb_env = lmdb.open(
                 str(db_path),
