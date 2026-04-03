@@ -580,8 +580,11 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
         incar = self['INCAR']
         assert incar is not None
         if incar.get('IBRION') in Incar.IBRION_IONIC_RELAX_values and\
-           incar.get('ISIF') != Incar.ISIF_FIX_SHAPE_VOL and\
-           incar.get('NSW', 0) > 0:  # NSW = 0 is SCF
+           incar.get('ISIF') not in [
+               Incar.ISIF_FIX_SHAPE_VOL,
+               Incar.ISIF_FIX_SHAPE_VOL_FAST,
+               Incar.ISIF_FIX_SHAPE_VOL_TRACE,
+           ] and incar.get('NSW', 0) > 0:  # NSW = 0 is SCF
             return "unreliable"
         return self.final_energy
 
