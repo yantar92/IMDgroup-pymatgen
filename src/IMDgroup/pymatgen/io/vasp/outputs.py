@@ -199,6 +199,10 @@ class Vasplog(MSONable):
             'brions': [
                 "The system may be oscilating. Consider smaller POTIM or changing to IBRION=2 or 3"
             ],
+            'dentet': [
+                "This error can occur in metallic systems where band occupancy cannot be uniquely solved.  " +
+                "Or when KPOINTS are pointing to the same band (e.g. in 1D structures)."
+            ],
         },
         "time_limit": [
             r"JOB [0-9]+ ON [0-9a-z]+ CANCELLED AT [^ ]+ DUE TO TIME LIMIT",
