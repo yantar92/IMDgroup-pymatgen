@@ -31,6 +31,7 @@ import logging
 import warnings
 import os
 from pathlib import Path
+import multiprocessing
 from multiprocessing import Pool
 import numpy as np
 from monty.io import zopen
@@ -542,16 +543,15 @@ def structure_matches(
             )
 
     if multithread:
-        with Pool() as pool:
-            global _global_worker
-            _global_worker = cmp_fun
-            equivs = pool.imap(
-                _worker_wrapper,
-                [(struct, known) for known in known_structs]
-            )
-            for idx, val in enumerate(equivs):
-                if val:
-                    pool.terminate()
+        global _global_worker
+        _global_worker = cmp_fun
+        cpus = int(os.environ.get(
+            'SLURM_CPUS_ON_NODE',
+            multiprocessing.cpu_count()))
+        with Pool(processes=cpus) as pool:
+            tasks = [(struct, known) for known in known_structs]
+            for idx, is_match in enumerate(pool.imap(_worker_wrapper, tasks)):
+                if is_match:
                     _warn(known_structs[idx])
                     return True
     else:
