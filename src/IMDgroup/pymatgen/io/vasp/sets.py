@@ -584,6 +584,7 @@ class IMDStandardVaspInputSet(IMDVaspInputSet):
                   # degrade CPU utilization on supercomputers.
                   # So, we use larger value as the default.
                   'NCORE': 16,
+                  'NELMIN': 6,
               },
               'KPOINTS': {'grid_density': 10000},
               'POTCAR_FUNCTIONAL': 'PBE_64',
