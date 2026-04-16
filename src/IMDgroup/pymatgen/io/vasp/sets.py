@@ -413,6 +413,8 @@ class IMDDerivedInputSet(IMDVaspInputSet):
         """
         if self.prev_kpoints is None and self.force_prev_kpoints_file:
             return None
+        if self.incar.get('KSPACING') is not None:
+            return None
         return super().kpoints
 
     @property
