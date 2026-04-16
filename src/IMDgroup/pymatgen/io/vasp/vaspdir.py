@@ -106,7 +106,7 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
     - neb_dirs (list of NEB dirs, if any)
     """
 
-    TIMEOUT = 60 * 10  # 10 minutes
+    TIMEOUT = 60 * 2  # 2 minutes
     FILE_MAPPINGS: typing.ClassVar = {
         "INCAR": Incar,
         "POSCAR": pmgPoscar,
