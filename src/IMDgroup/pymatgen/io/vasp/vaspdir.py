@@ -37,6 +37,7 @@ import logging
 import itertools
 import tempfile
 import pickle
+import signal
 import gzip, threading, atexit, time
 import numpy as np
 from pathlib import Path
@@ -56,7 +57,6 @@ from pymatgen.io.vasp.outputs import Elfcar as pmgElfcar
 from pymatgen.io.vasp.outputs import WSWQ as pmgWSWQ
 from IMDgroup.pymatgen.io.vasp.inputs import Incar
 from IMDgroup.pymatgen.io.vasp.outputs import Vasprun, Outcar
-
 try:
     import lmdb
     HAS_LMDB = True
@@ -66,6 +66,16 @@ from IMDgroup.pymatgen.core.structure import structure_distance
 
 logger = logging.getLogger(__name__)
 
+
+class TimeoutException(Exception):
+    pass
+
+
+def timeout_handler(signum, frame):
+    raise TimeoutException
+
+
+signal.signal(signal.SIGALRM, timeout_handler)
 
 # Rewriting the original VaspDir/PMGDir class to add caching, dumping,
 # and other goodies.
@@ -96,6 +106,7 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
     - neb_dirs (list of NEB dirs, if any)
     """
 
+    TIMEOUT = 60 * 10  # 10 minutes
     FILE_MAPPINGS: typing.ClassVar = {
         "INCAR": Incar,
         "POSCAR": pmgPoscar,
@@ -504,15 +515,23 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
         path = Path(self.path)
         for k, cls_ in self.FILE_MAPPINGS.items():
             if k in item and (path / item).exists():
+                # Avoid being stuck in IO
+                # It can happen with Outcar
+                # See https://github.com/materialsproject/pymatgen/issues/4550
+                # or just because of IO issues on cluster
+                # avoid being stuck and simply signal failure then.
+                signal.alarm(self.TIMEOUT)
                 try:
                     # Standard parsing for all files
                     try:
                         obj = cls_.from_file(path / item)
                     except AttributeError:
                         obj = cls_(path / item)
+                    signal.alarm(0)
                     self._parsed_files[item] = obj
                     self._dump_to_cache()
                     return obj
+                # except TimeoutException:
                 except Exception as e:
                     logger.debug("Failed to read %s: %s", path/item, e)
                     self._parsed_files[item] = None
