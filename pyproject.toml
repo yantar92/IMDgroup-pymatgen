@@ -21,9 +21,9 @@ classifiers = [
 requires-python = ">=3.10"
 dependencies = [
 "numpy>=1.26.4",
-"pymatgen==2025.4.10",
+"pymatgen",
 "alive_progress==3.1.5",
-"ase==3.23.0",
+"ase>=3.23.0",
 "termcolor",
 "networkx",
 "cachetools",
