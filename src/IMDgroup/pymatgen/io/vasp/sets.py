@@ -34,6 +34,7 @@ import math
 import warnings
 import logging
 import copy
+from xml.etree.ElementTree import ParserError
 from glob import glob
 from pathlib import Path
 from dataclasses import dataclass, fields
@@ -471,7 +472,7 @@ class IMDDerivedInputSet(IMDVaspInputSet):
                 logger.info("Copying additional INCAR.py")
                 self.files_to_transfer[str(incarpy.name)] = incarpy
             self.override_from_prev_calc(prev_calc_dir=self.directory)
-        except ValueError as exc:
+        except (ValueError, ParserError) as exc:
             if os.path.isfile(os.path.join(self.directory, "CONTCAR")):
                 structure_file = os.path.join(self.directory, "CONTCAR")
             else:
