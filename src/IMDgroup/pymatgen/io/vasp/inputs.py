@@ -153,12 +153,18 @@ class Incar(pmgIncar):
             """Return True when INCAR1 is equal to INCAR2.
             ignore_fileds fields are ignored.
             """
+            incar1 = incar1.copy()
+            incar2 = incar2.copy()
+            for f in ignore_fields:
+                if f in incar1 or f in incar2:
+                    incar1[f] = 'IRRELAVANT'
+                    incar2[f] = 'IRRELAVANT'
             difference = incar1.diff(incar2)
             diff_fields = difference["Different"]
             if diff_fields is None:
                 diff_fields = {}
-            for f in ignore_fields:
-                diff_fields.pop(f, None)
+            # for f in ignore_fields:
+            #     diff_fields.pop(f, None)
             return len(diff_fields) == 0
 
         def _incar_name(incar):
