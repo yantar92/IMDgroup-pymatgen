@@ -619,7 +619,7 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
             return poscar.structure
         if run := self['vasprun.xml']:
             return run.initial_structure
-        raise FileNotFoundError("No vasprun.xml/POSCAR available")
+        raise FileNotFoundError(f"{self.path}: No vasprun.xml/POSCAR available")
 
     @property
     def structure(self) -> Structure:
