@@ -846,7 +846,7 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
         if self._prev_vaspdirs is None:
             path = Path(self.path)
             self._prev_vaspdirs = sorted(
-                [IMDGVaspDir(d) for d in path.glob('gorun_*/') if d.is_dir()],
+                [IMDGVaspDir(d) for d in path.glob('gorun_*/') if d.is_dir() and (d / 'POSCAR').is_file()],
                 key=lambda d: d.path)
             if len(self._prev_vaspdirs) > 0:
                 logger.info(
