@@ -156,8 +156,9 @@ class Incar(pmgIncar):
             incar1 = incar1.copy()
             incar2 = incar2.copy()
             for f in ignore_fields:
-                if f in incar1 or f in incar2:
+                if f in incar1:
                     del incar1[f]
+                if f in incar2:
                     del incar2[f]
             difference = incar1.diff(incar2)
             diff_fields = difference["Different"]
