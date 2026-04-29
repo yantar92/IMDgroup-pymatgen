@@ -37,12 +37,24 @@ from alive_progress import alive_it
 import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap, Normalize, to_rgba
+from matplotlib.font_manager import FontProperties
+from matplotlib.lines import Line2D
 import numpy as np
 from IMDgroup.pymatgen.core.structure import IMDStructure as Structure
 from IMDgroup.pymatgen.core.structure import merge_structures, structure_distance
 from IMDgroup.pymatgen.io.vasp.vaspdir import IMDGVaspDir
 from IMDgroup.pymatgen.io.vasp.sets import write_selective_dynamics_summary_maybe
 import IMDgroup.pymatgen.io.atat as IMDatat
+import itertools
+from pymatgen.core import Element, Composition
+from pymatgen.io.ase import AseAtomsAdaptor
+from pymatgen.entries.computed_entries import (
+    ComputedStructureEntry,
+    GibbsComputedStructureEntry,
+)
+from pymatgen.apps.battery.insertion_battery import InsertionElectrode
+from pymatgen.apps.battery.plotter import VoltageProfilePlotter
+from pymatgen.analysis.phase_diagram import PhaseDiagram, PDPlotter
 
 logger = logging.getLogger(__name__)
 
@@ -56,7 +68,7 @@ def add_args(parser):
 
     parser.add_argument(
         "dir",
-        help="""Directory to read (recusrively); defaults to current dir""",
+        help="""Directory to read (recursively) or a pickle file for hull subcommand; defaults to current dir""",
         type=str,
         nargs="?",
         default=".")
@@ -71,6 +83,12 @@ def add_args(parser):
 
     parser_atat = subparsers.add_parser("atat")
     atat_add_args(parser_atat)
+
+    parser_hull = subparsers.add_parser("hull")
+    hull_add_args(parser_hull)
+
+    parser_voltage = subparsers.add_parser("voltage")
+    voltage_add_args(parser_voltage)
 
 
 def neb_add_args(parser):
@@ -764,6 +782,775 @@ def atat(args):
         args.cmin, args.cmax,
         (args.emin, args.emax) if (args.emin and args.emax) else None,
         args.classic_residuals)
+    return 0
+
+
+def hull_add_args(parser):
+    """Setup parser arguments for formation energy hull visualization.
+    Args:
+      parser: subparser
+    """
+    parser.help = "Plot formation energy hull from ATAT results"
+
+    parser.add_argument(
+        "--extra_dir",
+        help="Extra directories with VASP outputs to include in the hull. "
+        "These are read directly without recursive scanning or include/exclude filtering.",
+        type=str,
+        nargs="*",
+        default=None)
+
+    parser.add_argument(
+        "--ion", default="Li",
+        help="Working ion element (default: Li)",
+        type=Element)
+    parser.add_argument(
+        "--max_composition",
+        help="Maximum composition for the concentration axis (e.g. LiC2). "
+        "If not specified, uses pure ion element as maximum.",
+        type=Composition)
+
+    parser.add_argument(
+        "--dpi", default=600,
+        help="Output DPI for publication quality (default: 300)",
+        type=int)
+    parser.add_argument(
+        "--format", default="png",
+        help="Output format (default: png, options: png, pdf, svg)",
+        choices=["png", "pdf", "svg"])
+    parser.add_argument(
+        "--show_unstable", default=0.2,
+        help="Show unstable entries with energy above hull less than this value (eV/atom) (default: 0.2)",
+        type=float)
+    parser.add_argument(
+        "--font_size", default=10,
+        help="Base font size for the plot (default: 10)",
+        type=int)
+    parser.add_argument(
+        "--title", default=None,
+        help="Custom title for the phase diagram plot (default: '<ion>-<matrix> Phase Diagram')",
+        type=str)
+    parser.add_argument(
+        "--ymin",
+        help="Manual y-axis minimum (in meV/atom).",
+        type=float,
+        default=None,
+    )
+    parser.add_argument(
+        "--ymax",
+        help="Manual y-axis maximum (in meV/atom).",
+        type=float,
+        default=None,
+    )
+    parser.add_argument(
+        "--entropy",
+        help="Adjust energies by the provided emc2 output file",
+        type=str,
+        default=None
+    )
+    parser.add_argument(
+        "--entropy_vibrational",
+        help="Adjust energies by vibrational entropy (need to set --entropy to use this)",
+        action="store_true"
+    )
+    parser.add_argument(
+        "--include",
+        help="Include only directories whose relative path matches this regexp. "
+        "Applied after --exclude.",
+        type=str,
+        default=None
+    )
+    parser.add_argument(
+        "--exclude",
+        help="Exclude directories whose relative path matches this regexp. "
+        "Default: gorun_\\d+ (gorun_<number> pattern).",
+        type=str,
+        default=r'gorun_\d+'
+    )
+    parser.add_argument(
+        "--pickle_structure_column",
+        default="structure",
+        help="Column name for ASE atoms in pickle file (default: structure)",
+        type=str)
+    parser.add_argument(
+        "--pickle_energy_column",
+        default="total_energy",
+        help="Column name for total energy in pickle file (default: total_energy)",
+        type=str)
+    parser.add_argument(
+        "--pickle_id_column",
+        default="fold_id",
+        help="Column name for structure ID in pickle file (default: fold_id). "
+        "If the column is missing, the DataFrame index is used.",
+        type=str)
+    parser.add_argument(
+        "--filter",
+        default=None,
+        help="Python expression to filter rows from the pickle DataFrame. "
+        "The DataFrame is bound to the name 'df' during evaluation. "
+        "Example: --filter \"df[df['total_energy'] < -10]\"",
+        type=str)
+    parser.set_defaults(func_derive=hull)
+
+
+def _to_subscript(text: str) -> str:
+    """Convert integer characters in a composition string to LaTeX subscript form.
+
+    Example:
+        'LiC6' -> 'LiC$_{6}$'
+    """
+    return re.sub(r'(\d+)', r'$_{\1}$', text)
+
+
+def _hull_get_entries_recursively(
+        path: Path,
+        include: str | None = None,
+        exclude: str | None = r'gorun_\d+') -> list:
+    """Scan PATH for VASP directories and return a list of ComputedStructureEntry.
+
+    Uses IMDGVaspDir.read_vaspdirs to find VASP directories recursively.
+    Directories matching EXCLUDE regexp (default: gorun_<number>) are skipped.
+    When INCLUDE is set, only directories whose relative path matches the
+    regexp are included (applied after exclude).
+
+    Args:
+        path: Root path to scan.
+        include: Optional regexp; only dirs whose relative path matches are kept.
+        exclude: Regexp; dirs whose relative path matches are skipped.
+                 Default: r'gorun_\\d+'.
+    """
+    root = Path(path)
+    exclude_re = re.compile(exclude) if exclude else None
+    include_re = re.compile(include) if include else None
+
+    def path_filter(parent_path: Path) -> bool:
+        """Filter VASP directories by include/exclude regexps."""
+        rel_str = os.path.relpath(str(parent_path), start=str(root))
+
+        if exclude_re and exclude_re.search(rel_str):
+            return False
+        if include_re and not include_re.search(rel_str):
+            return False
+        return True
+
+    vaspdirs = IMDGVaspDir.read_vaspdirs(root, path_filter=path_filter)
+
+    entries = []
+    n_skipped = 0
+    for vasp_path, vaspdir in alive_it(
+            vaspdirs.items(),
+            total=len(vaspdirs),
+            title='Reading VASP outputs'):
+        try:
+            if vaspdir.final_energy is None:
+                n_skipped += 1
+                continue
+            if not vaspdir.converged:
+                print(f"Skipping {vasp_path}: unconverged")
+                n_skipped += 1
+                continue
+            entry = ComputedStructureEntry(
+                vaspdir.structure, vaspdir.final_energy)
+            entry.data["volume"] = vaspdir.structure.volume
+            entry.data["ID"] = vasp_path
+            entries.append(entry)
+        except Exception as e:
+            print(f"Skipping {vasp_path}: {str(e)}")
+            n_skipped += 1
+
+    print(f"Read {len(vaspdirs)} runs")
+    print(f"Skipped: {n_skipped}")
+    return entries
+
+
+def _hull_plot_custom_phase_diagram(
+        phd: PhaseDiagram,
+        ax: plt.Axes,
+        ion_element: str,
+        matrix_element: str,
+        max_conc: float = 1.0,
+        show_unstable: float = 1000,
+        font_size: int = 10,
+        title: str | None = None,
+        ymin: float | None = None,
+        ymax: float | None = None) -> None:
+    """Plot a custom phase diagram on AX, overriding pymatgen's hardcoded font settings."""
+    energy_mult = 1000
+
+    plotter = PDPlotter(phd, show_unstable=show_unstable)
+    lines, stable_entries, unstable_entries = plotter.pd_plot_data
+
+    # Save all entries to formation_en.txt
+    data_file = 'formation_en.txt'
+    gs_data_file = 'formation_en_gs.txt'
+    min_data_file = 'formation_en_min.txt'
+    data = [{
+        'ID': str(entry.data.get("ID")),
+        'Energy': entry.energy_per_atom,
+        'Concentration': coords[0],
+        'Formation Energy (meV/atom)': coords[1] * energy_mult,
+        "Energy above hull (meV/atom)": (
+            phd.get_e_above_hull(entry) * energy_mult
+            if phd.get_e_above_hull(entry) is not None else None),
+        'Formula': (
+            "C" if np.isclose(coords[0], 0)
+            else f"{ion_element}C{int((1 - coords[0]) / coords[0])}")
+    } for entry, coords in unstable_entries.items()
+      if phd.get_e_above_hull(entry) is not None
+      and phd.get_e_above_hull(entry) < show_unstable]
+    stable_data = [{
+        'ID': str(entry.data.get("ID")),
+        'Energy': entry.energy_per_atom,
+        'Concentration': coords[0],
+        'Formation Energy (meV/atom)': coords[1] * energy_mult,
+        "Energy above hull (meV/atom)": (
+            phd.get_e_above_hull(entry) * energy_mult
+            if phd.get_e_above_hull(entry) is not None else None),
+        'Formula': (
+            "C" if np.isclose(coords[0], 0)
+            else f"{ion_element}C{int((1 - coords[0]) / coords[0])}")
+    } for coords, entry in stable_entries.items()]
+    data.extend(stable_data)
+
+    if data:
+        df = pd.DataFrame(data)
+        df.to_csv(data_file, index=False, sep=' ')
+    print(f"All energies saved to {data_file}")
+    if stable_data:
+        df = pd.DataFrame(stable_data)
+        df.to_csv(gs_data_file, index=False, sep=' ')
+    print(f"GS energies saved to {gs_data_file}")
+    if phd.all_entries:
+        min_entries = []
+        for _, group_iter in itertools.groupby(
+                phd.all_entries,
+                key=lambda e: e.composition.reduced_composition):
+            group = list(group_iter)
+            entry = min(group, key=lambda e: e.energy_per_atom)
+            min_entries.append({
+                'ID': str(entry.data.get("ID")),
+                "Energy": entry.energy_per_atom,
+                "Formation energy (meV/atom)": (
+                    phd.get_form_energy_per_atom(entry) * energy_mult),
+                "Energy above hull (meV/atom)": (
+                    phd.get_e_above_hull(entry) * energy_mult),
+                "Reduced formula": entry.reduced_formula,
+            })
+        df = pd.DataFrame(min_entries)
+        df.to_csv(min_data_file, index=False, sep=' ')
+        print(f'Min energies saved to {min_data_file}')
+
+    plt.style.use('default')
+    base_sz = font_size
+    base_markersize = base_sz * 0.5
+    edge_width = max(0.8, round(0.12 * base_sz, 2))
+    plt.rcParams.update({
+        'font.size': base_sz,
+        'font.family': 'serif',
+        'font.serif': ['Times New Roman', 'DejaVu Serif'],
+        'mathtext.fontset': 'stix',
+        'axes.labelsize': base_sz,
+        'axes.titlesize': base_sz * 1.2,
+        'axes.linewidth': 1.0,
+        'lines.linewidth': 1.2,
+        'lines.markersize': base_markersize,
+        'xtick.labelsize': base_sz,
+        'ytick.labelsize': base_sz,
+        'legend.fontsize': base_sz,
+        'figure.titlesize': base_sz * 1.2,
+    })
+
+    marker_color = '#4daffa'
+    for entry, coords in unstable_entries.items():
+        e_above_hull = phd.get_e_above_hull(entry)
+        if e_above_hull is not None and e_above_hull < show_unstable:
+            ax.plot(coords[0], np.array(coords[1]) * energy_mult, 's',
+                    markerfacecolor=marker_color,
+                    markeredgecolor='black',
+                    markeredgewidth=edge_width,
+                    alpha=0.7)
+
+    for x, y in lines:
+        ax.plot(x, np.array(y) * energy_mult, 'k-', linewidth=1.2)
+
+    gs_color = '#00af00'
+    for coords in stable_entries:
+        entry = stable_entries[coords]
+        print(f"GS:: {entry.data}, {coords[0]}, {coords[1]}")
+        ax.plot(coords[0], np.array(coords[1]) * energy_mult, 'o',
+                markerfacecolor=gs_color,
+                markeredgecolor='black',
+                markersize=base_markersize * 1.8,
+                markeredgewidth=edge_width)
+
+    ground_state_marker = Line2D(
+        [], [], marker='o', color='none',
+        markerfacecolor=gs_color,
+        markeredgecolor='black',
+        markersize=base_markersize * 1.8)
+    above_hull_marker = Line2D(
+        [], [], marker='s', color='none',
+        markerfacecolor=marker_color,
+        markeredgecolor='black')
+    ax.legend(
+        handles=[ground_state_marker, above_hull_marker],
+        labels=['Ground state', 'Above hull'],
+        loc='best', fontsize=font_size)
+
+    min_y = min(c[1] for c in stable_entries)
+    center = (0.5, min_y / 2)
+
+    font = FontProperties()
+    font.set_size(base_sz)
+    font.set_weight('bold')
+
+    for coords in sorted(stable_entries, key=lambda x: -x[1]):
+        entry = stable_entries[coords]
+        if entry.composition.is_element:
+            continue
+        raw_label = entry.name
+        label = _to_subscript(raw_label)
+        offset_radius_pt = base_sz * 1.5
+        vec = np.array(coords) - center
+        norm_vec = np.linalg.norm(vec)
+        if norm_vec != 0:
+            vec = vec / norm_vec * offset_radius_pt
+        else:
+            vec = np.zeros_like(vec)
+        valign = "bottom" if vec[1] > 0 else "top"
+        if vec[0] < -0.01:
+            halign = "right"
+        elif vec[0] > 0.01:
+            halign = "left"
+        else:
+            halign = "center"
+        ax.annotate(
+            label,
+            [coords[0], coords[1] * energy_mult],
+            xytext=vec,
+            textcoords="offset points",
+            horizontalalignment=halign,
+            verticalalignment=valign,
+            fontproperties=font,
+            color='black'
+        )
+
+    elem_font_size = base_sz * 1.2
+    elem_font = FontProperties(size=base_sz + 2, weight='bold')
+    for coords in stable_entries:
+        entry = stable_entries[coords]
+        if entry.composition.is_element:
+            elem_offset_pt = elem_font_size
+            if coords[0] < 0.1:
+                ax.annotate(matrix_element,
+                            [coords[0], coords[1] * energy_mult],
+                            xytext=(-elem_offset_pt, 0),
+                            textcoords="offset points",
+                            horizontalalignment="right",
+                            verticalalignment="center",
+                            fontproperties=elem_font)
+            elif coords[0] > 0.9:
+                ax.annotate(ion_element,
+                            [coords[0], coords[1] * energy_mult],
+                            xytext=(elem_offset_pt, 0),
+                            textcoords="offset points",
+                            horizontalalignment="left",
+                            verticalalignment="center",
+                            fontproperties=elem_font)
+
+    ax.set_xlabel(f'{ion_element} Concentration')
+    ax.set_ylabel('Formation Energy (meV/atom)')
+    ax.set_title(
+        title if title is not None
+        else f'{ion_element}-{matrix_element} Phase Diagram',
+        pad=20)
+    ax.set_xlim(-0.05, max_conc + 0.05)
+
+    all_y = [c[1] * energy_mult for c in stable_entries] + \
+        [c[1] * energy_mult for _, c in unstable_entries.items()]
+    y_min = min(all_y)
+    y_max = max(all_y)
+    if ymin is not None and ymin < y_min:
+        y_min = ymin
+    if ymax is not None:
+        y_max = ymax
+    y_padding = (y_max - y_min) * 0.1
+    ax.set_ylim(y_min - y_padding, y_max + y_padding)
+
+    ax.grid(True, alpha=0.3, linestyle='-', linewidth=0.5)
+
+    ionc6_concentration = 1 / 7
+    plt.axvline(x=ionc6_concentration, color='black',
+                linewidth=1, linestyle='--', alpha=0.7)
+    plt.annotate(f'{ion_element}C$_{6}$',
+                 xy=(ionc6_concentration, ax.get_ylim()[0]),
+                 xytext=(base_sz * 1, base_sz * 0.5),
+                 textcoords='offset points',
+                 ha='left', va='bottom', font=elem_font,
+                 color='black')
+
+
+def _hull_get_entries_from_pickle(
+        path: Path,
+        structure_column: str = "structure",
+        energy_column: str = "total_energy",
+        id_column: str | None = "fold_id",
+        filter_expr: str | None = None) -> list:
+    """Read structures and energies from a pickle file and return ComputedStructureEntry list.
+
+    The pickle file must contain a DataFrame with ASE Atoms objects in
+    STRUCTURE_COLUMN, total energies in ENERGY_COLUMN, and optionally an ID
+    column in ID_COLUMN.
+
+    Args:
+        path: Path to the pickle file containing the DataFrame.
+        structure_column: Name of the column holding ASE Atoms objects.
+        energy_column: Name of the column holding total energies.
+        id_column: Optional column name for structure IDs.
+                  If None or missing from the DataFrame, the index is used.
+        filter_expr: Optional Python expression to filter the DataFrame.
+                     The loaded DataFrame is bound to the name 'df' during
+                     evaluation.  The expression must return a DataFrame (or
+                     array-like indexer).  Example: "df[df['total_energy'] < -10]"
+
+    Returns:
+        List of ComputedStructureEntry objects.
+    """
+    df = pd.read_pickle(path)
+
+    n_before = len(df)
+    if filter_expr:
+        df = eval(filter_expr, {"df": df})
+        print(f"Filter applied: {n_before} -> {len(df)} structures retained")
+
+    entries = []
+    has_id_column = id_column is not None and id_column in df.columns
+    for idx, row in df.iterrows():
+        atoms = row[structure_column]
+        total_energy = row[energy_column]
+
+        structure = AseAtomsAdaptor.get_structure(atoms)
+
+        entry = ComputedStructureEntry(structure, total_energy)
+        entry.data["volume"] = structure.volume
+        entry.data["ID"] = str(row[id_column]) if has_id_column else str(idx)
+        entries.append(entry)
+
+    print(f"Read {len(entries)} structures from pickle file {path}")
+    return entries
+
+
+def hull(args):
+    """Plot formation energy hull from ATAT results.
+    """
+    path = Path(args.dir)
+
+    fig, ax = plt.subplots(figsize=(4.13, 3))
+
+    temperature = 0.0
+    if args.entropy:
+        df = pd.read_csv(
+            args.entropy, header=None, sep='\t',
+            names=['T', 'mu', 'E', 'x', 'F'],
+            usecols=list(range(5)))
+        assert np.isclose(df['T'].min(), df['T'].max())
+        temperature = float(df['T'].min())
+        print(f'Adding entropy adjustments for T={temperature}')
+
+    if path.is_file():
+        entries = _hull_get_entries_from_pickle(
+            path,
+            structure_column=args.pickle_structure_column,
+            energy_column=args.pickle_energy_column,
+            id_column=args.pickle_id_column,
+            filter_expr=args.filter)
+    else:
+        entries = _hull_get_entries_recursively(
+            path, include=args.include, exclude=args.exclude)
+
+    # Read extra directories directly (no recursive scan, no include/exclude)
+    if args.extra_dir:
+        for extra_path in args.extra_dir:
+            try:
+                extra_vaspdir = IMDGVaspDir(Path(extra_path))
+                if extra_vaspdir.final_energy is None:
+                    print(f"Skipping {extra_path}: no final energy")
+                    continue
+                if not extra_vaspdir.converged:
+                    print(f"Skipping {extra_path}: unconverged")
+                    continue
+                extra_entry = ComputedStructureEntry(
+                    extra_vaspdir.structure, extra_vaspdir.final_energy)
+                extra_entry.data["volume"] = extra_vaspdir.structure.volume
+                extra_entry.data["ID"] = extra_path
+                entries.append(extra_entry)
+                print(f"Added {extra_path}: {extra_entry.energy_per_atom} eV/atom")
+            except Exception as ex:
+                print(f"Skipping {extra_path}: {str(ex)}")
+
+    if args.entropy:
+        df['c'] = (df['x'] + 1) / 2
+        for entry in entries:
+            atomic_fraction = entry.composition.get_atomic_fraction(args.ion)
+            c = 2 * atomic_fraction / (1 - atomic_fraction)
+            closest_idx = (df['c'] - c).abs().idxmin()
+            if np.abs(df.loc[closest_idx]['c'] - c) > 0.02:
+                print(f'Warning: assigning entropy for concentration diff: '
+                      f'{np.abs(df.loc[closest_idx]["c"] - c)}')
+            ts = df.loc[closest_idx]['E'] - df.loc[closest_idx]['F']
+            entry.correction = -ts / (df.loc[closest_idx]['c'] + 2) * \
+                entry.composition.num_atoms
+
+    if np.isclose(temperature, 0) or not args.entropy_vibrational:
+        phd = PhaseDiagram(
+            entries=entries,
+            elements=[Element("C"), args.ion])
+    else:
+        all_entries = entries
+
+        def _reduced_mass(structure) -> float:
+            """Reduced mass as calculated via Eq. 6 in Bartel et al. (2018)."""
+            reduced_comp = structure.composition.reduced_composition
+            n_elems = len(reduced_comp.elements)
+            elem_dict = reduced_comp.get_el_amt_dict()
+            denominator = (n_elems - 1) * reduced_comp.num_atoms
+            all_pairs = itertools.combinations(elem_dict.items(), 2)
+            mass_sum = 0
+            for pair in all_pairs:
+                m_i = Composition(pair[0][0]).weight
+                m_j = Composition(pair[1][0]).weight
+                alpha_i = pair[0][1]
+                alpha_j = pair[1][1]
+                mass_sum += (alpha_i + alpha_j) * (m_i * m_j) / (m_i + m_j) * 2
+            return (1 / denominator) * mass_sum
+
+        for entry in all_entries:
+            if entry.composition.reduced_composition.num_atoms == 1:
+                reduced_mass = entry.composition.reduced_composition.weight
+            else:
+                reduced_mass = _reduced_mass(entry.structure)
+            sisso_corr = (
+                entry.composition.num_atoms *
+                GibbsComputedStructureEntry._g_delta_sisso(
+                    entry.structure.volume / len(entry.structure),
+                    reduced_mass,
+                    temperature
+                )
+            )
+            print(entry.composition.get_atomic_fraction(args.ion),
+                  sisso_corr / entry.composition.num_atoms)
+            entry.correction += sisso_corr
+        phd = PhaseDiagram(
+            entries=all_entries,
+            elements=[Element("C"), args.ion])
+
+    max_conc = 1.0
+    if args.max_composition:
+        max_conc = args.max_composition.get_atomic_fraction(Element(args.ion))
+
+    _hull_plot_custom_phase_diagram(
+        phd, ax, str(args.ion), "C",
+        show_unstable=args.show_unstable,
+        max_conc=max_conc,
+        font_size=args.font_size,
+        title=args.title,
+        ymax=args.ymax,
+        ymin=args.ymin)
+
+    plt.tight_layout()
+
+    output_file = [f'formation_en.{args.format}']
+    if not args.format == "svg":
+        output_file.append('formation_en.svg')
+    for output in output_file:
+        plt.savefig(output, dpi=args.dpi, bbox_inches='tight',
+                    facecolor='white', edgecolor='none')
+    plt.close()
+
+    print(f"Formation energy profile saved to {output_file}")
+    return 0
+
+
+def voltage_add_args(parser):
+    """Setup parser arguments for voltage profile visualization.
+    Args:
+      parser: subparser
+    """
+    parser.help = "Plot voltage profile from ATAT results"
+
+    parser.add_argument(
+        "--ion", default="Li",
+        help="Working ion element (default: Li)",
+        type=Element)
+    parser.add_argument(
+        "--extra_dir",
+        help="Extra directories with VASP outputs to include in the analysis. "
+        "These are read directly without recursive scanning or include/exclude filtering.",
+        type=str,
+        nargs="*",
+        default=None)
+    parser.add_argument(
+        "--include",
+        help="Include only directories whose relative path matches this regexp. "
+        "Applied after --exclude.",
+        type=str,
+        default=None)
+    parser.add_argument(
+        "--exclude",
+        help="Exclude directories whose relative path matches this regexp. "
+        "Default: gorun_\\d+ (gorun_<number> pattern).",
+        type=str,
+        default=r'gorun_\\d+')
+    parser.add_argument(
+        "--dpi", default=600,
+        help="Output DPI (default: 600)",
+        type=int)
+    parser.add_argument(
+        "--format", default="png",
+        help="Output format (default: png, options: png, pdf, svg)",
+        choices=["png", "pdf", "svg"])
+    parser.add_argument(
+        "--font_size", default=10,
+        help="Base font size for the plot (default: 10)",
+        type=int)
+    parser.add_argument(
+        "--pickle_structure_column",
+        default="structure",
+        help="Column name for ASE atoms in pickle file (default: structure)",
+        type=str)
+    parser.add_argument(
+        "--pickle_energy_column",
+        default="total_energy",
+        help="Column name for total energy in pickle file (default: total_energy)",
+        type=str)
+    parser.add_argument(
+        "--pickle_id_column",
+        default="fold_id",
+        help="Column name for structure ID in pickle file (default: fold_id). "
+        "If the column is missing, the DataFrame index is used.",
+        type=str)
+    parser.add_argument(
+        "--filter",
+        default=None,
+        help="Python expression to filter rows from the pickle DataFrame. "
+        "The DataFrame is bound to the name 'df' during evaluation. "
+        "Example: --filter \"df[df['total_energy'] < -10]\"",
+        type=str)
+    parser.set_defaults(func_derive=voltage)
+
+
+def voltage(args):
+    """Plot voltage profile from ATAT results using pymatgen's battery analysis tools.
+    """
+    path = Path(args.dir)
+
+    # Read entries: from pickle if path is a file, otherwise scan recursively
+    if path.is_file():
+        entries = _hull_get_entries_from_pickle(
+            path,
+            structure_column=args.pickle_structure_column,
+            energy_column=args.pickle_energy_column,
+            id_column=args.pickle_id_column,
+            filter_expr=args.filter)
+    else:
+        entries = _hull_get_entries_recursively(
+            path, include=args.include, exclude=args.exclude)
+
+    # Add extra directories directly (no recursive scan, no include/exclude)
+    if args.extra_dir:
+        for extra_path in args.extra_dir:
+            try:
+                extra_vaspdir = IMDGVaspDir(Path(extra_path))
+                if extra_vaspdir.final_energy is None:
+                    print(f"Skipping {extra_path}: no final energy")
+                    continue
+                if not extra_vaspdir.converged:
+                    print(f"Skipping {extra_path}: unconverged")
+                    continue
+                extra_entry = ComputedStructureEntry(
+                    extra_vaspdir.structure, extra_vaspdir.final_energy)
+                extra_entry.data["volume"] = extra_vaspdir.structure.volume
+                extra_entry.data["ID"] = extra_path
+                entries.append(extra_entry)
+                print(f"Added {extra_path}: {extra_entry.energy_per_atom} eV/atom")
+            except Exception as ex:
+                print(f"Skipping {extra_path}: {str(ex)}")
+
+    # Find pure working ion entry from collected data
+    pure_ion_entries = [
+        e for e in entries
+        if e.composition.is_element and e.composition.elements[0] == args.ion]
+    if not pure_ion_entries:
+        raise ValueError(
+            f"No pure {args.ion.symbol} entry found in the data. "
+            f"Please ensure a pure {args.ion.symbol} calculation is included "
+            "in the directory scan or provided via --extra_dir.")
+    working_ion_entry = min(pure_ion_entries, key=lambda e: e.energy_per_atom)
+    print(f"Using {working_ion_entry.composition.reduced_formula} as working ion reference "
+          f"(energy={working_ion_entry.energy_per_atom:.4f} eV/atom)")
+
+    # Create insertion electrode
+    electrode = InsertionElectrode.from_entries(
+        entries,
+        working_ion_entry=working_ion_entry,
+        strip_structures=False
+    )
+
+    # Extract voltage profile data
+    plotter = VoltageProfilePlotter(xaxis='x_form')
+    x, voltage = plotter.get_plot_data(electrode, term_zero=False)
+    capacity = []
+    cap_acc = 0
+    sub_electrodes = electrode.get_sub_electrodes(adjacent_only=True)
+    normalization_mass = sub_electrodes[0].voltage_pairs[0].mass_charge
+    for sub_electrode in sub_electrodes:
+        capacity.append(cap_acc)
+        cap_acc += sum(pair.mAh for pair in sub_electrode.voltage_pairs) / normalization_mass
+        capacity.append(cap_acc)
+    voltage_data = {'x': x, 'voltage': voltage, 'capacity': capacity}
+    df = pd.DataFrame(voltage_data).sort_values("x")
+
+    # Save data
+    output_data = Path(args.dir) / 'voltage.out'
+    df.to_csv(output_data, sep=' ', index=False)
+    print(f"Voltage data saved to {output_data}")
+
+    # Plot
+    base_sz = args.font_size
+    plt.rcParams.update({
+        'font.size': base_sz,
+        'font.family': 'serif',
+        'font.serif': ['Times New Roman', 'DejaVu Serif'],
+        'mathtext.fontset': 'stix',
+        'axes.labelsize': base_sz,
+        'axes.titlesize': base_sz * 1.2,
+        'axes.linewidth': 1.0,
+        'lines.linewidth': 1.2,
+        'xtick.labelsize': base_sz,
+        'ytick.labelsize': base_sz,
+        'legend.fontsize': base_sz,
+        'figure.titlesize': base_sz * 1.2,
+    })
+
+    plt.figure(figsize=(10, 6))
+    plt.step(df['capacity'], df['voltage'], where='post', color='blue', linewidth=2)
+    plt.axhline(y=0, color='gray', linestyle='--', alpha=0.7)
+    plt.xlabel('Capacity (mAh/g)')
+    plt.ylabel(f'Voltage vs. {args.ion.symbol}/{args.ion.symbol}+ (V)')
+    plt.title('Voltage Profile')
+    plt.grid(alpha=0.3)
+
+    output_png = Path(args.dir) / f'voltage.{args.format}'
+    output_svg = Path(args.dir) / 'voltage.svg'
+    plt.tight_layout()
+    plt.savefig(output_png, dpi=args.dpi)
+    if not args.format == "svg":
+        plt.savefig(output_svg, dpi=args.dpi)
+    plt.close()
+
+    print(colored(f"{str(Path(args.dir)).replace('./', '')}: ", attrs=['bold'])
+          + colored("Voltage ", "magenta")
+          + f"profile saved to {output_png} and {output_svg}")
     return 0
 
 
