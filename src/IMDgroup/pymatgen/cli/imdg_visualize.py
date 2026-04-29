@@ -1288,6 +1288,55 @@ def hull(args):
             except Exception as ex:
                 print(f"Skipping {extra_path}: {str(ex)}")
 
+    # Validate that pure element entries exist for both ion and matrix.
+    pure_ion_entries = [
+        e for e in entries
+        if e.composition.is_element and e.composition.elements[0] == args.ion]
+    pure_matrix_entries = [
+        e for e in entries
+        if e.composition.is_element and e.composition.elements[0] != args.ion]
+
+    if not pure_matrix_entries:
+        print(
+            "Error: No pure element (matrix) entry found in the data. "
+            "Expected a pure element calculation that does not contain "
+            f"{args.ion.symbol}.")
+        print(
+            "Please ensure a pure element calculation (without "
+            f"{args.ion.symbol}) is included in the directory scan "
+            "or provided via --extra_dir.")
+        return 1
+    if not pure_ion_entries:
+        print(
+            f"Error: No pure {args.ion.symbol} (ion) entry found "
+            "in the data.")
+        print(
+            f"Please ensure a pure {args.ion.symbol} calculation is "
+            "included in the directory scan or provided via --extra_dir.")
+        return 1
+
+    # Ensure only one distinct matrix element is present.
+    matrix_elements = {e.composition.elements[0] for e in pure_matrix_entries}
+    if len(matrix_elements) > 1:
+        print(
+            "Error: Multiple distinct matrix element candidates found: "
+            f"{', '.join(e.symbol for e in sorted(matrix_elements, key=lambda x: x.symbol))}.")
+        print(
+            "Expected only one type of pure element that is not the ion "
+            f"({args.ion.symbol}).")
+        print(
+            "Please ensure only one matrix element type is present in the "
+            "directory scan or provided via --extra_dir.")
+        return 1
+
+    matrix_element = next(iter(matrix_elements))
+    matrix_entry = min(pure_matrix_entries, key=lambda e: e.energy_per_atom)
+    ion_entry = min(pure_ion_entries, key=lambda e: e.energy_per_atom)
+    print(f"Using {matrix_entry.composition.reduced_formula} as matrix reference "
+          f"(energy={matrix_entry.energy_per_atom:.4f} eV/atom)")
+    print(f"Using {ion_entry.composition.reduced_formula} as ion reference "
+          f"(energy={ion_entry.energy_per_atom:.4f} eV/atom)")
+
     if args.entropy:
         df['c'] = (df['x'] + 1) / 2
         for entry in entries:
@@ -1304,7 +1353,7 @@ def hull(args):
     if np.isclose(temperature, 0) or not args.entropy_vibrational:
         phd = PhaseDiagram(
             entries=entries,
-            elements=[Element("C"), args.ion])
+            elements=[matrix_element, args.ion])
     else:
         all_entries = entries
 
@@ -1342,14 +1391,14 @@ def hull(args):
             entry.correction += sisso_corr
         phd = PhaseDiagram(
             entries=all_entries,
-            elements=[Element("C"), args.ion])
+            elements=[matrix_element, args.ion])
 
     max_conc = 1.0
     if args.max_composition:
         max_conc = args.max_composition.get_atomic_fraction(Element(args.ion))
 
     _hull_plot_custom_phase_diagram(
-        phd, ax, str(args.ion), "C",
+        phd, ax, str(args.ion), matrix_element.symbol,
         show_unstable=args.show_unstable,
         max_conc=max_conc,
         font_size=args.font_size,
