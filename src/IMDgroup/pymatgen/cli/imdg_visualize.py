@@ -953,6 +953,7 @@ def _hull_get_entries_recursively(
             entry = ComputedStructureEntry(
                 vaspdir.structure, vaspdir.final_energy)
             entry.data["volume"] = vaspdir.structure.volume
+            entry.data["formula"] = vaspdir.structure.composition.formula
             entry.data["ID"] = vasp_path
             entries.append(entry)
         except Exception as e:
@@ -993,9 +994,7 @@ def _hull_plot_custom_phase_diagram(
         "Energy above hull (meV/atom)": (
             phd.get_e_above_hull(entry) * energy_mult
             if phd.get_e_above_hull(entry) is not None else None),
-        'Formula': (
-            "C" if np.isclose(coords[0], 0)
-            else f"{ion_element}C{int((1 - coords[0]) / coords[0])}")
+        'Formula': entry.data['formula'],
     } for entry, coords in unstable_entries.items()
       if phd.get_e_above_hull(entry) is not None
       and phd.get_e_above_hull(entry) < show_unstable]
@@ -1007,9 +1006,7 @@ def _hull_plot_custom_phase_diagram(
         "Energy above hull (meV/atom)": (
             phd.get_e_above_hull(entry) * energy_mult
             if phd.get_e_above_hull(entry) is not None else None),
-        'Formula': (
-            "C" if np.isclose(coords[0], 0)
-            else f"{ion_element}C{int((1 - coords[0]) / coords[0])}")
+        'Formula': entry.data['formula'],
     } for coords, entry in stable_entries.items()]
     data.extend(stable_data)
 
@@ -1240,6 +1237,7 @@ def _hull_get_entries_from_pickle(
 
         entry = ComputedStructureEntry(structure, total_energy)
         entry.data["volume"] = structure.volume
+        entry.data["formula"] = structure.composition.formula
         entry.data["ID"] = str(row[id_column]) if has_id_column else str(idx)
         entries.append(entry)
 
@@ -1289,6 +1287,7 @@ def hull(args):
                 extra_entry = ComputedStructureEntry(
                     extra_vaspdir.structure, extra_vaspdir.final_energy)
                 extra_entry.data["volume"] = extra_vaspdir.structure.volume
+                extra_entry.data["formula"] = extra_vaspdir.structure.composition.formula
                 extra_entry.data["ID"] = extra_path
                 entries.append(extra_entry)
                 print(f"Added {extra_path}: {extra_entry.energy_per_atom} eV/atom")
@@ -1537,6 +1536,7 @@ def voltage(args):
                 extra_entry = ComputedStructureEntry(
                     extra_vaspdir.structure, extra_vaspdir.final_energy)
                 extra_entry.data["volume"] = extra_vaspdir.structure.volume
+                extra_entry.data["formula"] = extra_vaspdir.structure.composition.formula
                 extra_entry.data["ID"] = extra_path
                 entries.append(extra_entry)
                 print(f"Added {extra_path}: {extra_entry.energy_per_atom} eV/atom")
