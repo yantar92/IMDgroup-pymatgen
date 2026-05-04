@@ -888,6 +888,7 @@ def hull_add_args(parser):
         default=None,
         help="Python expression to filter rows from the pickle DataFrame. "
         "The DataFrame is bound to the name 'df' during evaluation. "
+        "The 'pd' module (pandas) is also available in the eval context. "
         "Example: --filter \"df[df['total_energy'] < -10]\"",
         type=str)
     parser.set_defaults(func_derive=hull)
@@ -1210,8 +1211,10 @@ def _hull_get_entries_from_pickle(
                   If None or missing from the DataFrame, the index is used.
         filter_expr: Optional Python expression to filter the DataFrame.
                      The loaded DataFrame is bound to the name 'df' during
-                     evaluation.  The expression must return a DataFrame (or
-                     array-like indexer).  Example: "df[df['total_energy'] < -10]"
+                     evaluation.  The 'pd' module (pandas) is also available
+                     in the eval context.  The expression must return a
+                     DataFrame (or array-like indexer).
+                     Example: "df[df['total_energy'] < -10]"
 
     Returns:
         List of ComputedStructureEntry objects.
@@ -1220,7 +1223,7 @@ def _hull_get_entries_from_pickle(
 
     n_before = len(df)
     if filter_expr:
-        df = eval(filter_expr, {"df": df})
+        df = eval(filter_expr, {"df": df, "pd": pd})
         print(f"Filter applied: {n_before} -> {len(df)} structures retained")
 
     entries = []
@@ -1483,6 +1486,7 @@ def voltage_add_args(parser):
         default=None,
         help="Python expression to filter rows from the pickle DataFrame. "
         "The DataFrame is bound to the name 'df' during evaluation. "
+        "The 'pd' module (pandas) is also available in the eval context. "
         "Example: --filter \"df[df['total_energy'] < -10]\"",
         type=str)
     parser.add_argument(
