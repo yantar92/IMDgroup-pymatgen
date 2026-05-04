@@ -791,6 +791,26 @@ def hull_add_args(parser):
       parser: subparser
     """
     parser.help = "Plot formation energy hull from ATAT results"
+    parser.description = (
+        "Read structures and energies from VASP directories (recursively) "
+        "or from a pickle file, compute the formation energy convex hull, "
+        "and save the results to the following files:\n\n"
+        "  formation_en.<format> (default: formation_en.png)\n"
+        "    Phase diagram plot.\n\n"
+        "  formation_en.svg\n"
+        "    Vector version of the plot (saved unless format is svg).\n\n"
+        "  formation_en.txt\n"
+        "    Table of all entries (ground state and above hull), "
+        "space-separated columns:\n"
+        "    ID, Energy, Concentration, Formation Energy (meV/atom), "
+        "Energy above hull (meV/atom), Formula.\n\n"
+        "  formation_en_gs.txt\n"
+        "    Same format, ground-state entries only.\n\n"
+        "  formation_en_min.txt\n"
+        "    Minimum-energy entry per reduced composition, columns:\n"
+        "    ID, Energy, Formation energy (meV/atom), "
+        "Energy above hull (meV/atom), Reduced formula.\n"
+    )
 
     parser.add_argument(
         "--extra_dir",
@@ -1432,6 +1452,19 @@ def voltage_add_args(parser):
       parser: subparser
     """
     parser.help = "Plot voltage profile from ATAT results"
+    parser.description = (
+        "Read structures and energies from VASP directories (recursively) "
+        "or from a pickle file, compute the voltage profile using "
+        "pymatgen's battery analysis tools, and save results to:\n\n"
+        "  voltage.<format> (default: voltage.png)\n"
+        "    Voltage profile plot.\n\n"
+        "  voltage.svg\n"
+        "    Vector version of the plot (saved unless format is svg).\n\n"
+        "  voltage.out\n"
+        "    Voltage profile data, space-separated columns:\n"
+        "    x (working-ion fraction), voltage (V), "
+        "capacity (mAh/g normalised by the most-discharged host).\n"
+    )
 
     parser.add_argument(
         "--ion", default="Li",

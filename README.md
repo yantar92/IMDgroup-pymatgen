@@ -223,12 +223,92 @@ Compare structures or input parameters between directories.
 
 Generate visual summaries of calculations.
 
-    # Visualize NEB trajectory (creates .cif files)
+
+### `neb`
+
+Visualize converged NEB trajectories as CIF files.
+
     imdg visualize neb
-    
-    # Visualize ATAT cluster expansion results (convex hull, residuals)
+
+`imdg visualize neb` scans the directory tree for NEB runs.  For each
+converged NEB run, it writes a `NEB_trajectory_converged.cif` file
+containing all images along the minimum-energy path.
+
+
+### `atat`
+
+Visualise ATAT cluster-expansion results.
+
     # Requires running inside an ATAT directory
-    imdg visualize atat
+    imdg visualize atat [--plot_extra <dirs>] \
+      [--cmin <min>] [--cmax <max>]
+
+Output files (written inside each ATAT directory):
+
+-   **`atat-summary-test.png` / `atat-summary-test.svg`:** Six-panel
+    summary figure (fitted energies, calculated energies,
+    calculated-vs-fitted, fit residuals, sublattice deviation,
+    ECI-vs-cluster-diameter).
+-   **`fit2.out`:** `fit.out` augmented with a `sublattice deviation`
+    column (NaN for unconverged runs or when sublattice flip is
+    detected).
+-   **`<extradir>.out`:** Extra energy points from `--plot_extra` dirs
+    (only when the option is used).
+
+
+### `hull`
+
+Plot a formation-energy convex hull from VASP outputs or a pickle file.
+
+    # From a directory tree of VASP calculations
+    imdg visualize hull . --ion Li [options]
+    
+    # From a pickle file containing a DataFrame with ASE Atoms
+    imdg visualize hull results.pkl --ion Na [options]
+
+Output files (written in the current working directory):
+
+-   **`formation_en.<format>` (default: `formation_en.png`):** Phase
+    diagram plot (density `--dpi`, default 600).  A `formation_en.svg`
+    is also saved unless the requested format is svg.
+-   **`formation_en.txt`:** All entries (both ground state and above
+    hull) in space-separated columns: ID, Energy, Concentration,
+    Formation Energy (meV/atom), Energy above hull (meV/atom),
+    Formula.
+-   **`formation_en_gs.txt`:** Same format, ground-state entries only.
+-   **`formation_en_min.txt`:** Minimum-energy entry per reduced
+    composition: ID, Energy, Formation energy (meV/atom), Energy above
+    hull (meV/atom), Reduced formula.
+
+The command reads entries from VASP directories recursively
+(optionally filtered with `--include` / `--exclude`) or from a pickle
+file.  Pure-element references for both the working ion (`--ion`) and
+the host matrix must be present in the data.
+
+
+### `voltage`
+
+Plot a voltage profile from VASP outputs or a pickle file.
+
+    # From a directory tree of VASP calculations
+    imdg visualize voltage . --ion Li [options]
+    
+    # From a pickle file
+    imdg visualize voltage results.pkl --ion K [options]
+
+Output files (written in the directory specified on the command line):
+
+-   **`voltage.<format>` (default: `voltage.png`):** Voltage profile
+    plot.  A `voltage.svg` is also saved unless the requested format is
+    svg.
+-   **`voltage.out`:** Voltage profile data in space-separated columns:
+    x (working-ion fraction), voltage (V), capacity (mAh/g,
+    normalised by the most-discharged host).
+
+The command uses pymatgen's `InsertionElectrode` machinery on the
+same entry-reading pipeline as `hull`.  The x-axis of the plot can be
+set with `--xaxis` (choices: `frac_x`, `x_form`, `capacity_grav`,
+`capacity_vol`).
 
 
 ## `pmg-insert-molecule`
