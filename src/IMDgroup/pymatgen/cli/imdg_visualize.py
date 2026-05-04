@@ -1220,6 +1220,10 @@ def _hull_get_entries_from_pickle(
         List of ComputedStructureEntry objects.
     """
     df = pd.read_pickle(path)
+    print(f"Read database: {path}")
+    print(df)
+    print(f"Columns: {df.columns}")
+    print(f"Using {id_column} (ids), {structure_column} (structures), {energy_column} (energies)")
 
     n_before = len(df)
     if filter_expr:
