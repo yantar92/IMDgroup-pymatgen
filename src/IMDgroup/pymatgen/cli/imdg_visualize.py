@@ -1485,6 +1485,16 @@ def voltage_add_args(parser):
         "The DataFrame is bound to the name 'df' during evaluation. "
         "Example: --filter \"df[df['total_energy'] < -10]\"",
         type=str)
+    parser.add_argument(
+        "--xaxis", default="frac_x",
+        help="X-axis quantity for the voltage profile plot. "
+        "Options: capacity_grav (gravimetric capacity, mAh/g), "
+        "capacity_vol (volumetric capacity, Ah/l), "
+        "x_form (working ions per formula unit), "
+        "frac_x (atomic fraction of working ion). "
+        "(default: frac_x)",
+        choices=["capacity_grav", "capacity_vol", "x_form", "frac_x"],
+        type=str)
     parser.set_defaults(func_derive=voltage)
 
 
@@ -1546,7 +1556,7 @@ def voltage(args):
     )
 
     # Extract voltage profile data
-    plotter = VoltageProfilePlotter(xaxis='frac_x')
+    plotter = VoltageProfilePlotter(xaxis=args.xaxis)
     x, voltage = plotter.get_plot_data(electrode, term_zero=False)
     capacity = []
     cap_acc = 0
@@ -1581,10 +1591,26 @@ def voltage(args):
         'figure.titlesize': base_sz * 1.2,
     })
 
+    # Choose x-axis data and label based on selected xaxis
+    if args.xaxis == "capacity_grav" or args.xaxis == "capacity":
+        plot_x = df['capacity']
+        xlabel = 'Capacity (mAh/g)'
+    elif args.xaxis == "capacity_vol":
+        plot_x = df['capacity']
+        xlabel = 'Capacity (Ah/l)'
+    elif args.xaxis == "x_form":
+        plot_x = df['x']
+        xlabel = f'x in {args.ion.symbol}<sub>x</sub>Host'
+    elif args.xaxis == "frac_x":
+        plot_x = df['x']
+        xlabel = f'Atomic Fraction of {args.ion.symbol}'
+    else:
+        raise ValueError(f"Unknown xaxis: {args.xaxis}")
+
     plt.figure(figsize=(10, 6))
-    plt.step(df['capacity'], df['voltage'], where='post', color='blue', linewidth=2)
+    plt.step(plot_x, df['voltage'], where='post', color='blue', linewidth=2)
     plt.axhline(y=0, color='gray', linestyle='--', alpha=0.7)
-    plt.xlabel('Capacity (mAh/g)')
+    plt.xlabel(xlabel)
     plt.ylabel(f'Voltage vs. {args.ion.symbol}/{args.ion.symbol}+ (V)')
     plt.title('Voltage Profile')
     plt.grid(alpha=0.3)
