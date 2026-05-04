@@ -981,6 +981,12 @@ def _hull_get_entries_recursively(
         except Exception as e:
             print(f"Skipping {vasp_path}: {str(e)}")
             n_skipped += 1
+        finally:
+            # Free parsed vaspdir data after extracting entry data.
+            # The entry retains the structure and energy; the heavy
+            # cached vasprun.xml / OUTCAR data can be released.
+            vaspdir.reset()
+            vaspdirs[vasp_path] = None  # also drop vaspdir ref from dict
 
     print(f"Read {len(vaspdirs)} runs")
     print(f"Skipped: {n_skipped}")
@@ -1321,6 +1327,8 @@ def hull(args):
                 print(f"Added {extra_path}: {extra_entry.energy_per_atom} eV/atom")
             except Exception as ex:
                 print(f"Skipping {extra_path}: {str(ex)}")
+            finally:
+                extra_vaspdir.reset()
 
     # Validate that pure element entries exist for both ion and matrix.
     pure_ion_entries = [
@@ -1583,6 +1591,8 @@ def voltage(args):
                 print(f"Added {extra_path}: {extra_entry.energy_per_atom} eV/atom")
             except Exception as ex:
                 print(f"Skipping {extra_path}: {str(ex)}")
+            finally:
+                extra_vaspdir.reset()
 
     # Find pure working ion entry from collected data
     pure_ion_entries = [
