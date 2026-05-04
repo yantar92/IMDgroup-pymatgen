@@ -803,13 +803,15 @@ def hull_add_args(parser):
         "    Table of all entries (ground state and above hull), "
         "space-separated columns:\n"
         "    ID, Energy, Concentration, Formation Energy (meV/atom), "
-        "Energy above hull (meV/atom), Formula.\n\n"
+        "Energy above hull (meV/atom), "
+        "Decomposition energy (meV/atom), Formula.\n\n"
         "  formation_en_gs.txt\n"
         "    Same format, ground-state entries only.\n\n"
         "  formation_en_min.txt\n"
         "    Minimum-energy entry per reduced composition, columns:\n"
         "    ID, Energy, Formation energy (meV/atom), "
-        "Energy above hull (meV/atom), Reduced formula.\n"
+        "Energy above hull (meV/atom), "
+        "Decomposition energy (meV/atom), Reduced formula.\n"
     )
 
     parser.add_argument(
@@ -1014,6 +1016,8 @@ def _hull_plot_custom_phase_diagram(
         "Energy above hull (meV/atom)": (
             phd.get_e_above_hull(entry) * energy_mult
             if phd.get_e_above_hull(entry) is not None else None),
+        "Decomposition energy (meV/atom)": (
+            phd.get_phase_separation_energy(entry) * energy_mult),
         'Formula': entry.data['formula'],
     } for entry, coords in unstable_entries.items()
       if phd.get_e_above_hull(entry) is not None
@@ -1026,6 +1030,8 @@ def _hull_plot_custom_phase_diagram(
         "Energy above hull (meV/atom)": (
             phd.get_e_above_hull(entry) * energy_mult
             if phd.get_e_above_hull(entry) is not None else None),
+        "Decomposition energy (meV/atom)": (
+            phd.get_phase_separation_energy(entry) * energy_mult),
         'Formula': entry.data['formula'],
     } for coords, entry in stable_entries.items()]
     data.extend(stable_data)
@@ -1052,6 +1058,8 @@ def _hull_plot_custom_phase_diagram(
                     phd.get_form_energy_per_atom(entry) * energy_mult),
                 "Energy above hull (meV/atom)": (
                     phd.get_e_above_hull(entry) * energy_mult),
+                "Decomposition energy (meV/atom)": (
+                    phd.get_phase_separation_energy(entry) * energy_mult),
                 "Reduced formula": entry.reduced_formula,
             })
         df = pd.DataFrame(min_entries)
