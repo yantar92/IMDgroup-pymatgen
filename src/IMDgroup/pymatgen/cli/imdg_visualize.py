@@ -1546,7 +1546,7 @@ def voltage(args):
     )
 
     # Extract voltage profile data
-    plotter = VoltageProfilePlotter(xaxis='x_form')
+    plotter = VoltageProfilePlotter(xaxis='frac_x')
     x, voltage = plotter.get_plot_data(electrode, term_zero=False)
     capacity = []
     cap_acc = 0
