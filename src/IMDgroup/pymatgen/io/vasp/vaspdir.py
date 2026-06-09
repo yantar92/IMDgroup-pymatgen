@@ -38,6 +38,7 @@ import itertools
 import tempfile
 import pickle
 import signal
+import sys
 import gzip, threading, atexit, time
 import numpy as np
 from pathlib import Path
@@ -75,7 +76,9 @@ def timeout_handler(signum, frame):
     raise TimeoutException
 
 
-signal.signal(signal.SIGALRM, timeout_handler)
+HAS_SIGALRM = sys.platform != 'win32'
+if HAS_SIGALRM:
+    signal.signal(signal.SIGALRM, timeout_handler)
 
 # Rewriting the original VaspDir/PMGDir class to add caching, dumping,
 # and other goodies.
@@ -520,14 +523,16 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
                 # See https://github.com/materialsproject/pymatgen/issues/4550
                 # or just because of IO issues on cluster
                 # avoid being stuck and simply signal failure then.
-                signal.alarm(self.TIMEOUT)
+                if HAS_SIGALRM:
+                    signal.alarm(self.TIMEOUT)
                 try:
                     # Standard parsing for all files
                     try:
                         obj = cls_.from_file(path / item)
                     except AttributeError:
                         obj = cls_(path / item)
-                    signal.alarm(0)
+                    if HAS_SIGALRM:
+                        signal.alarm(0)
                     self._parsed_files[item] = obj
                     self._dump_to_cache()
                     return obj
