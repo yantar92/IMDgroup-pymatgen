@@ -568,6 +568,45 @@ def structure_matches(
     return False
 
 
+def structure_remove_duplicates(
+        structs: list[Structure | None],
+        cmp_fun=None,
+        warn=False,
+        multithread=False):
+    """Remove duplicate structures from a list.
+
+    Uses structure_matches to test each structure against previously
+    kept structures.  The first occurrence of each unique structure is
+    kept; subsequent duplicates are discarded.  None entries are passed
+    through unchanged.
+
+    Args:
+        structs: List of structures to deduplicate.
+        cmp_fun: Comparison function passed to structure_matches.
+            Defaults to None, which uses StructureMatcher with
+            attempt_supercell=True and scale=False.
+        warn: When True, emit StructureDuplicateWarning for each
+            duplicate found.
+        multithread: When True, use multiprocessing (cpu_count - 1
+            workers).  When an integer, use that many workers (capped
+            at available CPUs).
+
+    Returns:
+        list[Structure | None]: Input list with duplicates removed,
+        preserving order.
+    """
+    result: list[Structure | None] = []
+    for struct in structs:
+        if struct is None:
+            result.append(None)
+        elif not structure_matches(struct, result,
+                                   cmp_fun=cmp_fun,
+                                   warn=warn,
+                                   multithread=multithread):
+            result.append(struct)
+    return result
+
+
 def structure_perturb(
         structure: Structure,
         distance: float,
