@@ -4,3 +4,5 @@ flycheck_*
 /.venv/
 /build/
 .aider*
+docs/_build/
+docs/_generated/

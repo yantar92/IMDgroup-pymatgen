@@ -36,6 +36,11 @@ homepage = "https://www.oimalyi.org/"
 
 [project.optional-dependencies]
 dev = ["python-lsp-server[all]"]
+docs = [
+    "sphinx>=7.0",
+    "sphinx-rtd-theme>=2.0",
+    "autodocsumm>=0.2",
+]
 
 [project.scripts]
 pmg-insert-molecule = "IMDgroup.pymatgen.transformations.insert_molecule_cli:main"
@@ -45,6 +50,7 @@ imdg = "IMDgroup.pymatgen.cli.imdg:main"
 exclude = ["tests"]
 where = ["src/"]
 include = [
+	"IMDgroup.pymatgen",
 	"IMDgroup.pymatgen.*",
         "IMDgroup",
         ]
