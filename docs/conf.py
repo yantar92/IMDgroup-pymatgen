@@ -27,6 +27,7 @@ extensions = [
     "sphinx.ext.viewcode",
     "sphinx.ext.intersphinx",
     "autodocsumm",
+    "myst_parser",
 ]
 
 # Napoleon settings (Google-style docstrings)
@@ -61,7 +62,7 @@ intersphinx_mapping = {
 templates_path = ["_templates"]
 
 # Source suffix
-source_suffix = ".rst"
+source_suffix = {".rst": "restructuredtext", ".md": "markdown"}
 master_doc = "index"
 
 # Patterns to exclude

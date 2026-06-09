@@ -5,6 +5,8 @@
 This package provides a set of add-ons and helpers for [[https://pymatgen.org/][pymatgen]],
 tailored to research performed in the [[https://www.oimalyi.org/][Inverse Materials Design group]].
 
+API Documentation: [[https://yantar92.github.io/IMDgroup-pymatgen/]]
+
 * Key Features & Optimizations
 
 ** Optimized for High-Throughput (Caching)
