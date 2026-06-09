@@ -524,7 +524,9 @@ def structure_matches(
     (default: None - use StructureMatcher.fit).  It must accept two arguments
     - structures to compare.
     When WARN is True, display warning when duplicate is found.
-    When MULTITHREAD is True, use multithreading.
+    When MULTITHREAD is True, use multithreading, allocating maximum
+    number of processors - 1.  When MULTITHREAD is a number, allocate
+    that many processors, but no more than available.
     """
     if cmp_fun is None:
         cmp_fun = StructureMatcher(attempt_supercell=True, scale=False).fit
@@ -542,12 +544,16 @@ def structure_matches(
                 StructureDuplicateWarning
             )
 
-    if multithread:
+    if multithread is not False:
         global _global_worker
         _global_worker = cmp_fun
         cpus = int(os.environ.get(
             'SLURM_CPUS_ON_NODE',
             multiprocessing.cpu_count()))
+        # experimental: leave some buffer to avoid process being stuck
+        cpus = min(1, cpus - 1)
+        if isinstance(multithread, int):
+            cpus = min(multithread, cpus)
         with Pool(processes=cpus) as pool:
             tasks = [(struct, known) for known in known_structs]
             for idx, is_match in enumerate(pool.imap(_worker_wrapper, tasks)):
