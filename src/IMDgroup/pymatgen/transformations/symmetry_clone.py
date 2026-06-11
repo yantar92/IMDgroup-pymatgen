@@ -117,10 +117,17 @@ class SymmetryFillTransformation(AbstractTransformation):
 
 
 def apply_operation_keep_lattice(structure, op):
-    """Apply OP to STRUCTURE, keeping lattice vectors unchanged.
-    Return modified copy of the structure.
-    The modified structure will have atom-to-atom match and all the
-    frac_coords normalized within 0..1 range.
+    """Apply a symmetry operation while preserving lattice vectors.
+
+    The modified structure will have atom-to-atom match and all
+    fractional coordinates normalized within 0..1 range.
+
+    Args:
+        structure: Structure to transform.
+        op: SymmOp to apply.
+
+    Returns:
+        Structure: Modified copy with unchanged lattice.
     """
     tmp = structure.copy()
     tmp.apply_operation(op, fractional=True)

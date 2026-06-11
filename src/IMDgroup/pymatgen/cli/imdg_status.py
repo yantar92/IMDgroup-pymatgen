@@ -53,6 +53,14 @@ logger = logging.getLogger(__name__)
 def custom_showwarning(
         message, category, _filename, _lineno, file=None, _line=None):
     """Print warning in nicer way.
+
+    Args:
+        message: Warning message.
+        category: Warning category class.
+        _filename: File where the warning originated (unused).
+        _lineno: Line number (unused).
+        file: Output stream (default: stderr).
+        _line: Line context (unused).
     """
     output = colored(
         f"{category.__name__}: ",
@@ -78,7 +86,14 @@ def _slurm_get_queue():
 
 
 def slurm_runningp(path):
-    """Is slurm running in DIR?
+    """Check whether a Slurm job is running in the given directory.
+
+    Args:
+        path: Directory path to check.
+
+    Returns:
+        bool: True if a Slurm job is running in ``path`` or a
+        parent NEB directory.
     """
     result = _slurm_get_queue()
     if result and os.path.abspath(path) in [s.decode('utf-8') for s in result]:
@@ -145,7 +160,14 @@ def add_args(parser):
 
 
 def print_seconds(seconds):
-    """Print SECONDS in human-readable form.
+    """Convert a duration in seconds to a human-readable string.
+
+    Args:
+        seconds: Duration in seconds.  Negative values produce
+            relative past-time strings.
+
+    Returns:
+        str: Human-readable duration (e.g. ``"in 2h 30m"``).
     """
     if seconds == 0:
         return "now"
@@ -173,8 +195,15 @@ def print_seconds(seconds):
 
 
 def vasp_output_time(path):
-    """Return last VASP output modification time in PATH.
-    If no VASP output is found, return None.
+    """Return last VASP output modification time.
+
+    Args:
+        path: VASP directory path.
+
+    Returns:
+        float | None: Modification timestamp, or None if no VASP
+        output file is found.  For NEB calculations, the maximum
+        timestamp across all image directories is returned.
     """
     vaspdir = IMDGVaspDir(path)
     if vaspdir.nebp:
@@ -266,7 +295,14 @@ def _get_neb_summary(vaspdir: IMDGVaspDir) -> str:
 
 
 def status(args):
-    """Run the status subcommand."""
+    """Run the status subcommand.
+
+    Args:
+        args: Parsed command-line arguments from argparse.
+
+    Returns:
+        int: Exit code (0 on success).
+    """
     def include_dirp(p):
         p = str(p)
         if args.exclude is not None and re.search(args.exclude, p):

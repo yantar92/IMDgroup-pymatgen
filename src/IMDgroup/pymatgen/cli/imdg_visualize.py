@@ -94,8 +94,9 @@ def add_args(parser):
 
 def neb_add_args(parser):
     """Setup parser arguments for neb visualization.
+
     Args:
-      parser: subparser
+        parser: Subparser from argparse.
     """
     parser.help = "Visualize NEB outputs"
     parser.set_defaults(func_derive=neb)
@@ -103,6 +104,12 @@ def neb_add_args(parser):
 
 def neb(args):
     """Create NEB visualization.
+
+    Args:
+        args: Parsed command-line arguments from argparse.
+
+    Returns:
+        int: Exit code (0 on success).
     """
     for wdir, subdirs, _ in os.walk(args.dir):
         subdirs.sort()  # this will make loop go in order
@@ -128,15 +135,19 @@ def neb(args):
 
 def selective_dynamics_add_args(parser):
     """Setup parser arguments for selective dynamics visualization.
+
     Args:
-      parser: subparser
+        parser: Subparser from argparse.
     """
     parser.help = "Visualize selective dynamics for POSCAR files"
     parser.set_defaults(func_derive=selective_dynamics)
 
 
 def selective_dynamics(args):
-    """Visualize selective_dynamics.
+    """Visualize selective dynamics.
+
+    Args:
+        args: Parsed command-line arguments from argparse.
     """
     for parent, subdirs, files in os.walk(args.dir):
         subdirs.sort()  # this will make loop go in order
@@ -152,8 +163,9 @@ def selective_dynamics(args):
 
 def atat_add_args(parser):
     """Setup parser arguments for ATAT visualization.
+
     Args:
-      parser: subparser
+        parser: Subparser from argparse.
     """
     parser.help = "Visualize ATAT outputs"
     parser.add_argument(
@@ -777,6 +789,12 @@ def _atat_1(
 
 def atat(args):
     """Create ATAT visualization.
+
+    Args:
+        args: Parsed command-line arguments from argparse.
+
+    Returns:
+        int: Exit code (0 on success).
     """
     _atat_1(
         args.dir, args.plot_extra, args.plot_extra_threshold,
@@ -788,8 +806,9 @@ def atat(args):
 
 def hull_add_args(parser):
     """Setup parser arguments for formation energy hull visualization.
+
     Args:
-      parser: subparser
+        parser: Subparser from argparse.
     """
     parser.help = "Plot formation energy hull from ATAT results"
     parser.description = (
@@ -1282,6 +1301,12 @@ def _hull_get_entries_from_pickle(
 
 def hull(args):
     """Plot formation energy hull from ATAT results.
+
+    Args:
+        args: Parsed command-line arguments from argparse.
+
+    Returns:
+        int: Exit code (0 on success, 1 on error).
     """
     path = Path(args.dir)
 
@@ -1465,8 +1490,9 @@ def hull(args):
 
 def voltage_add_args(parser):
     """Setup parser arguments for voltage profile visualization.
+
     Args:
-      parser: subparser
+        parser: Subparser from argparse.
     """
     parser.help = "Plot voltage profile from ATAT results"
     parser.description = (
@@ -1557,6 +1583,15 @@ def voltage_add_args(parser):
 
 def voltage(args):
     """Plot voltage profile from ATAT results using pymatgen's battery analysis tools.
+
+    Args:
+        args: Parsed command-line arguments from argparse.
+
+    Returns:
+        int: Exit code (0 on success).
+
+    Raises:
+        ValueError: If no pure working-ion entry is found in the data.
     """
     path = Path(args.dir)
 
@@ -1690,5 +1725,12 @@ def voltage(args):
 
 
 def visualize(args):
-    """Run the visualize subcommand."""
+    """Run the visualize subcommand.
+
+    Args:
+        args: Parsed command-line arguments from argparse.
+
+    Returns:
+        int: Exit code from the selected sub-function.
+    """
     return args.func_derive(args)

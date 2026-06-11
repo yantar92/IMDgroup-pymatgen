@@ -113,7 +113,11 @@ def setup_logger(args):
 
 
 def main():
-    """Entry point for the ``pmg-insert-molecule`` command."""
+    """Entry point for the ``pmg-insert-molecule`` command.
+
+    Returns:
+        int: Exit code (0 on success).
+    """
 
     args = get_args()
     os.makedirs(args.output_dir, exist_ok=True)

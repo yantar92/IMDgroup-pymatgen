@@ -46,8 +46,9 @@ logger = logging.getLogger(__name__)
 
 def structure_add_args(parser):
     """Setup parser arguments for structure comparison.
+
     Args:
-      parser: subparser
+        parser: Subparser from argparse.
     """
     parser.help = "Compare VASP structures from VASP outputs or from POSCARs"
     parser.set_defaults(func_diff=diff_structures)
@@ -161,6 +162,9 @@ def _copy_structures_to(structures, directory):
 
 def diff_structures(args):
     """Compare structures.
+
+    Args:
+        args: Parsed command-line arguments from argparse.
     """
     args.dirs = [d for d in args.dirs if os.path.isdir(d)]
     structures = _read_structures(sorted(args.dirs), args.poscar, args.vasprun)
@@ -222,8 +226,9 @@ def diff_structures(args):
 
 def incar_add_args(parser):
     """Setup parser arguments for incar comparison.
+
     Args:
-      parser: subparser
+        parser: Subparser from argparse.
     """
     parser.help = "Compare INCARs from VASP dirs"
     parser.set_defaults(func_diff=diff_incar)
@@ -300,6 +305,13 @@ def add_args(parser):
 
 
 def diff(args):
-    """Run the diff subcommand."""
+    """Run the diff subcommand.
+
+    Args:
+        args: Parsed command-line arguments from argparse.
+
+    Returns:
+        int: Exit code (0 on success).
+    """
     args.func_diff(args)
     return 0

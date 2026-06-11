@@ -87,7 +87,11 @@ def setup_logger(args):
         logging.info("Setting debug level to: INFO (writing to file)")
 
 def main():
-    """Entry point for the ``imdg`` command."""
+    """Entry point for the ``imdg`` command.
+
+    Returns:
+        int: Exit code from the selected subcommand.
+    """
     parser = argparse.ArgumentParser(
         description="""
         imdg is a script to generate and analyze VASP inputs/outputs.

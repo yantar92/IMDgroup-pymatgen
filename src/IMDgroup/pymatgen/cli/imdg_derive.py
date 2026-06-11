@@ -157,6 +157,16 @@ Write them to <prefix><output name><subdir>."""
 
 def _str_to_bool(value):
     """Convert string value to boolean.
+
+    Args:
+        value: String to convert.
+
+    Returns:
+        bool: Converted value.
+
+    Raises:
+        argparse.ArgumentTypeError: If the value is not a recognised
+            boolean string.
     """
     if value.lower() in ['true', '1', 'yes']:
         return True
@@ -167,8 +177,9 @@ def _str_to_bool(value):
 
 def perturb_add_args(parser):
     """Setup parser arguments for perturb.
+
     Args:
-      parser: subparser
+        parser: Subparser from argparse.
     """
     parser.help = "Created perturbed input"
     parser.set_defaults(func_derive=perturb)
@@ -188,8 +199,13 @@ def perturb_add_args(parser):
 
 
 def perturb(args):
-    """Create perturbed input
-    Return {'inputsets': [<inputset>]}
+    """Create perturbed input.
+
+    Args:
+        args: Parsed command-line arguments from argparse.
+
+    Returns:
+        dict: ``{'inputsets': [<inputset>]}``.
     """
     inputset = IMDDerivedInputSet(
         directory=args.input_directory,
@@ -208,8 +224,9 @@ def perturb(args):
 
 def strain_add_args(parser):
     """Setup parser arguments for strain.
+
     Args:
-      parser: subparser
+        parser: Subparser from argparse.
     """
     parser.help = "Created strained input"
     parser.set_defaults(func_derive=strain)
@@ -246,8 +263,13 @@ def strain_add_args(parser):
 
 
 def strain(args):
-    """Create strained input
-    Return {'inputsets': <list of inputsets>}
+    """Create strained input.
+
+    Args:
+        args: Parsed command-line arguments from argparse.
+
+    Returns:
+        dict: ``{'inputsets': <list of inputsets>}``.
     """
     inputset = IMDDerivedInputSet(
         directory=args.input_directory,
@@ -299,8 +321,9 @@ def strain(args):
 
 def relax_add_args(parser):
     """Setup parser arguments for relax.
+
     Args:
-      parser: subparser
+        parser: Subparser from argparse.
     """
     parser.help = "Create relaxation input"
     parser.set_defaults(func_derive=relax)
@@ -327,7 +350,12 @@ def relax_add_args(parser):
 
 def relax(args):
     """Create relaxation setup.
-    Return {'inputsets': [inputset]}
+
+    Args:
+        args: Parsed command-line arguments from argparse.
+
+    Returns:
+        dict: ``{'inputsets': [inputset]}``.
     """
     relax_overrides = {
         "ISTART": 0,
@@ -369,8 +397,9 @@ def relax(args):
 
 def supercell_add_args(parser):
     """Setup parser arguments for supercell.
+
     Args:
-      parser: subparser
+        parser: Subparser from argparse.
     """
     parser.help = "Create supercell from input (rescaling k-points)"
     parser.set_defaults(func_derive=supercell)
@@ -388,7 +417,12 @@ def supercell_add_args(parser):
 
 def supercell(args):
     """Create supercell.
-    Return {'inputsets': [<inputset>]}
+
+    Args:
+        args: Parsed command-line arguments from argparse.
+
+    Returns:
+        dict: ``{'inputsets': [<inputset>]}``.
     """
     inputset = IMDDerivedInputSet(
         directory=args.input_directory,
@@ -404,8 +438,9 @@ def supercell(args):
 
 def functional_add_args(parser):
     """Setup parser arguments for functional.
+
     Args:
-      parser: subparser
+        parser: Subparser from argparse.
     """
     parser.help = "Create input with a given functional"
     parser.set_defaults(func_derive=functional)
@@ -421,7 +456,12 @@ def functional_add_args(parser):
 
 def functional(args):
     """Create custom functional setup.
-    Return {'inputsets': [inputset]}
+
+    Args:
+        args: Parsed command-line arguments from argparse.
+
+    Returns:
+        dict: ``{'inputsets': [inputset]}``.
     """
     inputset = IMDDerivedInputSet(
         directory=args.input_directory,
@@ -434,8 +474,9 @@ def functional(args):
 
 def fix_add_args(parser):
     """Setup parser arguments for selective dynamics.
+
     Args:
-      parser: subparser
+        parser: Subparser from argparse.
     """
     parser.help = "Apply selective dynamics constraints to species"
     parser.set_defaults(func_derive=fix)
@@ -454,7 +495,15 @@ def fix_add_args(parser):
 
 def fix(args):
     """Apply selective dynamics constraints.
-    Return {'inputsets': [inputset]}
+
+    Args:
+        args: Parsed command-line arguments from argparse.
+
+    Returns:
+        dict: ``{'inputsets': [inputset]}``.
+
+    Raises:
+        ValueError: If constraints cannot be parsed as a valid Python dict.
     """
     import ast
     inputset = IMDDerivedInputSet(
@@ -509,8 +558,9 @@ def fix(args):
 
 def incar_add_args(parser):
     """Setup parser arguments for incar.
+
     Args:
-      parser: subparser
+        parser: Subparser from argparse.
     """
     parser.help = "Modify incar"
     parser.set_defaults(func_derive=incar)
@@ -523,7 +573,12 @@ def incar_add_args(parser):
 
 def incar(args):
     """Create custom incar setup.
-    Return {'inputsets': [inputset]}
+
+    Args:
+        args: Parsed command-line arguments from argparse.
+
+    Returns:
+        dict: ``{'inputsets': [inputset]}``.
     """
     incar_overrides = {}
     if args.parameters is None:
@@ -550,8 +605,9 @@ def incar(args):
 
 def kpoints_add_args(parser):
     """Setup parser arguments for kpoints.
+
     Args:
-      parser: subparser
+        parser: Subparser from argparse.
     """
     parser.help = "Create input with custom kpoints settings"
     parser.set_defaults(func_derive=kpoints)
@@ -571,7 +627,12 @@ def kpoints_add_args(parser):
 
 def kpoints(args):
     """Create custom kpoints setup.
-    Return {'inputsets': [inputset]}
+
+    Args:
+        args: Parsed command-line arguments from argparse.
+
+    Returns:
+        dict: ``{'inputsets': [inputset]}``.
     """
     density = None if args.grid else {'grid_density': args.density}
     inputset = IMDDerivedInputSet(
@@ -591,8 +652,9 @@ def kpoints(args):
 
 def scf_add_args(parser):
     """Setup parser arguments for SCF calculation.
+
     Args:
-      parser: subparser
+        parser: Subparser from argparse.
     """
     parser.help = "Create input for SCF calculation"
     parser.set_defaults(func_derive=scf)
@@ -600,7 +662,12 @@ def scf_add_args(parser):
 
 def scf(args):
     """Create SCF setup.
-    Return {'inputsets': [inputset]}
+
+    Args:
+        args: Parsed command-line arguments from argparse.
+
+    Returns:
+        dict: ``{'inputsets': [inputset]}``.
     """
     inputset = IMDDerivedInputSet(
         directory=args.input_directory,
@@ -616,8 +683,9 @@ def scf(args):
 
 def insert_add_args(parser):
     """Setup parser arguments for inserting an atom/molecule.
+
     Args:
-      parser: subparser
+        parser: Subparser from argparse.
     """
     parser.help = \
         """Create possible structures with a given atom/molecule inserted.
@@ -667,7 +735,12 @@ When negative number, use random sampling instead of scanning a grid""",
 
 def insert(args):
     """Create setup for inserted molecules/atoms.
-    Return {'inputsets': [<list of inputsets>]}
+
+    Args:
+        args: Parsed command-line arguments from argparse.
+
+    Returns:
+        dict: ``{'inputsets': [<list of inputsets>]}``.
     """
     inputset = IMDDerivedInputSet(
         directory=args.input_directory,
@@ -710,8 +783,9 @@ def insert(args):
 
 def delete_add_args(parser):
     """Setup parser arguments for deleting a site.
+
     Args:
-      parser: subparser
+        parser: Subparser from argparse.
     """
     parser.help = "Delete sites/atoms from structure"
     parser.set_defaults(func_derive=delete)
@@ -724,7 +798,12 @@ def delete_add_args(parser):
 
 def delete(args):
     """Delete a site/sites from structure.
-    Return {'inputsets': [inputset]}
+
+    Args:
+        args: Parsed command-line arguments from argparse.
+
+    Returns:
+        dict: ``{'inputsets': [inputset]}``.
     """
     inputset = IMDDerivedInputSet(
         directory=args.input_directory,
@@ -740,8 +819,9 @@ def delete(args):
 
 def fill_add_args(parser):
     """Setup parser arguments for filling sites.
+
     Args:
-      parser: subparser
+        parser: Subparser from argparse.
     """
     parser.help = "Fill in all possible inserttion sites and output structure"
     parser.set_defaults(func_derive=fill)
@@ -771,9 +851,16 @@ def fill_add_args(parser):
 
 def fill(args):
     """Create a structure file with all insertion sites filled.
+
     Take prototype structure and a set of relaxed configurations with
     inserted atoms and generate a structure with all possible sites
     for insertions completely filled.
+
+    Args:
+        args: Parsed command-line arguments from argparse.
+
+    Returns:
+        dict: ``{'inputsets': [inputset]}``.
     """
     logger.info("Reading prototype from %s", args.input_directory)
     if os.path.isdir(args.input_directory):
@@ -835,8 +922,9 @@ def fill(args):
 
 def atat_add_args(parser):
     """Setup parser arguments for ATAT input.
+
     Args:
-      parser: subparser
+        parser: Subparser from argparse.
     """
     parser.help = """Create ATAT VASP input from str.out
 If INCAR is present use it instead of parent dir."""
@@ -854,8 +942,18 @@ If INCAR is present use it instead of parent dir."""
 
 def atat(args):
     """Create ATAT input according to str.out.
+
     Preserve selective dynamics settings from the original POSCAR.
-    Return {'inputsets': [inputset]}
+
+    Args:
+        args: Parsed command-line arguments from argparse.
+
+    Returns:
+        dict: ``{'inputsets': [inputset]}``.
+
+    Raises:
+        ValueError: If str.out structure length is inconsistent with
+            POSCAR.
     """
     from pymatgen.io.atat import Mcsqs
     # We manually replace Vac with X instances that can be read by pymatgen.
@@ -937,8 +1035,9 @@ def atat(args):
 
 def neb_add_args(parser):
     """Setup parser arguments for NEB input.
+
     Args:
-      parser: subparser
+        parser: Subparser from argparse.
     """
     parser.help = "Create NEB input between two VASP runs"
     parser.set_defaults(func_derive=neb)
@@ -955,7 +1054,12 @@ def neb_add_args(parser):
 
 def neb(args):
     """Create NEB input.
-    Return {'inputsets': [inputset]}
+
+    Args:
+        args: Parsed command-line arguments from argparse.
+
+    Returns:
+        dict: ``{'inputsets': [inputset]}``.
     """
     inputset = IMDNEBVaspInputSet(
         directory=args.input_directory,
@@ -968,8 +1072,9 @@ def neb(args):
 
 def neb_diffusion_add_args(parser):
     """Setup parser arguments for diffusion NEB input.
+
     Args:
-      parser: subparser
+        parser: Subparser from argparse.
     """
     parser.help =\
         "Create NEB input between multiple VASP runs derived from prototype"
@@ -1033,6 +1138,19 @@ def neb_diffusion_add_args(parser):
 
 
 def __neb_diffusion_get_inputset(idx, beg, end, args, auto_nimages=False):
+    """Create a single NEB input set for a diffusion pair.
+
+    Args:
+        idx: Index for the output directory suffix.
+        beg: Beginning structure of the NEB path.
+        end: Ending structure of the NEB path.
+        args: Parsed command-line arguments from argparse.
+        auto_nimages: When True, compute NIMAGES dynamically from
+            the maximum displacement.
+
+    Returns:
+        IMDNEBVaspInputSet: Configured NEB input set.
+    """
     if auto_nimages:
         # Dynamically compute NIMAGES for best visualization
         diff = structure_diff(beg, end, tol=0, match_first=False)
@@ -1062,6 +1180,16 @@ def __neb_diffusion_get_inputset(idx, beg, end, args, auto_nimages=False):
 
 
 def __neb_diffusion_get_inputsets(pairs, args, auto_nimages=False):
+    """Create NEB input sets for a list of diffusion pairs.
+
+    Args:
+        pairs: List of ``(beg, end)`` structure tuples.
+        args: Parsed command-line arguments from argparse.
+        auto_nimages: When True, compute NIMAGES dynamically.
+
+    Returns:
+        list: List of ``IMDNEBVaspInputSet`` instances.
+    """
     if args.multithread:
         with Pool() as pool:
             result = pool.starmap(
@@ -1126,7 +1254,12 @@ def _append_valid(
 
 def neb_diffusion(args):
     """Create NEB input for all possible diffusion paths.
-    Return {'inputsets': <list of inputsets>}
+
+    Args:
+        args: Parsed command-line arguments from argparse.
+
+    Returns:
+        dict: ``{'inputsets': <list of inputsets>}``.
     """
 
     if args.cutoff != 'auto' and args.cutoff:
@@ -1197,7 +1330,19 @@ def neb_diffusion(args):
 
 
 def derive(args):
-    """Run the derive subcommand."""
+    """Run the derive subcommand.
+
+    Args:
+        args: Parsed command-line arguments from argparse.
+
+    Returns:
+        int: Exit code (0 on success).
+
+    Raises:
+        IOError: If a RUNNING file is found in the input directory
+            and ``--force_running`` is not set.
+        ValueError: If ``--output`` is empty.
+    """
 
     if not args.force_running and\
        (Path(args.input_directory) / 'RUNNING').is_file():

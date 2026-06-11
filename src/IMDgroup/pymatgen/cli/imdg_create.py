@@ -123,7 +123,14 @@ def create_from_atom_name(name, size):
 
 
 def create(args):
-    """Run the create subcommand."""
+    """Run the create subcommand.
+
+    Args:
+        args: Parsed command-line arguments from argparse.
+
+    Returns:
+        int: Exit code (0 on success).
+    """
     if os.path.isfile(args.what):
         structure = create_from_file(args.what)
         inputset = IMDStandardVaspInputSet(structure=structure)

@@ -69,10 +69,19 @@ logger = logging.getLogger(__name__)
 
 
 class TimeoutException(Exception):
-    pass
+    """Raised when a VASP directory read operation times out."""
 
 
 def timeout_handler(signum, frame):
+    """Signal handler that raises TimeoutException.
+
+    Args:
+        signum: Signal number.
+        frame: Current stack frame.
+
+    Raises:
+        TimeoutException: Always raised.
+    """
     raise TimeoutException
 
 

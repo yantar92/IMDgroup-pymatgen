@@ -222,7 +222,14 @@ def _read_field_1(field: str, vaspdir: IMDGVaspDir):
 
 
 def analyze(args):
-    """Run the analysis subcommand."""
+    """Run the analysis subcommand.
+
+    Args:
+        args: Parsed command-line arguments from argparse.
+
+    Returns:
+        int: Exit code (0 on success).
+    """
     if args.short:
         args.exclude_fields += [
             '%a', '%b', '%c',
