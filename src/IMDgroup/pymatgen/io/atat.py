@@ -40,10 +40,19 @@ def check_volume_distortion(
         str_after: Structure,
         # 0.1 is what is done by ATAT in checkcell subroutine
         threshold: float = 0.1) -> bool:
-    """Return False when lattice distortion is too large for STR_BEFORE and STR_AFTER.
-    The lattice distortion is a norm of engineering strain tensor.
-    The distortion is considered "too large" when it is no less than THRESHOLD.
-    The default 0.1 threshold is following ATAT source code.
+    """Check whether lattice distortion between two structures is acceptable.
+
+    The distortion is the norm of the engineering strain tensor.
+    A distortion below ``threshold`` is considered acceptable.
+    The default threshold follows ATAT's ``checkcell`` subroutine.
+
+    Args:
+        str_before: Initial structure.
+        str_after: Deformed structure.
+        threshold: Max allowed distortion (default: 0.1).
+
+    Returns:
+        bool: True if distortion is below threshold, False otherwise.
     """
     strain = structure_strain(str_before, str_after)
     distortion = np.linalg.norm(strain)
@@ -56,15 +65,24 @@ def check_sublattice_flip(
         str_before: Structure,
         str_after: Structure,
         sublattice: Structure) -> bool:
-    """Check if STR_AFTER flipped its SUBLATTICE sites compared to STR_BEFORE.
-    Return True when STR_AFTER occupies the same sublattice configuration as
-    STR_BEFORE.  The SUBLATTICE is full sublattice with all the sites
-    occupied (as per str.in).
+    """Check whether the relaxed sublattice configuration is preserved.
 
-    Note that specie sites that are scanned by cluster expansion must be
-    marked with the same specie name in all the arguments.  For
-    example, if ATAT is running on Li, Vac system, both Li and Vac species
-    should be replaced with, say X dummy specie.
+    Returns True when ``str_after`` occupies the same sublattice
+    configuration as ``str_before``, when compared against the
+    reference ``sublattice``.
+
+    The species scanned by cluster expansion must be marked with the
+    same dummy species name (e.g. X) in all arguments.  For example,
+    in an ATAT Li,Vac system, both Li and Vac should be replaced with
+    X.
+
+    Args:
+        str_before: Structure before relaxation.
+        str_after: Structure after relaxation.
+        sublattice: Full sublattice with all sites occupied (as in str.in).
+
+    Returns:
+        bool: True if the sublattice configuration is preserved.
     """
     # First, scale STR_AFTER lattice to fit STR_BEFORE and SUBLATTICE
     # Assume that STR_BEFORE and SUBLATTICE have the same lattices
@@ -86,10 +104,19 @@ def check_sublattice_flip(
 
 def fit_sublattice_to_structure(
         sublattice: Structure, structure: Structure) -> Structure:
-    """Adjust SUBLATTICE to fit STRUCTURE.  Return the adjusted sublattice.
-    This function is useful to build a new sublattice (str.out) when STRUCTURE
-    flips away (see check_sublattice_flip) from the initial str.out guess.
-    Use 'X' dummy species in place of vacancies.
+    """Adjust a reference sublattice to match a relaxed structure.
+
+    Useful for building a new ``str.out`` when the structure has
+    flipped away from the initial sublattice guess (see
+    :func:`check_sublattice_flip`).  Use ``'X'`` dummy species in place
+    of vacancies.
+
+    Args:
+        sublattice: Reference sublattice (as from str.in).
+        structure: Relaxed structure with possible sublattice flip.
+
+    Returns:
+        Structure: Adjusted sublattice matching the relaxed structure.
     """
     structure = structure.copy()
     # Force the lattice to match.  Needed for get_matched_structure.

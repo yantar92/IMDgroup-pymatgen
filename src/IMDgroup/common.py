@@ -33,20 +33,30 @@ logger = logging.getLogger(__name__)
 
 
 def groupby_cmp(lst, cmp_eq, title_function=None):
-    """Group elements of list LST comparing them using CMP_EQ function.
-    CMP_EQ should take two elements of the list as arguments and
-    return True iff they are equal.
-    Optional TITLE_FUNCTION argument is a function used to generate
-    item name in the logs.
-    Return a list of grouped lists.
+    """Group elements of a list by pairwise comparison.
+
+    Groups consecutive elements using a caller-supplied equality function.
+
+    Args:
+        lst: List of elements to group.
+        cmp_eq: Function that takes two elements and returns True if they
+            should belong to the same group.
+        title_function: Optional function that takes an element and returns
+            a string used in log messages.  When None, "??" is logged.
+
+    Returns:
+        list[list]: List of grouped lists.  Each sublist contains elements
+        that are pairwise equivalent according to cmp_eq.
     """
     groups = []
 
     def _add_to_groups(item):
-        """Add ITEM to groups.
-        If ITEM is not the same with all items in groups,
-        create a separate group.
-        Modifies "groups" by side effect.
+        """Add item to groups, creating a new group if needed.
+
+        Mutates the enclosing ``groups`` list by side effect.
+
+        Args:
+            item: Element to place into an existing or new group.
         """
         in_group = False
         for group in groups:

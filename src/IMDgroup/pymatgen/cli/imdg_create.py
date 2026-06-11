@@ -38,9 +38,10 @@ logger = logging.getLogger(__name__)
 
 
 def add_args(parser):
-    """Setup parser arguments.
+    """Register subcommand arguments.
+
     Args:
-      parser: Sub-parser.
+        parser: Sub-parser from argparse.
     """
     parser.help = """Create new VASP inputs from scratch."""
 
@@ -58,8 +59,14 @@ def add_args(parser):
 
 
 def create_from_mpid(mpid):
-    """Return structure from materials project id.
-    Structure will have property 'mpid' set to its id."""
+    """Fetch and standardise a structure from Materials Project.
+
+    Args:
+        mpid: Materials Project ID (e.g. ``mp-48``).
+
+    Returns:
+        Structure with the ``mpid`` property set.
+    """
     structure = pmg.Structure.from_id(mpid)
     structure.properties['mpid'] = mpid
     logger.info(
@@ -82,7 +89,13 @@ def create_from_mpid(mpid):
 
 
 def create_from_file(path):
-    """Return structure created from file.
+    """Load a structure from a file.
+
+    Args:
+        path: Path to a structure file readable by pymatgen.
+
+    Returns:
+        Structure.
     """
     structure = pmg.Structure.from_file(path)
     logger.info(
@@ -93,8 +106,14 @@ def create_from_file(path):
 
 
 def create_from_atom_name(name, size):
-    """Return periodic structure with atom NAME in the middle.
-    Structure dimentions are defined in SIZE vector.
+    """Create a boxed periodic structure with a single atom centred.
+
+    Args:
+        name: Element symbol.
+        size: 3-tuple of cell dimensions in Angstrom.
+
+    Returns:
+        Structure: Boxed structure containing a single atom.
     """
     logger.info(
         "Creating %fx%fx%f supercell for %s",
@@ -104,8 +123,7 @@ def create_from_atom_name(name, size):
 
 
 def create(args):
-    """Main routine.
-    """
+    """Run the create subcommand."""
     if os.path.isfile(args.what):
         structure = create_from_file(args.what)
         inputset = IMDStandardVaspInputSet(structure=structure)

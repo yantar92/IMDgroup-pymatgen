@@ -137,13 +137,11 @@ def _read_structures(dir_list, force_poscar=False, force_vasprun=False):
 
 
 def _copy_structures_to(structures, directory):
-    """Copy directories containing STRUCTURES to DIRECTORY.
+    """Copy source directories of structures to a target directory.
+
     Args:
-      structures (list[Structure]):
-        List of structures.  Each member of the list must have its
-        'source_dir' propety set.
-      directory (str):
-        Directory to copy source dirs to.
+        structures: List of structures, each with a ``'source_dir'`` property.
+        directory: Target directory to copy source directories into.
     """
     source_dirs = [s.properties['source_dir'] for s in structures]
     subdirs = []
@@ -278,9 +276,10 @@ def diff_incar(args):
 
 
 def add_args(parser):
-    """Setup parser arguments.
+    """Register subcommand arguments.
+
     Args:
-      parser: Sub-parser.
+        parser: Sub-parser from argparse.
     """
     parser.help = """Compare VASP inputs/outputs."""
 
@@ -301,7 +300,6 @@ def add_args(parser):
 
 
 def diff(args):
-    """Main routine.
-    """
+    """Run the diff subcommand."""
     args.func_diff(args)
     return 0

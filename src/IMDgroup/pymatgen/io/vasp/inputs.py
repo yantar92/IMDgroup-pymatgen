@@ -55,12 +55,13 @@ def _load_yaml_config(fname):
 
 
 class Incar(pmgIncar):
-    """Modified version of pymatgen's Incar class, which see.
+    """Modified version of pymatgen's Incar class.
+
     Extensions:
-    1. Readable constants for Incar values.
-    2. Warn when IBRION=-1 and NSW>0 (see
-       https://www.vasp.at/wiki/index.php/IBRION)
-    3. Add methods to retreieve standard setting combinations
+
+    1. Readable constants for INCAR values (ISIF_*, IBRION_*).
+    2. Warning when ``IBRION=-1`` and ``NSW>0`` (useless combination).
+    3. Methods to retrieve standard setting combinations.
     """
 
     # ISIF values
@@ -87,10 +88,15 @@ class Incar(pmgIncar):
         IBRION_IONIC_RELAX_DAMPED_MD]
 
     def image_dir_names(self, include_ends: bool = True) -> list[str] | None:
-        """Return a list of NEB image dir names.
-        Return None when IMAGES parameter is not set.
-        When INCLUDE_ENDS is False, do not include the very first (00)
-        and the very last images.
+        """Return directory names for NEB images.
+
+        Args:
+            include_ends: When False, exclude the first (``00``) and
+                last image directories.
+
+        Returns:
+            list[str] | None: Sorted list of directory names, or None
+            when ``IMAGES`` is not set in the INCAR.
         """
         if nimages := self.get('IMAGES'):
             rng = range(0, nimages + 2)
@@ -120,11 +126,20 @@ class Incar(pmgIncar):
 
     @staticmethod
     def get_recipe(setup: str, name: str):
-        """Retrieve INCAR settings for SETUP with NAME.
-        setup can be:
-        1. "functional" to retrieve functional setup from names
-           PBE, PBEsol, PBE+D2, PBE+TS, vdW-DF, vdW-DF2, optB88-vdW,
-           optB86b-vdW .
+        """Retrieve INCAR settings for a given setup and name.
+
+        Args:
+            setup: ``"functional"`` to retrieve functional settings.
+            name: Functional name.  Supported values: PBE, PBEsol,
+                PBE+D2, PBE+TS, vdW-DF, vdW-DF2, optB88-vdW,
+                optB86b-vdW.
+
+        Returns:
+            dict: INCAR parameter dictionary.
+
+        Raises:
+            KeyError: If ``name`` is not a supported functional.
+            ValueError: If ``setup`` is unknown.
         """
         settings = None
         if setup == "functional":
@@ -145,9 +160,19 @@ class Incar(pmgIncar):
 
     @staticmethod
     def group_incars(incars, ignore_fields=['SYSTEM', 'NELM', 'NELMIN', 'ALGO', 'SYMPREC']):
-        """Group similar incars together.
-        Returns: (common_incar, [[group1] [group2] ...]).
-        Ignore differences in IGNORE_FILEDS.
+        """Group similar INCARs together.
+
+        Differences in ``ignore_fields`` are not considered when
+        comparing INCARs.
+
+        Args:
+            incars: List of Incar objects.
+            ignore_fields: INCAR keys to ignore when grouping.
+
+        Returns:
+            tuple: ``(common_incar, groups)`` where ``common_incar`` is
+            an Incar with parameters shared by all groups, and
+            ``groups`` is a list of lists of Incar objects.
         """
         def _incar_eq(incar1, incar2):
             """Return True when INCAR1 is equal to INCAR2.

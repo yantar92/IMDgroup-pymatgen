@@ -45,16 +45,24 @@ logger = logging.getLogger(__name__)
 
 
 class VasprunWarning(Warning):
-    """Warning for VASP run."""
+    """Warning emitted for potentially problematic VASP runs."""
 
 
 class Vasprun(pmgVasprun):
-    """Modified version of pymatgen's Vasprun class, which see.
+    """Modified version of pymatgen's Vasprun class.
+
+    Adds checks for stress, forces, and energy accuracy when
+    non-trivial ISIF values are used.
     """
 
     @property
     def final_energy(self) -> float:
-        """Final energy from the VASP run."""
+        """Final energy from the VASP run.
+
+        Emits ``VasprunWarning`` when the energy may be inaccurate
+        due to relaxation with ISIF values that change cell shape
+        or volume.
+        """
         energy = super().final_energy
 
         if self.incar.get('IBRION') in Incar.IBRION_IONIC_RELAX_values and\
@@ -74,8 +82,12 @@ class Vasprun(pmgVasprun):
     PRESSURE_CONVERGENCE_THRESHOLD = 3
 
     def check_stress(self) -> bool:
-        """Return True when stress is not too high.
-        Otherwise, print warning and return False.
+        """Check whether the residual hydrostatic stress is acceptable.
+
+        Returns:
+            bool: True if the hydrostatic stress is below
+            ``PRESSURE_CONVERGENCE_THRESHOLD``.  Emits
+            ``VasprunWarning`` otherwise.
         """
         stress_tensor = np.array(self.ionic_steps[-1]['stress'])
         external_pressure = np.trace(stress_tensor)/3
@@ -92,10 +104,16 @@ class Vasprun(pmgVasprun):
         return True
 
     def check_forces(self, threshold=0.05) -> bool:
-        """Check forces, handling selective dynamics if present.
+        """Check residual forces, respecting selective dynamics.
+
+        Only force components in unconstrained directions are
+        considered when selective dynamics information is available.
 
         Args:
-            threshold: Force threshold in eV/Å
+            threshold: Force threshold in eV/Angstrom.
+
+        Returns:
+            bool: True if all forces are below threshold.
         """
         final_forces = np.array(self.ionic_steps[-1]['forces'])
 
@@ -130,10 +148,10 @@ class Vasprun(pmgVasprun):
 
     @property
     def converged_ionic(self) -> bool:
-        """Whether ionic step convergence reached.
-        A wrapper around pymatgen's version, but
-        throws a warning when hydrostatic pressure is >3kPa (or
-        Vasprun.PRESSURE_CONVERGENCE_THRESHOLD)
+        """Whether ionic convergence was reached.
+
+        Wraps pymatgen's version but additionally checks stress and
+        forces when ISIF is non-trivial.
         """
         converged_ionic = super().converged_ionic
         if converged_ionic\
@@ -147,8 +165,7 @@ class Vasprun(pmgVasprun):
 
 
 class Outcar(pmgOutcar):
-    """Modified version of pymatgen's Outcar class that stores all the fields.
-    """
+    """Modified version of pymatgen's Outcar that stores all fields."""
 
     def as_dict(self) -> dict:
         """MSONable dict."""
@@ -160,11 +177,15 @@ class Outcar(pmgOutcar):
 
 
 class Vasplog(MSONable):
-    """Vasp logs parser.
+    """Parser for VASP log files (slurm output, stdout, OUTCAR).
+
+    Extracts warnings and progress messages from VASP output using
+    configurable regex patterns.
+
     Attributes:
-      filename (Path): Log file
-      warnings: Warning records in the log
-      progress: Progress records in the log
+        file: Path to the log file.
+        warnings: Parsed warning records (lazy).
+        progress: Parsed progress records (lazy).
     """
 
     # Maximum log file size to be read
@@ -324,9 +345,10 @@ class Vasplog(MSONable):
     VASP_LOG_FILES = [r'slurm.+', r'stdout', r'OUTCAR', r'vasp.out']
 
     def __init__(self, filename: PathLike) -> None:
-        """
+        """Initialize parser from a log file.
+
         Args:
-          fil (str): Filename to parse.
+            filename: Path to the log file to parse.
         """
         self.file = Path(filename)
         self._warnings = None
@@ -353,12 +375,12 @@ class Vasplog(MSONable):
 
     @property
     def warnings(self):
-        """Get all the warnings in the log.
-        See VASP_WARNINGS for the full list of warnings.
-        Returns: Dict of
-         {log_type :
-           {'message': <matched text>,
-            'count': <number of occurances>}}
+        """Parsed warning records.
+
+        Returns:
+            dict: Mapping of ``{log_type: {'message': str, 'count': int}}``.
+            See ``VASP_WARNINGS`` for the full list of recognised
+            warning types.
         """
         if self._warnings is None:
             self._warnings = self.parse(Vasplog.VASP_WARNINGS)
@@ -366,12 +388,12 @@ class Vasplog(MSONable):
 
     @property
     def progress(self):
-        """Get all the progress messages in the log.
-        See VASP_PROGRESS for the full list of messages.
-        Returns: Dict of
-         {log_type :
-           {'message': <matched text>,
-            'count': <number of occurances>}}
+        """Parsed progress messages.
+
+        Returns:
+            dict: Mapping of ``{log_type: {'message': str, 'count': int}}``.
+            See ``VASP_PROGRESS`` for the full list of recognised
+            progress types.
         """
         if self._progress is None:
             self._progress = self.parse(Vasplog.VASP_PROGRESS)
@@ -379,16 +401,29 @@ class Vasplog(MSONable):
 
     @staticmethod
     def from_dir(dirname: PathLike) -> list['Vasplog']:
-        """Parse all the logs in DIRNAME.
-        Return a list of Vasplog instances.
+        """Parse all log files found in a directory.
+
+        Args:
+            dirname: Directory to search for VASP log files.
+
+        Returns:
+            list[Vasplog]: One Vasplog instance per log file found.
         """
         return [Vasplog(f) for f in Vasplog.vasp_log_files(dirname)]
 
     @staticmethod
     def vasp_log_files(path: PathLike) -> list[str]:
-        """Return a list of VASP log files in PATH.
-        The files are sorted by modification date.
-        Return [], if log files are not found.
+        """Find VASP log files in a directory.
+
+        Files are sorted by modification time.  OUTCAR is excluded
+        unless no other log file is found (to avoid reading large files).
+
+        Args:
+            path: Directory to search.
+
+        Returns:
+            list[str]: Sorted list of matching file paths.  Empty list
+            if no log files are found or path is not a directory.
         """
         path = Path(path)
         if not path.is_dir():
@@ -406,27 +441,21 @@ class Vasplog(MSONable):
         return sorted(matching, key=lambda f: f.stat().st_mtime)
 
     def parse(self, log_matchers):
-        """Return VASP logs matching LOG_MATCHERS.
-        LOG_MATCHERS is a dict
-        {"log_item_name": ["regexp1", "regexp2", ...]}
-        Regexps are regular expressions matching against log text
-        for specific log record.
+        """Parse log lines against the given matcher dictionary.
 
-        Additionally, the dict may contain
-        "__exclude": ["regexp1", "regexp2", ...]
-        to unconditionally exclude matching certain regexps (false-positives)
+        Args:
+            log_matchers: Dictionary of ``{name: [regexp, ...]}``
+                defining patterns to search for.  May also contain
+                special keys:
 
-        "__extra_message": {'log_item_name': ["message_line_1", "message_line_2", ...]}
-        contains extra information about log records (e.g. tips about some warnings).
+                - ``__exclude``: list of regexps to exclude (false positives).
+                - ``__context``: ``{name: n_lines}`` of extra context lines.
+                - ``__extra_message``: ``{name: [tip_line, ...]}`` of
+                  explanatory messages.
 
-        "__context": {'log_item_name': number of extra context lines to include}
-        will make <matched text> include that number of following lines.
-
-        Returns: Dict of
-         {log_type :
-           {'message': <matched text>,
-            'tips': [<__extra_message lines about log_type>],
-            'count': <number of occurances>}}
+        Returns:
+            dict: ``{log_type: {'message': str, 'tips': list | None,
+            'count': int}}``.
         """
         # Pre-compile all patterns
         exclude_re = [re.compile(p) for p in log_matchers.get('__exclude', [])]

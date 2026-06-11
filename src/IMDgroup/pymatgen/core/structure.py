@@ -48,10 +48,10 @@ logger = logging.getLogger(__name__)
 # FIXME: cannot read lat.in because it will have >1 occupancies
 # when calling Mcsqs.structure_from_str.  Need to modify Mcsqs
 class IMDStructure(Structure):
-    """IMDGroup variant of Structure.
-    New features:
-    1. Read structure from str.out (or any *.out) ATAT's file.
-    2. Write structure to str.out ATAT's file replacing X0+ with Vac
+    """IMDGroup variant of pymatgen Structure.
+
+    Adds the ability to read and write ATAT ``str.out`` files and
+    handle vacancies (Vac) as dummy species X.
     """
     @classmethod
     def from_file(
@@ -139,9 +139,18 @@ def merge_structures(
         structs: list[Structure],
         tol: float = 0.01,
         ) -> Structure:
-    """Merge all STRUCTS into a single Structure.
-    Return structure.
-    tol is tolerance passed to Structure.merge_sites method.
+    """Merge multiple structures into a single Structure.
+
+    All structures must share the same lattice.  Sites are merged
+    with the given tolerance.
+
+    Args:
+        structs: List of structures to merge.  Must be non-empty.
+        tol: Tolerance in Angstrom for merging sites (passed to
+            ``Structure.merge_sites``).
+
+    Returns:
+        Structure: A new structure containing merged sites from all inputs.
     """
     assert len(structs) > 0
     for struct in structs[1:]:
@@ -171,17 +180,28 @@ def get_matched_structure(
         pbc: bool = True,
         match_species: bool = True
         ):
-    """Find the best site match between REFERENCE_STRUCT and TARGET_STRUCT.
-    Return modified TARGET_STRUCT with sites rearranged in such a way that
-    reference_struct[idx] is close to return_value[idx] and have the
-    same species.
+    """Rearrange sites in target_struct to best match reference_struct.
 
-    TARGET_STRUCT must have the same lattice with REFERENCE_STRUCT and
-    must contain sites of REFERENCE_STRUCT as a subset.
+    Returns a modified target_struct with sites reordered so that
+    reference_struct[idx] is close to the returned structure's [idx]
+    and they share the same species.  Extra sites (beyond the
+    reference length) are appended at the end.
 
-    When PBC is False, do not use boundary conditions to compute distances.
+    Args:
+        reference_struct: The reference structure to match against.
+        target_struct: The target structure to reorder.  Must have the
+            same lattice and contain reference_struct sites as a subset.
+        pbc: When True (default), use periodic boundary conditions for
+            distance calculations.
+        match_species: When False, ignore species when matching sites.
 
-    When MATCH_SPECIES is False, do not require species to match.
+    Returns:
+        Structure: Reordered target structure with one-to-one site
+        correspondence to reference_struct.
+
+    Raises:
+        ValueError: If target_struct has too few sites or the lattices
+            differ, or if matching fails.
     """
     # Check length of structures
     if len(target_struct) < len(reference_struct):
@@ -246,14 +266,25 @@ def structure_diff(
         match_first: bool = True,
         match_species: bool = True
         ):
-    """Return translation vectors between two similar structures.
-    The structures must have the same number of sites and species.
-    Trnalations shorter than TOL angstrem do not contribute to the
-    result.
+    """Compute translation vectors between two similar structures.
 
-    When MATCH_FIRST is True (default), call get_matched_structure
-    first.  When MATCH_FIRST is True and MATCH_SPECIES is false, match
-    structures ignoring species.
+    Both structures must have the same number of sites and species.
+    Each vector in the result connects corresponding sites.
+    Displacements below ``tol`` Angstrom are zeroed.
+
+    Args:
+        structure1: First structure.
+        structure2: Second structure.
+        tol: Displacements below this threshold (Angstrom) are set to
+            the zero vector.
+        match_first: When True (default), call
+            :func:`get_matched_structure` before computing vectors.
+        match_species: When False and match_first is True, ignore
+            species during structure matching.
+
+    Returns:
+        list[np.ndarray]: List of 3D cartesian displacement vectors,
+        one per site.
     """
     str1 = structure1
     # interpolate knows how to match similar sites, spitting out
@@ -291,25 +322,32 @@ def structure_distance(
         max_dist=None,
         norm=False,
         match_species: bool = True) -> float:
-    """Return tuple distance between two similar structures.
-    The structures must have the same number of sites and species.
-    The returned value is a square root of sum of squared distances
-    between the nearest lattice sites.  Distances below TOL do not
-    contribute to the sum.
+    """Compute distance between two similar structures.
 
-    When structures have similar, but not the same lattices, the
-    comparison is done by mapping the fractional site positions in
-    STRUCTURE2 onto lattice vectors of STRUCTURE1.
+    The distance is the square root of the sum of squared distances
+    between corresponding sites.  Displacements below ``tol`` Angstrom
+    do not contribute.
 
-    When NORM is True (default: False), norm the distance by the number
-    of displacement above threshold.
+    When the structures have similar but not identical lattices,
+    fractional site positions of ``structure2`` are mapped onto the
+    lattice vectors of ``structure1``.
 
-    When MATCH_FIRST is True (default), call get_matched_structure
-    first.  MATCH_SPECIES (default: True) controls whether to
-    assert that species should match during structure matching.
+    Args:
+        structure1: First structure.
+        structure2: Second structure.
+        tol: Displacement threshold below which contributions are
+            ignored (Angstrom).
+        match_first: When True (default), call
+            :func:`get_matched_structure` before computing distances.
+        match_species: When False and match_first is True, ignore
+            species during matching.
+        max_dist: When set, return early if the accumulating distance
+            exceeds this value.
+        norm: When True, divide the result by the count of sites
+            displaced above threshold.
 
-    When MAX_DIST is provided, return immediately when computed
-    distance exceeds MAX_DIST.
+    Returns:
+        float: Structure distance.
     """
     str1 = structure1
     # interpolate knows how to match similar sites, spitting out
@@ -356,21 +394,28 @@ def structure_interpolate2(
         center: bool | float = 0.5,
         match_first: bool = True,
         **kwargs) -> list[Structure]:
-    """Like Structure.interpolate, but make sure that images are valid.
-    Valid means that no atoms in the images are very close
-    (structure_is_valid2), no closer than FRAC_TOL*sum of specie radiuses.
+    """Interpolate between structures, avoiding atom collisions.
 
-    With CENTER set to non-False (default: 0.5Å), adjust STRUCTURE2 to
-    match STRUCTURE1 geometric center of mass before interpolation.
-    CENTER may either be a boolean (True to adjust structure centers)
-    or a float to adjust structure centers only when the distance
-    between the centers does not exceed the float value.
+    Like ``Structure.interpolate``, but ensures no atoms in the
+    interpolated images are too close.  "Too close" means less than
+    ``frac_tol * (radius1 + radius2)``.
 
-    NIMAGES can only be the number of images, not a list.
-    **KWARGS are the other arguments passed to Structure.interpolate,
-    which see.
-    Return a list of interpolated structures, possibly adjusted to
-    avoid atom collisions by changing distances between images.
+    Args:
+        structure1: Starting structure.
+        structure2: Ending structure.
+        nimages: Number of interpolated images (excludes endpoints).
+        frac_tol: Proximity tolerance as a fraction of atomic radii sum.
+            Use 0 to skip validity checks.
+        center: When True or a float, align geometric centers of mass
+            before interpolation.  When a float, only align if the
+            center-to-center distance is below that value.
+        match_first: When True (default), call
+            :func:`get_matched_structure` before interpolation.
+        **kwargs: Forwarded to ``Structure.interpolate``.
+
+    Returns:
+        list[Structure]: Interpolated structures, possibly with
+        adjusted spacing to avoid collisions.
     """
     if center:
         center1 = np.mean(np.array(structure1.frac_coords), axis=0)
@@ -455,12 +500,17 @@ def structure_interpolate2(
 
 
 def structure_is_valid2(structure: Structure, frac_tol: float = 0.5) -> bool:
-    """True if Structure does not contains atoms that are too close.
+    """Check whether a structure contains no atoms that are too close.
 
-    The atoms are considered too close when distance between the atoms
-    is less than sum of their radiuses times FRAC_TOL (default: 0.5).
+    Atoms are considered too close when the distance between them is
+    less than ``frac_tol * (atomic_radius1 + atomic_radius2)``.
 
-    Return True if STRUCTURE does not contain atoms that are too close.
+    Args:
+        structure: Structure to validate.
+        frac_tol: Threshold multiplier for the sum of atomic radii.
+
+    Returns:
+        bool: True if all pairwise distances are above threshold.
     """
     if len(structure) == 1:
         return True
@@ -479,8 +529,15 @@ def structure_is_valid2(structure: Structure, frac_tol: float = 0.5) -> bool:
 
 
 def reduce_supercell(structure):
-    """Return reduced supercell for STRUCTURE.
-    Do not modify STRUCTURE.
+    """Return the primitive cell of a supercell structure.
+
+    Constrains alpha, beta, and gamma angles during reduction.
+
+    Args:
+        structure: Input structure (possibly a supercell).
+
+    Returns:
+        Structure: Primitive cell.  The input is not modified.
     """
     reduced_structure = structure.copy()
     reduced_structure = reduced_structure.get_primitive_structure(
@@ -489,8 +546,14 @@ def reduce_supercell(structure):
 
 
 def get_supercell_size(structure):
-    """Get supercell size for STRUCTURE.
-    Return a tuple of intergers (A, B, C) for AxBxC supercell.
+    """Determine supercell dimensions relative to the primitive cell.
+
+    Args:
+        structure: Supercell structure.
+
+    Returns:
+        tuple[int, int, int]: (A, B, C) factors such that the input is
+        an A x B x C supercell of its primitive.
     """
     reduced_structure = reduce_supercell(structure)
     a = structure.lattice.a/reduced_structure.lattice.a
@@ -500,7 +563,7 @@ def get_supercell_size(structure):
 
 
 class StructureDuplicateWarning(UserWarning):
-    """Warning class for duplicate input structures."""
+    """Warning emitted when duplicate input structures are detected."""
 
 
 # Global variable to hold the worker function.
@@ -508,7 +571,14 @@ _global_worker = None
 
 
 def _worker_wrapper(args):
-    """Top-level function that calls the global worker with unpacked arguments."""
+    """Unpack arguments and call the global worker function.
+
+    Args:
+        args: Tuple of arguments forwarded to ``_global_worker``.
+
+    Returns:
+        Result of ``_global_worker(*args)``.
+    """
     return _global_worker(*args)
 
 
@@ -518,15 +588,20 @@ def structure_matches(
         cmp_fun=None,
         warn=False,
         multithread=False):
-    """Return True when STRUCT is equivalent to any KNOWN_STRUCTS.
-    Otherwise, return False.
-    CMP_FUN is the function to be used to judge the equivalence
-    (default: None - use StructureMatcher.fit).  It must accept two arguments
-    - structures to compare.
-    When WARN is True, display warning when duplicate is found.
-    When MULTITHREAD is True, use multithreading, allocating maximum
-    number of processors - 1.  When MULTITHREAD is a number, allocate
-    that many processors, but no more than available.
+    """Check whether a structure is equivalent to any in a known list.
+
+    Args:
+        struct: Structure to test.
+        known_structs: List of known structures.  None entries are skipped.
+        cmp_fun: Callable that takes two structures and returns True if
+            they match.  Defaults to ``StructureMatcher(attempt_supercell=True,
+            scale=False).fit``.
+        warn: When True, emit ``StructureDuplicateWarning`` on match.
+        multithread: When True, use ``cpu_count - 1`` workers.  When an
+            integer, use that many workers (capped at available CPUs).
+
+    Returns:
+        bool: True if a match is found, False otherwise.
     """
     if cmp_fun is None:
         cmp_fun = StructureMatcher(attempt_supercell=True, scale=False).fit
@@ -573,27 +648,25 @@ def structure_remove_duplicates(
         cmp_fun=None,
         warn=False,
         multithread=False):
-    """Remove duplicate structures from a list.
+    """Remove duplicate structures from a list, preserving order.
 
-    Uses structure_matches to test each structure against previously
-    kept structures.  The first occurrence of each unique structure is
-    kept; subsequent duplicates are discarded.  None entries are passed
-    through unchanged.
+    Uses :func:`structure_matches` to test each structure against
+    previously kept structures.  The first occurrence of each unique
+    structure is kept; subsequent duplicates are replaced with None.
 
     Args:
         structs: List of structures to deduplicate.
-        cmp_fun: Comparison function passed to structure_matches.
-            Defaults to None, which uses StructureMatcher with
-            attempt_supercell=True and scale=False.
-        warn: When True, emit StructureDuplicateWarning for each
+        cmp_fun: Comparison function passed to
+            :func:`structure_matches`.  Defaults to None, which uses
+            ``StructureMatcher(attempt_supercell=True, scale=False).fit``.
+        warn: When True, emit ``StructureDuplicateWarning`` for each
             duplicate found.
-        multithread: When True, use multiprocessing (cpu_count - 1
-            workers).  When an integer, use that many workers (capped
-            at available CPUs).
+        multithread: When True, use ``cpu_count - 1`` workers.  When an
+            integer, use that many workers (capped at available CPUs).
 
     Returns:
-        list[Structure | None]: Input list with duplicates removed,
-        preserving order.
+        list[Structure | None]: Input list with duplicates replaced by
+        None, preserving order.
     """
     result: list[Structure | None] = []
     for struct in structs:
@@ -613,26 +686,26 @@ def structure_perturb(
         min_distance: float | None = None,
         frac_tol: float = 0.5,
 ):
-    """Perform a random perturbation of the sites in STRUCTURE to break
-        symmetries. Modify structure in place.
+    """Perturb sites randomly while respecting selective dynamics.
 
-        Unlike pymatgen.core.Structure.perturb, honor selective dynamics.
-        Also, make sure that the resulting structure does not have sites
-        too close from one another.
+    Unlike ``pymatgen.core.Structure.perturb``, this function honours
+    ``selective_dynamics`` site properties and ensures the perturbed
+    structure has no sites that are too close.
 
-        Args:
-            distance (float): Distance in angstroms by which to perturb each site.
-            min_distance (None, int, or float): if None, all displacements will
-                be equal amplitude. If int or float, perturb each site a
-                distance drawn from the uniform distribution between
-                'min_distance' and 'distance'.
-            frac_tol (float): Fracture tolerance for site proximity.
-            The value is the minimal allowed distance in the units of sum
-            of atomic radii of site species.
+    Args:
+        structure: Structure to perturb.  Modified in place.
+        distance: Maximum perturbation amplitude in Angstrom.
+        min_distance: When set, each perturbation is drawn uniformly
+            from [min_distance, distance].
+        frac_tol: Proximity tolerance as a fraction of atomic radii sum.
 
-        Returns:
-            Structure: self with perturbed sites.
-        """
+    Returns:
+        Structure: The perturbed structure (same object).
+
+    Raises:
+        ValueError: If a valid perturbation cannot be found after 100
+            attempts.
+    """
     assert structure_is_valid2(structure, frac_tol)
     orig_structure = structure.copy()
 
@@ -665,8 +738,14 @@ def structure_perturb(
 
 
 def structure_strain(structure1: Structure, structure2: Structure):
-    """Compute strain required to deform STRUCTURE1 lattice into STRUCTURE2.
-    Return strain, as a matrix.
+    """Compute the engineering strain to deform structure1 into structure2.
+
+    Args:
+        structure1: Initial structure.
+        structure2: Deformed structure.
+
+    Returns:
+        np.ndarray: 3x3 symmetric strain tensor.
     """
     lat_before = structure1.lattice.matrix
     lat_after = structure2.lattice.matrix

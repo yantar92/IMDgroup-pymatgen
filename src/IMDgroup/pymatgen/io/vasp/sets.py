@@ -80,9 +80,20 @@ def _load_mp(name):
 
 
 def write_selective_dynamics_summary_maybe(structure, fname):
-    """Visualize site constrains in STRUCTURE and write to FNAME.
-    Do nothing when STUCTURE does not have non-trivial constraints.
-    Return True when FNAME has been produced.
+    """Visualize site constraints and write a CIF file if non-trivial.
+
+    The CIF uses species substitution for visual cues:
+    Fe = fully fixed, Co = partially fixed, Ni = not fixed,
+    X = unknown.
+
+    Args:
+        structure: Structure with optional ``selective_dynamics``
+            site properties.
+        fname: Output filename for the CIF.
+
+    Returns:
+        bool: True if the file was written (non-trivial constraints
+        were found), False otherwise.
     """
     has_fixed = False
     structure = structure.copy()
@@ -117,30 +128,30 @@ def write_selective_dynamics_summary_maybe(structure, fname):
 @dataclass
 class IMDVaspInputSet(VaspInputSet):
     """IMDGroup variant of VaspInputSet.
-    New features:
-    1. New argument FUNCTIONAL (see functionals.yaml) specifying
-       functional to be used.  This is similar to vdw parameter in
-       VaspInputSet, but also allows setting PBE/PBEsol and other
-       non-vdw functionals.
-    2. Automatic SYSTEM name generation.
-    3. Structure and input validation
-    # FIXME: pymatgen forces PBE, but it ought to be configurable via
-    # pmg config. May file a bug report.
-    4. Use the latest POTCAR_FUNCTIONAL PBE_64 by default.
-    5. Complain when NCORE exceeds the number of sites in the system.
-    6. Warn if KPOINT density is too high/low
-    7. Visualize non-trivial selective dynamic constrains, if any as
-       .cif file.
-    8. New argument IMAGES defining additional inputsets to be written
-       into 00 01 02 ... folders.  Useful when INCAR has IMAGES
-       parameter.  When IMAGES are provided, inputset automatically
-       uses structure from the first image.  Setting the structure to
-       anything other then None or the first image structure will
-       raise an error.
-    9. New arguments NO_KPOINTS to suppress writing KPOINTS file,
-       NO_POTCAR to suppress writing POTCAR file, NO_POSCAR to
-       suppress writing POSCAR file, and NO_INCAR to suppress INCAR
-       file completely.
+
+    Key additions over pymatgen's VaspInputSet:
+
+    1. ``functional`` argument for specifying the exchange-correlation
+       functional (see ``functionals.yaml``).
+    2. Automatic SYSTEM name generation from formula, lattice type,
+       and space group.
+    3. Structure and input validation (warnings for KPOINTS density,
+       low ENCUT, conflicting NCORE/NPAR).
+    4. Default POTCAR_FUNCTIONAL ``PBE_64``.
+    5. Visualization of non-trivial selective dynamics as a CIF file.
+    6. ``images`` argument for NEB input sets (writes 00, 01, ...
+       subdirectories).
+    7. ``no_kpoints``, ``no_potcar``, ``no_poscar``, ``no_incar``
+       flags to suppress writing individual files.
+
+    Attributes:
+        functional: Functional name (e.g. ``"PBE"``, ``"PBEsol"``).
+        images: List of sub-input sets for NEB images.
+        name: Identifier used in output directory naming.
+        no_kpoints: Suppress KPOINTS file.
+        no_potcar: Suppress POTCAR file.
+        no_poscar: Suppress POSCAR file.
+        no_incar: Suppress INCAR file.
     """
     functional: str | None = None
     images: list[Self] | None = None
@@ -183,7 +194,12 @@ class IMDVaspInputSet(VaspInputSet):
 
     @property
     def kpoints(self) -> Kpoints | None:
-        """The KPOINTS file."""
+        """KPOINTS for the input set.
+
+        When ``no_kpoints`` is True, returns None.  Otherwise warns
+        if the KPOINTS density is below 5000 or above 15000
+        k-points/atom.
+        """
         if self.no_kpoints:
             return None
 
@@ -216,7 +232,7 @@ class IMDVaspInputSet(VaspInputSet):
 
     @property
     def incar_updates(self) -> dict:
-        """Updates to the INCAR config according to funcational."""
+        """INCAR updates derived from the functional choice."""
         incar_updates = {}
         if isinstance(self.functional, str):
             self.functional = self.functional.lower()
@@ -229,7 +245,12 @@ class IMDVaspInputSet(VaspInputSet):
 
     @property
     def incar(self) -> Incar:
-        """The INCAR.  Also, automatically derive SYSTEM name."""
+        """INCAR for the input set.
+
+        Automatically derives a SYSTEM name from formula, lattice type,
+        and space group.  Warns about low ENCUT settings and when both
+        NCORE and NPAR are set.
+        """
         if self.no_incar:
             return None
         incar = super().incar
@@ -295,7 +316,10 @@ class IMDVaspInputSet(VaspInputSet):
 
     @property
     def poscar(self) -> Poscar:
-        """Check structure and return POSCAR."""
+        """POSCAR for the input set.
+
+        Validates the structure before generating the POSCAR.
+        """
 
         assert self.structure.is_valid()
 
@@ -315,8 +339,10 @@ class IMDVaspInputSet(VaspInputSet):
     @property
     def potcar_symbols(self) -> list[str] | None:
         """List of POTCAR symbols.
-        Auto-fill missing potentials for elements using VASP
-        recommendations."""
+
+        Auto-fills missing element potentials using ASE-recommended
+        defaults.
+        """
         if self.poscar is None:
             return None
         # Setup default POTCAR.  If an element is missing from
@@ -334,13 +360,25 @@ class IMDVaspInputSet(VaspInputSet):
 
     @property
     def potcar(self) -> Potcar | None:
-        """The input set's POTCAR."""
+        """POTCAR for the input set.
+
+        When ``no_potcar`` is True, returns None.
+        """
         if self.no_potcar:
             return None
         return super().potcar
 
     def write_input(self, output_dir, **kwargs) -> None:
-        """Write a set of VASP input to OUTPUT_DIR."""
+        """Write VASP input files to a directory.
+
+        In addition to standard pymatgen behaviour, writes an
+        ``IMDVaspInputSet.log`` file and, for NEB runs, writes the
+        image subdirectories and a trajectory CIF.
+
+        Args:
+            output_dir: Target directory for the input files.
+            **kwargs: Forwarded to ``VaspInputSet.write_input``.
+        """
         super().write_input(output_dir, **kwargs)
         output_dir = Path(output_dir)
         # Write inputset info
@@ -382,17 +420,25 @@ class IMDVaspInputSet(VaspInputSet):
 
 @dataclass
 class IMDDerivedInputSet(IMDVaspInputSet):
-    """Inputset derived from an existing Vasp output or input directory.
-    Accepts mandatory argument DIRECTORY.
-    Optional argument FORCE_PREV_INCAR_FILE (default False), when set
-    to True will discard INCAR parameters from vasprun.xml (if any) if
-    there is no actual INCAR present in DIRECTORY.
-    Optional argument FORCE_PREV_KPOINTS_FILE (default False) does the
-    same for KPOINTS.
+    """Input set derived from an existing VASP output or input directory.
 
-    In addition to what VaspInputSet copies, also tranfer INCAR.* files.
-    We use those to setup a chain of runs swapping between multiple INCARs.
-    See https://github.com/yantar92/IMDgroup-gorun
+    Unlike plain ``IMDVaspInputSet``, this class inherits settings
+    (INCAR, KPOINTS, POTCAR, structure) from a previous calculation.
+
+    Key additions:
+
+    - ``directory`` (mandatory): Source directory with VASP output/input.
+    - ``force_prev_incar_file``: When True, discard INCAR settings from
+      ``vasprun.xml`` if no actual ``INCAR`` file is present.
+    - ``force_prev_kpoints_file``: Same for KPOINTS.
+    - ``inherit_prev_incarpy``: When True, copy ``INCAR.py`` from source.
+    - ``INCAR.[0-9]*`` files are always copied (used by gorun workflows).
+
+    Attributes:
+        directory: Path to the source VASP directory.
+        force_prev_incar_file: Require an INCAR file on disk.
+        force_prev_kpoints_file: Require a KPOINTS file on disk.
+        inherit_prev_incarpy: Copy ``INCAR.py`` if present.
     """
     directory: str | None = None
     images = None
@@ -402,7 +448,10 @@ class IMDDerivedInputSet(IMDVaspInputSet):
 
     @property
     def incar(self):
-        """Return None when previous dir has no INCAR.
+        """INCAR for the derived input set.
+
+        Returns None when ``force_prev_incar_file`` is True and the
+        previous directory has no INCAR file.
         """
         if self.prev_incar is None and self.force_prev_incar_file:
             return None
@@ -410,7 +459,11 @@ class IMDDerivedInputSet(IMDVaspInputSet):
 
     @property
     def kpoints(self):
-        """Return None when previous dir has no KPOINTS.
+        """KPOINTS for the derived input set.
+
+        Returns None when ``force_prev_kpoints_file`` is True and the
+        previous directory has no KPOINTS file, or when the previous
+        INCAR uses ``KSPACING``.
         """
         if self.prev_kpoints is None and self.force_prev_kpoints_file:
             return None
@@ -420,9 +473,7 @@ class IMDDerivedInputSet(IMDVaspInputSet):
 
     @property
     def kpoints_updates(self):
-        """Call kpoints_updates from VaspInputSet, but prefer
-        prev_kpoints unconditionally.
-        """
+        """KPOINTS updates, preferring prev_kpoints unconditionally."""
 
         if self.prev_kpoints and isinstance(self.prev_kpoints, Kpoints):
             return self.prev_kpoints
@@ -558,9 +609,9 @@ class IMDDerivedInputSet(IMDVaspInputSet):
 @dataclass
 class IMDStandardVaspInputSet(IMDVaspInputSet):
     """Standard input set for IMDGroup.
-    New features:
-    1. Potentials do not have to be specified.  By default, use
-       VASP-recommended potentials via ase.
+
+    Uses VASP-recommended potentials from ASE by default.  Potentials
+    do not need to be specified explicitly.
     """
     CONFIG = {'INCAR':
               {
@@ -597,7 +648,9 @@ class IMDStandardVaspInputSet(IMDVaspInputSet):
 @dataclass
 class IMDStandardVaspInputSet_relax(IMDStandardVaspInputSet):
     """Standard input set for IMDGroup relaxation runs.
-    Sets defaults for EDIFF and EDIFFG.
+
+    Sets defaults for EDIFF, EDIFFG, ISTART, and NSW suitable for
+    geometry optimization.
     """
     CONFIG = copy.deepcopy(IMDStandardVaspInputSet.CONFIG)
     CONFIG['INCAR'].update({
@@ -613,8 +666,10 @@ class IMDStandardVaspInputSet_relax(IMDStandardVaspInputSet):
 
 @dataclass
 class IMDStandardVaspInputSet_scf(IMDStandardVaspInputSet):
-    """Standard input set for IMDGroup relaxation runs.
-    Sets defaults for EDIFF and EDIFFG.
+    """Standard input set for IMDGroup SCF (static) runs.
+
+    Sets NSW=0, IBRION=-1, ISMEAR=-5 (tetrahedron method) as
+    recommended for accurate total energies.
     """
     # https://www.vasp.at/wiki/index.php/Smearing_technique#Which_method_to_use
     CONFIG = copy.deepcopy(IMDStandardVaspInputSet.CONFIG)
@@ -626,32 +681,27 @@ class IMDStandardVaspInputSet_scf(IMDStandardVaspInputSet):
 
 
 class IMDNEBVaspInputSetWarning(UserWarning):
-    """Warning from IMDNEBVaspInputSet."""
+    """Warning emitted by IMDNEBVaspInputSet."""
 
 
 @dataclass
 class IMDNEBVaspInputSet(IMDDerivedInputSet):
-    """Input set for NEB calculations.
-    Accepts two mandatory arguments directory and target_directory for
-    the VASP outputs containing the initial and final structures.  We
-    demand VASP outputs as the structures have to be well-converged
-    for accurate NEB calculations.
+    """Input set for NEB (Nudged Elastic Band) calculations.
 
-    Optional argument FIX_CUTOFF prohibits relaxation of atoms that
-    are further away from atoms that move during NEB than FIX_CUTOFF
-    angstrom.
+    Requires two directories: the source (``directory``) and the
+    target (``target_directory``) containing well-converged VASP
+    outputs for the initial and final structures.
 
-    Optional argument METHOD controls interpolation method.
-    Possible values:
-    - 'IDPP' (default): Use image dependent pair potential method from ASE.
-      Method description: Søren Smidstrup, Andreas Pedersen, Kurt
-      Stokbro and Hannes Jónsson Chem. Phys. 140, 214106 (2014)
-    - 'linear': Use linear interpolation.
+    Attributes:
+        target_directory: Path to VASP output with the target structure.
+        method: Interpolation method, ``'IDPP'`` (default) or ``'linear'``.
+        fix_cutoff: When set, atoms farther than this distance (Angstrom)
+            from any moving atom are fixed via selective dynamics.
+        frac_tol: Proximity threshold as fraction of atomic radii sum
+            (used with ``method='linear'``).
 
-    When METHOD is 'linear', optional argument FRAC_TOL controls
-    proximity threshold for generated images.  When a distance between
-    some atoms in a generated image is less than sum of their radiuses
-    times FRAC_TOL, such image is avoided.  Default: 0.5
+    References:
+        IDPP: S. Smidstrup et al., J. Chem. Phys. 140, 214106 (2014).
     """
     target_directory: str | None = None
     fix_cutoff: float | None = None
@@ -675,7 +725,11 @@ class IMDNEBVaspInputSet(IMDDerivedInputSet):
 
     @property
     def incar(self) -> Incar:
-        """The INCAR.  Also, check IMAGES."""
+        """INCAR for the NEB run.
+
+        Warns when IMAGES=0 or IBRION != 1, and forces IBRION=1
+        (required for NEB in VASP).
+        """
         incar = super().incar
 
         if incar['IMAGES'] == 0:
@@ -735,7 +789,15 @@ class IMDNEBVaspInputSet(IMDDerivedInputSet):
         self.update_images()
 
     def write_input(self, output_dir, **kwargs) -> None:
-        """Write a set of VASP input to OUTPUT_DIR."""
+        """Write NEB input files to a directory.
+
+        In addition to standard behaviour, writes a ``NEB-inputs.txt``
+        file recording the initial and final image source directories.
+
+        Args:
+            output_dir: Target directory for the input files.
+            **kwargs: Forwarded to ``VaspInputSet.write_input``.
+        """
         super().write_input(output_dir, **kwargs)
         # Save information about the initial/final image inputs.
         log_file = os.path.join(output_dir, "NEB-inputs.txt")
@@ -745,12 +807,13 @@ class IMDNEBVaspInputSet(IMDDerivedInputSet):
             f.write(f"{len(self.images)-1:02d}: {self.target_directory}\n")
 
     def update_images(self, beg=None, end=None, **kwargs):
-        """Update self.images to be interpolation of BEG..END.
-        BEG and END are structures to interpolate between.
-        If not provided, BEG is taken from self.structure and
-        END is taken from self.target_structure.
+        """Update NEB images by interpolating between start and end structures.
 
-        kwargs is passed to structure_interpolate2.
+        Args:
+            beg: Starting structure.  Defaults to ``self.structure``.
+            end: Ending structure.  Defaults to ``self.target_structure``.
+            **kwargs: Forwarded to
+                :func:`IMDgroup.pymatgen.core.structure.structure_interpolate2`.
         """
         if beg is None:
             beg = self.structure
@@ -837,19 +900,15 @@ class IMDRelaxCellulose(VaspInputSet):
     """Relaxation input set for cellulose.
 
     Args:
-      structure (Structure, "ibeta", or "ialpha")
-        Structure to be used for input.  Either a Structure object, or
-        string "ialpha"/"ibeta" for the corresponding cellulose phase,
-        as computed in the paper.
-      user_kpoints_settings (dict or Kpoints):
-        Allow user to override kpoints setting by supplying a
-        dict. e.g. {"reciprocal_density": 1000}. User can also supply
-        Kpoints object.
+        structure: A ``Structure`` object, or the strings ``"ialpha"``
+            or ``"ibeta"`` for the corresponding cellulose phase.
+        user_kpoints_settings: Optional dict or ``Kpoints`` object to
+            override k-point settings.
 
     References:
-      Yadav, A., Boström, M. & Malyi, O.I. Understanding of dielectric
-      properties of cellulose. Cellulose 31, 2783–2794
-      (2024). https://doi.org/10.1007/s10570-024-05754-7
+        Yadav, A., Bostroem, M. & Malyi, O.I. Understanding of
+        dielectric properties of cellulose. *Cellulose* 31, 2783-2794
+        (2024). https://doi.org/10.1007/s10570-024-05754-7
     """
     CONFIG = _load_yaml_config("IMDRelaxCellulose")
     force_gamma: bool = True  # Must use gamma-centered k-point grid
@@ -864,13 +923,11 @@ class IMDRelaxCellulose(VaspInputSet):
 
 @dataclass
 class IMDGraphite(VaspInputSet):
-    """SCF input set for graphite.
+    """SCF input set for graphite (mp-48 from Materials Project).
 
     Args:
-      user_kpoints_settings (dict or Kpoints):
-        Allow user to override kpoints setting by supplying a
-        dict. e.g. {"reciprocal_density": 1000}. User can also supply
-        Kpoints object.
+        user_kpoints_settings: Optional dict or ``Kpoints`` object to
+            override k-point settings.
     """
     CONFIG = _load_yaml_config("IMDGraphite")
     force_gamma: bool = True  # Must use gamma-centered k-point grid

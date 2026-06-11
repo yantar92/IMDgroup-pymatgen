@@ -83,30 +83,30 @@ if HAS_SIGALRM:
 # Rewriting the original VaspDir/PMGDir class to add caching, dumping,
 # and other goodies.
 class IMDGVaspDir(collections.abc.Mapping, MSONable):
-    """
-    User-friendly class to access all files in a VASP calculation directory as pymatgen objects in a dict.
-    Note that the files are lazily parsed to minimize initialization costs since not all files will be needed by all
-    users.
+    """Dictionary-like access to all files in a VASP calculation directory.
 
-    Example:
+    Files are lazily parsed to minimise initialisation cost.  Example::
 
-    ```
-    d = VaspDir(".")
-    print(d["INCAR"]["NELM"])
-    print(d["vasprun.xml"].parameters)
-    ```
+        d = IMDGVaspDir(".")
+        print(d["INCAR"]["NELM"])
+        print(d["vasprun.xml"].parameters)
 
-    The information may be updated if files on disk change:
-    d.refresh()
+    Call ``refresh()`` to re-read the directory after files change.
 
-    The class also exposes useful properties that may require parsing
-    multiple files in the directory: final_energy, initial_structure,
-    structure, total_magnetization, converged_ionic,
-    converged_electronic, converged.
+    Cached parsing results are stored on disk (pickle or LMDB) to
+    speed up repeated access in HPC workflows.
 
-    Some new properties distinct from what is usually available from pymatgen:
-    - nebp (whether directory is a NEB VASP input)
-    - neb_dirs (list of NEB dirs, if any)
+    Properties that require parsing multiple files:
+
+    - ``final_energy``, ``final_energy_reliable``
+    - ``initial_structure``, ``structure``
+    - ``total_magnetization``
+    - ``converged``, ``converged_ionic``, ``converged_electronic``,
+      ``converged_sequence``, ``converged_manual``
+    - ``nebp`` (whether directory is a NEB calculation)
+    - ``neb_dirs`` (list of NEB subdirectories, if any)
+    - ``mtime`` (latest modification time across all files)
+    - ``prev_dirs`` (chain of previous gorun_* runs)
     """
 
     TIMEOUT = 60 * 2  # 2 minutes
@@ -133,8 +133,10 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
     }
 
     def reset(self):
-        """
-        Reset all loaded files and recheck the directory for files.
+        """Reset all loaded files and re-scan the directory.
+
+        Clears cached parsed files, previous-run references, and NEB
+        subdirectory references.
         """
         path = Path(self.path)
         self.files = [f for f in path.iterdir() if f.is_file()]
@@ -216,9 +218,10 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
             return False
 
     def __init__(self, dirname: str | Path) -> None:
-        """
+        """Initialise from a directory path.
+
         Args:
-            dirname: The directory containing the VASP calculation.
+            dirname: Path to the VASP calculation directory.
         """
         # if not IMDGVaspDir._cache_cleaned:
         #     IMDGVaspDir._clean_cache_if_needed()
@@ -446,7 +449,7 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
         return True
 
     def refresh(self):
-        """Refresh from cache if valid"""
+        """Reload cached data from disk or re-parse if files changed."""
         key = self._cache_key
         current_hash = self._get_hash()
         # First check pending writes
@@ -477,12 +480,15 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
     def read_vaspdirs(
             rootpath: Path | str | list[Path | str], path_filter=None
     ) -> dict[str, 'IMDGVaspDir']:
-        """Read vasp directories recursively from ROOTPATH.
+        """Recursively scan directories for VASP calculations.
+
         Args:
-          rootdir (str | Path | list[str|Path]): Root directory.
-          path_filter(function(PathLike): Function returning True for
-          paths that should be read.
-        Return a dict {'path': IMDGVaspDir object}
+            rootpath: Root directory or list of directories to scan.
+            path_filter: Optional callable that returns True for paths
+                to include.
+
+        Returns:
+            dict[str, IMDGVaspDir]: Mapping of ``{path: IMDGVaspDir}``.
         """
         if isinstance(rootpath, list):
             rootpath = [Path(p) for p in rootpath]
@@ -593,11 +599,13 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
 
     @property
     def final_energy_reliable(self) -> str | float:
-        """Like final_energy, but check if energy can be trusted.
-        Return self.final_energy when energy value appears reliable.
-        Return "unrealiable" if energy is unreliable due to the nature
-        of VASP calculation (volume relax does not provide reliable energy)
-        Return "unconverged" when system is not converged.
+        """Like :attr:`final_energy`, but with a reliability check.
+
+        Returns:
+            float: The final energy when judged reliable.
+            str: ``"unreliable"`` when energy may be inaccurate (e.g.
+            volume relaxation).
+            str: ``"unconverged"`` when the run has not converged.
         """
         if not self.converged:
             return "unconvegred"
@@ -614,9 +622,10 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
 
     @property
     def initial_structure(self) -> Structure:
-        """Get initial structure.
-        If prev_vaspdirs exist, use initial structure from
-        the oldest of those subdirectories.
+        """Initial structure of the calculation.
+
+        Follows the chain of ``prev_dirs`` to find the earliest
+        initial structure if previous runs exist.
         """
         if prevs := self.prev_dirs():
             return prevs[0].initial_structure
@@ -628,8 +637,7 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
 
     @property
     def structure(self) -> Structure:
-        """Get the last known structure.
-        """
+        """Last known structure (CONTCAR if present, else final from vasprun)."""
         if contcar := self['CONTCAR']:
             return contcar.structure
         if run := self['vasprun.xml']:
@@ -638,16 +646,20 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
 
     @property
     def total_magnetization(self) -> float | None:
-        """Get total magnetization.
-        """
+        """Total magnetization from OSZICAR, or None if unavailable."""
         if oszicar := self['OSZICAR']:
             return oszicar.ionic_steps[-1].get('mag', None)\
                 if len(oszicar.ionic_steps) > 0 else None
         return None
 
     def check_displacements(self) -> bool:
-        """Return True when displacements are not too high.
-        Otherwise, print warning and return False.
+        """Check whether atomic displacements are below a safe threshold.
+
+        Warns and returns False when the maximum displacement exceeds
+        twice the average bond length.
+
+        Returns:
+            bool: True if displacements are acceptable.
         """
         max_displacement = 0
         for i, site in enumerate(self.initial_structure):
@@ -665,9 +677,19 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
     def check_framework_symmetry(
             self, framework_elements=None,
             symprec=0.1, max_rms_threshold=0.5) -> bool:
-        """Check symmetry changes, focusing on framework atoms.
+        """Check whether the framework symmetry is preserved.
 
-        Reduces false positives when mobile atoms break symmetry.
+        Reduces false positives from mobile atoms breaking symmetry.
+
+        Args:
+            framework_elements: List of element symbols for the
+                framework.  Defaults to the most common element.
+            symprec: Symmetry tolerance for space group detection.
+            max_rms_threshold: Maximum RMS displacement threshold in
+                Angstrom.
+
+        Returns:
+            bool: True if framework symmetry is preserved.
         """
         if framework_elements is None:
             from collections import Counter
@@ -707,7 +729,9 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
 
     @property
     def converged_ionic(self) -> bool:
-        """Return whether run converged ionically.
+        """Whether ionic convergence was reached.
+
+        Also checks framework symmetry and displacements.
         """
         converged_ionic = False
         if run := self['vasprun.xml']:
@@ -731,8 +755,7 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
 
     @property
     def converged_electronic(self) -> bool:
-        """Return whether run converged electronically.
-        """
+        """Whether electronic convergence was reached."""
         if run := self['vasprun.xml']:
             return run.converged_electronic
         if 'vasprun.xml' in self:
@@ -754,25 +777,29 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
 
     @property
     def converged_sequence(self) -> bool:
-        """Return whether run no longer has INCAR.[0-9]+ files.
-        These files signify that we need multi-step convergence to be
-        done.
+        """Whether the multi-step convergence sequence is complete.
+
+        Returns False when ``INCAR.[0-9]+`` files remain (signalling
+        that further convergence steps are pending).
         """
         return not any(re.match(r'INCAR\.[0-9]+', file) for file in self)
 
     @property
     def converged_manual(self) -> bool:
-        """Return False when directory contains UNCONVERGED file.
-        This is to manually mark directory unconverged when running
-        custom VASP calculations, for example, with external ASE script.
+        """Whether the directory is explicitly marked as converged.
+
+        Returns False when an ``UNCONVERGED`` file is present.
         """
         return not (Path(self.path) / "UNCONVERGED").is_file()
 
     @property
     def converged(self) -> bool:
-        """Return when VASP run converged and no more INCAR.D files remaining.
-        Also, return False when directory is explicitly marked unconverged
-        via UNCONVERGED file.
+        """Overall convergence status.
+
+        Returns True only when the run is electronically and ionically
+        converged, the convergence sequence is complete, and no
+        ``UNCONVERGED`` marker file is present.  For NEB runs, all
+        images must be converged.
         """
         if not self.converged_manual:
             return False
@@ -788,16 +815,23 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
 
     @property
     def nebp(self) -> bool:
-        """Return True when it is a NEB-like run.
+        """Whether this directory contains a NEB-like calculation.
+
+        Detected by the presence of ``IMAGES`` in the INCAR.
         """
         if incar := self['INCAR']:
             return 'IMAGES' in incar
         return False
 
     def neb_dirs(self, include_ends=True) -> list['IMDGVaspDir'] | None:
-        """Return a list of NEB dirs.
-        When optional argument INCLUDE_ENDS is False, do not include the
-        first and the last image.
+        """List of NEB image subdirectories.
+
+        Args:
+            include_ends: When False, exclude the first and last images.
+
+        Returns:
+            list[IMDGVaspDir] | None: NEB subdirectories, or None if
+            this is not a NEB run.
         """
         if self.nebp:
             if self._neb_vaspdirs is None:
@@ -832,10 +866,9 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
         return path.stat().st_mtime
 
     def mtime(self) -> float:
-        """Return modification time of VASP run.
-        The modification time is the modification time of the
-        directory itself or the latest modification time of
-        prev_dirs and/or neb_dirs.
+        """Latest modification time across all relevant files.
+
+        Considers NEB subdirectories and previous-run directories.
         """
         mtimes = [self._mtime_1()]
         prev_dirs = self.prev_dirs()
@@ -845,8 +878,14 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
         return max(mtimes)
 
     def prev_dirs(self) -> list['IMDGVaspDir'] | None:
-        """Return a list of previous VASP runs, ordered by directory name.
-        Previous VASP runs are assumed to stay in gorun_* folders.
+        """List of previous VASP runs in the chain.
+
+        Previous runs are assumed to reside in ``gorun_*``
+        subdirectories containing a ``POSCAR``.
+
+        Returns:
+            list[IMDGVaspDir] | None: Sorted list of previous-run
+            directories, or None.
         """
         if self._prev_vaspdirs is None:
             path = Path(self.path)

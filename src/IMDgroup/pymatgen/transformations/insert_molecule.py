@@ -47,7 +47,26 @@ logger = logging.getLogger(__name__)
 
 
 class InsertMoleculeTransformation(AbstractTransformation):
-    """Create structures with inserted molecules."""
+    """Generate structures with a molecule or atom inserted at all possible sites.
+
+    Scans a grid of fractional coordinates (optionally with random
+    offsets) and, for molecules, also rotates the molecule across a
+    grid of Euler angles.  Inserts that do not violate proximity
+    constraints and are symmetrically distinct are kept.
+
+    Attributes:
+        molecule: Molecule or atom to insert.
+        step: Grid spacing in Angstrom.
+        step_noise: Standard deviation of grid noise, or negative for
+            fully random sampling.
+        anglestep: Angular step in radians for molecule rotation.
+        proximity_threshold: Threshold multiplier for atomic radii.
+        label: Label prefix for inserted atoms.
+        selective_dynamics: Selective dynamics for inserted atoms.
+        reduce_supercell: Whether to reduce to the primitive cell first.
+        matcher: StructureMatcher for duplicate detection.
+        multithread: Whether to use multithreading.
+    """
 
     def __init__(
             self,
@@ -63,42 +82,30 @@ class InsertMoleculeTransformation(AbstractTransformation):
             StructureMatcher(attempt_supercell=True, scale=False),
             multithread = False
     ):
-        """Add molecule to structure.
+        """Initialise the insertion transformation.
 
         Args:
-        molecule (Molecule or SpeciesLike or filename):
-                molecule or atom to insert into structure
-        step (float or None):
-                step, in ans, when searching for insertion sites
-                Default: 0.5 ans
-        step_noise (float or None):
-                standard deviation (as a fraction of step) for
-                randomness added to the scan grid.
-                When negative number, make the grid fully random, with
-                the number of grid points equal to int(abs(step_noise)).
-                Default: None (no randomness)
-        anglestep (float or None):
-                angle step, in radians, when trying different molecule
-                rotations.  Must be None when inserting an atom
-        proximity_threshold (float, default=0.75):
-          Threshold multiplier to judge that two atoms are too close
-          to each other.  The atoms are considered too close when
-          distance < proximity_threshold * (atom1.atomic_radius + atom2.atomic_radius)
-        label (str):
-          Label to mark the inserted molecule.  The label will be used
-          to construct labels for each atom in the molecule as
-          label-<atom_name><site_index>
-        selective_dynamics (array[bool]):
-          selective_dynamics settings for the inserted atoms (only
-          used when the structure also sets selective_dynamics
-          properties).
-        reduce_supercell (bool; default: True):
-          Whether to try reducing structure from supercell to
-          primitive cell before searching for insertions.
-        matcher (StructureMatcher or None):
-          Additional matcher to be used to detect duplicates.
-        multithread (bool; default: False):
-          Whether to use multithreading.
+            molecule: Species, Molecule, or path to a molecule file.
+            step: Grid spacing in Angstrom for insertion site search.
+            step_noise: When a positive float, standard deviation of
+                noise added to the grid (as a fraction of step).  When
+                negative, use fully random sampling with
+                ``abs(step_noise)`` points.
+            anglestep: Angular step in radians for molecule rotation.
+                Must be None for single-atom insertions.
+            proximity_threshold: Two atoms are considered too close
+                when their distance is less than
+                ``proximity_threshold * (r1 + r2)``.
+            label: Prefix for atom labels in the inserted molecule.
+                Each atom gets ``{label}-{element}{index}``.
+            selective_dynamics: Selective dynamics array for inserted
+                atoms (used only when the host structure also uses
+                selective dynamics).
+            reduce_supercell: When True, reduce the host to its
+                primitive cell before scanning.
+            matcher: StructureMatcher for detecting duplicate
+                insertions.
+            multithread: Whether to use multithreading.
         """
         if step is None:
             step = 0.5
@@ -222,13 +229,19 @@ class InsertMoleculeTransformation(AbstractTransformation):
 
     def _check_proximity(self, structure: Structure, site: int | PeriodicSite,
                          cutoff: float | None = None):
-        """Return True if site is far enough from other sites in STRUCTURE.
-        Far enough is further than a sum of the atomic radiuses.
+        """Check whether a site is far enough from all other sites.
+
+        "Far enough" means the distance exceeds
+        ``proximity_threshold * (r1 + r2)``.
 
         Args:
-          structure (Structure): structure to be checked
-          site (int | PeriodicSite): site index
-          cutoff (float): cutoff radius in ans to search neighbours to test
+            structure: Structure to check against.
+            site: Site index or PeriodicSite to test.
+            cutoff: Neighbour search radius in Angstrom.  Defaults to
+                the largest atomic radius in the structure.
+
+        Returns:
+            bool: True if the site is far enough from all other sites.
         """
         if isinstance(site, int):
             site = structure[site]
@@ -280,17 +293,14 @@ class InsertMoleculeTransformation(AbstractTransformation):
         return False
 
     def rotate_molecule_euler(self, euler_angle: ArrayLike):
-        """Rotate self.molecule according to EULER_ANGLE.
+        """Rotate the molecule by a triplet of extrinsic Euler angles.
 
         Args:
-                    molecule (Molecule):
-                    Molecule to be rotate
-                    euler_angle (3x1 vector):
-                    Triplet of Euler angles in radians
+            euler_angle: 3-element array of Euler angles in radians.
 
         Returns:
-                    Rotated molecule.
-                    """
+            Molecule: Rotated copy of ``self.molecule``.
+        """
         if euler_angle is None:
             return self.molecule
         molecule = self.molecule.copy()
@@ -315,31 +325,21 @@ class InsertMoleculeTransformation(AbstractTransformation):
             known_inserts=None,
             cutoff=None
     ):
-        """Insert self.molecule into STRUCTURE at COORDS.
-        The MOLECULE will be rotated around its first atom
-        according to EULER_ANGLE.  Then, placed at COORDS.  STRUCTURE
-        is not modified.
+        """Insert the molecule at a specific position and rotation.
+
+        The molecule is rotated around its first atom, then placed at
+        the given fractional coordinates.
 
         Args:
-          structure (Structure):
-            atructure to insert the molecule into
-          coords (3x1 vector):
-            fractional cell coordinates
-          euler_angle (3x1 vector):
-            triplet of Euler angles in radians
-          known_inserts (list of Structure):
-            List of structures containing known insert positions of
-            MOLECULE.  The structures must only have sites
-            corresponding to the molecule atoms and no other sites.
-            known_inserts will be modified by side effect, adding the
-            current insert.
-          cutoff (float or None):
-            Cutoff radius to search for close neighbors.
+            structure: Host structure (not modified).
+            coords: 3-element fractional coordinate vector.
+            euler_angle: 3-element Euler angle triplet in radians.
+            known_inserts: List of structures (molecule-only) for
+                duplicate detection.  Modified by side effect.
+            cutoff: Neighbour search radius.
 
         Returns:
-        Modified STRUCTRURE with MOLECULE inserted at the end of the
-        site list or None when insertion fails.  The insertion fails,
-        the structure is not modified.
+            Structure with molecule inserted, or None if insertion fails.
         """
         # Apply rotation
         # Do it before translating to place, because otherwise boundary
@@ -409,14 +409,16 @@ class InsertMoleculeTransformation(AbstractTransformation):
     def _generate_inserts(
             self, structure: Structure,
             limit: int | None = None):
-        """Generate all possible inserts of self.molecule into STRUCTURE.
+        """Generate all valid molecule insertion configurations.
+
         Args:
-          structure (Structure): Structure to insert into
-          limit (int): Limit the number of structures.  When negative,
-          search across random grid.
+            structure: Host structure.
+            limit: Maximum number of structures.  Negative for random
+                sampling.
 
         Returns:
-        List of structures with inserted molecule.
+            list[Structure]: Structures with the molecule inserted at
+            distinct, valid positions.
         """
         logger.info("Generating inserts...")
         logger.info("Molecule:\n---\n%s\n---", self.molecule)
@@ -540,17 +542,16 @@ class InsertMoleculeTransformation(AbstractTransformation):
             structure: Structure | str,
             limit: int | None = None
     ):
-        """Generate all possible molecule inserts into structure.
+        """Generate all possible molecule insertion configurations.
 
         Args:
-          structure (Structure or filename):
-            Structure to insert into.
-          limit (int | None, optional):
-            If int, return no more than that number of structures.
-            If negative, randomize the structure search.
+            structure: Host structure or path to a structure file.
+            limit: Maximum number of structures to return.  When
+                negative, randomly sample ``abs(limit)`` structures.
 
         Returns:
-          List of structures with self.molecule inserted.
+            list[Structure]: Structures with the molecule inserted at
+            distinct positions.
         """
         if isinstance(structure, str):
             structure = Structure.from_file(structure)
@@ -561,16 +562,17 @@ class InsertMoleculeTransformation(AbstractTransformation):
             structure: Structure | str,
             return_ranked_list: bool | int = False
     ):
-        """Transform structure, adding a single molecule.
+        """Apply the insertion transformation.
 
         Args:
-          structure (Structure or filename):
-            Structure to insert into.
-          return_ranked_list (bool | int, optional):
-            If int, return that number of structures.
+            structure: Host structure or path to a structure file.
+            return_ranked_list: If an integer, return that many
+                structures as ranked dictionaries.
 
         Returns:
-          Transformed structure or a list of dictionaries.
+            Structure or list[dict]: Single inserted structure when
+            ``return_ranked_list`` is False, otherwise a list of
+            ``{'structure': ...}`` dictionaries.
         """
         if not return_ranked_list:
             return self._generate_inserts(structure, 1)[0]
@@ -580,7 +582,7 @@ class InsertMoleculeTransformation(AbstractTransformation):
 
     @property
     def is_one_to_many(self) -> bool:
-        """Transform one structure to many."""
+        """Whether the transformation is one-to-many (always True)."""
         return True
 
 
@@ -591,18 +593,19 @@ def get_all_molecule_inserts(
         anglestep: float | None = None,
         label: str | None = "insert",
         limit: int | None = None):
-    """Generate all possible molecule inserts into structure.
-        Args:
-          molecule (Molecule, SpeciesLike, or filename):
-            molecule or atom to insert into structure
-          structure (Structure or filename):
-            structure to insert into.
-          limit (int | None, optional):
-            if int, return no more than that number of structures.
-            if negative, randomize the structure search.
+    """Convenience wrapper for generating molecule insertion structures.
 
-        Returns:
-          List of structures with molecule inserted.
+    Args:
+        molecule: Species, Molecule, or path to a molecule file.
+        structure: Host structure or path to a structure file.
+        step: Grid spacing in Angstrom.
+        anglestep: Angular step in degrees.  None means no rotation.
+        label: Label prefix for inserted atoms.
+        limit: Maximum number of structures.  Negative for random
+            sampling.
+
+    Returns:
+        list[Structure]: Structures with the molecule inserted.
     """
     transformer = InsertMoleculeTransformation(
         molecule, step=step,

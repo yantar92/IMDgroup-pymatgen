@@ -57,9 +57,10 @@ logger = logging.getLogger(__name__)
 
 
 def add_args(parser):
-    """Setup parser arguments.
+    """Register subcommand arguments.
+
     Args:
-      parser: Sub-parser.
+        parser: Sub-parser from argparse.
     """
     parser.help = """Create new VASP inputs from existing.
 Write them to <prefix><output name><subdir>."""
@@ -1081,12 +1082,16 @@ def _append_valid(
         site: PeriodicSite,
         structure: Structure,
         frac_tol: float):
-    """Append SITE to STRUCTURE without invalidating it.
-    If SITE can be appended without breaking structure.is_valid(),
-    just append it, modifying STRUCTRE by side effect.  If not, try
-    moving SITE, so that all distances to existing STRUCTURE sites are
-    not too small.
-    FRAC_TOL is distance tolerance, in fraction of atomic radii sum.
+    """Append a site to a structure without breaking validity.
+
+    If the site can be appended without violating proximity
+    constraints, it is appended directly.  Otherwise, the site is
+    moved iteratively until all distances are acceptable.
+
+    Args:
+        site: Site to append.
+        structure: Structure to modify in place.
+        frac_tol: Proximity tolerance as a fraction of atomic radii sum.
     """
     structure.append(
         site.species, site.coords,
@@ -1192,8 +1197,7 @@ def neb_diffusion(args):
 
 
 def derive(args):
-    """Main routine.
-    """
+    """Run the derive subcommand."""
 
     if not args.force_running and\
        (Path(args.input_directory) / 'RUNNING').is_file():

@@ -1,2 +1,1 @@
-"""Helpers for pymatgen.core
-"""
+"""Helpers for pymatgen.core."""

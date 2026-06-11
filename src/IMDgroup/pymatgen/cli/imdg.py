@@ -46,7 +46,7 @@ logger = logging.getLogger(__name__)
 
 
 def _showwarning(message, category, _filename, _lineno, file=None, _line=None):
-    """Print warning in nicer way."""
+    """Display warnings with coloured output."""
     output = colored(
         f"{category.__name__}: ", "yellow", attrs=['bold']) +\
         f"{message}"
@@ -58,7 +58,11 @@ warnings.showwarning = _showwarning
 
 
 def setup_logger(args):
-    """Setup logging according to command line args."""
+    """Configure logging based on verbosity flags.
+
+    Args:
+        args: Parsed command-line arguments.
+    """
     log_file = os.path.join("imdg.log")
 
     file_handler = logging.FileHandler(filename=log_file)
@@ -83,7 +87,7 @@ def setup_logger(args):
         logging.info("Setting debug level to: INFO (writing to file)")
 
 def main():
-    """Main routine."""
+    """Entry point for the ``imdg`` command."""
     parser = argparse.ArgumentParser(
         description="""
         imdg is a script to generate and analyze VASP inputs/outputs.

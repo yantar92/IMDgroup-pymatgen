@@ -1,2 +1,1 @@
-"""General-purpose utilities for IMD group.
-"""
+"""General-purpose utilities for IMD group."""

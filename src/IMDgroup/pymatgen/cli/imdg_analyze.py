@@ -55,9 +55,10 @@ ALL_FIELDS = {
 
 
 def add_args(parser):
-    """Setup parser arguments.
+    """Register subcommand arguments.
+
     Args:
-      parser: Sub-parser.
+        parser: Sub-parser from argparse.
     """
     parser.help = """Analyze vasp outputs."""
 
@@ -113,7 +114,14 @@ space_group, a, b, c, alpha, beta, gamma: Lattice parameters
 
 
 def read_field(field: str, vaspdir: IMDGVaspDir):
-    """Read FIELD from VASPDIR.  Return the value read.
+    """Read a single analysis field from a VASP directory.
+
+    Args:
+        field: Field name (see ``ALL_FIELDS`` for valid values).
+        vaspdir: VASP directory wrapper.
+
+    Returns:
+        Field value, or ``"N/A"`` when data is unavailable.
     """
     try:
         return _read_field_1(field, vaspdir)
@@ -122,9 +130,17 @@ def read_field(field: str, vaspdir: IMDGVaspDir):
 
 
 def _read_field_1(field: str, vaspdir: IMDGVaspDir):
-    """Read FIELD from VASPDIR.  Return the value read.
-    May throw FileNotFound error if field cannot be derived
-    from files in VASPDIR.
+    """Read a single analysis field (internal, may raise FileNotFoundError).
+
+    Args:
+        field: Field name.
+        vaspdir: VASP directory wrapper.
+
+    Returns:
+        Field value.
+
+    Raises:
+        FileNotFoundError: If the required data files are missing.
     """
     val = None
 
@@ -206,8 +222,7 @@ def _read_field_1(field: str, vaspdir: IMDGVaspDir):
 
 
 def analyze(args):
-    """Main routine.
-    """
+    """Run the analysis subcommand."""
     if args.short:
         args.exclude_fields += [
             '%a', '%b', '%c',

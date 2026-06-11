@@ -1,2 +1,1 @@
-"""VASP input/output helpers for IMD group.
-"""
+"""VASP input/output helpers for IMD group."""

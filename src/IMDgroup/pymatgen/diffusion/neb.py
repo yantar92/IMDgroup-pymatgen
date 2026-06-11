@@ -48,11 +48,20 @@ logger = logging.getLogger(__name__)
 
 
 class get_neb_pairs_warning(UserWarning):
-    """Warning class for get_neb_pairs."""
+    """Warning emitted during NEB pair generation."""
 
 
 class NEB_Graph(MultiDiGraph):
-    """Graph representing diffusion paths.
+    """Graph representing diffusion paths between structures.
+
+    Nodes are structure indices.  Edges are diffusion paths with
+    attributes ``distance``, ``vector``, and ``energy_barrier``.
+
+    Attributes:
+        structures: List of Structure objects forming the graph nodes.
+        multithread: Whether to use multithreading for distance matrix.
+        jimage_idxs: Indices of sites for which periodic images are
+            considered when computing displacement vectors.
     """
 
     def __init__(
@@ -60,24 +69,26 @@ class NEB_Graph(MultiDiGraph):
             structures: list[Structure] | None = None,
             jimage_idxs: list[int] | None = None,
             multithread: bool = False):
-        """Create complete NEB graph from STRUCTURES.
-        Assume that all the structures have the same lattice and atoms
-        corresponding to each other.
+        """Build a complete NEB diffusion graph.
 
-        When JIMAGE_IDXS is None, NEB graph edges will be constructed
-        using the shortest distances between STRUCTURES (accounting
-        for periodic boundary conditions).  This means that self-self
-        diffusion paths will be ignored.
+        All structures must share the same lattice and have one-to-one
+        site correspondence.
 
-        JIMAGE_IDXS, when provided, lists the STRUCTURE site indices
-        to consider for computing multiple possible paths between the
-        same pair of structures (including self-self).  The diffusion
-        paths will be constructed considering [-1..1, -1..1, -1..1]
-        images of JIMAGE_IDXS sites, but not any other sites (where
-        only the shortest path will be considered).  This is useful to
-        compute self-self diffusion where there are too many ways to
-        compute possible displacement vectors from one structure to
-        another.
+        When ``jimage_idxs`` is None, edges use the shortest distances
+        between structures under periodic boundary conditions
+        (self-self paths are ignored).
+
+        When ``jimage_idxs`` is provided, the specified site indices
+        are used for generating multiple periodic images (range -1..1
+        in each direction), enabling self-self diffusion path
+        discovery.
+
+        Args:
+            structures: List of structures forming the graph nodes.
+            jimage_idxs: Site indices for periodic image enumeration,
+                or None for shortest-path only.
+            multithread: Whether to use multithreading for distance
+                matrix computation.
         """
 
         super().__init__()
@@ -206,9 +217,14 @@ class NEB_Graph(MultiDiGraph):
             ]
 
     def connected(self, idxs: list[int] | None = None):
-        """Return True when graph is connected.
-        Otherwise, return False.
-        If IDXS is a list, only check connectivity of IDXS vertices.
+        """Check whether the graph is connected.
+
+        Args:
+            idxs: When provided, only check connectivity of these
+                vertex indices.
+
+        Returns:
+            bool: True if all relevant vertices are reachable.
         """
         n_vertices = len(self.structures)
         # Visit matrix: False when we cannot reach a site; True - we can.
@@ -228,12 +244,17 @@ class NEB_Graph(MultiDiGraph):
         return all(visited[idx] for idx in idxs)
 
     def diffusion_path_infinite(self, start_idx):
-        """Return True when START_IDX is within infinite diffusion path.
+        """Check whether a vertex lies on an infinite diffusion path.
 
-        Infinite diffusion path is a path that will move through the
-        material infinitely or, in other words, path is not bound within a
-        finite volume.  Mathematically, sum of displacement vectors along
-        the graph cycle containing START_IDX must be non-zero.
+        An infinite path is a cycle whose sum of displacement vectors
+        is non-zero, meaning the diffusing atom can move without bound
+        through the material.
+
+        Args:
+            start_idx: Vertex index to check.
+
+        Returns:
+            bool: True if the vertex is on an infinite diffusion path.
         """
         # Note: It is sufficient to check one START_IDX and skip all the
         # symmetrically equivalent clones - by definition they should
@@ -317,13 +338,16 @@ class NEB_Graph(MultiDiGraph):
 
     def all_diffusion_paths_infinite(
             self, idxs: list[int] | None = None) -> bool:
-        """Return True when all IDXS are within infinite diffusion paths.
-        If IDXS is None, check all the structures in the graph.
+        """Check whether all given vertices are on infinite diffusion paths.
 
-        Assume that structures with the same
-        structure.properties['_orig_idx'] are symmetrically equivalent
-        and do not need to be checked individually whether they lay in
-        infinite diffusion path.
+        Structures with the same ``_orig_idx`` property are assumed
+        symmetrically equivalent and checked only once.
+
+        Args:
+            idxs: Indices to check.  Defaults to all vertices.
+
+        Returns:
+            bool: True if all checked vertices are on infinite paths.
         """
         _checked = []
         if idxs is None:
@@ -338,17 +362,18 @@ class NEB_Graph(MultiDiGraph):
         return True
 
     def get_min_cutoff(self, idx_connected: list[int] | None = None):
-        """Find the smallest distance cutoff keeping graph connected.
-        Also, make sure that vertice structures are also a part of
-        infinite diffusion path.
+        """Find the smallest edge distance cutoff that keeps the graph connected.
 
-        Assume that structures with the same
-        structure.properties['_orig_idx'] are symmetrically equivalent
-        and do not need to be checked individually whether they lay in
-        infinite diffusion path.
+        Also requires that all vertices be on infinite diffusion paths
+        after applying the cutoff.
 
-        When IDX_CONNECTED is provided, it should be a list of indices
-        to check for connectivity.
+        Args:
+            idx_connected: Indices that must remain connected.
+                Defaults to all vertices.
+
+        Returns:
+            float: Minimum distance cutoff in Angstrom that satisfies
+            both connectivity and infinite-path constraints.
         """
         # Visit matrix: False when we cannot reach a site; True - we can.
         visited = [False] * len(self.structures)
@@ -444,14 +469,22 @@ def _remove_duplicates(
         idxs: list[int] | None = None,
         multithread: bool = False,
 ) -> list[Structure | None]:
-    """Remove duplicates from STRUCTURES.
-    Return list of the same length with duplicate structures replaced
-    with None.
+    """Remove duplicates from a list of structures.
 
-    When IDXS is a list of indices, only compare site proximity of the
-    listed sites.
+    The first occurrence is kept; subsequent matches are replaced with
+    None.  The comparison can be restricted to a subset of site
+    indices.
 
-    When MULTITHREAD is True, use multithreading.
+    Args:
+        structures: List of structures.
+        idxs: When provided, only compare proximity of sites at these
+            indices.
+        multithread: Whether to use multithreading for duplicate
+            detection.
+
+    Returns:
+        list[Structure | None]: Input list with duplicates replaced by
+        None, preserving order.
     """
     uniq_structures = []
     logger.info(
@@ -506,47 +539,32 @@ def get_neb_pairs(
 ) -> list[tuple[Structure, Structure]] |\
      tuple[list[tuple[Structure, Structure]],
            list[tuple[Structure, Structure]]]:
-    """Construct all possible unique diffusion pairs from STRUCTURES.
-    The STRUCTURES must all be derived from PROTOTYPE structure (have
-    the same lattice parameter).  Usually STRUCTURES, contain a list
-    of possible unique sites for interstitial/substitutional atom (or
-    atoms).
+    """Construct all unique diffusion NEB pairs from a set of structures.
 
-    The algorithm assumes that applying symmetry operation for
-    PROTOTYPE on any element STRUCTURES produces a valid alternative
-    diffusion start/end point.
+    The structures must share the same lattice and be derived from a
+    common ``prototype`` structure.  Symmetry operations of the
+    prototype are applied to enumerate equivalent diffusion paths.
 
-    When optional argument CUTOFF is provided, all the diffusion pairs
-    that require moving atoms more than CUTOFF ans will be discarded.
-    The exact criterion is: sum squares of all atom displacements to
-    change one structure into another must be no larger than CUTOFF^2.
+    Args:
+        structures: Candidate structures (e.g. with interstitial atoms
+            at various positions).
+        prototype: Reference structure defining the host lattice and
+            symmetry.
+        cutoff: Maximum allowed displacement distance (Angstrom).
+            When ``'auto'``, the smallest cutoff that keeps all
+            lowest-energy structures connected is determined
+            automatically.
+        remove_compound: When True, remove paths that can be composed
+            from shorter paths (heuristic simplification).
+        multithread: Whether to use multithreading.
+        limit: Maximum number of unique NEB pairs.
+        return_unfiltered: When True, return both the filtered unique
+            pairs and all (symmetry-unfiltered) pairs.
 
-    When CUTOFF is a string 'auto', auto-detect the CUTOFF, choosing
-    the smallest number that is sufficient to cover all possible
-    diffusion sites for STRUCTURES (each site is reachable from each
-    site using diffusion paths shorter than CUTOFF).
-
-    When REMOVE_COMPOUND is True, find the smallest subset of the
-    shortest diffusion pairs that is sufficient to cover all possible
-    diffusion sites for STRUCTURES (including symmetrically
-    equivalent).  For example, given 1-2, 2-3, and 1-3 diffusion
-    pairs, 1-3 == 1-2 + 2-3 and 1-3 will be dropped.  This is
-    heuristics as the diffusion barrier for 1-3 might generally be
-    lower compared to 1-2 + 2-3 combination.
-
-    MULTITHREAD (default: False) enables multithreading.
-
-    When LIMIT is provided, limit the number of paths to that number.
-
-    Returns a list of tuples containing begin/end structures.
-    When RETURN_UNFILTERED (default: False) is True, return a tuple of
-    two lists: (unique_pairs, all_pairs). all_pairs will represent the
-    full resulting diffusion graph including symmetrically equivalent
-    diffusion pairs.
-
-    The returned tuples will contain initial and final points of
-    diffusion without normalizing coordinates to unit cell.  The
-    returned structures will also have 1-to-1 site matching.
+    Returns:
+        list[tuple[Structure, Structure]]: Pairs of (start, end)
+        structures for NEB calculations.  When ``return_unfiltered``
+        is True, returns ``(unique_pairs, all_pairs)``.
     """
     # Arrange 1-to-1 site matching in all the provided structures
     # including prototype (needed to detect insertion sites)

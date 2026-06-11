@@ -24,8 +24,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-"""Helpers for matplotlib plotting.
-"""
+"""Helpers for matplotlib plotting."""
 import matplotlib.pyplot as plt
 from cycler import cycler
 
@@ -33,7 +32,15 @@ A4_WIDTH = 4.13 * 2
 
 
 def mpl_defaults(font_size=8, width=A4_WIDTH, ratio=1.5) -> None:
-    """Setup sensible global matplotlib defaults for publication-style plots.
+    """Set up global matplotlib rcParams for publication-style plots.
+
+    Configures font sizes, figure dimensions, line styles, and color
+    cyclers suitable for journal figures.
+
+    Args:
+        font_size: Base font size in points.  Defaults to 8.
+        width: Figure width in inches.  Defaults to twice A4_WIDTH.
+        ratio: Aspect ratio (width/height).  Defaults to 1.5.
     """
     # Adjust font sizes based on the provided font_size argument
     base_sz = font_size

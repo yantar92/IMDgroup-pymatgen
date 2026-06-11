@@ -95,9 +95,10 @@ def slurm_runningp(path):
 
 
 def add_args(parser):
-    """Setup parser arguments.
+    """Register subcommand arguments.
+
     Args:
-      parser: Sub-parser.
+        parser: Sub-parser from argparse.
     """
     parser.help = """Report running VASP status."""
 
@@ -265,8 +266,7 @@ def _get_neb_summary(vaspdir: IMDGVaspDir) -> str:
 
 
 def status(args):
-    """Main routine.
-    """
+    """Run the status subcommand."""
     def include_dirp(p):
         p = str(p)
         if args.exclude is not None and re.search(args.exclude, p):

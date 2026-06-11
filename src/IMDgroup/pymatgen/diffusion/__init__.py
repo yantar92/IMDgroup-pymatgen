@@ -1,2 +1,1 @@
-"""This module provides tools used to study diffusion.
-"""
+"""Tools for studying atomic diffusion."""

@@ -42,7 +42,16 @@ logger = logging.getLogger(__name__)
 
 
 class SymmetryFillTransformation(AbstractTransformation):
-    """Create structures with given sites cloned according to symmetry."""
+    """Clone selected sites according to symmetry operations.
+
+    Applies a list of symmetry operations to all sites of a given
+    element set, adding new sites when they are not too close to
+    existing ones.
+
+    Attributes:
+        sym_operations: List of fractional SymmOp objects.
+        element_set: Set of species to clone.
+    """
 
     def __init__(
             self,
@@ -72,18 +81,15 @@ class SymmetryFillTransformation(AbstractTransformation):
             self,
             structure: Structure | str,
             _return_ranked_list: bool | int = False):
-        """Transform structure, filling symmetrically equivalent sites.
+        """Apply the symmetry fill transformation.
 
         Args:
-          structure (Structure or filename):
-            Structure to insert into.
-          _return_ranked_list (bool | int, optional):
-            Unused (this is one-to-one transformation).
+            structure: Structure to fill, or path to a structure file.
+            _return_ranked_list: Unused (one-to-one transformation).
 
         Returns:
-          Transformed structure.  Each cloned site will have its
-          property 'symop' be set to symmetry operation used to
-          generate the clone.
+            Structure: Filled structure.  Each cloned site has a
+            ``symop`` property set to the symmetry operation used.
         """
         all_elements = map(get_el_sp, structure.species)
         elements_to_remove = set(all_elements) - self.element_set
@@ -144,7 +150,17 @@ def _structure_distance_wrapper(args):
 
 
 class SymmetryCloneTransformation(AbstractTransformation):
-    """Create equivalent structures according to symmetry."""
+    """Generate symmetrically equivalent clones of a structure.
+
+    Applies all symmetry operations to produce a list of distinct
+    configurations, filtering duplicates by structure distance.
+
+    Attributes:
+        sym_operations: List of fractional SymmOp objects.
+        tol: Distance threshold for considering two clones equivalent.
+        filter_cls: Optional filter with ``filter`` and ``final_filter``
+            methods.
+    """
 
     def __init__(
             self,
@@ -152,21 +168,18 @@ class SymmetryCloneTransformation(AbstractTransformation):
             filter_cls=None,
             tol: float = 0.5
             ):
-        """Create eqivalent structures cloned according to symmetry.
+        """Initialise symmetry clone transformation.
+
         Args:
-         sym_operations: List of SymmOp *fractional* operations to be
-           applied or a reference Structure to be used to generate the
-           operations.
-         filter_cls: A class instance with method filter accepting two
-           arguments: trial structure and list of structure clones
-           known so far.  When function returns False, the trial
-           structure is rejected.
-           In addition, the class may have final_filter method
-           accepting a list of structure clones.  It must return the
-           filtered structure.
-         tol: Tolerance when comparing equivalent clones.
-           If sum of distances between all site positions in two
-           clones is less than tol, they are considered the same.
+            sym_operations: List of fractional SymmOp objects, or a
+                Structure used to derive them via
+                ``SpacegroupAnalyzer``.
+            filter_cls: Optional filter object.  Must implement
+                ``filter(trial, clones) -> bool`` and may implement
+                ``final_filter(clones) -> list``.
+            tol: Distance tolerance for equivalence.  Two clones are
+                considered identical if the sum of site distances is
+                below ``tol``.
         """
         self.tol = tol
         self.filter_cls = filter_cls
@@ -186,16 +199,28 @@ class SymmetryCloneTransformation(AbstractTransformation):
             structure: Structure,
             progress_bar: bool = True,
             multithread: bool = False) -> list[Structure]:
-        """Generate a list of all clones for STRUCTURE.
-        PROGRESS_BAR controls whether to display progress.
-        MULTITHREAD controls using multithreading.
-        The clone sites will match STRUCTURE one-to-one.
+        """Generate all distinct symmetry clones of a structure.
+
+        Clones are sorted by distance from the input structure.
+
+        Args:
+            structure: Structure to clone.
+            progress_bar: Whether to display a progress bar.
+            multithread: Whether to use multithreading for duplicate
+                detection.
+
+        Returns:
+            list[Structure]: Distinct clones with one-to-one site
+            matching and ``symop`` properties.
         """
         clones = []
 
         def _member(structure, clones):
-            """Return True when STRUCTURE is in CLONES.
-            Return False otherwise.
+            """Check whether a structure is equivalent to any in a list.
+
+            Returns:
+                bool: True if the structure is within ``self.tol`` of
+                any clone.
             """
             # For some reason, Python sometimes hangs here when there
             # are too few CLONES.
@@ -247,18 +272,17 @@ class SymmetryCloneTransformation(AbstractTransformation):
             self,
             structure: Structure | str,
             return_ranked_list: bool | int = False):
-        """Create symmetrically equivalent closed of STRUCTURE.
+        """Apply symmetry clone transformation.
 
         Args:
-          structure (Structure or filename):
-            Structure to clone.
-          return_ranked_list (bool | int, optional):
-            If int, return that number of structures.
+            structure: Structure to clone, or path to a structure file.
+            return_ranked_list: If an int, return that many structures
+                as ranked dictionaries.
 
         Returns:
-          Transformed list of structures.  Each cloned structure will
-          have its property 'symop' be set to symmetry operation used
-          to generate the clone.
+            Structure or list[dict]: Single clone when
+            ``return_ranked_list`` is False, otherwise a list of
+            ``{'structure': ...}`` dictionaries.
         """
         all_clones = self.get_all_clones(structure)
         if not return_ranked_list:
@@ -268,5 +292,5 @@ class SymmetryCloneTransformation(AbstractTransformation):
 
     @property
     def is_one_to_many(self) -> bool:
-        """Transform one structure to many."""
+        """Whether the transformation is one-to-many (always True)."""
         return True

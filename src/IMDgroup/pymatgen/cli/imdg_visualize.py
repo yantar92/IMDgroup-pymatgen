@@ -60,9 +60,10 @@ logger = logging.getLogger(__name__)
 
 
 def add_args(parser):
-    """Setup parser arguments.
+    """Register subcommand arguments.
+
     Args:
-      parser: Sub-parser.
+        parser: Sub-parser from argparse.
     """
     parser.help = """Visualize vasp outputs."""
 
@@ -1689,6 +1690,5 @@ def voltage(args):
 
 
 def visualize(args):
-    """Main routine.
-    """
+    """Run the visualize subcommand."""
     return args.func_derive(args)

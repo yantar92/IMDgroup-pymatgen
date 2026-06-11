@@ -44,7 +44,11 @@ assert IMDgroup.pymatgen.io.vasp.sets  # silence linters
 
 
 def get_args():
-    """Parse command line args and return arg dictionary."""
+    """Parse command-line arguments.
+
+    Returns:
+        argparse.Namespace: Parsed arguments.
+    """
     argparser = argparse\
         .ArgumentParser(description="Generate structures for all possible \
         insertions of MOLECULE into STRUCTURE")
@@ -78,7 +82,11 @@ def get_args():
 
 
 def setup_logger(args):
-    """Setup logging according to command line args."""
+    """Configure logging based on verbosity flags.
+
+    Args:
+        args: Parsed command-line arguments.
+    """
     log_file =\
         os.path.join(args.output_dir, "pmg-insert-molecule-settings.log")
 
@@ -105,7 +113,7 @@ def setup_logger(args):
 
 
 def main():
-    """Run script."""
+    """Entry point for the ``pmg-insert-molecule`` command."""
 
     args = get_args()
     os.makedirs(args.output_dir, exist_ok=True)
