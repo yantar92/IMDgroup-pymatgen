@@ -25,8 +25,7 @@
 # SOFTWARE.
 
 
-"""imdg sub-command to create new VASP inputs from scratch.
-"""
+"""imdg sub-command to create new VASP inputs from scratch."""
 import os
 import re
 import logging

@@ -25,8 +25,7 @@
 # SOFTWARE.
 
 
-"""This module implements extensions to pymatgen.io.vasp.outputs module.
-"""
+"""This module implements extensions to pymatgen.io.vasp.outputs module."""
 
 import warnings
 import logging
@@ -180,12 +179,8 @@ class Vasplog(MSONable):
     """Parser for VASP log files (slurm output, stdout, OUTCAR).
 
     Extracts warnings and progress messages from VASP output using
-    configurable regex patterns.
-
-    Attributes:
-        file: Path to the log file.
-        warnings: Parsed warning records (lazy).
-        progress: Parsed progress records (lazy).
+    configurable regex patterns.  The parsed log file path is stored
+    in ``file``.
     """
 
     # Maximum log file size to be read

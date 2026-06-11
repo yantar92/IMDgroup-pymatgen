@@ -25,8 +25,7 @@
 # SOFTWARE.
 
 
-"""This module implements abstraction over Vasp input/output directory.
-"""
+"""This module implements abstraction over Vasp input/output directory."""
 import collections
 import typing
 import hashlib

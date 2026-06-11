@@ -25,8 +25,7 @@
 # SOFTWARE.
 
 
-"""Extension for pymatgen.core.structure
-"""
+"""Extension for pymatgen.core.structure."""
 import logging
 import warnings
 import os

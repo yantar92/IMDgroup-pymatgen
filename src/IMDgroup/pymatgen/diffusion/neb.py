@@ -25,8 +25,7 @@
 # SOFTWARE.
 
 
-"""NEB pair generator for diffusion paths.
-"""
+"""NEB pair generator for diffusion paths."""
 import logging
 import warnings
 from multiprocessing import Pool

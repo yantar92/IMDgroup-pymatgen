@@ -25,9 +25,7 @@
 # SOFTWARE.
 
 
-"""This module implement useful VASP input sets to be used for the
-group research.
-"""
+"""This module implements useful VASP input sets to be used for the group research."""
 
 import os
 import math
@@ -143,15 +141,6 @@ class IMDVaspInputSet(VaspInputSet):
        subdirectories).
     7. ``no_kpoints``, ``no_potcar``, ``no_poscar``, ``no_incar``
        flags to suppress writing individual files.
-
-    Attributes:
-        functional: Functional name (e.g. ``"PBE"``, ``"PBEsol"``).
-        images: List of sub-input sets for NEB images.
-        name: Identifier used in output directory naming.
-        no_kpoints: Suppress KPOINTS file.
-        no_potcar: Suppress POTCAR file.
-        no_poscar: Suppress POSCAR file.
-        no_incar: Suppress INCAR file.
     """
     functional: str | None = None
     images: list[Self] | None = None
@@ -433,12 +422,6 @@ class IMDDerivedInputSet(IMDVaspInputSet):
     - ``force_prev_kpoints_file``: Same for KPOINTS.
     - ``inherit_prev_incarpy``: When True, copy ``INCAR.py`` from source.
     - ``INCAR.[0-9]*`` files are always copied (used by gorun workflows).
-
-    Attributes:
-        directory: Path to the source VASP directory.
-        force_prev_incar_file: Require an INCAR file on disk.
-        force_prev_kpoints_file: Require a KPOINTS file on disk.
-        inherit_prev_incarpy: Copy ``INCAR.py`` if present.
     """
     directory: str | None = None
     images = None
@@ -691,14 +674,6 @@ class IMDNEBVaspInputSet(IMDDerivedInputSet):
     Requires two directories: the source (``directory``) and the
     target (``target_directory``) containing well-converged VASP
     outputs for the initial and final structures.
-
-    Attributes:
-        target_directory: Path to VASP output with the target structure.
-        method: Interpolation method, ``'IDPP'`` (default) or ``'linear'``.
-        fix_cutoff: When set, atoms farther than this distance (Angstrom)
-            from any moving atom are fixed via selective dynamics.
-        frac_tol: Proximity threshold as fraction of atomic radii sum
-            (used with ``method='linear'``).
 
     References:
         IDPP: S. Smidstrup et al., J. Chem. Phys. 140, 214106 (2014).

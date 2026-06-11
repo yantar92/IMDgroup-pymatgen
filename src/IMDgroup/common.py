@@ -25,8 +25,7 @@
 # SOFTWARE.
 
 
-"""Common routines used across the sub-libraries.
-"""
+"""Common routines used across the sub-libraries."""
 import logging
 
 logger = logging.getLogger(__name__)

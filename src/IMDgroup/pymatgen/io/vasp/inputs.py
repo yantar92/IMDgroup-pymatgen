@@ -25,9 +25,7 @@
 # SOFTWARE.
 
 
-"""This module implements IMD group-specific extensions to
-pymatgen.io.vasp.inputs module.
-"""
+"""This module implements IMD group-specific extensions to pymatgen.io.vasp.inputs module."""
 
 import os
 from monty.serialization import loadfn

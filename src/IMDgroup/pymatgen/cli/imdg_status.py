@@ -25,8 +25,7 @@
 # SOFTWARE.
 
 
-"""Check status of running VASP calculations.
-"""
+"""Check status of running VASP calculations."""
 import sys
 import os
 import re

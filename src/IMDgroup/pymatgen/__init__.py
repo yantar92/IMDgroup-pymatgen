@@ -1,2 +1,1 @@
-"""Pymatgen add-ons for Inverse Materials Design group.
-"""
+"""Pymatgen add-ons for Inverse Materials Design group."""

@@ -25,8 +25,7 @@
 # SOFTWARE.
 
 
-"""imdg sub-command to compare VASP inputs/outputs
-"""
+"""imdg sub-command to compare VASP inputs/outputs."""
 import logging
 import os
 import shutil

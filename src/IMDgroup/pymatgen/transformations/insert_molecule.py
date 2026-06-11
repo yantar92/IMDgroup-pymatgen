@@ -25,8 +25,7 @@
 # SOFTWARE.
 
 
-"""Insert molecules and atoms into a given structure.
-"""
+"""Insert molecules and atoms into a given structure."""
 
 import logging
 from multiprocessing import Pool

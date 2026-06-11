@@ -25,8 +25,7 @@
 # SOFTWARE.
 
 
-"""Generate all the symmetrically equivalent clones of a site in structure.
-"""
+"""Generate all the symmetrically equivalent clones of a site in structure."""
 
 import logging
 from multiprocessing import Pool, cpu_count
@@ -49,8 +48,9 @@ class SymmetryFillTransformation(AbstractTransformation):
     existing ones.
 
     Attributes:
-        sym_operations: List of fractional SymmOp objects.
-        element_set: Set of species to clone.
+
+    - **sym_operations**: List of fractional SymmOp objects.
+    - **element_set**: Set of species to clone.
     """
 
     def __init__(
@@ -58,11 +58,12 @@ class SymmetryFillTransformation(AbstractTransformation):
             sym_operations: list[SymmOp] | Structure,
             element_list: list[SpeciesLike]):
         """Create structure with sites cloned according to symmetry.
+
         Args:
-         sym_operations: List of SymmOp *fractional* operations to be
-           applied or a reference Structure to be used to generate the
-           operations.
-         species_list: List of species to be cloned.
+            sym_operations: List of SymmOp *fractional* operations to be
+                applied or a reference Structure to be used to generate the
+                operations.
+            element_list: List of species to be cloned.
         """
         self.element_set = set(map(get_el_sp, element_list))
 

@@ -25,8 +25,7 @@
 # SOFTWARE.
 
 
-"""This module implements helper functions to work with ATAT.
-"""
+"""This module implements helper functions to work with ATAT."""
 
 import numpy as np
 from IMDgroup.pymatgen.core.structure import\

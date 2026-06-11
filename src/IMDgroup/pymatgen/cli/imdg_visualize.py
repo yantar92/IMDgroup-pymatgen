@@ -25,8 +25,7 @@
 # SOFTWARE.
 
 
-"""Visualization extension specific to IMD group.
-"""
+"""Visualization extension specific to IMD group."""
 import logging
 import os
 import re

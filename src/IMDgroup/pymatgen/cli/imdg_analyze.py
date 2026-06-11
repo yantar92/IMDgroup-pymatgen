@@ -26,8 +26,7 @@
 
 
 """Analysis extensions specific to IMD group.
-Based on pymatgen's pymatgen.cli.pmg_analyze
-"""
+Based on pymatgen's pymatgen.cli.pmg_analyze."""
 import logging
 import re
 from pathlib import Path

@@ -25,8 +25,7 @@
 # SOFTWARE.
 
 
-"""Command line interface to insert molecule into a given structure
-"""
+"""Command line interface to insert molecule into a given structure."""
 
 import os
 import sys

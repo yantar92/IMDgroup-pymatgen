@@ -1,6 +1,6 @@
 """Sphinx configuration for IMDgroup-pymatgen.
 
-Generates API documentation from docstrings using autosummary
+Generates API documentation from docstrings using automodule
 with explicitly listed modules.
 """
 
@@ -42,14 +42,12 @@ autodoc_default_options = {
     "members": True,
     "undoc-members": True,
     "show-inheritance": True,
-    "autosummary": True,
 }
 autodoc_typehints = "description"
 autoclass_content = "both"
 
 # Autosummary settings
-autosummary_generate = True
-autosummary_generate_overwrite = True
+autosummary_generate = False
 autosummary_imported_members = False
 
 # Intersphinx links to pymatgen and standard library
@@ -73,7 +71,7 @@ add_module_names = False
 
 # -- HTML output -------------------------------------------------------------
 html_theme = "sphinx_rtd_theme"
-html_static_path = ["_static"]
+html_static_path = []
 html_theme_options = {
     "navigation_depth": 4,
     "collapse_navigation": False,
