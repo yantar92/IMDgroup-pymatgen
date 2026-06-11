@@ -7,6 +7,10 @@ tailored to research performed in the [[https://www.oimalyi.org/][Inverse Materi
 
 API Documentation: [[https://yantar92.github.io/IMDgroup-pymatgen/]]
 
+#+begin_export md
+<!-- docs-section: features -->
+#+end_export
+
 * Key Features & Optimizations
 
 ** Optimized for High-Throughput (Caching)
@@ -89,6 +93,10 @@ access them using Python's built-in ~help()~ function:
   cd IMDgroup-pymatgen
   pip install .
 #+end_src
+
+#+begin_export md
+<!-- docs-section: cli -->
+#+end_export
 
 * Command Line Interface
 
@@ -331,6 +339,10 @@ positions without overlaps.
 There is also ~imdg ins~ subcommand counterpart that can directly use VASP
 folder as input.
 
+#+begin_export md
+<!-- docs-section: python-api -->
+#+end_export
+
 * Python API
 
 ** Opening ATAT structure files (=str.out=, =lat.in=)
@@ -424,6 +436,10 @@ diffusion paths in a material.
   for start, end in pairs:
       print(f"Path from {start} to {end}")
 #+end_src
+
+#+begin_export md
+<!-- docs-section: acknowledgements -->
+#+end_export
 
 * Acknowledgements
 

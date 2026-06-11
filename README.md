@@ -7,6 +7,8 @@ tailored to research performed in the [Inverse Materials Design group](https://w
 
 API Documentation: <https://yantar92.github.io/IMDgroup-pymatgen/>
 
+<!-- docs-section: features -->
+
 
 # Key Features & Optimizations
 
@@ -92,6 +94,8 @@ access them using Python's built-in `help()` function:
     git clone https://git.sr.ht/~yantar92/IMDgroup-pymatgen
     cd IMDgroup-pymatgen
     pip install .
+
+<!-- docs-section: cli -->
 
 
 # Command Line Interface
@@ -325,6 +329,8 @@ positions without overlaps.
 There is also `imdg ins` subcommand counterpart that can directly use VASP
 folder as input.
 
+<!-- docs-section: python-api -->
+
 
 # Python API
 
@@ -415,6 +421,8 @@ diffusion paths in a material.
     
     for start, end in pairs:
         print(f"Path from {start} to {end}")
+
+<!-- docs-section: acknowledgements -->
 
 
 # Acknowledgements
