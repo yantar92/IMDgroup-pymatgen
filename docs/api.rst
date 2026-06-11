@@ -46,6 +46,12 @@ Command-line interface
    :toctree: _generated
 
    IMDgroup.pymatgen.cli.imdg
+   IMDgroup.pymatgen.cli.imdg_analyze
+   IMDgroup.pymatgen.cli.imdg_create
+   IMDgroup.pymatgen.cli.imdg_derive
+   IMDgroup.pymatgen.cli.imdg_diff
+   IMDgroup.pymatgen.cli.imdg_status
+   IMDgroup.pymatgen.cli.imdg_visualize
 
 Utilities
 ---------

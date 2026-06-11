@@ -54,6 +54,7 @@ include = [
 	"IMDgroup.pymatgen",
 	"IMDgroup.pymatgen.*",
         "IMDgroup",
+        "IMDgroup.*",
         ]
 
 [tool.setuptools.package-data]
