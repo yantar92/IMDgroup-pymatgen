@@ -46,7 +46,7 @@ pitfalls, essential for reliable high-throughput workflows:
 
 Example output:
 
-[[./docs/img/imdg-status.png]]
+https://raw.githubusercontent.com/yantar92/IMDgroup-pymatgen/main/docs/img/imdg-status.png
 
 ** Extensions to pymatgen
 
