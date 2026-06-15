@@ -48,7 +48,7 @@ pitfalls, essential for reliable high-throughput workflows:
 
 Example output:
 
-<https://github.com/yantar92/IMDgroup-pymatgen/blob/main/img/imdg-status.png?raw=true>
+![img](./docs/img/imdg-status.png)
 
 
 ## Extensions to pymatgen
