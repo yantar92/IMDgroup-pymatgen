@@ -44,8 +44,9 @@ pitfalls, essential for reliable high-throughput workflows:
   - *Stress & Forces*: Monitors for unexpected hydrostatic stress or
     excessive residual forces.
 
-Example output
-file:./img/imdg-status.png
+Example output:
+
+[[./img/imdg-status.png]]
 
 ** Extensions to pymatgen
 

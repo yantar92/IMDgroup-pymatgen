@@ -46,7 +46,8 @@ pitfalls, essential for reliable high-throughput workflows:
     -   **Stress & Forces**: Monitors for unexpected hydrostatic stress or
         excessive residual forces.
 
-Example output
+Example output:
+
 ![img](./img/imdg-status.png)
 
 
