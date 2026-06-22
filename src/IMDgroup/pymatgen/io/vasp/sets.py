@@ -59,7 +59,8 @@ from IMDgroup.pymatgen.io.vasp.vaspdir import IMDGVaspDir
 POTCAR_RECOMMENDED = dict(
     (name, name + suffix)
     for name, suffix in ase_potential_defaults['recommended'].items())
-
+# Fix https://gitlab.com/ase/ase/-/work_items/657
+POTCAR_RECOMMENDED['W'] = 'W_sv'
 
 __author__ = "Ihor Radchenko <yantar92@posteo.net>"
 MODULE_DIR = os.path.dirname(__file__)
