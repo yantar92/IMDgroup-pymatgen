@@ -127,7 +127,7 @@ class IMDStructure(Structure):
         filename, fmt = str(filename), fmt.lower()
         if fmt == "atat" or os.path.basename(filename) in ("str.out"):
             from pymatgen.io.atat import Mcsqs
-            res_str = Mcsqs(self).to_str().replace('X0+', 'Vac').replace('=1.0','').replace('=1', '')
+            res_str = Mcsqs(self).to_str().replace('X0+', 'Vac').replace('=1.0', '').replace('=1', '')
             with zopen(filename, mode="wt", encoding="utf8") as file:
                 file.write(res_str)
             return res_str
@@ -137,7 +137,7 @@ class IMDStructure(Structure):
 def merge_structures(
         structs: list[Structure],
         tol: float = 0.01,
-        ) -> Structure:
+) -> Structure:
     """Merge multiple structures into a single Structure.
 
     All structures must share the same lattice.  Sites are merged
@@ -178,7 +178,7 @@ def get_matched_structure(
         target_struct: Structure,
         pbc: bool = True,
         match_species: bool = True
-        ):
+):
     """Rearrange sites in target_struct to best match reference_struct.
 
     Returns a modified target_struct with sites reordered so that
@@ -264,7 +264,7 @@ def structure_diff(
         tol: float = 0.1,
         match_first: bool = True,
         match_species: bool = True
-        ):
+):
     """Compute translation vectors between two similar structures.
 
     Both structures must have the same number of sites and species.
@@ -382,7 +382,7 @@ def structure_distance(
                 return np.sqrt(tot_distance_square)
 
     if norm and displaced_sites > 0:
-        return np.sqrt(tot_distance_square)/displaced_sites
+        return np.sqrt(tot_distance_square) / displaced_sites
     return np.sqrt(tot_distance_square)
 
 
@@ -555,9 +555,9 @@ def get_supercell_size(structure):
         an A x B x C supercell of its primitive.
     """
     reduced_structure = reduce_supercell(structure)
-    a = structure.lattice.a/reduced_structure.lattice.a
-    b = structure.lattice.b/reduced_structure.lattice.b
-    c = structure.lattice.c/reduced_structure.lattice.c
+    a = structure.lattice.a / reduced_structure.lattice.a
+    b = structure.lattice.b / reduced_structure.lattice.b
+    c = structure.lattice.c / reduced_structure.lattice.c
     return (round(a), round(b), round(c))
 
 
@@ -566,19 +566,19 @@ class StructureDuplicateWarning(UserWarning):
 
 
 # Global variable to hold the worker function.
-_global_worker = None
+_GLOBAL_WORKER = None
 
 
 def _worker_wrapper(args):
     """Unpack arguments and call the global worker function.
 
     Args:
-        args: Tuple of arguments forwarded to ``_global_worker``.
+        args: Tuple of arguments forwarded to ``_GLOBAL_WORKER``.
 
     Returns:
-        Result of ``_global_worker(*args)``.
+        Result of ``_GLOBAL_WORKER(*args)``.
     """
-    return _global_worker(*args)
+    return _GLOBAL_WORKER(*args)
 
 
 def structure_matches(
@@ -619,8 +619,8 @@ def structure_matches(
             )
 
     if multithread is not False:
-        global _global_worker
-        _global_worker = cmp_fun
+        global _GLOBAL_WORKER
+        _GLOBAL_WORKER = cmp_fun
         cpus = int(os.environ.get(
             'SLURM_CPUS_ON_NODE',
             multiprocessing.cpu_count()))
@@ -749,5 +749,5 @@ def structure_strain(structure1: Structure, structure2: Structure):
     lat_before = structure1.lattice.matrix
     lat_after = structure2.lattice.matrix
     transform = np.dot(np.linalg.inv(lat_before), lat_after) - np.eye(3)
-    strain = (transform + transform.transpose())/2.0
+    strain = (transform + transform.transpose()) / 2.0
     return strain

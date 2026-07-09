@@ -38,9 +38,11 @@ import tempfile
 import pickle
 import signal
 import sys
-import gzip, threading, atexit, time
-import numpy as np
+import gzip
+import threading
+import atexit
 from pathlib import Path
+import numpy as np
 from monty.io import zopen
 from monty.json import MSONable
 from alive_progress import alive_it
@@ -57,12 +59,12 @@ from pymatgen.io.vasp.outputs import Elfcar as pmgElfcar
 from pymatgen.io.vasp.outputs import WSWQ as pmgWSWQ
 from IMDgroup.pymatgen.io.vasp.inputs import Incar
 from IMDgroup.pymatgen.io.vasp.outputs import Vasprun, Outcar
+from IMDgroup.pymatgen.core.structure import structure_distance
 try:
     import lmdb
     HAS_LMDB = True
 except ImportError:
     HAS_LMDB = False
-from IMDgroup.pymatgen.core.structure import structure_distance
 
 logger = logging.getLogger(__name__)
 
@@ -87,6 +89,7 @@ def timeout_handler(signum, frame):
 HAS_SIGALRM = sys.platform != 'win32'
 if HAS_SIGALRM:
     signal.signal(signal.SIGALRM, timeout_handler)
+
 
 # Rewriting the original VaspDir/PMGDir class to add caching, dumping,
 # and other goodies.
@@ -160,6 +163,7 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
     _use_lmdb: typing.ClassVar[bool] = HAS_LMDB
     _lmdb_env: typing.ClassVar[typing.Any] = None
     _lmdb_db: typing.ClassVar[typing.Any] = None
+
     @classmethod
     def _init_lmdb(cls) -> None:
         if not cls._use_lmdb or cls._lmdb_env is not None:
@@ -273,12 +277,14 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
                 sz = f.stat().st_size
                 parent = f.parent
                 f.unlink()
-                logger.info(f"Deleted irrelevant cache file %s (size=%.2f MB)", f, sz/1024/1024)
+                logger.info(
+                    "Deleted irrelevant cache file %s (size=%.2f MB)",
+                    f, sz / 1024 / 1024)
                 nonpkl_deleted += 1
                 nonpkl_size += sz
                 nonpkl_dirs.add(parent)
             except Exception as e:
-                logger.warning(f"Could not delete irrelevant cache file %s: %s", f, e)
+                logger.warning("Could not delete irrelevant cache file %s: %s", f, e)
 
         # Additional cleanup: Remove orphaned temporary files older than 1 hour
         # (safe to delete as they shouldn't be actively used by other processes)
@@ -293,16 +299,20 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
                 if now - f.stat().st_mtime > 3600:
                     sz = f.stat().st_size
                     f.unlink()
-                    logger.info(f"Deleted orphaned temporary file %s (size=%.2f MB)", f, sz/1024/1024)
+                    logger.info(
+                        "Deleted orphaned temporary file %s (size=%.2f MB)",
+                        f, sz / 1024 / 1024)
                     nonpkl_deleted += 1
                     nonpkl_size += sz
                     nonpkl_dirs.add(f.parent)
                     temp_deleted += 1
                     temp_size += sz
             except Exception as e:
-                logger.warning(f"Could not delete temporary file %s: %s", f, e)
+                logger.warning("Could not delete temporary file %s: %s", f, e)
         if nonpkl_deleted > 0:
-            logger.info("Deleted %d irrelevant cache files, freed %.2f MB.", nonpkl_deleted, nonpkl_size/1024/1024)
+            logger.info(
+                "Deleted %d irrelevant cache files, freed %.2f MB.",
+                nonpkl_deleted, nonpkl_size / 1024 / 1024)
 
         # 2. Normal .pkl.gz deletion for cache size limitation
         files = list(cache_dir.rglob("*.pkl.gz"))
@@ -314,9 +324,9 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
                 try:
                     if subdir.is_dir() and not any(subdir.iterdir()):
                         subdir.rmdir()
-                        logger.info(f"Deleted empty cache subdir %s", subdir)
+                        logger.info("Deleted empty cache subdir %s", subdir)
                 except Exception as e:
-                    logger.warning(f"Could not delete cache subdir %s: %s", subdir, e)
+                    logger.warning("Could not delete cache subdir %s: %s", subdir, e)
             return
         files.sort(key=lambda f: f.stat().st_atime)  # oldest access first
         size_removed = 0
@@ -328,12 +338,13 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
                 subdirs_to_check.add(f.parent)
                 f.unlink()
                 logger.info(
-                    f"Deleted cache file %s (size=%.2f MB)", f, size/1024/1024
+                    "Deleted cache file %s (size=%.2f MB)",
+                    f, size / 1024 / 1024
                 )
                 size_removed += size
                 files_deleted += 1
             except Exception as e:
-                logger.warning(f"Could not delete cache file %s: %s", f, e)
+                logger.warning("Could not delete cache file %s: %s", f, e)
             if (total_size - size_removed) <= cls.MAX_CACHE_SIZE:
                 break
         # Remove empty subdirs (after both nonpkl and .pkl deletions)
@@ -341,12 +352,13 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
             try:
                 if subdir.is_dir() and not any(subdir.iterdir()):
                     subdir.rmdir()
-                    logger.info(f"Deleted empty cache subdir %s", subdir)
+                    logger.info("Deleted empty cache subdir %s", subdir)
             except Exception as e:
-                logger.warning(f"Could not delete cache subdir %s: %s", subdir, e)
+                logger.warning("Could not delete cache subdir %s: %s", subdir, e)
         logger.info(
             "Cache cleanup complete: deleted %d .pkl.gz files, freed %.2f MB; used %.2f MB now.",
-            files_deleted, size_removed/1024/1024, (total_size-size_removed)/1024/1024
+            files_deleted, size_removed / 1024 / 1024,
+            (total_size - size_removed) / 1024 / 1024
         )
 
     def _get_cache_path(self) -> Path:
@@ -508,8 +520,7 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
                 title=f"Scanning {list(map(str, rootpath))} for VASP directories"):
             for vaspfile in ['OUTCAR', 'vasprun.xml', 'POSCAR', 'OSZICAR']:
                 if vaspfile in files and (
-                        path_filter is None or
-                        path_filter(parent)):
+                        path_filter is None or path_filter(parent)):
                     valid_paths[str(parent)] = IMDGVaspDir(parent)
                     break
         IMDGVaspDir.flush_cache()
@@ -552,7 +563,7 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
                     return obj
                 # except TimeoutException:
                 except Exception as e:
-                    logger.debug("Failed to read %s: %s", path/item, e)
+                    logger.debug("Failed to read %s: %s", path / item, e)
                     self._parsed_files[item] = None
                     self._dump_to_cache()
                     return None
@@ -584,7 +595,6 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
             warnings.warn(
                 f"Reading final energy from unconverged run: {os.path.relpath(self.path)}"
             )
-        import numpy as np
         if run := self['vasprun.xml']:
             if not self.converged:
                 warn_unconverged()
@@ -677,7 +687,7 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
             displacement = site.distance(self.structure[i])
             max_displacement = max(max_displacement, displacement)
         vol = self.structure.volume
-        avg_bond_length = (vol / len(self.structure))**(1/3)
+        avg_bond_length = (vol / len(self.structure))**(1 / 3)
         if max_displacement > 2.0 * avg_bond_length:
             warnings.warn(
                 f"{os.path.relpath(self.path)}: "

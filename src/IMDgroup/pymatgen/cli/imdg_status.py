@@ -280,7 +280,7 @@ def _get_neb_summary(vaspdir: IMDGVaspDir) -> str:
             structure_distance(str1, str2, tol=0)
             for str1, str2 in zip(structs, structs[1:])
         ]
-        return [f"{idx+1:02d}: " +
+        return [f"{idx + 1:02d}: " +
                 colored(f"{dist:.2f}Å",
                         "red" if np.isclose(dist, 0) else "white")
                 for idx, dist in enumerate(dists)]

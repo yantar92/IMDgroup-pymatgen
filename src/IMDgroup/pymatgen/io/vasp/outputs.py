@@ -91,7 +91,7 @@ class Vasprun(pmgVasprun):
             ``VasprunWarning`` otherwise.
         """
         stress_tensor = np.array(self.ionic_steps[-1]['stress'])
-        external_pressure = np.trace(stress_tensor)/3
+        external_pressure = np.trace(stress_tensor) / 3
         # if not np.allclose(stress_tensor, stress_tensor.T):
         #     stress_tensor = (stress_tensor + stress_tensor.T) / 2
         # principal_stresses = np.linalg.eigvals(stress_tensor)
@@ -485,8 +485,8 @@ class Vasplog(MSONable):
                 context = config['context']
                 if any(p.search(line) for p in patterns):
                     # Collect context
-                    end_idx = min(i-1 + context + 1, n_lines)
-                    context_block = '\n'.join(self.lines[i-1:end_idx])
+                    end_idx = min(i - 1 + context + 1, n_lines)
+                    context_block = '\n'.join(self.lines[i - 1:end_idx])
 
                     # Update results
                     if warn_name not in result:
@@ -501,5 +501,3 @@ class Vasplog(MSONable):
 
         logger.debug("Found %d log patterns", len(result))
         return result
-
-

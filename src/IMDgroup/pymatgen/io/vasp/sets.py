@@ -780,7 +780,7 @@ class IMDNEBVaspInputSet(IMDDerivedInputSet):
         with open(log_file, "w", encoding='utf-8') as f:
             f.write("NEB path computed between:\n")
             f.write(f"00: {self.directory}\n")
-            f.write(f"{len(self.images)-1:02d}: {self.target_directory}\n")
+            f.write(f"{len(self.images) - 1:02d}: {self.target_directory}\n")
 
     def update_images(self, beg=None, end=None, **kwargs):
         """Update NEB images by interpolating between start and end structures.
@@ -801,7 +801,7 @@ class IMDNEBVaspInputSet(IMDDerivedInputSet):
 
         str_images = structure_interpolate2(
             beg, end,
-            nimages=self.incar["IMAGES"]+1,
+            nimages=self.incar["IMAGES"] + 1,
             frac_tol=frac_tol,
             **kwargs)
 

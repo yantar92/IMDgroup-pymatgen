@@ -89,7 +89,7 @@ space_group, a, b, c, alpha, beta, gamma: Lattice parameters
         nargs="+",
         choices=all_fields,
         default=all_fields
-        )
+    )
     parser.add_argument(
         "--short",
         help="""Only include a few fields: energy, e_per_atom,
@@ -104,12 +104,12 @@ space_group, a, b, c, alpha, beta, gamma: Lattice parameters
         nargs="+",
         choices=all_fields,
         default=[]
-        )
+    )
     parser.add_argument(
         "--nogroup",
         help="""Do not group by similar INCARs""",
         action="store_true"
-        )
+    )
 
 
 def read_field(field: str, vaspdir: IMDGVaspDir):
@@ -161,7 +161,7 @@ def _read_field_1(field: str, vaspdir: IMDGVaspDir):
             val = "None"
     elif field == '%vol':
         vol0 = vaspdir.initial_structure.volume
-        val = vaspdir.structure.volume/vol0 - 1
+        val = vaspdir.structure.volume / vol0 - 1
         val = f"{val * 100:.2f}"
     elif field == 'displ':
         try:
@@ -184,37 +184,37 @@ def _read_field_1(field: str, vaspdir: IMDGVaspDir):
         val = vaspdir.structure.lattice.a
     elif field == '%a':
         a0 = vaspdir.initial_structure.lattice.a
-        val = vaspdir.structure.lattice.a/a0 - 1
+        val = vaspdir.structure.lattice.a / a0 - 1
         val = f"{val * 100:.2f}"
     elif field == 'b':
         val = vaspdir.structure.lattice.b
     elif field == '%b':
         b0 = vaspdir.initial_structure.lattice.b
-        val = vaspdir.structure.lattice.b/b0 - 1
+        val = vaspdir.structure.lattice.b / b0 - 1
         val = f"{val * 100:.2f}"
     elif field == 'c':
         val = vaspdir.structure.lattice.c
     elif field == '%c':
         c0 = vaspdir.initial_structure.lattice.c
-        val = vaspdir.structure.lattice.c/c0 - 1
+        val = vaspdir.structure.lattice.c / c0 - 1
         val = f"{val * 100:.2f}"
     elif field == 'alpha':
         val = vaspdir.structure.lattice.alpha
     elif field == '%alpha':
         alpha0 = vaspdir.initial_structure.lattice.alpha
-        val = vaspdir.structure.lattice.alpha/alpha0 - 1
+        val = vaspdir.structure.lattice.alpha / alpha0 - 1
         val = f"{val * 100:.2f}"
     elif field == 'beta':
         val = vaspdir.structure.lattice.beta
     elif field == '%beta':
         beta0 = vaspdir.initial_structure.lattice.beta
-        val = vaspdir.structure.lattice.beta/beta0 - 1
+        val = vaspdir.structure.lattice.beta / beta0 - 1
         val = f"{val * 100:.2f}"
     elif field == 'gamma':
         val = vaspdir.structure.lattice.gamma
     elif field == '%gamma':
         gamma0 = vaspdir.initial_structure.lattice.gamma
-        val = vaspdir.structure.lattice.gamma/gamma0 - 1
+        val = vaspdir.structure.lattice.gamma / gamma0 - 1
         val = f"{val * 100:.2f}"
 
     return val
@@ -234,11 +234,13 @@ def analyze(args):
             '%a', '%b', '%c',
             'alpha', 'beta', 'gamma',
             '%alpha', '%beta', '%gamma']
+
     def include_dirp(p):
         p = str(p)
         if args.exclude is not None and re.search(args.exclude, p):
             return False
         return True
+
     vaspdirs = IMDGVaspDir.read_vaspdirs(args.dir, path_filter=include_dirp)
     all_data = {}
     for field in ALL_FIELDS:

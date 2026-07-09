@@ -79,7 +79,7 @@ class InsertMoleculeTransformation(AbstractTransformation):
             reduce_supercell: bool = True,
             matcher: StructureMatcher =
             StructureMatcher(attempt_supercell=True, scale=False),
-            multithread = False
+            multithread=False
     ):
         """Initialise the insertion transformation.
 
@@ -152,9 +152,9 @@ class InsertMoleculeTransformation(AbstractTransformation):
             logger.info(
                 "%s",
                 'Detected '
-                f'{structure.lattice.a/reduced_structure.lattice.a:.2}'
-                f'x{structure.lattice.b/reduced_structure.lattice.b:.2}'
-                f'x{structure.lattice.c/reduced_structure.lattice.c:.2}'
+                f'{structure.lattice.a / reduced_structure.lattice.a:.2}'
+                f'x{structure.lattice.b / reduced_structure.lattice.b:.2}'
+                f'x{structure.lattice.c / reduced_structure.lattice.c:.2}'
                 " supercell. Limiting scan volume."
             )
         else:
@@ -165,25 +165,25 @@ class InsertMoleculeTransformation(AbstractTransformation):
             return [
                 [np.random.uniform(
                     low=0.0,
-                    high=reduced_structure.lattice.a/structure.lattice.a),
+                    high=reduced_structure.lattice.a / structure.lattice.a),
                  np.random.uniform(
                      low=0.0,
-                     high=reduced_structure.lattice.b/structure.lattice.b),
+                     high=reduced_structure.lattice.b / structure.lattice.b),
                  np.random.uniform(
                      low=0.0,
-                     high=reduced_structure.lattice.c/structure.lattice.c)]
+                     high=reduced_structure.lattice.c / structure.lattice.c)]
                 for _ in range(int(abs(self.step_noise)))
             ]
 
         xrange = np.arange(
-            0.0, reduced_structure.lattice.a/structure.lattice.a,
-            self.step/structure.lattice.a)
+            0.0, reduced_structure.lattice.a / structure.lattice.a,
+            self.step / structure.lattice.a)
         yrange = np.arange(
-            0.0, reduced_structure.lattice.b/structure.lattice.b,
-            self.step/structure.lattice.b)
+            0.0, reduced_structure.lattice.b / structure.lattice.b,
+            self.step / structure.lattice.b)
         zrange = np.arange(
-            0.0, reduced_structure.lattice.c/structure.lattice.c,
-            self.step/structure.lattice.c)
+            0.0, reduced_structure.lattice.c / structure.lattice.c,
+            self.step / structure.lattice.c)
 
         def _random(scale):
             if self.step_noise is None:
@@ -192,13 +192,13 @@ class InsertMoleculeTransformation(AbstractTransformation):
                 * np.random.standard_normal()
 
         def xrandom():
-            return _random(self.step/structure.lattice.a)
+            return _random(self.step / structure.lattice.a)
 
         def yrandom():
-            return _random(self.step/structure.lattice.b)
+            return _random(self.step / structure.lattice.b)
 
         def zrandom():
-            return _random(self.step/structure.lattice.c)
+            return _random(self.step / structure.lattice.c)
 
         return [[x + xrandom(), y + yrandom(), z + zrandom()]
                 for x in xrange for y in yrange for z in zrange]
@@ -214,7 +214,7 @@ class InsertMoleculeTransformation(AbstractTransformation):
         assert len(self.molecule) > 1
         rotation_sym_num =\
             PointGroupAnalyzer(self.molecule).get_rotational_symmetry_number()
-        angrange = np.arange(0.0, 2*np.pi/rotation_sym_num, self.anglestep)
+        angrange = np.arange(0.0, 2 * np.pi / rotation_sym_num, self.anglestep)
         return [[alpha, beta, gamma]
                 for alpha in angrange
                 for beta in angrange
@@ -436,7 +436,7 @@ class InsertMoleculeTransformation(AbstractTransformation):
         if candidate_angles is None:
             n_candidates = len(candidate_coords)
         else:
-            n_candidates = len(candidate_angles)*len(candidate_coords)
+            n_candidates = len(candidate_angles) * len(candidate_coords)
         if limit is not None and limit < 0:
             limit = abs(limit)
             # randomize grids
@@ -576,8 +576,8 @@ class InsertMoleculeTransformation(AbstractTransformation):
         if not return_ranked_list:
             return self._generate_inserts(structure, 1)[0]
         return [{"structure": structure}
-                for structure in self._generate_inserts(
-                        structure, return_ranked_list)]
+                for structure in
+                self._generate_inserts(structure, return_ranked_list)]
 
     @property
     def is_one_to_many(self) -> bool:

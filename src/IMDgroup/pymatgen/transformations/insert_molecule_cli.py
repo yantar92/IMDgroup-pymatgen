@@ -134,7 +134,7 @@ def main():
         matcher=None)
 
     if args.randomize_molecule is not None:
-        transformer.rotate_molecule_euler(np.random.rand(3)*2*np.pi)
+        transformer.rotate_molecule_euler(np.random.rand(3) * 2 * np.pi)
 
     structures = transformer.all_inserts(args.structure, limit=args.limit)
 

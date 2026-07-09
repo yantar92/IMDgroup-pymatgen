@@ -28,7 +28,7 @@
 """Generate all the symmetrically equivalent clones of a site in structure."""
 
 import logging
-from multiprocessing import Pool, cpu_count
+# from multiprocessing import Pool, cpu_count
 from pymatgen.transformations.transformation_abc import AbstractTransformation
 from pymatgen.core import (SymmOp, Structure, get_el_sp)
 from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
@@ -175,7 +175,7 @@ class SymmetryCloneTransformation(AbstractTransformation):
             sym_operations: list[SymmOp] | Structure,
             filter_cls=None,
             tol: float = 0.5
-            ):
+    ):
         """Initialise symmetry clone transformation.
 
         Args:

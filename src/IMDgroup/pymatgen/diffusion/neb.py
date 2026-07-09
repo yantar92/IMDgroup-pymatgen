@@ -287,11 +287,11 @@ class NEB_Graph(MultiDiGraph):
 
         def _debug_found(cycle, cached=False):
             logger.debug(
-                    "%sFound infinite diffusion path for %d: %s",
-                    "(cached) " if cached else "",
-                    start_idx,
-                    " -> ".join([str(i) for i in cycle])
-                )
+                "%sFound infinite diffusion path for %d: %s",
+                "(cached) " if cached else "",
+                start_idx,
+                " -> ".join([str(i) for i in cycle])
+            )
 
         self.__cycle_cache = [
             cycle for cycle in self.__cycle_cache
@@ -519,8 +519,8 @@ def _remove_duplicates(
             progress_bar()  # pylint: disable=not-callable
     logger.info(
         "gen_neb_pairs: Checking duplicates... done (removed %d)",
-        len(structures)-len([x for x in uniq_structures if x is not None]))
-    if len(structures)-len(uniq_structures) > 0:
+        len(structures) - len([x for x in uniq_structures if x is not None]))
+    if len(structures) - len(uniq_structures) > 0:
         logger.info(
             "gen_neb_pairs: Using structure enumeration"
             " preserving the original order (including duplicates)")
@@ -609,8 +609,8 @@ def get_neb_pairs(
                 len(all_clones) + clone_idx
         logger.info(
             "#%d clones assigned indices #%d..#%d",
-            idx, len(all_clones), len(all_clones)+len(clones)-1
-            )
+            idx, len(all_clones), len(all_clones) + len(clones) - 1
+        )
         all_clones += clones
     logger.info("Found %d clones", len(all_clones))
 

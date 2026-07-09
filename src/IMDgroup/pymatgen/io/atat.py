@@ -28,10 +28,10 @@
 """This module implements helper functions to work with ATAT."""
 
 import numpy as np
+from pymatgen.core import DummySpecies
 from IMDgroup.pymatgen.core.structure import\
     structure_strain, structure_distance, get_matched_structure
 from IMDgroup.pymatgen.core.structure import IMDStructure as Structure
-from pymatgen.core import DummySpecies
 
 
 def check_volume_distortion(

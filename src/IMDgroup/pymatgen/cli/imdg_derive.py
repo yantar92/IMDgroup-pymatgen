@@ -287,9 +287,9 @@ def strain(args):
             attr_name = name + suffix
             value = getattr(args, attr_name)
             if "%" in value:
-                new_val = float(re.sub("%", "", value))/100.0 - 1.0
+                new_val = float(re.sub("%", "", value)) / 100.0 - 1.0
             else:
-                new_val = float(value)/getattr(structure0.lattice, name) - 1.0
+                new_val = float(value) / getattr(structure0.lattice, name) - 1.0
             logger.info("%s: %s -> %f", attr_name, value, new_val)
             setattr(args, attr_name, new_val)
 
@@ -554,6 +554,7 @@ def fix(args):
 
     inputset.name = "selective_dynamics"
     return {'inputsets': [inputset]}
+
 
 def incar_add_args(parser):
     """Setup parser arguments for incar.
@@ -965,7 +966,7 @@ def atat(args):
 
     # Following ATAT's approach, we norm the KPPRA by the number of
     # sites, including vacancies; not by number of actual atoms.
-    n_kpoints = int(args.kpoints)/len(structure)
+    n_kpoints = int(args.kpoints) / len(structure)
     lattice_vector_str = '\n'.join(
         ' '.join(map(str, row))
         for row in structure.lattice.matrix)
@@ -1154,7 +1155,7 @@ def __neb_diffusion_get_inputset(idx, beg, end, args, auto_nimages=False):
         # Dynamically compute NIMAGES for best visualization
         diff = structure_diff(beg, end, tol=0, match_first=False)
         max_disp = np.max(np.linalg.norm(diff, axis=1))
-        nimages = max(args.nimages, int(np.ceil(max_disp/0.5)))
+        nimages = max(args.nimages, int(np.ceil(max_disp / 0.5)))
         frac_tol = 0
         method = 'linear'
     else:
@@ -1247,7 +1248,7 @@ def _append_valid(
         structure.translate_sites(
             [len(structure) - 1],
             frac_vec, frac_coords=True
-            )
+        )
     return structure
 
 
@@ -1302,7 +1303,7 @@ def neb_diffusion(args):
                         species=site.species,
                         coords=site.coords,
                         coords_are_cartesian=True
-                        )
+                    )
                 for site in new_sites:
                     _append_valid(site, struct, args.frac_tol)
 

@@ -30,8 +30,9 @@ import logging
 import os
 import re
 import warnings
-from termcolor import colored
+import itertools
 from pathlib import Path
+from termcolor import colored
 from alive_progress import alive_it
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -39,12 +40,6 @@ from matplotlib.colors import ListedColormap, Normalize, to_rgba
 from matplotlib.font_manager import FontProperties
 from matplotlib.lines import Line2D
 import numpy as np
-from IMDgroup.pymatgen.core.structure import IMDStructure as Structure
-from IMDgroup.pymatgen.core.structure import merge_structures, structure_distance
-from IMDgroup.pymatgen.io.vasp.vaspdir import IMDGVaspDir
-from IMDgroup.pymatgen.io.vasp.sets import write_selective_dynamics_summary_maybe
-import IMDgroup.pymatgen.io.atat as IMDatat
-import itertools
 from pymatgen.core import Element, Composition
 from pymatgen.io.ase import AseAtomsAdaptor
 from pymatgen.entries.computed_entries import (
@@ -54,6 +49,11 @@ from pymatgen.entries.computed_entries import (
 from pymatgen.apps.battery.insertion_battery import InsertionElectrode
 from pymatgen.apps.battery.plotter import VoltageProfilePlotter
 from pymatgen.analysis.phase_diagram import PhaseDiagram, PDPlotter
+from IMDgroup.pymatgen.core.structure import IMDStructure as Structure
+from IMDgroup.pymatgen.core.structure import merge_structures, structure_distance
+from IMDgroup.pymatgen.io.vasp.vaspdir import IMDGVaspDir
+from IMDgroup.pymatgen.io.vasp.sets import write_selective_dynamics_summary_maybe
+import IMDgroup.pymatgen.io.atat as IMDatat
 
 logger = logging.getLogger(__name__)
 
@@ -410,7 +410,7 @@ def _atat_plot_calc_vs_fit_energies(
         fit: pd.DataFrame,
         c_range: tuple[float, float] = (0.0, 1.0),
         erange: tuple[float, float] | None = None,
-        ) -> None:
+) -> None:
     """Plot Fitted vs Calculated energies at AX axis.
     """
     ax.set_title('Calculated and Fitted Energies')
@@ -484,7 +484,7 @@ def _atat_plot_calculated_energies(
         extra: list[pd.DataFrame] | None = None,
         c_range: tuple[float, float] = (0.0, 1.0),
         erange: tuple[float, float] | None = None,
-        ) -> None:
+) -> None:
     """Plot Fitted energies at AX axis.
     """
     erred = predstr[
@@ -680,7 +680,7 @@ def _atat_1(
     for df in extra:
         df.threshold = extra_dirs_threshold
         filename = str(df.name).replace('/', '') + ".out"
-        filename = Path(wdir)/filename
+        filename = Path(wdir) / filename
         logger.info("Saving extra energy points to %s", filename)
         df.sort_values('concentration').to_csv(
             filename, sep=' ', index=False)
@@ -724,7 +724,7 @@ def _atat_1(
         gs.loc[gs['index'] == idx, 'sublattice deviation'] = displ
 
     logger.info("Saving sublattice deviation to %s", 'fit2.out')
-    filename = Path(wdir)/"fit2.out"
+    filename = Path(wdir) / "fit2.out"
     fit.sort_values('concentration').to_csv(
         filename, sep=' ', index=False)
     print(colored(f"{wdir.replace("./", "")}: ", attrs=['bold'])
@@ -753,8 +753,8 @@ def _atat_1(
         'figure.titlesize': base_sz * 1.2,
     })
 
-    width = 8.27*0.9  # 90% A4
-    fig, axs = plt.subplots(3, 2, figsize=(width, 1.4*width))
+    width = 8.27 * 0.9  # 90% A4
+    fig, axs = plt.subplots(3, 2, figsize=(width, 1.4 * width))
     fig.suptitle(global_title)
 
     _atat_plot_fitted_energies(axs[1, 0], predstr, gs, fit, conc_range, erange)
@@ -775,9 +775,9 @@ def _atat_1(
             ha="center",
             bbox={"facecolor": "red", "alpha": 0.3, "pad": 5})
 
-    output_png = Path(wdir)/'atat-summary-test.png'
+    output_png = Path(wdir) / 'atat-summary-test.png'
     plt.savefig(output_png, dpi=300)
-    output_svg = Path(wdir)/'atat-summary-test.svg'
+    output_svg = Path(wdir) / 'atat-summary-test.svg'
     plt.savefig(output_svg, dpi=300)
 
     logger.info("Saving ATAT plots to %s", output_png)
@@ -1045,8 +1045,8 @@ def _hull_plot_custom_phase_diagram(
             phd.get_phase_separation_energy(entry) * energy_mult),
         'Formula': entry.data['formula'],
     } for entry, coords in unstable_entries.items()
-      if phd.get_e_above_hull(entry) is not None
-      and phd.get_e_above_hull(entry) < show_unstable]
+            if phd.get_e_above_hull(entry) is not None
+            and phd.get_e_above_hull(entry) < show_unstable]
     stable_data = [{
         'ID': str(entry.data.get("ID")),
         'Energy': entry.energy_per_atom,
@@ -1309,7 +1309,7 @@ def hull(args):
     """
     path = Path(args.dir)
 
-    fig, ax = plt.subplots(figsize=(4.13, 3))
+    _, ax = plt.subplots(figsize=(4.13, 3))
 
     temperature = 0.0
     if args.entropy:
