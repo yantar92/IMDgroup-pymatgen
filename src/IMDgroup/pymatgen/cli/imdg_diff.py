@@ -49,7 +49,6 @@ def structure_add_args(parser):
     Args:
         parser: Subparser from argparse.
     """
-    parser.help = "Compare VASP structures from VASP outputs or from POSCARs"
     parser.set_defaults(func_diff=diff_structures)
 
     group = parser.add_mutually_exclusive_group(required=False)
@@ -229,7 +228,6 @@ def incar_add_args(parser):
     Args:
         parser: Subparser from argparse.
     """
-    parser.help = "Compare INCARs from VASP dirs"
     parser.set_defaults(func_diff=diff_incar)
 
 
@@ -285,8 +283,6 @@ def add_args(parser):
     Args:
         parser: Sub-parser from argparse.
     """
-    parser.help = """Compare VASP inputs/outputs."""
-
     parser.add_argument(
         "dirs",
         help="VASP directories to compare",
@@ -296,10 +292,26 @@ def add_args(parser):
 
     subparsers = parser.add_subparsers(required=True)
 
-    parser_structure = subparsers.add_parser("structure")
+    parser_structure = subparsers.add_parser(
+        "structure",
+        help="Group structures by symmetry and energy",
+        description="""\
+Group VASP structures by symmetry and energy across directories.
+
+Reads structures from VASP outputs (vasprun.xml) or POSCAR files,
+matches them by symmetry, and reports groups of identical
+configurations sorted by energy.  Optionally copies unique structures
+to a target directory.""")
     structure_add_args(parser_structure)
 
-    parser_incar = subparsers.add_parser("incar")
+    parser_incar = subparsers.add_parser(
+        "incar",
+        help="Compare INCAR files across directories",
+        description="""\
+Compare INCAR files across VASP directories.
+
+Groups directories by their INCAR parameters and reports common
+settings and per-group differences.""")
     incar_add_args(parser_incar)
 
 

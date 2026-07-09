@@ -114,8 +114,6 @@ def add_args(parser):
     Args:
         parser: Sub-parser from argparse.
     """
-    parser.help = """Report running VASP status."""
-
     parser.add_argument(
         "dir",
         help="""Directories to read (recusrively).  Defaults to current dir.""",

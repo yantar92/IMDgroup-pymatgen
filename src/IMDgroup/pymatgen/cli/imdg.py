@@ -110,29 +110,82 @@ def main():
 
     subparsers = parser.add_subparsers(required=True)
 
-    parser_create = subparsers.add_parser("create")
+    parser_create = subparsers.add_parser(
+        "create",
+        help="Create new VASP inputs from scratch",
+        description="""\
+Create new VASP inputs from scratch.
+
+Accepts a Materials Project ID (e.g. mp-48), a path to a structure
+file (CIF, POSCAR, etc.), or an atom name and cell dimensions
+(e.g. "Li 20x20x20").  Writes a complete set of VASP input files
+to a directory named after the system.""")
     IMDgroup.pymatgen.cli.imdg_create.add_args(parser_create)
     parser_create.set_defaults(func=IMDgroup.pymatgen.cli.imdg_create.create)
 
-    parser_derive = subparsers.add_parser("derive")
+    parser_derive = subparsers.add_parser(
+        "derive",
+        help="Derive new VASP inputs from an existing calculation",
+        description="""\
+Derive new VASP inputs from an existing calculation.
+
+Applies mutations -- relaxation, strain, supercell scaling, INCAR
+changes, k-point modifications, atom insertion/deletion, functional
+switching, and NEB path generation -- to a VASP directory and writes
+the resulting input files.  Type "imdg derive -h" to see available
+subcommands.""")
     IMDgroup.pymatgen.cli.imdg_derive.add_args(parser_derive)
     parser_derive.set_defaults(func=IMDgroup.pymatgen.cli.imdg_derive.derive)
 
-    parser_diff = subparsers.add_parser("diff")
+    parser_diff = subparsers.add_parser(
+        "diff",
+        help="Compare VASP inputs and outputs across directories",
+        description="""\
+Compare VASP inputs and outputs across multiple directories.
+
+Supports structure comparison (grouping by symmetry and energy) and
+INCAR comparison (grouping by parameter differences).  Type
+"imdg diff -h" to see available subcommands.""")
     IMDgroup.pymatgen.cli.imdg_diff.add_args(parser_diff)
     parser_diff.set_defaults(func=IMDgroup.pymatgen.cli.imdg_diff.diff)
 
-    parser_analyze = subparsers.add_parser("analyze")
+    parser_analyze = subparsers.add_parser(
+        "analyze",
+        help="Tabular summary of VASP outputs across directories",
+        description="""\
+Produce a tabular summary of VASP outputs across directories.
+
+Reports energies, lattice parameters, volume changes, atomic
+displacements, and space groups.  Results can be grouped by INCAR
+similarity and filtered by field selection.""")
     IMDgroup.pymatgen.cli.imdg_analyze.add_args(parser_analyze)
     parser_analyze.set_defaults(
         func=IMDgroup.pymatgen.cli.imdg_analyze.analyze)
 
-    parser_status = subparsers.add_parser("status")
+    parser_status = subparsers.add_parser(
+        "status",
+        help="Check running status of VASP calculations",
+        description="""\
+Check the running status of VASP calculations.
+
+Scans directories recursively for VASP inputs and reports convergence
+state, progress, wall-clock timing, SLURM job status, and warnings.
+Supports filtering by problem status, regexp patterns, and warning
+types.""")
     IMDgroup.pymatgen.cli.imdg_status.add_args(parser_status)
     parser_status.set_defaults(
         func=IMDgroup.pymatgen.cli.imdg_status.status)
 
-    parser_visualize = subparsers.add_parser("visualize")
+    parser_visualize = subparsers.add_parser(
+        "visualize",
+        help="Generate plots and visualizations from VASP outputs",
+        description="""\
+Generate plots and visualizations from VASP outputs.
+
+Includes NEB trajectory export, ATAT cluster expansion summaries,
+formation energy convex hulls, voltage profiles, and selective
+dynamics illustrations.  Type "imdg visualize -h" to see available
+subcommands.""")
     IMDgroup.pymatgen.cli.imdg_visualize.add_args(parser_visualize)
     parser_visualize.set_defaults(
         func=IMDgroup.pymatgen.cli.imdg_visualize.visualize)

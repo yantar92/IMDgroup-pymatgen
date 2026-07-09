@@ -59,8 +59,6 @@ def add_args(parser):
     Args:
         parser: Sub-parser from argparse.
     """
-    parser.help = """Analyze vasp outputs."""
-
     parser.add_argument(
         "dir",
         help="""Directory(ies) to read (recusrively); defaults to current dir""",

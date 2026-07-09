@@ -42,8 +42,6 @@ def add_args(parser):
     Args:
         parser: Sub-parser from argparse.
     """
-    parser.help = """Create new VASP inputs from scratch."""
-
     parser.add_argument(
         "what",
         help="""What to create (atom name+cell, mp-XXX, or file)

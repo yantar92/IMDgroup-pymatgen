@@ -61,9 +61,6 @@ def add_args(parser):
     Args:
         parser: Sub-parser from argparse.
     """
-    parser.help = """Create new VASP inputs from existing.
-Write them to <prefix><output name><subdir>."""
-
     parser.add_argument(
         "input_directory",
         default=".",
@@ -106,51 +103,164 @@ Write them to <prefix><output name><subdir>."""
 
     subparsers = parser.add_subparsers(required=True)
 
-    parser_fix = subparsers.add_parser("fix")
+    parser_fix = subparsers.add_parser(
+        "fix",
+        help="Apply selective dynamics constraints to species",
+        description="""\
+Apply selective dynamics constraints to atomic species.
+
+Accepts a Python dict mapping element symbols to 3-element boolean
+lists (e.g. '{"Na": [True, True, True], "C": [False, False, False]}').
+Optionally discards existing constraints.""")
     fix_add_args(parser_fix)
 
-    parser_incar = subparsers.add_parser("incar")
+    parser_incar = subparsers.add_parser(
+        "incar",
+        help="Modify INCAR parameters",
+        description="""\
+Modify INCAR parameters.
+
+Set or unset individual INCAR tags using PARAM:VALUE pairs.
+Use VALUE:None to remove a tag.""")
     incar_add_args(parser_incar)
 
-    parser_supercell = subparsers.add_parser("supercell")
+    parser_supercell = subparsers.add_parser(
+        "supercell",
+        help="Create supercell with rescaled k-points",
+        description="""\
+Create a supercell from the input structure.
+
+Scales the cell by N1xN2xN3 and rescales the k-point mesh to maintain
+a target k-point density (default: 10000).""")
     supercell_add_args(parser_supercell)
 
-    parser_functional = subparsers.add_parser("functional")
+    parser_functional = subparsers.add_parser(
+        "functional",
+        help="Change exchange-correlation functional",
+        description="""\
+Change the exchange-correlation functional.
+
+Supported functionals: PBE, PBEsol, PBE+D2, PBE+TS, vdW-DF, vdW-DF2,
+optB88-vdW, optB86b-vdW, PBE+D3-0, PBE+D3-BJ.""")
     functional_add_args(parser_functional)
 
-    parser_relax = subparsers.add_parser("relax")
+    parser_relax = subparsers.add_parser(
+        "relax",
+        help="Create relaxation input with specified ISIF",
+        description="""\
+Create a relaxation input with specified degrees of freedom.
+
+ISIF determines what is relaxed: positions only, cell shape, volume,
+or combinations.  Sets ISTART=0, NSW=500, IBRION=2 (CG), EDIFF=1e-6,
+EDIFFG=-0.01.  When relaxing shape/volume, ENCUT is automatically
+increased to 550 eV.""")
     relax_add_args(parser_relax)
 
-    parser_kpoints = subparsers.add_parser("kpoints")
+    parser_kpoints = subparsers.add_parser(
+        "kpoints",
+        help="Modify k-point density or specify a grid",
+        description="""\
+Modify k-point settings.
+
+Adjust k-point density (--density) or set an explicit grid
+(--grid, e.g. 1x1x5).""")
     kpoints_add_args(parser_kpoints)
 
-    parser_strain = subparsers.add_parser("strain")
+    parser_strain = subparsers.add_parser(
+        "strain",
+        help="Apply lattice strain along a, b, c axes",
+        description="""\
+Apply lattice strain along a, b, c axes.
+
+Each axis accepts min, max, and number of steps.  Values can be
+absolute (Angstrom) or relative (percentage of initial, e.g. "98%").
+Optionally applies selective dynamics to all sites.""")
     strain_add_args(parser_strain)
 
-    parser_perturb = subparsers.add_parser("perturb")
+    parser_perturb = subparsers.add_parser(
+        "perturb",
+        help="Randomly perturb atomic positions",
+        description="""\
+Randomly perturb atomic positions by a given distance.
+
+Adds random displacement to each atom (default: 0.1 Angstrom).
+Useful for breaking symmetry before relaxation.""")
     perturb_add_args(parser_perturb)
 
-    parser_scf = subparsers.add_parser("scf")
+    parser_scf = subparsers.add_parser(
+        "scf",
+        help="Create static SCF calculation input",
+        description="""\
+Create a static self-consistent field (SCF) calculation.
+
+Sets NSW=0, IBRION=-1, ISMEAR=-5 (tetrahedron method), and clears
+IMAGES/SPRING tags from NEB runs.""")
     scf_add_args(parser_scf)
 
-    parser_insert = subparsers.add_parser("insert")
+    parser_insert = subparsers.add_parser(
+        "insert",
+        help="Insert atom or molecule at interstitial sites",
+        description="""\
+Insert an atom or molecule at all symmetry-inequivalent interstitial
+sites of the host structure.  Uses grid scanning with optional noise
+and proximity filtering.  Aliased as "ins".""")
     insert_add_args(parser_insert)
-    parser_insert2 = subparsers.add_parser("ins")
+    parser_insert2 = subparsers.add_parser(
+        "ins",
+        help="Insert atom or molecule at interstitial sites (alias for insert)",
+        description="""\
+Alias for "insert".  Insert an atom or molecule at all
+symmetry-inequivalent interstitial sites.""")
     insert_add_args(parser_insert2)
 
-    parser_delete = subparsers.add_parser("del")
+    parser_delete = subparsers.add_parser(
+        "del",
+        help="Delete atomic species from structure",
+        description="""\
+Delete specified atomic species from the structure.
+
+Removes all atoms matching the given element symbols.""")
     delete_add_args(parser_delete)
 
-    parser_fill = subparsers.add_parser("fill")
+    parser_fill = subparsers.add_parser(
+        "fill",
+        help="Fill all insertion sites from relaxed configurations",
+        description="""\
+Generate a structure with all insertion sites filled.
+
+Combines multiple relaxed insertion configurations (from --uniq_sites)
+into a single structure, merging sites within tolerance.""")
     fill_add_args(parser_fill)
 
-    parser_neb = subparsers.add_parser("neb")
+    parser_neb = subparsers.add_parser(
+        "neb",
+        help="Create NEB input between two VASP runs",
+        description="""\
+Create a Nudged Elastic Band (NEB) input between two VASP runs.
+
+Uses the current directory as the initial state and --target as the
+final state.  Number of images is configurable (default: 4).""")
     neb_add_args(parser_neb)
 
-    parser_neb_diffusion = subparsers.add_parser("neb_diffusion")
+    parser_neb_diffusion = subparsers.add_parser(
+        "neb_diffusion",
+        help="Generate NEB inputs for all diffusion paths",
+        description="""\
+Generate NEB inputs for all unique diffusion paths between relaxed
+configurations.  Analyzes the topology of interstitial sites and
+automatically discovers unique hops.  Supports IDPP or linear
+interpolation, distance cutoffs, and multi-threading.""")
     neb_diffusion_add_args(parser_neb_diffusion)
 
-    parser_atat = subparsers.add_parser("atat")
+    parser_atat = subparsers.add_parser(
+        "atat",
+        help="Create VASP input from ATAT str.out structure",
+        description="""\
+Create VASP input from an ATAT str.out structure.
+
+Computes k-point mesh using ATAT's kmesh utility, preserves selective
+dynamics from the original POSCAR, and uses INCAR from the parent
+directory or alongside str.out.""")
     atat_add_args(parser_atat)
 
 
@@ -180,7 +290,6 @@ def perturb_add_args(parser):
     Args:
         parser: Subparser from argparse.
     """
-    parser.help = "Created perturbed input"
     parser.set_defaults(func_derive=perturb)
 
     parser.add_argument(
@@ -227,7 +336,6 @@ def strain_add_args(parser):
     Args:
         parser: Subparser from argparse.
     """
-    parser.help = "Created strained input"
     parser.set_defaults(func_derive=strain)
     for name in ["a", "b", "c"]:
         parser.add_argument(
@@ -324,7 +432,6 @@ def relax_add_args(parser):
     Args:
         parser: Subparser from argparse.
     """
-    parser.help = "Create relaxation input"
     parser.set_defaults(func_derive=relax)
     parser.add_argument(
         "isif",
@@ -400,7 +507,6 @@ def supercell_add_args(parser):
     Args:
         parser: Subparser from argparse.
     """
-    parser.help = "Create supercell from input (rescaling k-points)"
     parser.set_defaults(func_derive=supercell)
     parser.add_argument(
         "supercell_size",
@@ -441,7 +547,6 @@ def functional_add_args(parser):
     Args:
         parser: Subparser from argparse.
     """
-    parser.help = "Create input with a given functional"
     parser.set_defaults(func_derive=functional)
     parser.add_argument(
         "functional_type",
@@ -477,7 +582,6 @@ def fix_add_args(parser):
     Args:
         parser: Subparser from argparse.
     """
-    parser.help = "Apply selective dynamics constraints to species"
     parser.set_defaults(func_derive=fix)
     parser.add_argument(
         "constraints",
@@ -562,7 +666,6 @@ def incar_add_args(parser):
     Args:
         parser: Subparser from argparse.
     """
-    parser.help = "Modify incar"
     parser.set_defaults(func_derive=incar)
     parser.add_argument(
         "parameters",
@@ -609,7 +712,6 @@ def kpoints_add_args(parser):
     Args:
         parser: Subparser from argparse.
     """
-    parser.help = "Create input with custom kpoints settings"
     parser.set_defaults(func_derive=kpoints)
     parser.add_argument(
         "--density",
@@ -656,7 +758,6 @@ def scf_add_args(parser):
     Args:
         parser: Subparser from argparse.
     """
-    parser.help = "Create input for SCF calculation"
     parser.set_defaults(func_derive=scf)
 
 
@@ -687,11 +788,6 @@ def insert_add_args(parser):
     Args:
         parser: Subparser from argparse.
     """
-    parser.help = \
-        """Create possible structures with a given atom/molecule inserted.
-When the original structure sets selective dynamics, the inserted
-structure will not be constrained.
-"""
     parser.set_defaults(func_derive=insert)
 
     parser.add_argument(
@@ -787,7 +883,6 @@ def delete_add_args(parser):
     Args:
         parser: Subparser from argparse.
     """
-    parser.help = "Delete sites/atoms from structure"
     parser.set_defaults(func_derive=delete)
     parser.add_argument(
         "what",
@@ -823,7 +918,6 @@ def fill_add_args(parser):
     Args:
         parser: Subparser from argparse.
     """
-    parser.help = "Fill in all possible inserttion sites and output structure"
     parser.set_defaults(func_derive=fill)
     parser.add_argument(
         "--uniq_sites",
@@ -926,8 +1020,6 @@ def atat_add_args(parser):
     Args:
         parser: Subparser from argparse.
     """
-    parser.help = """Create ATAT VASP input from str.out
-If INCAR is present use it instead of parent dir."""
     parser.set_defaults(func_derive=atat)
     parser.add_argument(
         "atat_structure",
@@ -1039,7 +1131,6 @@ def neb_add_args(parser):
     Args:
         parser: Subparser from argparse.
     """
-    parser.help = "Create NEB input between two VASP runs"
     parser.set_defaults(func_derive=neb)
     parser.add_argument(
         "target",
@@ -1076,8 +1167,6 @@ def neb_diffusion_add_args(parser):
     Args:
         parser: Subparser from argparse.
     """
-    parser.help =\
-        "Create NEB input between multiple VASP runs derived from prototype"
     parser.set_defaults(func_derive=neb_diffusion)
     parser.add_argument(
         "--diffusion_points",

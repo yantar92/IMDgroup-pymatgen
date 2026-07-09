@@ -64,8 +64,6 @@ def add_args(parser):
     Args:
         parser: Sub-parser from argparse.
     """
-    parser.help = """Visualize vasp outputs."""
-
     parser.add_argument(
         "dir",
         help="""Directory to read (recursively) or a pickle file for hull subcommand; defaults to current dir""",
@@ -75,19 +73,62 @@ def add_args(parser):
 
     subparsers = parser.add_subparsers(required=True)
 
-    parser_neb = subparsers.add_parser("neb")
+    parser_neb = subparsers.add_parser(
+        "neb",
+        help="Export converged NEB trajectories as CIF",
+        description="""\
+Export converged NEB trajectories as CIF files.
+
+Scans the directory tree for NEB runs.  For each converged NEB run,
+writes a NEB_trajectory_converged.cif file containing all images
+along the minimum-energy path.""")
     neb_add_args(parser_neb)
 
-    parser_selective_dynamics = subparsers.add_parser("selective_dynamics")
+    parser_selective_dynamics = subparsers.add_parser(
+        "selective_dynamics",
+        help="Visualize selective dynamics constraints",
+        description="""\
+Visualize selective dynamics constraints from POSCAR files.
+
+Scans the directory tree and writes selective_dynamics.cif files
+illustrating which atoms are free to move.""")
     selective_dynamics_add_args(parser_selective_dynamics)
 
-    parser_atat = subparsers.add_parser("atat")
+    parser_atat = subparsers.add_parser(
+        "atat",
+        help="Plot ATAT cluster expansion summaries",
+        description="""\
+Plot ATAT cluster expansion summaries.
+
+Generates a six-panel figure: fitted energies, calculated energies,
+calculated-vs-fitted, fit residuals, sublattice deviation, and
+ECI-vs-cluster-diameter.  Writes atat-summary-test.png/svg,
+fit2.out (with sublattice deviations), and optional extra energy
+points from --plot_extra directories.""")
     atat_add_args(parser_atat)
 
-    parser_hull = subparsers.add_parser("hull")
+    parser_hull = subparsers.add_parser(
+        "hull",
+        help="Plot formation energy convex hull",
+        description="""\
+Plot the formation energy convex hull from VASP outputs or a pickle file.
+
+Reads entries recursively from VASP directories or from a DataFrame
+pickle.  Produces a publication-quality phase diagram with ground-state
+labels, energy-above-hull markers, and concentration reference lines.
+Writes formation_en.png/svg, formation_en.txt, formation_en_gs.txt,
+and formation_en_min.txt.""")
     hull_add_args(parser_hull)
 
-    parser_voltage = subparsers.add_parser("voltage")
+    parser_voltage = subparsers.add_parser(
+        "voltage",
+        help="Plot voltage profile",
+        description="""\
+Plot the voltage profile using pymatgen's battery analysis tools.
+
+Reads entries from VASP directories or a pickle file and computes
+the insertion electrode voltage curve.  Writes voltage.png/svg and
+voltage.out (fraction, voltage, capacity).""")
     voltage_add_args(parser_voltage)
 
 
@@ -97,7 +138,6 @@ def neb_add_args(parser):
     Args:
         parser: Subparser from argparse.
     """
-    parser.help = "Visualize NEB outputs"
     parser.set_defaults(func_derive=neb)
 
 
@@ -138,7 +178,6 @@ def selective_dynamics_add_args(parser):
     Args:
         parser: Subparser from argparse.
     """
-    parser.help = "Visualize selective dynamics for POSCAR files"
     parser.set_defaults(func_derive=selective_dynamics)
 
 
@@ -166,7 +205,6 @@ def atat_add_args(parser):
     Args:
         parser: Subparser from argparse.
     """
-    parser.help = "Visualize ATAT outputs"
     parser.add_argument(
         "--plot_extra",
         help="Extra data to plot. "
@@ -809,7 +847,6 @@ def hull_add_args(parser):
     Args:
         parser: Subparser from argparse.
     """
-    parser.help = "Plot formation energy hull from ATAT results"
     parser.description = (
         "Read structures and energies from VASP directories (recursively) "
         "or from a pickle file, compute the formation energy convex hull, "
@@ -1493,7 +1530,6 @@ def voltage_add_args(parser):
     Args:
         parser: Subparser from argparse.
     """
-    parser.help = "Plot voltage profile from ATAT results"
     parser.description = (
         "Read structures and energies from VASP directories (recursively) "
         "or from a pickle file, compute the voltage profile using "
