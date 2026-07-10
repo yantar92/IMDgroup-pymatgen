@@ -526,8 +526,8 @@ def _atat_plot_calculated_energies(
     """Plot Fitted energies at AX axis.
     """
     erred = predstr[
-        predstr['status'].str.contains('e') &
-        ~predstr['status'].str.contains('b')]
+        predstr['status'].str.contains('e')
+        & ~predstr['status'].str.contains('b')]
 
     ax.set_title('Calculated Energies')
     ax.set_xlabel('Concentration')
@@ -633,9 +633,10 @@ def _atat_1(
             # Check concentration range
             conc_range = (0.0, 1.0)
             match = re.search(
-                    r'Concentration range used for ground state checking:'
-                    r'\s*\[(.*?),(.*?)\]',
-                    content)
+                r'Concentration range used for ground state checking:'
+                r'\s*\[(.*?),(.*?)\]',
+                content
+            )
             if match:
                 conc_range = (float(match.group(1)), float(match.group(2)))
     except Exception:
@@ -709,8 +710,8 @@ def _atat_1(
                     e1_here = e1
                 data[field] = data.apply(
                     lambda row: row[field] - (
-                        e0_here + (row['concentration'] - conc_range[0]) *
-                        (e1_here - e0_here) / (conc_range[1] - conc_range[0])
+                        e0_here + (row['concentration'] - conc_range[0])
+                        * (e1_here - e0_here) / (conc_range[1] - conc_range[0])
                     ) if not np.isnan(row[field]) else row[field],
                     axis=1
                 )
@@ -1080,10 +1081,11 @@ def _hull_plot_custom_phase_diagram(
             if phd.get_e_above_hull(entry) is not None else None),
         "Decomposition energy (meV/atom)": (
             phd.get_phase_separation_energy(entry) * energy_mult),
-        'Formula': entry.data['formula'],
-    } for entry, coords in unstable_entries.items()
-            if phd.get_e_above_hull(entry) is not None
-            and phd.get_e_above_hull(entry) < show_unstable]
+        'Formula': entry.data['formula']}
+        for entry, coords in unstable_entries.items()
+        if phd.get_e_above_hull(entry) is not None
+        and phd.get_e_above_hull(entry) < show_unstable
+    ]
     stable_data = [{
         'ID': str(entry.data.get("ID")),
         'Energy': entry.energy_per_atom,
@@ -1483,8 +1485,8 @@ def hull(args):
             else:
                 reduced_mass = _reduced_mass(entry.structure)
             sisso_corr = (
-                entry.composition.num_atoms *
-                GibbsComputedStructureEntry._g_delta_sisso(
+                entry.composition.num_atoms
+                * GibbsComputedStructureEntry._g_delta_sisso(
                     entry.structure.volume / len(entry.structure),
                     reduced_mass,
                     temperature

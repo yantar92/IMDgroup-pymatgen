@@ -634,10 +634,8 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
         n_steps = len(run.ionic_steps)
         if incar.get('IBRION') in Incar.IBRION_IONIC_RELAX_values and\
            incar.get('ISIF') not in [
-               Incar.ISIF_FIX_SHAPE_VOL,
-               Incar.ISIF_FIX_SHAPE_VOL_FAST,
-               Incar.ISIF_FIX_SHAPE_VOL_TRACE,
-           ] and incar.get('NSW', 0) > 0 and n_steps > 1:  # NSW = 0 is SCF
+               Incar.ISIF_FIX_SHAPE_VOL, Incar.ISIF_FIX_SHAPE_VOL_FAST,
+               Incar.ISIF_FIX_SHAPE_VOL_TRACE] and incar.get('NSW', 0) > 0 and n_steps > 1:  # NSW = 0 is SCF
             return "unreliable"
         return self.final_energy
 

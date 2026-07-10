@@ -178,8 +178,8 @@ def diff_structures(args):
             # Err if energy is available in one structure, but not
             # another.
             str2_energy = str2.properties['final_energy']
-        if (str1_energy is None or
-            math.isclose(
+        if (str1_energy is None
+            or math.isclose(
                 str1_energy, str2_energy,
                 abs_tol=math.pow(10, -args.energy_tol))):
             if matcher.fit(str1, str2):

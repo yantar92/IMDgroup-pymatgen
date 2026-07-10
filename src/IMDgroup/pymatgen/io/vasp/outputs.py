@@ -69,9 +69,7 @@ class Vasprun(pmgVasprun):
            self.incar.get('ISIF') not in [
                Incar.ISIF_FIX_SHAPE_VOL,
                Incar.ISIF_FIX_SHAPE_VOL_TRACE,
-               Incar.ISIF_FIX_SHAPE_VOL_FAST,
-           ] and\
-           n_steps > 1:
+               Incar.ISIF_FIX_SHAPE_VOL_FAST] and n_steps > 1:
             warnings.warn(
                 "Energy may not be accurate when using "
                 f"ISIF({self.incar.get('ISIF')})!={Incar.ISIF_FIX_SHAPE_VOL}",
@@ -218,8 +216,8 @@ class Vasplog(MSONable):
                 "The system may be oscilating. Consider smaller POTIM or changing to IBRION=2 or 3"
             ],
             'dentet': [
-                "This error can occur in metallic systems where band occupancy cannot be uniquely solved.  " +
-                "Or when KPOINTS are pointing to the same band (e.g. in 1D structures)."
+                "This error can occur in metallic systems where band occupancy cannot be uniquely solved.  "
+                + "Or when KPOINTS are pointing to the same band (e.g. in 1D structures)."
             ],
         },
         "time_limit": [

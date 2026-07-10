@@ -232,10 +232,10 @@ def get_matched_structure(
         ind = np.argsort(row)
         found_mapping = False
         for matched_idx in ind:
-            if not matched[matched_idx] and\
-               ((not match_species) or
-               reference_struct[idx].species ==
-               target_struct[matched_idx].species):
+            if not matched[matched_idx] \
+               and ((not match_species)
+                    or reference_struct[idx].species
+                    == target_struct[matched_idx].species):
                 matched[matched_idx] = True
                 result_sites.append(target_struct[matched_idx])
                 found_mapping = True
@@ -612,8 +612,8 @@ def structure_matches(
             origin_path = struct.properties.get('origin_path')
             origin_path_2 = duplicate_of.properties.get('origin_path')
             warnings.warn(
-                "Duplicate structures found" +
-                f" ({origin_path} and {origin_path_2})"
+                "Duplicate structures found"
+                + f" ({origin_path} and {origin_path_2})"
                 if origin_path and origin_path_2 else "",
                 StructureDuplicateWarning
             )

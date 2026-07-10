@@ -144,9 +144,9 @@ class Incar(pmgIncar):
             functional_config = _load_yaml_config("functionals")
             if name not in functional_config:
                 raise KeyError(
-                    "Invalid or unsupported functional. " +
-                    "Supported functionals are " +
-                    ', '.join(functional_config) + "."
+                    "Invalid or unsupported functional. "
+                    + "Supported functionals are "
+                    + ', '.join(functional_config) + "."
                 )
             settings = functional_config.get(name)
         if settings:

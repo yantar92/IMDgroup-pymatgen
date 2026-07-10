@@ -295,8 +295,8 @@ class NEB_Graph(MultiDiGraph):
 
         self.__cycle_cache = [
             cycle for cycle in self.__cycle_cache
-            if start_idx not in cycle or
-            _check_cycle(cycle)
+            if start_idx not in cycle
+            or _check_cycle(cycle)
         ]
         # Now, all the cached cycles containing start_idx are valid.
         # Check if there are any left.
@@ -535,9 +535,7 @@ def get_neb_pairs(
         multithread: bool = False,
         limit: None | int = None,
         return_unfiltered: bool = False
-) -> list[tuple[Structure, Structure]] |\
-     tuple[list[tuple[Structure, Structure]],
-           list[tuple[Structure, Structure]]]:
+) -> list[tuple[Structure, Structure]] | tuple[list[tuple[Structure, Structure]], list[tuple[Structure, Structure]]]:
     """Construct all unique diffusion NEB pairs from a set of structures.
 
     The structures must share the same lattice and be derived from a
@@ -593,7 +591,7 @@ def get_neb_pairs(
             idx, struct.properties['origin_path']
             if struct is not None
             else "ignore (duplicate)"
-            )
+        )
 
     # Compute all the symmetrically equivalent structure clones
     all_clones = []

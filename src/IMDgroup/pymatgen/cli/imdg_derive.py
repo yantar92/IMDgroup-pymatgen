@@ -416,10 +416,10 @@ def strain(args):
         inputset_new.structure =\
             structure0.apply_strain(strn, inplace=False)
         output_dir_suffix = (
-            "strain" +
-            (f".a.{strn[0]:.2f}" if strn[0] != 0 else "") +
-            (f".b.{strn[1]:.2f}" if strn[1] != 0 else "") +
-            f".c.{strn[2]:.2f}")
+            "strain"
+            + (f".a.{strn[0]:.2f}" if strn[0] != 0 else "")
+            + (f".b.{strn[1]:.2f}" if strn[1] != 0 else "")
+            + f".c.{strn[2]:.2f}")
         inputset_new.name = output_dir_suffix
         outputs.append(inputset_new)
 
