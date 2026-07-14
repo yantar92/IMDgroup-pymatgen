@@ -178,7 +178,7 @@ def get_matched_structure(
         target_struct: Structure,
         pbc: bool = True,
         match_species: bool = True
-):
+) -> IMDStructure:
     """Rearrange sites in target_struct to best match reference_struct.
 
     Returns a modified target_struct with sites reordered so that

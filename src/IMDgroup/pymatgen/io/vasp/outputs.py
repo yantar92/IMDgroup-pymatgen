@@ -404,10 +404,13 @@ class Vasplog(MSONable):
         Returns:
             list[Vasplog]: One Vasplog instance per log file found.
         """
-        return [Vasplog(f) for f in Vasplog.vasp_log_files(dirname)]
+        files = Vasplog.vasp_log_files(dirname)
+        if files is None:
+            return []
+        return [Vasplog(f) for f in files]
 
     @staticmethod
-    def vasp_log_files(path: PathLike) -> list[str]:
+    def vasp_log_files(path: PathLike) -> list[Path] | None:
         """Find VASP log files in a directory.
 
         Files are sorted by modification time.  OUTCAR is excluded
@@ -425,7 +428,7 @@ class Vasplog(MSONable):
             return None
         files = [f for f in path.iterdir() if f.is_file()]
         # logger.debug("Searching slurm logs in %s across %s", path, files)
-        matching = []
+        matching: list[Path] = []
         for f in files:
             if any(re.match(regexp, f.name)
                    for regexp in Vasplog.VASP_LOG_FILES):

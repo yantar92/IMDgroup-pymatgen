@@ -538,6 +538,7 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
     def __getitem__(self, item):
         if self._parsed_files is None:
             self.refresh()
+        assert self._parsed_files is not None
         if item in self._parsed_files:
             return self._parsed_files[item]
         path = Path(self.path)
@@ -854,7 +855,9 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
         """
         if self.nebp:
             if self._neb_vaspdirs is None:
-                dir_names = self['INCAR'].image_dir_names()
+                incar = self['INCAR']
+                assert incar is not None
+                dir_names = incar.image_dir_names()
                 self._neb_vaspdirs = [
                     IMDGVaspDir(Path(self.path) / d) for d in dir_names
                 ]

@@ -67,6 +67,7 @@ MODULE_DIR = os.path.dirname(__file__)
 logger = logging.getLogger(__name__)
 
 
+
 def _load_cif(fname):
     return Structure.from_file(f"{MODULE_DIR}/{fname}.cif")
 
@@ -150,7 +151,7 @@ class IMDVaspInputSet(VaspInputSet):
     no_potcar: bool = False
     no_poscar: bool = False
     no_incar: bool = False
-    __structure: Structure | None = None
+    # __structure: Structure | None = None
 
     CONFIG = {'INCAR': {}, 'POTCAR_FUNCTIONAL': "PBE_64"}
 
@@ -190,10 +191,12 @@ class IMDVaspInputSet(VaspInputSet):
         if the KPOINTS density is below 5000 or above 15000
         k-points/atom.
         """
+        assert self.structure is not None
         if self.no_kpoints:
             return None
 
         kpoints = super().kpoints
+        assert kpoints is not None
 
         kpts = kpoints.kpts
         if kpoints.num_kpts == 0 and len(kpts) != 1\
@@ -234,7 +237,7 @@ class IMDVaspInputSet(VaspInputSet):
         return incar_updates
 
     @property
-    def incar(self) -> Incar:
+    def incar(self) -> Incar | None:
         """INCAR for the input set.
 
         Automatically derives a SYSTEM name from formula, lattice type,
@@ -250,6 +253,7 @@ class IMDVaspInputSet(VaspInputSet):
         if incar is None or not list(incar):
             return incar
 
+        assert self.structure is not None
         formula = self.structure.reduced_formula
         lattice_type = SpacegroupAnalyzer(self.structure).get_crystal_system()
         space_group =\
@@ -311,6 +315,7 @@ class IMDVaspInputSet(VaspInputSet):
         Validates the structure before generating the POSCAR.
         """
 
+        assert self.structure is not None
         assert self.structure.is_valid()
 
         # When using selective dynamics, detect bogus fully fixed atoms.
