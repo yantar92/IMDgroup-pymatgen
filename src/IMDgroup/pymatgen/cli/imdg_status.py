@@ -61,6 +61,7 @@ def custom_showwarning(
         file: Output stream (default: stderr).
         _line: Line context (unused).
     """
+    del _filename, _lineno, _line
     output = colored(
         f"{category.__name__}: ",
         "yellow",
@@ -77,7 +78,7 @@ def _slurm_get_queue():
     The returned list is from the output of squeue -O %Z command.
     """
     if shutil.which("squeue") is None:
-        return False
+        return []
     result = subprocess.check_output(
         "squeue -o %Z | tail -n +2",
         shell=True).split()
@@ -95,7 +96,7 @@ def slurm_runningp(path):
         parent NEB directory.
     """
     result = _slurm_get_queue()
-    if result and os.path.abspath(path) in [s.decode('utf-8') for s in result]:
+    if len(result) > 0 and os.path.abspath(path) in [s.decode('utf-8') for s in result]:
         return True
     # For NEB and similar calculations, vasp might be running in parent dir.
     # Then, current directory must be named as a number and parent
@@ -265,9 +266,11 @@ def _get_run_prefix(vaspdir: IMDGVaspDir) -> str:
 def _get_neb_summary(vaspdir: IMDGVaspDir) -> str:
     """Get summary of NEB calculation.
     """
+    neb_dirs = vaspdir.neb_dirs()
+    assert neb_dirs is not None
     neb_structures = []
     neb_structures_initial = []
-    for nebimagedir in vaspdir.neb_dirs():
+    for nebimagedir in neb_dirs:
         contcar_struct = nebimagedir.structure
         poscar_struct = nebimagedir.initial_structure
         neb_structures.append(contcar_struct or poscar_struct)
@@ -345,13 +348,14 @@ def status(args):
     dirs_with_warnings = {}  # warning_name: list of dirs
     for wdir in alive_it(paths, enrich_print=False, title="Reading VASP outputs"):
         vaspdir = vaspdirs.get(wdir)
+        assert vaspdir is not None
         incar = vaspdir['INCAR']
         if incar is not None:
             incar['SYSTEM'] = wdir
             incars.append(incar)
         # As we read VASP directories, they will take up more and more memory
         # Avoid overflowing memory when reading too many dirs.
-        vaspdirs[wdir] = None
+        del vaspdirs[wdir]
         nebp = vaspdir.nebp
 
         run_status = colored("unknown", "red")
@@ -449,6 +453,7 @@ def status(args):
             print(colored(f"{warn_name}: ", "yellow") + f"{' '.join(dir_list)}")
 
     common_incar, grouped_incars = Incar.group_incars(incars)
+    assert common_incar is not None
     if len(grouped_incars) > 1:
         print(colored("Multiple INCARs found: ", "yellow"))
         print(colored("Common INCAR parameters", attrs=['bold']))
