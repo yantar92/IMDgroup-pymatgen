@@ -288,6 +288,6 @@ def analyze(args):
             df = df.sort_values(by=['incar_group', 'dir'])
         else:
             df = df.sort_values('dir')
-        print(tabulate(df, headers=df.columns, tablefmt="orgtbl", showindex=False))
+        print(tabulate(df, headers=df.columns.to_list(), tablefmt="orgtbl", showindex=False))
 
     return 0
