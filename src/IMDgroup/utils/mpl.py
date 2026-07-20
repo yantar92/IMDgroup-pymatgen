@@ -28,45 +28,79 @@
 import matplotlib.pyplot as plt
 from cycler import cycler
 
-A4_WIDTH = 4.13 * 2
+A4_WIDTH = 4.13 * 2  # full A4 width in inches
 
 
-def mpl_defaults(font_size=8, width=A4_WIDTH, ratio=1.5) -> None:
-    """Set up global matplotlib rcParams for publication-style plots.
+def mpl_defaults(
+        *,
+        font_size: float = 12,
+        width: float = A4_WIDTH / 2,
+        ratio: float = 0.75,
+        dpi: int = 300,
+        savefig_dpi: int = 600,
+) -> None:
+    """Configure matplotlib rcParams for publication-quality figures.
 
-    Configures font sizes, figure dimensions, line styles, and color
-    cyclers suitable for journal figures.
+    Applies consistent settings: editable PDF text, direction-in
+    ticks, minor ticks, constrained layout, and a custom
+    color/linestyle cycler.  Scripts that need further customization
+    (e.g. a seaborn base style) should call this function *after* any
+    style sheet import so these values take precedence.
 
     Args:
-        font_size: Base font size in points.  Defaults to 8.
-        width: Figure width in inches.  Defaults to twice A4_WIDTH.
-        ratio: Aspect ratio (width/height).  Defaults to 1.5.
+        font_size: Base font size in pt.
+        width: Figure width in inches (default A4_WIDTH/2 = single-column).
+        ratio: Height / width ratio (default 0.75 = 3:4).
+        dpi: Screen DPI for interactive display.
+        savefig_dpi: DPI for saved figures.
     """
-    # Adjust font sizes based on the provided font_size argument
-    base_sz = font_size
-    base_markersize = base_sz * 0.5
-    height = width / ratio
+    height = width * ratio
 
-    # More unique plot styles
+    # Custom color + linestyle cycler (IMDgroup-specific).
     colors = plt.cm.tab20c(range(0, 20, 2))
     dashes = ['-', '--', '-.', ':']
-    custom_cycler = (cycler(linestyle=dashes) * cycler(color=colors))
+    custom_cycler = cycler(linestyle=dashes) * cycler(color=colors)
     plt.rc('axes', prop_cycle=custom_cycler)
 
     plt.rcParams.update({
         'figure.figsize': (width, height),
-        'font.size': base_sz,
-        'font.family': 'serif',
-        'font.serif': ['Times New Roman', 'DejaVu Serif'],
-        'mathtext.fontset': 'stix',
-        'axes.prop_cycle': custom_cycler,
-        'axes.labelsize': base_sz,
-        'axes.titlesize': base_sz * 1.2,
-        'axes.linewidth': 1.0,
+        'figure.dpi': dpi,
+        'savefig.dpi': savefig_dpi,
+
+        # Use constrained layout so that the axes rectangle within the
+        # figure is determined by the layout engine rather than by
+        # ad-hoc subplot-parameter defaults.  When all figures include
+        # the same set of text elements (title, xlabel, ylabel -- even
+        # if some are empty strings), constrained_layout produces
+        # identical axes sizes across figures, keeping the data area
+        # consistent.  Without this, adding or removing a title
+        # silently shrinks or expands the axes box while the total
+        # figure dimensions stay fixed, which confuses visual
+        # comparison and panel alignment in publications.
+        #
+        # IMPORTANT: saving with bbox_inches='tight' or calling
+        # fig.tight_layout() defeats this consistency.  Both
+        # operations recompute the layout and can change the saved
+        # figure dimensions.  Save with only the filename and dpi.
+        'figure.constrained_layout.use': True,
+
+        'font.size': font_size,
+        'axes.labelsize': font_size,
+        'axes.titlesize': font_size * 4 / 3,
+        'legend.fontsize': font_size / 1.2,
+        'xtick.labelsize': font_size / 1.2,
+        'ytick.labelsize': font_size / 1.2,
+
+        'axes.linewidth': 0.8,
+        'xtick.major.width': 0.8,
+        'ytick.major.width': 0.8,
+        'xtick.minor.width': 0.6,
+        'ytick.minor.width': 0.6,
+
         'lines.linewidth': 1.2,
-        'lines.markersize': base_markersize,
-        'xtick.labelsize': base_sz,
-        'ytick.labelsize': base_sz,
-        'legend.fontsize': base_sz,
-        'figure.titlesize': base_sz * 1.2,
+        'lines.markersize': 3.5,
+
+        'pdf.fonttype': 42,          # editable text in Illustrator
+        'ps.fonttype': 42,
+        'mathtext.default': 'regular',
     })
