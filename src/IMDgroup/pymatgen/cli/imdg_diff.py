@@ -173,17 +173,16 @@ def diff_structures(args):
         Return True when they are equal.
         """
         str1_energy = str1.properties.get('final_energy', None)
-        str2_energy = None
-        if str1_energy:
+        if str1_energy is not None:
             # Err if energy is available in one structure, but not
             # another.
             str2_energy = str2.properties['final_energy']
-        if (str1_energy is None
-            or math.isclose(
-                str1_energy, str2_energy,
-                abs_tol=math.pow(10, -args.energy_tol))):
-            if matcher.fit(str1, str2):
-                return True
+            if not math.isclose(
+                    str1_energy, str2_energy,
+                    abs_tol=math.pow(10, -args.energy_tol)):
+                return False
+        if matcher.fit(str1, str2):
+            return True
         return False
 
     def _structure_name(struct):
@@ -261,7 +260,7 @@ def diff_incar(args):
         return incar['SYSTEM']
 
     common_incar, groups = Incar.group_incars(incars)
-
+    assert common_incar is not None
     print(colored("Common INCAR parameters", attrs=['bold']))
     print(common_incar.get_str(pretty=True))
 
