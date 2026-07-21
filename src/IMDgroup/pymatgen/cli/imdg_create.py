@@ -64,7 +64,8 @@ def create_from_mpid(mpid):
     Returns:
         Structure with the ``mpid`` property set.
     """
-    structure = pmg.Structure.from_id(mpid)
+    # cast to Structure object.  from_id may return IStructure.
+    structure = pmg.Structure.from_sites(pmg.Structure.from_id(mpid))
     structure.properties['mpid'] = mpid
     logger.info(
         "Downloaded structure %s from Materials Project db:\n%s",
@@ -116,7 +117,9 @@ def create_from_atom_name(name, size):
         "Creating %fx%fx%f supercell for %s",
         size[0], size[1], size[2], name)
     molecule = pmg.Molecule([name], [[0, 0, 0]])
-    return molecule.get_boxed_structure(size[0], size[1], size[2])
+    # cast to Structure object.  from_id may return IStructure.
+    return pmg.Structure.from_sites(
+        molecule.get_boxed_structure(size[0], size[1], size[2]))
 
 
 def create(args):
@@ -145,6 +148,7 @@ def create(args):
     else:
         structure = create_from_mpid(args.what)
         inputset = IMDStandardVaspInputSet(structure=structure)
+    assert inputset.incar is not None
     inputset.write_input(output_dir=inputset.incar['SYSTEM'])
 
     return 0
