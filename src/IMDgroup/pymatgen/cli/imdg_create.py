@@ -82,7 +82,7 @@ def create_from_mpid(mpid):
             standard_structure
         )
 
-    return structure
+    return standard_structure
 
 
 def create_from_file(path):
