@@ -468,14 +468,24 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
         """
         return self._lmdb_get(self._cache_key)
 
+    _PENDING_FLUSH_THRESHOLD: typing.ClassVar[int] = 200
+
     @classmethod
     def _add_pending_write(cls, key: str, data: dict) -> None:
-        """Add a cache entry to the pending write buffer."""
+        """Add a cache entry to the pending write buffer.
+
+        Automatically flushes to LMDB when the number of pending
+        entries reaches :attr:`_PENDING_FLUSH_THRESHOLD`.
+        """
         with cls._pending_lock:
             cls._pending_writes[key] = data
             if not cls._flush_registered:
                 atexit.register(cls.flush_cache)
                 cls._flush_registered = True
+            should_flush = len(cls._pending_writes) >= cls._PENDING_FLUSH_THRESHOLD
+        # Flush outside the lock to avoid holding it during I/O
+        if should_flush:
+            cls.flush_cache()
 
     @classmethod
     def flush_cache(cls) -> None:
