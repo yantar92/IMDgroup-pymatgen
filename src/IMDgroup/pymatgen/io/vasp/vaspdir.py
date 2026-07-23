@@ -34,16 +34,14 @@ import re
 import warnings
 import logging
 import itertools
-import tempfile
 import pickle
 import signal
 import sys
-import gzip
 import threading
 import atexit
 from pathlib import Path
+import lmdb
 import numpy as np
-from monty.io import zopen
 from monty.json import MSONable
 from alive_progress import alive_it
 from pymatgen.core import Structure
@@ -60,11 +58,6 @@ from pymatgen.io.vasp.outputs import WSWQ as pmgWSWQ
 from IMDgroup.pymatgen.io.vasp.inputs import Incar
 from IMDgroup.pymatgen.io.vasp.outputs import Vasprun, Outcar
 from IMDgroup.pymatgen.core.structure import structure_distance
-try:
-    import lmdb
-    HAS_LMDB = True
-except ImportError:
-    HAS_LMDB = False
 
 logger = logging.getLogger(__name__)
 
@@ -104,8 +97,8 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
 
     Call ``refresh()`` to re-read the directory after files change.
 
-    Cached parsing results are stored on disk (pickle or LMDB) to
-    speed up repeated access in HPC workflows.
+    Cached parsing results are stored in LMDB to speed up repeated
+    access in HPC workflows.
 
     Properties that require parsing multiple files:
 
@@ -155,12 +148,9 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
         self._prev_vaspdirs = None
         self._parsed_files = None
 
-    _cache_cleaned: typing.ClassVar[bool] = False
-    MAX_CACHE_SIZE: typing.ClassVar[int] = 6 * 1024 ** 3  # 6GB
     _pending_writes: typing.ClassVar[dict[str, dict]] = {}
     _pending_lock: typing.ClassVar[threading.Lock] = threading.Lock()
     _flush_registered: typing.ClassVar[bool] = False
-    _use_lmdb: typing.ClassVar[bool] = HAS_LMDB
     _lmdb_env: typing.ClassVar[typing.Any] = None
     _lmdb_db: typing.ClassVar[typing.Any] = None
     # -- LMDB metadata ("meta") for eviction ----------------------------------
@@ -189,7 +179,7 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
 
     @classmethod
     def _init_lmdb(cls) -> None:
-        if not cls._use_lmdb or cls._lmdb_env is not None:
+        if cls._lmdb_env is not None:
             return
         cache_dir = cls._get_cache_dir()
         cache_dir.mkdir(parents=True, exist_ok=True)
@@ -207,16 +197,15 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
             )
             cls._lmdb_db = cls._lmdb_env.open_db(b"vaspdir")
         except Exception as e:
-            logger.warning("LMDB initialization failed, falling back to pickle cache: %s", e)
-            cls._use_lmdb = False
+            logger.warning("LMDB initialization failed; caching disabled: %s", e)
             cls._lmdb_env = None
             cls._lmdb_db = None
 
     @classmethod
     def _lmdb_get(cls, key: str) -> dict | None:
-        if not cls._use_lmdb:
-            return None
         cls._init_lmdb()
+        if cls._lmdb_env is None:
+            return None
         try:
             with cls._lmdb_env.begin(db=cls._lmdb_db, write=False) as txn:
                 val = txn.get(key.encode())
@@ -323,9 +312,9 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
         errors, evicts the oldest entries (by creation time) and
         retries once before giving up.
         """
-        if not cls._use_lmdb:
-            return False
         cls._init_lmdb()
+        if cls._lmdb_env is None:
+            return False
         import time
         now = time.time()
 
@@ -387,9 +376,6 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
         Args:
             dirname: Path to the VASP calculation directory.
         """
-        # if not IMDGVaspDir._cache_cleaned:
-        #     IMDGVaspDir._clean_cache_if_needed()
-        #     IMDGVaspDir._cache_cleaned = True
         self.path = str(Path(dirname).absolute())
         # This was slower: self.path = str(Path(dirname).resolve())
         self._cache_key = hashlib.md5(self.path.encode('utf-8')).hexdigest()
@@ -400,183 +386,16 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
 
     # Implementation note: We cannot use SQLite to store cache
     # because SQLite is not reliable on LUSTRE file system
-    # in HPC.  So, we stick to very simple custom cache
-    # using pickle.
+    # in HPC.  LMDB is used instead.
     @staticmethod
     def _get_cache_dir() -> Path:
         cache_dir = os.getenv("XDG_CACHE_HOME")\
             or os.path.expanduser("~/.cache")
         return Path(cache_dir) / "imdgVASPDIRcache"
 
-    @classmethod
-    def _clean_cache_if_needed(cls):
-        cache_dir = cls._get_cache_dir()
-        if not cache_dir.exists():
-            return
-
-        # 1. Remove irrelevant files (non-.pkl.gz) but skip temporary .tmp.gz files
-        irrelevant_files = [
-            f for f in cache_dir.rglob("*")
-            if f.is_file()
-            and not f.name.endswith(".pkl.gz")
-            and not f.name.endswith(".tmp.gz")  # Skip temporary files
-        ]
-        nonpkl_deleted = 0
-        nonpkl_size = 0
-        nonpkl_dirs = set()
-        for f in irrelevant_files:
-            try:
-                sz = f.stat().st_size
-                parent = f.parent
-                f.unlink()
-                logger.info(
-                    "Deleted irrelevant cache file %s (size=%.2f MB)",
-                    f, sz / 1024 / 1024)
-                nonpkl_deleted += 1
-                nonpkl_size += sz
-                nonpkl_dirs.add(parent)
-            except Exception as e:
-                logger.warning("Could not delete irrelevant cache file %s: %s", f, e)
-
-        # Additional cleanup: Remove orphaned temporary files older than 1 hour
-        # (safe to delete as they shouldn't be actively used by other processes)
-        import time
-        now = time.time()
-        temp_files = [f for f in cache_dir.rglob("*.tmp.gz") if f.is_file()]
-        temp_deleted = 0
-        temp_size = 0
-        for f in temp_files:
-            try:
-                # Delete only if last modified more than 1 hour ago
-                if now - f.stat().st_mtime > 3600:
-                    sz = f.stat().st_size
-                    f.unlink()
-                    logger.info(
-                        "Deleted orphaned temporary file %s (size=%.2f MB)",
-                        f, sz / 1024 / 1024)
-                    nonpkl_deleted += 1
-                    nonpkl_size += sz
-                    nonpkl_dirs.add(f.parent)
-                    temp_deleted += 1
-                    temp_size += sz
-            except Exception as e:
-                logger.warning("Could not delete temporary file %s: %s", f, e)
-        if nonpkl_deleted > 0:
-            logger.info(
-                "Deleted %d irrelevant cache files, freed %.2f MB.",
-                nonpkl_deleted, nonpkl_size / 1024 / 1024)
-
-        # 2. Normal .pkl.gz deletion for cache size limitation
-        files = list(cache_dir.rglob("*.pkl.gz"))
-        files = [f for f in files if f.is_file()]
-        total_size = sum(f.stat().st_size for f in files)
-        if total_size <= cls.MAX_CACHE_SIZE:
-            # Remove empty directories left after irrelevant file removals
-            for subdir in nonpkl_dirs:
-                try:
-                    if subdir.is_dir() and not any(subdir.iterdir()):
-                        subdir.rmdir()
-                        logger.info("Deleted empty cache subdir %s", subdir)
-                except Exception as e:
-                    logger.warning("Could not delete cache subdir %s: %s", subdir, e)
-            return
-        files.sort(key=lambda f: f.stat().st_atime)  # oldest access first
-        size_removed = 0
-        files_deleted = 0
-        subdirs_to_check = set(nonpkl_dirs)  # Start with dirs touched by irrelevant deletion
-        for f in files:
-            try:
-                size = f.stat().st_size
-                subdirs_to_check.add(f.parent)
-                f.unlink()
-                logger.info(
-                    "Deleted cache file %s (size=%.2f MB)",
-                    f, size / 1024 / 1024
-                )
-                size_removed += size
-                files_deleted += 1
-            except Exception as e:
-                logger.warning("Could not delete cache file %s: %s", f, e)
-            if (total_size - size_removed) <= cls.MAX_CACHE_SIZE:
-                break
-        # Remove empty subdirs (after both nonpkl and .pkl deletions)
-        for subdir in subdirs_to_check:
-            try:
-                if subdir.is_dir() and not any(subdir.iterdir()):
-                    subdir.rmdir()
-                    logger.info("Deleted empty cache subdir %s", subdir)
-            except Exception as e:
-                logger.warning("Could not delete cache subdir %s: %s", subdir, e)
-        logger.info(
-            "Cache cleanup complete: deleted %d .pkl.gz files, freed %.2f MB; used %.2f MB now.",
-            files_deleted, size_removed / 1024 / 1024,
-            (total_size - size_removed) / 1024 / 1024
-        )
-
-    def _get_cache_path(self) -> Path:
-        """Get path for this directory's cache file with .gz extension"""
-        cache_dir = self._get_cache_dir()
-        path_hash = hashlib.md5(self.path.encode('utf-8')).hexdigest()
-        cache_subdir = path_hash[:2]
-        cache_dir = cache_dir / cache_subdir
-        # Add .gz extension for compressed files
-        return cache_dir / f"{path_hash[2:]}.pkl.gz"
-
-    @classmethod
-    def _cache_path_from_key(cls, key: str) -> Path:
-        """Convert a cache key (full hash) to the corresponding pickle cache file path."""
-        cache_dir = cls._get_cache_dir()
-        subdir = key[:2]
-        return cache_dir / subdir / f"{key[2:]}.pkl.gz"
-
     def _load_from_cache(self) -> dict | None:
-        """Load cached data from cache backend if valid."""
-        key = self._cache_key
-        if self._use_lmdb:
-            return self._lmdb_get(key)
-        # Fallback to pickle file
-        cache_path = self._get_cache_path()
-        if not cache_path.exists():
-            return None
-        try:
-            # Use zopen for automatic compression handling
-            with zopen(cache_path, 'rb') as f:
-                obj = pickle.load(f)
-            try:
-                os.utime(cache_path)
-            except Exception:
-                pass
-            return obj
-        except Exception as e:
-            logger.warning("Cache load failed: %s", e)
-        return None
-
-    @staticmethod
-    def _write_cache_file(cache_path: Path, data: dict) -> bool:
-        """Atomically save data to compressed cache file."""
-        cache_dir = cache_path.parent
-        tmp_path = None
-        try:
-            cache_dir.mkdir(parents=True, exist_ok=True)
-            # Create temp file with .gz extension
-            with tempfile.NamedTemporaryFile(
-                mode='wb',
-                dir=cache_dir,
-                delete=False,
-                suffix='.tmp.gz'
-            ) as tmp:
-                tmp_path = Path(tmp.name)
-                # Write compressed data
-                with gzip.open(tmp_path, 'wb') as f:
-                    pickle.dump(data, f, protocol=pickle.HIGHEST_PROTOCOL)
-            # Atomic rename
-            os.rename(tmp_path, cache_path)
-            return True
-        except Exception as e:
-            logger.warning("Cache save failed: %s", e)
-            if tmp_path and tmp_path.exists():
-                tmp_path.unlink()
-            return False
+        """Load cached data from LMDB if valid."""
+        return self._lmdb_get(self._cache_key)
 
     @classmethod
     def _add_pending_write(cls, key: str, data: dict) -> None:
@@ -589,30 +408,18 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
 
     @classmethod
     def flush_cache(cls) -> None:
-        """Write all pending cache entries to disk."""
+        """Write all pending cache entries to LMDB."""
         with cls._pending_lock:
             if not cls._pending_writes:
                 return
             writes = cls._pending_writes.copy()
             cls._pending_writes.clear()
         # Write outside lock to avoid holding lock during I/O
-        if cls._use_lmdb:
-            # Batch write to LMDB
-            cls._lmdb_set_many(writes)
-            logger.debug("Flushed %d cache entries to LMDB", len(writes))
-        else:
-            # Write each entry to its pickle file
-            for key, data in writes.items():
-                cache_path = cls._cache_path_from_key(key)
-                cls._write_cache_file(cache_path, data)
-            logger.debug("Flushed %d cache entries to pickle", len(writes))
-
-    def _save_to_cache(self, data: dict) -> bool:
-        """Atomically save data to compressed cache file."""
-        return self._write_cache_file(self._get_cache_path(), data)
+        cls._lmdb_set_many(writes)
+        logger.debug("Flushed %d cache entries to LMDB", len(writes))
 
     def _dump_to_cache(self) -> bool:
-        """Dump parsed data to cache file atomically"""
+        """Dump parsed data to cache."""
         data = {
             'hash': self._get_hash(),
             'parsed_files': self._parsed_files
