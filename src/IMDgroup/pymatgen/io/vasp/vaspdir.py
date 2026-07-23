@@ -163,6 +163,29 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
     _use_lmdb: typing.ClassVar[bool] = HAS_LMDB
     _lmdb_env: typing.ClassVar[typing.Any] = None
     _lmdb_db: typing.ClassVar[typing.Any] = None
+    # -- LMDB metadata ("meta") for eviction ----------------------------------
+    #
+    # LMDB uses a fixed-size mmap (1TB sparse).  When the map fills,
+    # we need to free space by evicting the oldest cache entries.
+    #
+    # To know which entries are oldest and how much space they occupy,
+    # every cached value is paired with a *metadata* entry.  The metadata
+    # key is the original key prefixed with _META_PREFIX and the value is
+    # a pickled dict:
+    #
+    #     {"size":  <serialized bytes of the cached data>,
+    #      "ctime": <monotonic timestamp when the entry was first written>}
+    #
+    # The metadata is much faster to load, so we can scan for old entries
+    # without having to load them in full.
+    #
+    # _lmdb_get_meta_all scans both explicit __meta__ entries and
+    # bare data entries (legacy entries that predate metadata tracking
+    # get ctime=0, so they are evicted first).
+    #
+    # _lmdb_evict uses ctime to sort oldest-first, deleting both the
+    # data key and its __meta__ companion until enough bytes are freed.
+    _META_PREFIX: typing.ClassVar[bytes] = b"__meta__"
 
     @classmethod
     def _init_lmdb(cls) -> None:
@@ -171,11 +194,13 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
         cache_dir = cls._get_cache_dir()
         cache_dir.mkdir(parents=True, exist_ok=True)
         db_path = cache_dir / "cache.lmdb"
-        # 32GB map size, can be increased later
+        # 1TB map size; LMDB uses sparse mmap so only written pages
+        # consume actual disk.  Eviction logic in _lmdb_set_many
+        # reclaims pages when the map fills.
         try:
             cls._lmdb_env = lmdb.open(
                 str(db_path),
-                map_size=2**35,  # 32GB
+                map_size=2**40,  # 1TB
                 max_dbs=1,
                 lock=True,
                 subdir=False,
@@ -204,30 +229,157 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
 
     @classmethod
     def _lmdb_set(cls, key: str, data: dict) -> bool:
-        if not cls._use_lmdb:
-            return False
-        cls._init_lmdb()
-        try:
-            with cls._lmdb_env.begin(db=cls._lmdb_db, write=True) as txn:
-                txn.put(key.encode(), pickle.dumps(data, protocol=pickle.HIGHEST_PROTOCOL))
-            return True
-        except Exception as e:
-            logger.warning("LMDB set failed: %s", e)
-            return False
+        """Write a single entry with metadata tracking.
+
+        On MDB_MAP_FULL, evicts oldest entries and retries once.
+        """
+        return cls._lmdb_set_many({key: data})
+
+    @classmethod
+    def _lmdb_get_meta_all(cls, txn) -> dict[str, dict]:
+        """Return all metadata as {key: meta_dict}.
+
+        Must be called inside an active LMDB transaction.
+
+        Scans the entire database in two passes:
+
+        1. Explicit __meta__ entries (new-style): deserialised from
+           pickle.  These carry accurate ``size`` and ``ctime``.
+
+        2. Bare data entries (legacy, no __meta__ companion): their
+           ``size`` is estimated as the raw value length on disk and
+           ``ctime`` defaults to 0.  Setting ctime=0 makes them the
+           oldest entries, so they are evicted first -- this is
+           intentional: legacy entries are rebuilt with proper metadata
+           on next access.
+
+        The metadata dict enables _lmdb_evict to sort entries by age
+        and track freed bytes during eviction.
+        """
+        result = {}
+        cursor = txn.cursor()
+        for raw_key, raw_val in cursor:
+            if raw_key.startswith(cls._META_PREFIX):
+                # New-style: explicit metadata for a known cache key.
+                try:
+                    key = raw_key[len(cls._META_PREFIX):].decode()
+                    result[key] = pickle.loads(raw_val)
+                except Exception:
+                    pass
+            else:
+                # Legacy: bare data entry without companion metadata.
+                try:
+                    key = raw_key.decode()
+                except UnicodeDecodeError:
+                    continue
+                if key not in result:
+                    # Synthetic metadata: estimate size from raw bytes,
+                    # assign ctime=0 so legacy entries are evicted before
+                    # any new-style entry.
+                    result[key] = {'size': len(raw_val), 'ctime': 0}
+        return result
+
+    @classmethod
+    def _lmdb_evict(cls, txn, needed_bytes: int) -> int:
+        """Evict oldest entries to free at least *needed_bytes*.
+
+        Must be called inside an active write transaction.
+        Returns the total bytes freed.
+        """
+        meta_all = cls._lmdb_get_meta_all(txn)
+        if not meta_all:
+            logger.warning("LMDB eviction requested but no metadata found")
+            return 0
+
+        # Evict oldest-first (by creation time)
+        sorted_keys = sorted(
+            meta_all.keys(),
+            key=lambda k: meta_all[k].get('ctime', 0),
+        )
+
+        freed = 0
+        evicted = 0
+        for key in sorted_keys:
+            if freed >= needed_bytes:
+                break
+            size = meta_all[key].get('size', 0)
+            txn.delete(key.encode())
+            txn.delete(cls._META_PREFIX + key.encode())
+            freed += size
+            evicted += 1
+
+        if evicted:
+            logger.info(
+                "LMDB evicted %d entries, freed %.2f MB",
+                evicted, freed / 1024**2,
+            )
+        return freed
 
     @classmethod
     def _lmdb_set_many(cls, items: dict[str, dict]) -> bool:
+        """Write entries with metadata, evicting on MDB_MAP_FULL.
+
+        Pre-serializes values to avoid double pickling.  On map-full
+        errors, evicts the oldest entries (by creation time) and
+        retries once before giving up.
+        """
         if not cls._use_lmdb:
             return False
         cls._init_lmdb()
-        try:
-            with cls._lmdb_env.begin(db=cls._lmdb_db, write=True) as txn:
-                for key, data in items.items():
-                    txn.put(key.encode(), pickle.dumps(data, protocol=pickle.HIGHEST_PROTOCOL))
-            return True
-        except Exception as e:
-            logger.warning("LMDB set_many failed: %s", e)
-            return False
+        import time
+        now = time.time()
+
+        # Pre-serialize so we can measure sizes and avoid double pickling.
+        # Each entry gets a companion __meta__ record with its size and
+        # creation time.  The size is measured from the serialized bytes
+        # so it reflects what LMDB actually stores, not the Python object.
+        serialized: dict[str, bytes] = {}
+        meta_serialized: dict[str, bytes] = {}
+        for key, data in items.items():
+            serialized[key] = pickle.dumps(data, protocol=pickle.HIGHEST_PROTOCOL)
+            meta = {'size': len(serialized[key]), 'ctime': now}
+            meta_serialized[key] = pickle.dumps(meta, protocol=pickle.HIGHEST_PROTOCOL)
+
+        new_bytes = sum(len(v) + len(meta_serialized[k]) for k, v in serialized.items())
+
+        for attempt in range(2):
+            try:
+                with cls._lmdb_env.begin(db=cls._lmdb_db, write=True) as txn:
+                    for key in items:
+                        # Write the actual cached data under the original key.
+                        txn.put(key.encode(), serialized[key])
+                        # Write its companion metadata under __meta__<key>.
+                        # This pair is what _lmdb_evict deletes together
+                        # when freeing space.
+                        txn.put(
+                            cls._META_PREFIX + key.encode(),
+                            meta_serialized[key],
+                        )
+                return True
+            except Exception as e:
+                if 'MDB_MAP_FULL' not in str(e):
+                    logger.warning("LMDB set_many failed: %s", e)
+                    return False
+                if attempt == 0:
+                    logger.warning(
+                        "LMDB map full, evicting before retry "
+                        "(need ~%.1f MB)", new_bytes / 1024**2,
+                    )
+                    try:
+                        with cls._lmdb_env.begin(
+                            db=cls._lmdb_db, write=True,
+                        ) as txn:
+                            # Free 2x what we need as headroom
+                            cls._lmdb_evict(txn, new_bytes * 2)
+                    except Exception as evict_e:
+                        logger.error("LMDB eviction failed: %s", evict_e)
+                        return False
+                else:
+                    logger.error(
+                        "LMDB set_many failed after eviction: %s", e,
+                    )
+                    return False
+        return False
 
     def __init__(self, dirname: str | Path) -> None:
         """Initialise from a directory path.
