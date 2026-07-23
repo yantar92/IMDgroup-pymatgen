@@ -337,6 +337,9 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
         Pre-serializes values to avoid double pickling.  On map-full
         errors, evicts the oldest entries (by creation time) and
         retries once before giving up.
+
+        Honours :attr:`TIMEOUT` via SIGALRM to avoid hanging on
+        slow filesystems (LUSTRE).
         """
         cls._init_lmdb()
         if cls._lmdb_env is None:
@@ -359,18 +362,29 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
 
         for attempt in range(2):
             try:
-                with cls._lmdb_env.begin(db=cls._lmdb_db, write=True) as txn:
-                    for key in items:
-                        # Write the actual cached data under the original key.
-                        txn.put(key.encode(), serialized[key])
-                        # Write its companion metadata under __meta__<key>.
-                        # This pair is what _lmdb_evict deletes together
-                        # when freeing space.
-                        txn.put(
-                            cls._META_PREFIX + key.encode(),
-                            meta_serialized[key],
-                        )
+                if HAS_SIGALRM:
+                    signal.alarm(cls.TIMEOUT)
+                try:
+                    with cls._lmdb_env.begin(db=cls._lmdb_db, write=True) as txn:
+                        for key in items:
+                            # Write the actual cached data under the original key.
+                            txn.put(key.encode(), serialized[key])
+                            # Write its companion metadata under __meta__<key>.
+                            # This pair is what _lmdb_evict deletes together
+                            # when freeing space.
+                            txn.put(
+                                cls._META_PREFIX + key.encode(),
+                                meta_serialized[key],
+                            )
+                finally:
+                    if HAS_SIGALRM:
+                        signal.alarm(0)
                 return True
+            except TimeoutException:
+                logger.warning(
+                    "LMDB write timed out after %ds", cls.TIMEOUT,
+                )
+                return False
             except Exception as e:
                 if 'MDB_MAP_FULL' not in str(e):
                     logger.warning("LMDB set_many failed: %s", e)
@@ -381,11 +395,22 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
                         "(need ~%.1f MB)", new_bytes / 1024**2,
                     )
                     try:
-                        with cls._lmdb_env.begin(
-                            db=cls._lmdb_db, write=True,
-                        ) as txn:
-                            # Free 2x what we need as headroom
-                            cls._lmdb_evict(txn, new_bytes * 2)
+                        if HAS_SIGALRM:
+                            signal.alarm(cls.TIMEOUT)
+                        try:
+                            with cls._lmdb_env.begin(
+                                db=cls._lmdb_db, write=True,
+                            ) as txn:
+                                # Free 2x what we need as headroom
+                                cls._lmdb_evict(txn, new_bytes * 2)
+                        finally:
+                            if HAS_SIGALRM:
+                                signal.alarm(0)
+                    except TimeoutException:
+                        logger.warning(
+                            "LMDB eviction timed out after %ds", cls.TIMEOUT,
+                        )
+                        return False
                     except Exception as evict_e:
                         logger.error("LMDB eviction failed: %s", evict_e)
                         return False
@@ -454,15 +479,26 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
 
     @classmethod
     def flush_cache(cls) -> None:
-        """Write all pending cache entries to LMDB."""
+        """Write all pending cache entries to LMDB.
+
+        On write failure (including timeout), pending entries are
+        restored so they can be retried on the next flush.
+        """
         with cls._pending_lock:
             if not cls._pending_writes:
                 return
             writes = cls._pending_writes.copy()
             cls._pending_writes.clear()
         # Write outside lock to avoid holding lock during I/O
-        cls._lmdb_set_many(writes)
-        logger.debug("Flushed %d cache entries to LMDB", len(writes))
+        if cls._lmdb_set_many(writes):
+            logger.debug("Flushed %d cache entries to LMDB", len(writes))
+        else:
+            logger.warning(
+                "LMDB flush failed, restoring %d pending entries",
+                len(writes),
+            )
+            with cls._pending_lock:
+                cls._pending_writes.update(writes)
 
     def _dump_to_cache(self) -> bool:
         """Dump parsed data to cache."""
