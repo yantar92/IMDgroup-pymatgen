@@ -448,7 +448,7 @@ def relax_add_args(parser):
         ]
     )
     parser.add_argument(
-        "auto_encut",
+        "--auto_encut",
         help="Set ENCUT automatically",
         action="store_true"
     )
