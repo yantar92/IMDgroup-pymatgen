@@ -143,7 +143,7 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
         subdirectory references.
         """
         path = Path(self.path)
-        self.files = [f for f in path.iterdir() if f.is_file()]
+        self.files = sorted(f for f in path.iterdir() if f.is_file())
         self._neb_vaspdirs = None
         self._prev_vaspdirs = None
         self._parsed_files = None
@@ -394,7 +394,12 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
         return Path(cache_dir) / "imdgVASPDIRcache"
 
     def _load_from_cache(self) -> dict | None:
-        """Load cached data from LMDB if valid."""
+        """Load cached data from LMDB if valid.
+
+        Returns:
+            Cached data dict on success, ``None`` if no entry exists
+            or the LMDB environment is unavailable.
+        """
         return self._lmdb_get(self._cache_key)
 
     @classmethod
@@ -431,7 +436,7 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
         """Reload cached data from disk or re-parse if files changed."""
         key = self._cache_key
         current_hash = self._get_hash()
-        # First check pending writes
+        # First check pending writes (in-process, not yet flushed to LMDB)
         with self._pending_lock:
             pending = self._pending_writes.get(key)
         if pending is not None:
@@ -442,16 +447,30 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
                     os.path.relpath(self.path))
                 return
             # Stale pending entry, remove it
+            logger.debug(
+                "Pending cache hash mismatch for %s (pending=%s, current=%s)",
+                os.path.relpath(self.path),
+                pending.get('hash'), current_hash)
             with self._pending_lock:
                 self._pending_writes.pop(key, None)
-        # Fall back to disk cache
-        if cache_data := self._load_from_cache():
-            if cache_data.get('hash') == current_hash:
+        # Fall back to disk cache (LMDB)
+        cache_data = self._load_from_cache()
+        if cache_data is not None:
+            cached_hash = cache_data.get('hash')
+            if cached_hash == current_hash:
                 self._parsed_files = cache_data['parsed_files']
                 logger.debug(
                     "Loaded disk cache for %s",
                     os.path.relpath(self.path))
                 return
+            logger.debug(
+                "Disk cache hash mismatch for %s (cached=%s, current=%s)",
+                os.path.relpath(self.path),
+                cached_hash, current_hash)
+        else:
+            logger.debug(
+                "No disk cache entry for %s",
+                os.path.relpath(self.path))
         self._parsed_files = {}
         logger.debug("No valid cache for %s", os.path.relpath(self.path))
 
@@ -541,7 +560,11 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
         return str(f.stat().st_mtime if f.exists() else "") + f.name
 
     def _get_hash(self) -> str:
-        """Get hash of all files in path."""
+        """Get hash of all files in path.
+
+        Hashes are deterministic because ``self.files`` is sorted
+        in :meth:`reset`.
+        """
         hashes = map(self._get_file_hash, self.files)
         combined_hash =\
             hashlib.md5("".join(hashes).encode('utf-8')).hexdigest()
