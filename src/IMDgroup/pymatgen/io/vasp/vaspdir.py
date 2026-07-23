@@ -216,7 +216,7 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
         try:
             cls._lmdb_env = lmdb.open(
                 str(db_path),
-                map_size=2**40,  # 1TB
+                map_size=2**35,  # 1TB
                 max_dbs=1,
                 lock=True,
                 subdir=False,
