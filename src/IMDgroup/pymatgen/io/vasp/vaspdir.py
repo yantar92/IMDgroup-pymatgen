@@ -27,6 +27,7 @@
 
 """This module implements abstraction over Vasp input/output directory."""
 import collections
+import fnmatch
 import typing
 import hashlib
 import os
@@ -114,6 +115,15 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
     """
 
     TIMEOUT = 60 * 2  # 2 minutes
+
+    # Glob patterns for files to exclude from hash computation and
+    # directory iteration.  Log files that change without affecting
+    # VASP results belong here.  Individual instances can extend this
+    # set via the *exclude_patterns* init parameter.
+    EXCLUDE_PATTERNS: typing.ClassVar[frozenset[str]] = frozenset([
+        "imdg.log",
+    ])
+
     FILE_MAPPINGS: typing.ClassVar = {
         "INCAR": Incar,
         "POSCAR": pmgPoscar,
@@ -136,14 +146,30 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
         "WSWQ": pmgWSWQ,
     }
 
+    def _should_exclude(self, filename: str) -> bool:
+        """Return True if *filename* matches any exclude pattern.
+
+        Checks against the union of :attr:`EXCLUDE_PATTERNS` (class
+        default) and any extra patterns passed to the constructor.
+        """
+        return any(
+            fnmatch.fnmatch(filename, pattern)
+            for pattern in self._exclude_patterns
+        )
+
     def reset(self):
         """Reset all loaded files and re-scan the directory.
 
         Clears cached parsed files, previous-run references, and NEB
-        subdirectory references.
+        subdirectory references.  Files matching
+        :attr:`EXCLUDE_PATTERNS` or extra patterns from the
+        constructor are skipped.
         """
         path = Path(self.path)
-        self.files = sorted(f for f in path.iterdir() if f.is_file())
+        self.files = sorted(
+            f for f in path.iterdir()
+            if f.is_file() and not self._should_exclude(f.name)
+        )
         self._neb_vaspdirs = None
         self._prev_vaspdirs = None
         self._parsed_files = None
@@ -370,11 +396,20 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
                     return False
         return False
 
-    def __init__(self, dirname: str | Path) -> None:
+    def __init__(
+            self,
+            dirname: str | Path,
+            exclude_patterns: typing.Iterable[str] | None = None,
+    ) -> None:
         """Initialise from a directory path.
 
         Args:
             dirname: Path to the VASP calculation directory.
+            exclude_patterns: Extra glob patterns for files to skip
+                during directory scanning.  These are added to the
+                class-level :attr:`EXCLUDE_PATTERNS`.  For example,
+                ``["*.log"]`` excludes ``imdg.log`` (already in the
+                class default) as well as any other ``*.log`` file.
         """
         self.path = str(Path(dirname).absolute())
         # This was slower: self.path = str(Path(dirname).resolve())
@@ -382,6 +417,12 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
         self._parsed_files = None  # Pacify linter.  Same is done in reset().
         self._prev_vaspdirs = None  # Pacify linter.  Same is done in reset().
         self._neb_vaspdirs = None  # Pacify linter.  Same is done in reset().
+        if exclude_patterns is None:
+            self._exclude_patterns = self.EXCLUDE_PATTERNS
+        else:
+            self._exclude_patterns = self.EXCLUDE_PATTERNS | frozenset(
+                exclude_patterns
+            )
         self.reset()
 
     # Implementation note: We cannot use SQLite to store cache
