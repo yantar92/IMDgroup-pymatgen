@@ -453,8 +453,7 @@ def status(args):
             print(colored(f"{warn_name}: ", "yellow") + f"{' '.join(dir_list)}")
 
     common_incar, grouped_incars = Incar.group_incars(incars)
-    assert common_incar is not None
-    if len(grouped_incars) > 1:
+    if common_incar is not None and len(grouped_incars) > 1:
         print(colored("Multiple INCARs found: ", "yellow"))
         print(colored("Common INCAR parameters", attrs=['bold']))
         print(common_incar.get_str(pretty=True))
