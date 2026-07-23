@@ -179,29 +179,27 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
     _flush_registered: typing.ClassVar[bool] = False
     _lmdb_env: typing.ClassVar[typing.Any] = None
     _lmdb_db: typing.ClassVar[typing.Any] = None
+    _lmdb_meta_db: typing.ClassVar[typing.Any] = None
     # -- LMDB metadata ("meta") for eviction ----------------------------------
     #
     # LMDB uses a fixed-size mmap (1TB sparse).  When the map fills,
     # we need to free space by evicting the oldest cache entries.
     #
-    # To know which entries are oldest and how much space they occupy,
-    # every cached value is paired with a *metadata* entry.  The metadata
-    # key is the original key prefixed with _META_PREFIX and the value is
-    # a pickled dict:
+    # Architecture: two named databases within the same environment:
     #
-    #     {"size":  <serialized bytes of the cached data>,
-    #      "ctime": <monotonic timestamp when the entry was first written>}
+    #   b"vaspdir_data"  -- large pickled VaspDir cache entries
+    #   b"vaspdir_meta"  -- tiny {size, ctime} metadata dicts, keyed
+    #                        identically to the data DB.
     #
-    # The metadata is much faster to load, so we can scan for old entries
-    # without having to load them in full.
+    # The split is critical for HPC filesystems (LUSTRE): scanning the
+    # meta DB only touches small in-leaf values with no overflow pages,
+    # avoiding mmap faults on the 32GB+ of data entries.  Without the
+    # split, a full cursor scan for eviction can take minutes and block
+    # all LMDB access inside a write transaction.
     #
-    # _lmdb_get_meta_all scans both explicit __meta__ entries and
-    # bare data entries (legacy entries that predate metadata tracking
-    # get ctime=0, so they are evicted first).
-    #
-    # _lmdb_evict uses ctime to sort oldest-first, deleting both the
-    # data key and its __meta__ companion until enough bytes are freed.
-    _META_PREFIX: typing.ClassVar[bytes] = b"__meta__"
+    # _lmdb_get_meta_all scans only the meta DB.
+    # _lmdb_evict uses ctime to sort oldest-first, deleting the
+    # corresponding key from both the data and meta DBs.
 
     @classmethod
     def _init_lmdb(cls) -> None:
@@ -217,15 +215,17 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
             cls._lmdb_env = lmdb.open(
                 str(db_path),
                 map_size=2**35,  # 1TB
-                max_dbs=1,
+                max_dbs=2,
                 lock=True,
                 subdir=False,
             )
-            cls._lmdb_db = cls._lmdb_env.open_db(b"vaspdir")
+            cls._lmdb_db = cls._lmdb_env.open_db(b"vaspdir_data")
+            cls._lmdb_meta_db = cls._lmdb_env.open_db(b"vaspdir_meta")
         except Exception as e:
             logger.warning("LMDB initialization failed; caching disabled: %s", e)
             cls._lmdb_env = None
             cls._lmdb_db = None
+            cls._lmdb_meta_db = None
 
     @classmethod
     def _lmdb_get(cls, key: str) -> dict | None:
@@ -256,42 +256,18 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
 
         Must be called inside an active LMDB transaction.
 
-        Scans the entire database in two passes:
-
-        1. Explicit __meta__ entries (new-style): deserialised from
-           pickle.  These carry accurate ``size`` and ``ctime``.
-
-        2. Bare data entries (legacy, no __meta__ companion): their
-           ``size`` is estimated as the raw value length on disk and
-           ``ctime`` defaults to 0.  Setting ctime=0 makes them the
-           oldest entries, so they are evicted first -- this is
-           intentional: legacy entries are rebuilt with proper metadata
-           on next access.
-
-        The metadata dict enables _lmdb_evict to sort entries by age
-        and track freed bytes during eviction.
+        Scans only the metadata database (b"vaspdir_meta"), which
+        contains only small {size, ctime} dicts with no overflow
+        pages.  This keeps the scan fast even on LUSTRE where the
+        data database may be tens of GB.
         """
         result = {}
-        cursor = txn.cursor()
+        cursor = txn.cursor(db=cls._lmdb_meta_db)
         for raw_key, raw_val in cursor:
-            if raw_key.startswith(cls._META_PREFIX):
-                # New-style: explicit metadata for a known cache key.
-                try:
-                    key = raw_key[len(cls._META_PREFIX):].decode()
-                    result[key] = pickle.loads(raw_val)
-                except Exception:
-                    pass
-            else:
-                # Legacy: bare data entry without companion metadata.
-                try:
-                    key = raw_key.decode()
-                except UnicodeDecodeError:
-                    continue
-                if key not in result:
-                    # Synthetic metadata: estimate size from raw bytes,
-                    # assign ctime=0 so legacy entries are evicted before
-                    # any new-style entry.
-                    result[key] = {'size': len(raw_val), 'ctime': 0}
+            try:
+                result[raw_key.decode()] = pickle.loads(raw_val)
+            except Exception:
+                pass
         return result
 
     @classmethod
@@ -318,8 +294,8 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
             if freed >= needed_bytes:
                 break
             size = meta_all[key].get('size', 0)
-            txn.delete(key.encode())
-            txn.delete(cls._META_PREFIX + key.encode())
+            txn.delete(key.encode(), db=cls._lmdb_db)
+            txn.delete(key.encode(), db=cls._lmdb_meta_db)
             freed += size
             evicted += 1
 
@@ -348,7 +324,7 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
         now = time.time()
 
         # Pre-serialize so we can measure sizes and avoid double pickling.
-        # Each entry gets a companion __meta__ record with its size and
+        # Each entry gets a companion metadata record with its size and
         # creation time.  The size is measured from the serialized bytes
         # so it reflects what LMDB actually stores, not the Python object.
         serialized: dict[str, bytes] = {}
@@ -367,15 +343,8 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
                 try:
                     with cls._lmdb_env.begin(db=cls._lmdb_db, write=True) as txn:
                         for key in items:
-                            # Write the actual cached data under the original key.
-                            txn.put(key.encode(), serialized[key])
-                            # Write its companion metadata under __meta__<key>.
-                            # This pair is what _lmdb_evict deletes together
-                            # when freeing space.
-                            txn.put(
-                                cls._META_PREFIX + key.encode(),
-                                meta_serialized[key],
-                            )
+                            txn.put(key.encode(), serialized[key], db=cls._lmdb_db)
+                            txn.put(key.encode(), meta_serialized[key], db=cls._lmdb_meta_db)
                 finally:
                     if HAS_SIGALRM:
                         signal.alarm(0)
