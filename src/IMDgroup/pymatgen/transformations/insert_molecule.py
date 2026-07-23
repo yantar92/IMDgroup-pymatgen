@@ -77,7 +77,7 @@ class InsertMoleculeTransformation(AbstractTransformation):
             label: str | None = "insert",
             selective_dynamics: ArrayLike | None = None,
             reduce_supercell: bool = True,
-            matcher: StructureMatcher =
+            matcher: StructureMatcher | None =
             StructureMatcher(attempt_supercell=True, scale=False),
             multithread=False
     ):

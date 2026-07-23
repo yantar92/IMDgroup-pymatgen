@@ -319,6 +319,7 @@ def perturb(args):
         directory=args.input_directory,
         inherit_prev_incarpy=args.inherit_prev_incarpy)
 
+    assert inputset.structure is not None
     structure_perturb(
         structure=inputset.structure,
         distance=args.distance,
@@ -382,6 +383,7 @@ def strain(args):
         directory=args.input_directory,
         inherit_prev_incarpy=args.inherit_prev_incarpy)
 
+    assert inputset.structure is not None
     if args.selective_dynamics is not None:
         for site in inputset.structure:
             site.properties['selective_dynamics'] =\
@@ -535,6 +537,7 @@ def supercell(args):
         user_kpoints_settings={'grid_density': args.kpoint_density})
     # supercell: N1xN2xN3 string
     scaling = [int(x) for x in args.supercell_size.split("x")]
+    assert inputset.structure is not None
     inputset.structure.make_supercell(scaling)
     output_dir_suffix = args.supercell_size
     inputset.name = output_dir_suffix
@@ -631,6 +634,7 @@ def fix(args):
             raise ValueError(f"Invalid constraint format for {sp}: {constr}")
 
     structure = inputset.structure
+    assert structure is not None
 
     # Check for existing constraints
     has_existing = any(
@@ -861,6 +865,7 @@ def insert(args):
             selective_dynamics=[True, True, True],
             multithread=args.multithread,
         )
+    assert inputset.structure is not None
     structures = transformer.all_inserts(inputset.structure, limit=args.limit)
 
     results = []
@@ -903,6 +908,7 @@ def delete(args):
     inputset = IMDDerivedInputSet(
         directory=args.input_directory,
         inherit_prev_incarpy=args.inherit_prev_incarpy)
+    assert inputset.structure is not None
     len_before = len(inputset.structure)
     inputset.structure.remove_species(args.what)
     if len(inputset.structure) == len_before:
@@ -1095,6 +1101,7 @@ def atat(args):
     inputset.name = output_dir_suffix
 
     ref_structure = inputset.structure
+    assert ref_structure is not None
 
     # str.out must contain multiple of initial structure sites in POSCAR
     if not len(structure) % len(ref_structure) == 0:
