@@ -740,17 +740,20 @@ def kpoints(args):
     Returns:
         dict: ``{'inputsets': [inputset]}``.
     """
-    density = None if args.grid else {'grid_density': args.density}
-    inputset = IMDDerivedInputSet(
-        directory=args.input_directory,
-        inherit_prev_incarpy=args.inherit_prev_incarpy,
-        user_kpoints_settings=density,
-    )
     if args.grid:
+        inputset = IMDDerivedInputSet(
+            directory=args.input_directory,
+            inherit_prev_incarpy=args.inherit_prev_incarpy,
+        )
         inputset.prev_kpoints = Kpoints(
             kpts=[tuple(int(x) for x in args.grid.split('x'))])
         output_dir_suffix = f"KPOINTS.{args.grid}"
     else:
+        inputset = IMDDerivedInputSet(
+            directory=args.input_directory,
+            inherit_prev_incarpy=args.inherit_prev_incarpy,
+            user_kpoints_settings={'grid_density': args.density},
+        )
         output_dir_suffix = f"KPOINTS.{args.density}"
     inputset.name = output_dir_suffix
     return {'inputsets': [inputset]}
@@ -986,8 +989,9 @@ def fill(args):
                 [structure[idx] for idx in idxs]
             )
             for idx in idxs:
-                structure[idx].properties['__species'] = structure[idx].species
-                structure[idx].species = pmg.DummySpecie('X')
+                site = cast(PeriodicSite, structure[idx])
+                site.properties['__species'] = site.species
+                site.species = pmg.DummySpecie('X')
             structure = trans.apply_transformation(structure)
             for site in structure:
                 if site.specie == pmg.DummySpecie('X'):
