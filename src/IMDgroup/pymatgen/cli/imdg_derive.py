@@ -33,6 +33,7 @@ import argparse
 import dataclasses
 import logging
 from multiprocessing import Pool
+from typing import cast
 import numpy as np
 import pymatgen.core as pmg
 from pathlib import Path
