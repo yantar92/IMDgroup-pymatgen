@@ -1101,7 +1101,7 @@ def atat(args):
     inputset = IMDDerivedInputSet(
         directory=args.input_directory,
         inherit_prev_incarpy=args.inherit_prev_incarpy,
-        user_kpoints_settings=atat_kpoints)
+        user_kpoints_settings=atat_kpoints)  # pyright: ignore[reportArgumentType]
     output_dir_suffix = "ATAT"
     inputset.name = output_dir_suffix
 
@@ -1129,7 +1129,7 @@ def atat(args):
     incar_file = Path("INCAR")
     if incar_file.is_file():
         incar = Incar.from_file(incar_file)
-        inputset.prev_incar = incar
+        inputset.prev_incar = incar  # pyright: ignore[reportAttributeAccessIssue]
     incarpy_file = Path("INCAR.py")
     if incarpy_file.is_file():
         inputset.files_to_transfer["INCAR.py"] = incarpy_file
