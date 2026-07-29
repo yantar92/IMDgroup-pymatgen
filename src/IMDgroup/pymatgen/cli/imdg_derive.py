@@ -1115,10 +1115,15 @@ def atat(args):
             f" {len(ref_structure)}; ATAT: {len(structure)}")
 
     # Assign selective dynamics as in original POSCAR
-    if 'selective_dynamics' in ref_structure[0].properties:
+    # FIXME: pymatgen upstream: Structure.__getitem__ lacks @overload for
+    # int vs slice, so pyright infers list[PeriodicSite] | PeriodicSite.
+    # Cast works around the false positive until upstream is fixed.
+    if 'selective_dynamics' in cast(PeriodicSite, ref_structure[0]).properties:
         for idx, site in enumerate(structure):
-            site.properties['selective_dynamics'] =\
-                ref_structure[idx % len(ref_structure)].properties['selective_dynamics']
+            site.properties['selective_dynamics'] = cast(
+                PeriodicSite,
+                ref_structure[idx % len(ref_structure)]
+            ).properties['selective_dynamics']
 
     # Cleanup vacancies
     structure.remove_species(['X'])
@@ -1334,7 +1339,7 @@ def _append_valid(
     )
 
     while not structure_is_valid2(structure, frac_tol):
-        site = structure[-1]
+        site = cast(PeriodicSite, structure[-1])
         _, _, neighbor_indices, _ =\
             structure.lattice.get_points_in_sphere(
                 frac_points=structure.frac_coords,
@@ -1344,7 +1349,7 @@ def _append_valid(
         close_idx = neighbor_indices[0]
         if structure[close_idx] == site:
             close_idx = neighbor_indices[1]
-        close = structure[close_idx]
+        close = cast(PeriodicSite, structure[close_idx])
         frac_vec = 0.1 * (site.frac_coords - close.frac_coords)
         structure.translate_sites(
             [len(structure) - 1],
