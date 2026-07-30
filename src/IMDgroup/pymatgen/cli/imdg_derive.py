@@ -1340,12 +1340,18 @@ def _append_valid(
 
     while not structure_is_valid2(structure, frac_tol):
         site = cast(PeriodicSite, structure[-1])
-        _, _, neighbor_indices, _ =\
+        # FIXME: Pyright assignment mismatch is a pymatgen upstream bug.
+        # Lattice.get_points_in_sphere return type annotation has
+        # `tuple[NDArray]` (1-element) where it should be
+        # `tuple[NDArray, NDArray, NDArray, NDArray]` (4-element).
+        # Report to pymatgen.
+        _, _, neighbor_indices, _ =(  # type: ignore[assignment]
             structure.lattice.get_points_in_sphere(
                 frac_points=structure.frac_coords,
                 center=site.coords,  # Cartesian
                 r=5, zip_results=False
-            )
+            ))
+        neighbor_indices = cast(np.typing.NDArray, neighbor_indices)
         close_idx = neighbor_indices[0]
         if structure[close_idx] == site:
             close_idx = neighbor_indices[1]
