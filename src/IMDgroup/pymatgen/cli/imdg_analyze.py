@@ -270,7 +270,7 @@ def analyze(args):
                     file_groups[incar['SYSTEM'].upper()] = idx
 
     for path, vaspdir in alive_it(
-            vaspdirs.items(), title="Reading VASP outputs"):
+            list(vaspdirs.items()), title="Reading VASP outputs"):
         for field in all_data:
             if field == 'incar_group' and (not args.nogroup):
                 val = file_groups[vaspdir.path.upper()]\
@@ -279,7 +279,7 @@ def analyze(args):
                 val = read_field(field, vaspdir)
             all_data[field].append(val)
         # Avoid using too much memory by holding all vaspdir objects
-        vaspdirs[path] = None
+        del vaspdirs[path]
 
     if len(all_data) > 0 and len(vaspdirs) > 0:
         df = pd.DataFrame(all_data)
