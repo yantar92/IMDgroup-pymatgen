@@ -269,6 +269,7 @@ def analyze(args):
                 for incar in group:
                     file_groups[incar['SYSTEM'].upper()] = idx
 
+    len_vaspdirs = len(vaspdirs)
     for path, vaspdir in alive_it(
             list(vaspdirs.items()), title="Reading VASP outputs"):
         for field in all_data:
@@ -281,7 +282,7 @@ def analyze(args):
         # Avoid using too much memory by holding all vaspdir objects
         del vaspdirs[path]
 
-    if len(all_data) > 0 and len(vaspdirs) > 0:
+    if len(all_data) > 0 and len_vaspdirs > 0:
         df = pd.DataFrame(all_data)
         if not args.nogroup:
             df = df.sort_values(by=['incar_group', 'dir'])
