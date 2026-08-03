@@ -45,6 +45,7 @@ logger = logging.getLogger(__name__)
 
 def _showwarning(message, category, _filename, _lineno, file=None, _line=None):
     """Display warnings with coloured output."""
+    _ = (_filename, _lineno, _line)  # suppress info-level "not accessed"
     output = colored(
         f"{category.__name__}: ", "yellow", attrs=['bold']) +\
         f"{message}"
