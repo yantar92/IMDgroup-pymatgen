@@ -158,9 +158,11 @@ def neb(args):
         if not vaspdir.converged:
             logger.info("Skipping unconverged run at %s", wdir)
             continue
+        neb_dirs = vaspdir.neb_dirs()
+        assert neb_dirs is not None
         neb_structures = [
             (imagedir.final_structure or imagedir.structure)
-            for imagedir in vaspdir.neb_dirs()]
+            for imagedir in neb_dirs]
         trajectory = merge_structures(neb_structures)
         cif_name = 'NEB_trajectory_converged.cif'
         output_cif = os.path.join(wdir, cif_name)
