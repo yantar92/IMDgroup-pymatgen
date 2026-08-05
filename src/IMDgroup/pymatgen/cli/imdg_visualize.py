@@ -36,6 +36,7 @@ from termcolor import colored
 from alive_progress import alive_it
 import pandas as pd
 import matplotlib.pyplot as plt
+from matplotlib.axes import Axes
 from matplotlib.colors import ListedColormap, Normalize, to_rgba
 from matplotlib.font_manager import FontProperties
 from matplotlib.lines import Line2D
@@ -366,7 +367,7 @@ def _atat_read_extra(
     else:
         raise IOError(f"0 and 1 reference energies are not available in {path}")
     for concentration, index in alive_it(
-            zip(fit['concentration'], fit['index']),
+            list(zip(fit['concentration'], fit['index'])),
             title=f'Reading extra energies from {path}',
             total=len(fit)):
         energy_file = Path(path) / str(index) / 'energy'
@@ -389,7 +390,7 @@ def _atat_read_extra(
 
 
 def _atat_plot_clusters(
-        ax: plt.Axes,
+        ax: Axes,
         clusters: pd.DataFrame) -> None:
     """Plot ECI fit coefficients for all the clusters."""
     ax.set_xlabel("Diameter, Å")
@@ -412,7 +413,7 @@ def _atat_plot_clusters(
 
 
 def _atat_plot_fitted_energies(
-        ax: plt.Axes,
+        ax: Axes,
         predstr: pd.DataFrame,
         gs: pd.DataFrame,
         fit: pd.DataFrame,
@@ -446,7 +447,7 @@ def _atat_plot_fitted_energies(
 
 
 def _atat_plot_calc_vs_fit_energies(
-        ax: plt.Axes,
+        ax: Axes,
         fit: pd.DataFrame,
         c_range: tuple[float, float] = (0.0, 1.0),
         erange: tuple[float, float] | None = None,
@@ -483,7 +484,7 @@ def __blue_orrd_cmap(data_min, data_max, color='blue', split_val=0.1):
 
 
 def _atat_plot_residuals(
-        ax: plt.Axes,
+        ax: Axes,
         cve: str,
         fit: pd.DataFrame,
         classic_residuals: bool = False) -> None:
@@ -501,7 +502,7 @@ def _atat_plot_residuals(
     displ = np.array(fit['sublattice deviation'], dtype=float)
     cmap = __blue_orrd_cmap(
         np.nanmin(displ), np.nanmax(displ),
-        color=ax._get_lines.get_next_color())
+        color=ax._get_lines.get_next_color())  # pyright: ignore[reportAttributeAccessIssue]
     sc = ax.scatter(
         fit['energy'] if classic_residuals else fit['concentration'],
         fit['fitted energy'] if classic_residuals else fit['energy delta'],
@@ -517,7 +518,7 @@ def _atat_plot_residuals(
 
 
 def _atat_plot_calculated_energies(
-        ax: plt.Axes,
+        ax: Axes,
         predstr: pd.DataFrame,
         gs: pd.DataFrame,
         fit: pd.DataFrame,
@@ -541,7 +542,7 @@ def _atat_plot_calculated_energies(
     displ = np.array(fit['sublattice deviation'], dtype=float)
     cmap = __blue_orrd_cmap(
         np.nanmin(displ), np.nanmax(displ),
-        color=ax._get_lines.get_next_color())
+        color=ax._get_lines.get_next_color())  # pyright: ignore[reportAttributeAccessIssue]
     sc = ax.scatter(
         fit['concentration'], fit['energy'],
         c=displ, cmap=cmap, norm=Normalize(np.nanmin(displ), np.nanmax(displ)),
@@ -585,7 +586,7 @@ def _atat_plot_calculated_energies(
 
 
 def _atat_plot_sublattice_deviation(
-        ax: plt.Axes,
+        ax: Axes,
         gs: pd.DataFrame,
         fit: pd.DataFrame) -> None:
     """Plot Fitted energies at AX axis.
@@ -685,7 +686,7 @@ def _atat_1(
     if extra_dirs is not None:
         ref_structure_len = len(Structure.from_file(Path('1/str.out')))
         ref_structure_len /= ref_structure_mult
-        extra = [_atat_read_extra(fit, extra_dir, e0_atat, e1_atat, ref_structure_len)
+        extra = [_atat_read_extra(fit, Path(extra_dir), e0_atat, e1_atat, int(ref_structure_len))
                  for extra_dir in extra_dirs]
 
     # Re-scale energies
@@ -1054,7 +1055,7 @@ def _hull_get_entries_recursively(
 
 def _hull_plot_custom_phase_diagram(
         phd: PhaseDiagram,
-        ax: plt.Axes,
+        ax: Axes,
         ion_element: str,
         matrix_element: str,
         max_conc: float = 1.0,
