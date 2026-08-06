@@ -1354,6 +1354,7 @@ def hull(args):
     _, ax = plt.subplots(figsize=(4.13, 3))
 
     temperature = 0.0
+    df = None
     if args.entropy:
         df = pd.read_csv(
             args.entropy, header=None, sep='\t',
@@ -1362,7 +1363,6 @@ def hull(args):
         assert np.isclose(df['T'].min(), df['T'].max())
         temperature = float(df['T'].min())
         print(f'Adding entropy adjustments for T={temperature}')
-
     if path.is_file():
         entries = _hull_get_entries_from_pickle(
             path,
@@ -1377,6 +1377,7 @@ def hull(args):
     # Read extra directories directly (no recursive scan, no include/exclude)
     if args.extra_dir:
         for extra_path in args.extra_dir:
+            extra_vaspdir = None
             try:
                 extra_vaspdir = IMDGVaspDir(Path(extra_path))
                 if extra_vaspdir.final_energy is None:
@@ -1395,7 +1396,8 @@ def hull(args):
             except Exception as ex:
                 print(f"Skipping {extra_path}: {str(ex)}")
             finally:
-                extra_vaspdir.reset()
+                if extra_vaspdir:
+                    extra_vaspdir.reset()
 
     # Validate that pure element entries exist for both ion and matrix.
     pure_ion_entries = [
@@ -1447,6 +1449,7 @@ def hull(args):
           f"(energy={ion_entry.energy_per_atom:.4f} eV/atom)")
 
     if args.entropy:
+        assert df is not None and isinstance(df, pd.DataFrame)
         df['c'] = (df['x'] + 1) / 2
         for entry in entries:
             atomic_fraction = entry.composition.get_atomic_fraction(args.ion)
@@ -1650,6 +1653,7 @@ def voltage(args):
     # Add extra directories directly (no recursive scan, no include/exclude)
     if args.extra_dir:
         for extra_path in args.extra_dir:
+            extra_vaspdir = None
             try:
                 extra_vaspdir = IMDGVaspDir(Path(extra_path))
                 if extra_vaspdir.final_energy is None:
@@ -1668,7 +1672,8 @@ def voltage(args):
             except Exception as ex:
                 print(f"Skipping {extra_path}: {str(ex)}")
             finally:
-                extra_vaspdir.reset()
+                if extra_vaspdir:
+                    extra_vaspdir.reset()
 
     # Find pure working ion entry from collected data
     pure_ion_entries = [
