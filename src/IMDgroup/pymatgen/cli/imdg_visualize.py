@@ -1021,7 +1021,7 @@ def _hull_get_entries_recursively(
     entries = []
     n_skipped = 0
     for vasp_path, vaspdir in alive_it(
-            vaspdirs.items(),
+            list(vaspdirs.items()),
             total=len(vaspdirs),
             title='Reading VASP outputs'):
         try:
@@ -1046,7 +1046,7 @@ def _hull_get_entries_recursively(
             # The entry retains the structure and energy; the heavy
             # cached vasprun.xml / OUTCAR data can be released.
             vaspdir.reset()
-            vaspdirs[vasp_path] = None  # also drop vaspdir ref from dict
+            del vaspdirs[vasp_path]  # also drop vaspdir ref from dict
 
     print(f"Read {len(vaspdirs)} runs")
     print(f"Skipped: {n_skipped}")
