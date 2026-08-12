@@ -1080,14 +1080,15 @@ def _hull_plot_custom_phase_diagram(
         'Concentration': coords[0],
         'Formation Energy (meV/atom)': coords[1] * energy_mult,
         "Energy above hull (meV/atom)": (
-            phd.get_e_above_hull(entry) * energy_mult
+            e_above * energy_mult
             if phd.get_e_above_hull(entry) is not None else None),
         "Decomposition energy (meV/atom)": (
-            phd.get_phase_separation_energy(entry) * energy_mult),
+            e_separation * energy_mult),
         'Formula': entry.data['formula']}
         for entry, coords in unstable_entries.items()
-        if phd.get_e_above_hull(entry) is not None
-        and phd.get_e_above_hull(entry) < show_unstable
+        if (e_above := phd.get_e_above_hull(entry)) is not None
+        and e_above < show_unstable
+        and (e_separation := phd.get_phase_separation_energy(entry)) is not None
     ]
     stable_data = [{
         'ID': str(entry.data.get("ID")),
@@ -1095,10 +1096,13 @@ def _hull_plot_custom_phase_diagram(
         'Concentration': coords[0],
         'Formation Energy (meV/atom)': coords[1] * energy_mult,
         "Energy above hull (meV/atom)": (
-            phd.get_e_above_hull(entry) * energy_mult
-            if phd.get_e_above_hull(entry) is not None else None),
+            e_above * energy_mult
+            if (e_above := phd.get_e_above_hull(entry)) is not None
+            else None),
         "Decomposition energy (meV/atom)": (
-            phd.get_phase_separation_energy(entry) * energy_mult),
+            e_separation * energy_mult
+            if (e_separation := phd.get_phase_separation_energy(entry)) is not None
+            else None),
         'Formula': entry.data['formula'],
     } for coords, entry in stable_entries.items()]
     data.extend(stable_data)
@@ -1118,15 +1122,19 @@ def _hull_plot_custom_phase_diagram(
                 key=lambda e: e.composition.reduced_composition):
             group = list(group_iter)
             entry = min(group, key=lambda e: e.energy_per_atom)
+            e_above = phd.get_e_above_hull(entry)
+            e_separation = phd.get_phase_separation_energy(entry)
+            assert e_above is not None
+            assert e_separation is not None
             min_entries.append({
                 'ID': str(entry.data.get("ID")),
                 "Energy": entry.energy_per_atom,
                 "Formation energy (meV/atom)": (
                     phd.get_form_energy_per_atom(entry) * energy_mult),
                 "Energy above hull (meV/atom)": (
-                    phd.get_e_above_hull(entry) * energy_mult),
+                    e_above * energy_mult),
                 "Decomposition energy (meV/atom)": (
-                    phd.get_phase_separation_energy(entry) * energy_mult),
+                    e_separation * energy_mult),
                 "Reduced formula": entry.reduced_formula,
             })
         df = pd.DataFrame(min_entries)
