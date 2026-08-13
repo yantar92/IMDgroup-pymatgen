@@ -1227,7 +1227,7 @@ def _hull_plot_custom_phase_diagram(
             halign = "center"
         ax.annotate(
             label,
-            [coords[0], coords[1] * energy_mult],
+            (coords[0], coords[1] * energy_mult),
             xytext=vec,
             textcoords="offset points",
             horizontalalignment=halign,
@@ -1244,7 +1244,7 @@ def _hull_plot_custom_phase_diagram(
             elem_offset_pt = elem_font_size
             if coords[0] < 0.1:
                 ax.annotate(matrix_element,
-                            [coords[0], coords[1] * energy_mult],
+                            (coords[0], coords[1] * energy_mult),
                             xytext=(-elem_offset_pt, 0),
                             textcoords="offset points",
                             horizontalalignment="right",
@@ -1252,7 +1252,7 @@ def _hull_plot_custom_phase_diagram(
                             fontproperties=elem_font)
             elif coords[0] > 0.9:
                 ax.annotate(ion_element,
-                            [coords[0], coords[1] * energy_mult],
+                            (coords[0], coords[1] * energy_mult),
                             xytext=(elem_offset_pt, 0),
                             textcoords="offset points",
                             horizontalalignment="left",
@@ -1335,6 +1335,7 @@ def _hull_get_entries_from_pickle(
     for idx, row in df.iterrows():
         atoms = row[structure_column]
         total_energy = row[energy_column]
+        assert isinstance(total_energy, float)
 
         structure = AseAtomsAdaptor.get_structure(atoms)
 
