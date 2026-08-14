@@ -1228,7 +1228,7 @@ def _hull_plot_custom_phase_diagram(
         ax.annotate(
             label,
             (coords[0], coords[1] * energy_mult),
-            xytext=vec,
+            xytext=(vec[0], vec[1]),
             textcoords="offset points",
             horizontalalignment=halign,
             verticalalignment=valign,
@@ -1370,7 +1370,8 @@ def hull(args):
             names=['T', 'mu', 'E', 'x', 'F'],
             usecols=list(range(5)))
         assert np.isclose(df['T'].min(), df['T'].max())
-        temperature = float(df['T'].min())
+        # min == max, so we can take first (and to pacify linter)
+        temperature = float(df['T'].iloc[0])
         print(f'Adding entropy adjustments for T={temperature}')
     if path.is_file():
         entries = _hull_get_entries_from_pickle(
