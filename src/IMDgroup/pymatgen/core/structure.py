@@ -38,6 +38,7 @@ from pymatgen.core import Structure
 from pymatgen.analysis.structure_matcher import StructureMatcher
 from pymatgen.util.coord import pbc_shortest_vectors
 from pymatgen.util.typing import PathLike
+from typing import cast
 from typing_extensions import Self
 
 logger = logging.getLogger(__name__)
@@ -91,10 +92,10 @@ class IMDStructure(Structure):
             if merge_tol:
                 struct.merge_sites(merge_tol)
             struct.__class__ = cls
-            return struct
+            return cast(Self, struct)
         ret = super().from_file(filename, primitive, sort, merge_tol, **kwargs)
         ret.__class__ = cls
-        return ret
+        return cast(Self, ret)
 
     def to_file(self, filename: str = "", fmt="") -> str | None:
         """A more intuitive alias for .to()."""
