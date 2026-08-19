@@ -31,6 +31,7 @@ import logging
 import re
 from pathlib import Path
 from tabulate import tabulate
+import numpy as np
 import pandas as pd
 from alive_progress import alive_it
 from IMDgroup.pymatgen.io.vasp.inputs import Incar
@@ -44,6 +45,7 @@ ALL_FIELDS = {
     'dir': 'Directory', 'incar_group': 'INCAR type',
     'energy': 'Energy', 'e_per_atom': 'E/Atom',
     'total_mag': 'Magnetization',
+    'max_force': 'Max force',
     '%vol': '%vol', 'displ': 'displacement',
     'space_group': 'Space group',
     'a': 'a', 'b': 'b', 'c': 'c',
@@ -79,6 +81,7 @@ def add_args(parser):
         help="""List of fields to report
 energy: Final energy
 e_per_atom: Final energy per atom
+max_force: Maximum atomic force in the final step (eV/Å)
 %%vol: Volume change before/after the run
 displ: Total atom displacement / number of displaced atoms
 space_group, a, b, c, alpha, beta, gamma: Lattice parameters
@@ -91,7 +94,7 @@ space_group, a, b, c, alpha, beta, gamma: Lattice parameters
     parser.add_argument(
         "--short",
         help="""Only include a few fields: energy, e_per_atom,
-        %%vol, displ, space_group, a, b, and c.
+        total_mag, max_force, %%vol, displ, space_group, a, b, and c.
         """,
         action="store_true"
     )
@@ -157,6 +160,17 @@ def _read_field_1(field: str, vaspdir: IMDGVaspDir):
         val = vaspdir.total_magnetization
         if val is None:
             val = "None"
+    elif field == 'max_force':
+        run = vaspdir['vasprun.xml']
+        if run is None:
+            val = "None"
+        else:
+            forces = run.ionic_steps[-1].get('forces')
+            if forces is None:
+                val = "None"
+            else:
+                val = max(np.linalg.norm(force) for force in forces)
+                val = f"{val:.4f}"
     elif field == '%vol':
         vol0 = vaspdir.initial_structure.volume
         val = vaspdir.structure.volume / vol0 - 1

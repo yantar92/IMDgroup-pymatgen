@@ -150,6 +150,7 @@ tool uses caching to quickly re-analyze large directory trees.
 -   `displ`: Average atomic displacement between initial and final structure.
 -   `%a`, `%b`, `%c`, `%alpha`, `%beta`, `%gamma`: Percentage change in lattice parameters.
 -   `total_mag`: Total magnetization.
+-   `max_force`: Maximum atomic force in the final step (eV/Å).
 
 
 ## `imdg create`
