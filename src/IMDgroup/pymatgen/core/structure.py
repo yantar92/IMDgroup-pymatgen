@@ -35,6 +35,7 @@ from multiprocessing import Pool
 import numpy as np
 from monty.io import zopen
 from pymatgen.core import Structure
+from pymatgen.core.structure import FileFormats
 from pymatgen.analysis.structure_matcher import StructureMatcher
 from pymatgen.util.coord import pbc_shortest_vectors
 from pymatgen.util.typing import PathLike
@@ -125,14 +126,16 @@ class IMDStructure(Structure):
             str: String representation of molecule in given format. If a filename
                 is provided, the same string is written to the file.
         """
-        filename, fmt = str(filename), fmt.lower()
+        filename, fmt_file = str(filename), fmt.lower()
+        if not fmt:
+            fmt = fmt_file
         if fmt == "atat" or os.path.basename(filename) in ("str.out"):
             from pymatgen.io.atat import Mcsqs
             res_str = Mcsqs(self).to_str().replace('X0+', 'Vac').replace('=1.0', '').replace('=1', '')
             with zopen(filename, mode="wt", encoding="utf8") as file:
                 file.write(res_str)
             return res_str
-        return super().to(filename, fmt, **kwargs)
+        return super().to(filename, cast(FileFormats, fmt), **kwargs)
 
 
 def merge_structures(
