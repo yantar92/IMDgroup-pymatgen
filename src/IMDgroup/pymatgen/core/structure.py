@@ -34,7 +34,7 @@ import multiprocessing
 from multiprocessing import Pool
 import numpy as np
 from monty.io import zopen
-from pymatgen.core import Structure
+from pymatgen.core import PeriodicSite, Structure
 from pymatgen.core.structure import FileFormats
 from pymatgen.analysis.structure_matcher import StructureMatcher
 from pymatgen.util.coord import pbc_shortest_vectors
@@ -238,8 +238,9 @@ def get_matched_structure(
         for matched_idx in ind:
             if not matched[matched_idx] \
                and ((not match_species)
-                    or reference_struct[idx].species
-                    == target_struct[matched_idx].species):
+                    # FIXME: Pymatgen type definition needs to be fixed
+                    or cast(PeriodicSite, reference_struct[idx]).species
+                    == cast(PeriodicSite, target_struct[matched_idx]).species):
                 matched[matched_idx] = True
                 result_sites.append(target_struct[matched_idx])
                 found_mapping = True
