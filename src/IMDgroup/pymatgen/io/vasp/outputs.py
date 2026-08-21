@@ -174,6 +174,34 @@ class Outcar(pmgOutcar):
                 dct[key] = value
         return dct
 
+    @property
+    def max_force(self) -> float | None:
+        """Maximum force magnitude from the final ionic step.
+
+        Parses the last ``TOTAL-FORCE`` table from the OUTCAR and
+        returns the largest force magnitude across all atoms.
+
+        Returns:
+            float | None: Maximum force in eV/Angstrom, or ``None``
+            when the table is missing or cannot be parsed.
+        """
+        try:
+            forces = self.read_table_pattern(
+                header_pattern=r"POSITION\s+TOTAL-FORCE \(eV/Angst\)\s+-+",
+                row_pattern=(
+                    r"[-+]?\d+\.\d+\s+[-+]?\d+\.\d+\s+[-+]?\d+\.\d+\s+"
+                    r"([-+]?\d+\.\d+)\s+([-+]?\d+\.\d+)\s+([-+]?\d+\.\d+)"
+                ),
+                footer_pattern=r"-+",
+                postprocess=float,
+                last_one_only=True,
+            )
+        except (IndexError, OSError, ValueError):
+            return None
+        if not forces:
+            return None
+        return float(max(np.linalg.norm(row) for row in forces))
+
 
 class Vasplog(MSONable):
     """Parser for VASP log files (slurm output, stdout, OUTCAR).

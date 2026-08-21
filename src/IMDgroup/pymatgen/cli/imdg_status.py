@@ -421,6 +421,7 @@ def status(args):
                 progress = " N/A" + progress
             else:
                 outcar = None if args.fast else vaspdir['OUTCAR']
+                max_force = None
                 if outcar is not None:
                     cpu_time_sec =\
                         outcar.run_stats.get('Total CPU time used (sec)')
@@ -428,12 +429,15 @@ def status(args):
                         str(datetime.timedelta(seconds=round(cpu_time_sec)))\
                         if cpu_time_sec is not None else None
                     n_cores = outcar.run_stats['cores']
+                    max_force = outcar.max_force
                 else:
                     cpu_time = None
                     n_cores = None
                 final_energy_str = "" if np.isnan(final_energy)\
                     else f"{final_energy:.4f}eV"
-                progress = f" | {final_energy_str}" +\
+                force_str = f" Fmax: {max_force:.4f}eV/Å"\
+                    if max_force is not None else ""
+                progress = f" | {final_energy_str}" + force_str +\
                     (f" CPU time: {cpu_time} ({n_cores} cores)"
                      if n_cores is not None else "") + " " + progress
         mtime = vasp_output_time(wdir)
