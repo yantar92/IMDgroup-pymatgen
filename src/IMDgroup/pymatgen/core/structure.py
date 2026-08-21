@@ -539,9 +539,10 @@ def structure_is_valid2(structure: Structure, frac_tol: float = 0.5) -> bool:
         for j, dist in enumerate(dists):
             if i == j:
                 continue
+            # FIXME: pymatgen's type definition for index is not right.
             max_dist = frac_tol * (
-                structure[i].specie.atomic_radius
-                + structure[j].specie.atomic_radius
+                cast(PeriodicSite, structure[i]).specie.atomic_radius
+                + cast(PeriodicSite, structure[j]).specie.atomic_radius
             )
             if dist < max_dist:
                 return False
