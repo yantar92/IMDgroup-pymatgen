@@ -710,6 +710,71 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
                 if len(oszicar.ionic_steps) > 0 else None
         return None
 
+    def max_force(self, include_constrained: bool = False) -> float | None:
+        """Maximum residual force magnitude from the OUTCAR.
+
+        When ``include_constrained`` is False (default), force
+        components in directions constrained by selective dynamics are
+        ignored, so fixed atoms do not dominate the reported force.
+        Constraints are read from the POSCAR, with CONTCAR as a
+        fallback.
+
+        Args:
+            include_constrained: When True, include all force
+                components regardless of selective dynamics.
+
+        Returns:
+            float | None: Maximum force in eV/Angstrom, or ``None``
+            when the OUTCAR forces are unavailable or no unconstrained
+            force components remain.
+        """
+        outcar = self['OUTCAR']
+        if outcar is None:
+            return None
+        forces = outcar.final_forces
+        if forces is None or len(forces) == 0:
+            return None
+        if include_constrained:
+            return float(np.max(np.linalg.norm(forces, axis=1)))
+        selective_dynamics = self._selective_dynamics()
+        if selective_dynamics is None:
+            return float(np.max(np.linalg.norm(forces, axis=1)))
+        magnitudes = []
+        for i, force in enumerate(forces):
+            mask = selective_dynamics[i] if i < len(selective_dynamics)\
+                else np.ones(3, dtype=bool)
+            if not np.any(mask):
+                continue
+            magnitudes.append(np.linalg.norm(force[mask]))
+        if not magnitudes:
+            return None
+        return float(np.max(magnitudes))
+
+    def _selective_dynamics(self) -> np.ndarray | None:
+        """Selective dynamics flags for the calculation.
+
+        Read from the POSCAR, falling back to the CONTCAR when the
+        POSCAR is absent.
+
+        Returns:
+            np.ndarray | None: Boolean array of shape ``(n_atoms, 3)``
+            where each row marks whether that Cartesian direction is
+            free to move.  ``None`` when neither file is available or
+            neither has selective dynamics constraints.
+        """
+        for fname in ("POSCAR", "CONTCAR"):
+            poscar = self[fname]
+            if poscar is None:
+                continue
+            try:
+                selective = poscar.structure.site_properties.get(
+                    'selective_dynamics')
+            except (OSError, ValueError, IndexError):
+                continue
+            if selective is not None:
+                return np.asarray(selective, dtype=bool)
+        return None
+
     def check_displacements(self) -> bool:
         """Check whether atomic displacements are below a safe threshold.
 

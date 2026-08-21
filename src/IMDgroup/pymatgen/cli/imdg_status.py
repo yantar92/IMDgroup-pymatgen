@@ -429,7 +429,7 @@ def status(args):
                         str(datetime.timedelta(seconds=round(cpu_time_sec)))\
                         if cpu_time_sec is not None else None
                     n_cores = outcar.run_stats['cores']
-                    max_force = outcar.max_force
+                    max_force = vaspdir.max_force()
                 else:
                     cpu_time = None
                     n_cores = None

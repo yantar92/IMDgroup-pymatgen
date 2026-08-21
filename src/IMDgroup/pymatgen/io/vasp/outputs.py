@@ -175,15 +175,16 @@ class Outcar(pmgOutcar):
         return dct
 
     @property
-    def max_force(self) -> float | None:
-        """Maximum force magnitude from the final ionic step.
+    def final_forces(self) -> np.ndarray | None:
+        """Force vectors from the final ionic step.
 
         Parses the last ``TOTAL-FORCE`` table from the OUTCAR and
-        returns the largest force magnitude across all atoms.
+        returns one force vector per atom.
 
         Returns:
-            float | None: Maximum force in eV/Angstrom, or ``None``
-            when the table is missing or cannot be parsed.
+            np.ndarray | None: Array of shape ``(n_atoms, 3)`` with
+            forces in eV/Angstrom, or ``None`` when the table is
+            missing or cannot be parsed.
         """
         try:
             forces = self.read_table_pattern(
@@ -200,7 +201,7 @@ class Outcar(pmgOutcar):
             return None
         if not forces:
             return None
-        return float(max(np.linalg.norm(row) for row in forces))
+        return np.array(forces)
 
 
 class Vasplog(MSONable):
