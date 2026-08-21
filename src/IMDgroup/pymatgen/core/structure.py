@@ -98,6 +98,22 @@ class IMDStructure(Structure):
         ret.__class__ = cls
         return cast(Self, ret)
 
+    @classmethod
+    def from_structure(cls, structure: Structure) -> Self:
+        """Create an IMDStructure from an existing pymatgen Structure.
+
+        Args:
+            structure: Structure to convert.
+
+        Returns:
+            IMDStructure: Copy of ``structure`` as an IMDStructure.
+        """
+        return cls.from_sites(
+            structure.sites,
+            charge=structure.charge,
+            properties=structure.properties,
+        )
+
     def to_file(self, filename: str = "", fmt="") -> str | None:
         """A more intuitive alias for .to()."""
         return self.to(filename, fmt)
@@ -251,7 +267,7 @@ def get_matched_structure(
             raise ValueError("Unable to reliably match structures")
 
     if already_matched:
-        return target_struct.copy()
+        return IMDStructure.from_structure(target_struct)
 
     # If there are more sites in target_struct, add them to the end.
     for idx, site_matched in enumerate(matched):
