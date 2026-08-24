@@ -600,6 +600,7 @@ def _worker_wrapper(args):
     Returns:
         Result of ``_GLOBAL_WORKER(*args)``.
     """
+    assert _GLOBAL_WORKER is not None
     return _GLOBAL_WORKER(*args)
 
 
@@ -733,7 +734,8 @@ def structure_perturb(
     counter = 0
     while True:
         structure.perturb(distance, min_distance)
-        if 'selective_dynamics' in orig_structure[0].properties:
+        # FIXME: cast is necessary because pymatgen does not properly define type
+        if 'selective_dynamics' in cast(PeriodicSite, orig_structure[0]).properties:
             warnings.warn(
                 "Not perturbing site coordinates restricted by selective_dynamics"
             )
