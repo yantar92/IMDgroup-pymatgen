@@ -476,7 +476,7 @@ def structure_interpolate2(
         return images
 
     # Otherwise, adjust the spacing manually to avoid collisions.
-    nimages = np.arange(nimages + 1) / nimages
+    image_scales = np.arange(nimages + 1) / nimages
 
     def get_image(coord):
         """Get image at COORD."""
@@ -499,23 +499,23 @@ def structure_interpolate2(
 
     while invalid_idx is not True:
         left_coord = search_valid(
-            nimages[invalid_idx - 1], nimages[invalid_idx])
-        if np.abs(nimages[invalid_idx - 1] - left_coord) > 1E-3:
-            nimages[invalid_idx] = left_coord
+            image_scales[invalid_idx - 1], image_scales[invalid_idx])
+        if np.abs(image_scales[invalid_idx - 1] - left_coord) > 1E-3:
+            image_scales[invalid_idx] = left_coord
         else:  # No valid point to the left.  Search right.
             next_valid_idx = invalid_idx + 1
             while not structure_is_valid2(get_image(
-                    nimages[next_valid_idx]), frac_tol):
+                    image_scales[next_valid_idx]), frac_tol):
                 next_valid_idx += 1
             right_coord = search_valid(
-                nimages[next_valid_idx], nimages[invalid_idx])
+                image_scales[next_valid_idx], image_scales[invalid_idx])
             rescaled = np.linspace(
-                right_coord, nimages[-1], num=len(nimages[invalid_idx:]))
+                right_coord, image_scales[-1], num=len(image_scales[invalid_idx:]))
             for idx, coord in enumerate(rescaled):
-                nimages[idx + invalid_idx] = coord
-        images = structure1.interpolate(structure2, nimages, **kwargs)
+                image_scales[idx + invalid_idx] = coord
+        images = structure1.interpolate(structure2, image_scales, **kwargs)
         invalid_idx = all_valid(images)
-    logger.info("Adjusted interpolation coordinates to %s", nimages)
+    logger.info("Adjusted interpolation coordinates to %s", image_scales)
     return images
 
 
