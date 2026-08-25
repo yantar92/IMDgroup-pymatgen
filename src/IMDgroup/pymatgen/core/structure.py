@@ -659,6 +659,7 @@ def structure_matches(
                     return True
     else:
         for known in known_structs:
+            assert known is not None
             if cmp_fun(struct, known):
                 _warn(known)
                 return True
