@@ -540,9 +540,11 @@ def structure_is_valid2(structure: Structure, frac_tol: float = 0.5) -> bool:
             if i == j:
                 continue
             # FIXME: pymatgen's type definition for index is not right.
+            # atomic_radius is typed as `FloatWithUnit | None`, but is a
+            # float subclass in practice.
             max_dist = frac_tol * (
-                cast(PeriodicSite, structure[i]).specie.atomic_radius
-                + cast(PeriodicSite, structure[j]).specie.atomic_radius
+                cast(float, cast(PeriodicSite, structure[i]).specie.atomic_radius)
+                + cast(float, cast(PeriodicSite, structure[j]).specie.atomic_radius)
             )
             if dist < max_dist:
                 return False
