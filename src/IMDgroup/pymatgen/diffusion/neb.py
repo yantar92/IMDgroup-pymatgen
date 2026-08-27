@@ -26,16 +26,18 @@
 
 
 """NEB pair generator for diffusion paths."""
+
 import logging
 import warnings
 from multiprocessing import Pool
+from typing import cast
 from alive_progress import alive_bar
 import numpy as np
 import networkx as nx
 from networkx import MultiDiGraph
 from networkx.algorithms.cycles import _johnson_cycle_search\
     as johnson_cycle_search
-from pymatgen.core import Structure
+from pymatgen.core import Structure, PeriodicSite
 from IMDgroup.pymatgen.core.structure import\
     merge_structures, structure_matches
 from IMDgroup.pymatgen.transformations.symmetry_clone\
@@ -118,9 +120,10 @@ class NEB_Graph(MultiDiGraph):
                                    for k in range(-1, 2)]:
                         vec2 = vec.copy()
                         for idx in jimage_idxs:
+                            # FIXME: Pymatgen's idx does not do the type properly
                             site_from =\
-                                structures[from_idx][idx].to_unit_cell()
-                            site_to = structures[to_idx][idx].to_unit_cell()
+                                cast(PeriodicSite, structures[from_idx][idx]).to_unit_cell()
+                            site_to = cast(PeriodicSite, structures[to_idx][idx]).to_unit_cell()
                             assert site_from is not None
                             assert site_to is not None
                             lattice = structures[from_idx].lattice
