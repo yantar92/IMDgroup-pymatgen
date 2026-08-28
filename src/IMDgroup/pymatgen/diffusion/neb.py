@@ -30,13 +30,17 @@
 import logging
 import warnings
 from multiprocessing import Pool
+from collections.abc import Sequence
 from typing import cast
 from alive_progress import alive_bar
 import numpy as np
 import networkx as nx
 from networkx import MultiDiGraph
-from networkx.algorithms.cycles import _johnson_cycle_search\
-    as johnson_cycle_search
+from networkx.algorithms.cycles import (
+    # `_johnson_cycle_search` is a private symbol, so Pyright cannot see it;
+    # the public `nx.simple_cycles` alternative is far slower.
+    _johnson_cycle_search as johnson_cycle_search,  # pyright: ignore[reportAttributeAccessIssue]
+)
 from pymatgen.core import Structure, PeriodicSite
 from IMDgroup.pymatgen.core.structure import\
     merge_structures, structure_matches
@@ -467,7 +471,7 @@ class NEB_Graph(MultiDiGraph):
 
 
 def _remove_duplicates(
-        structures: list[Structure],
+        structures: Sequence[Structure | None],
         idxs: list[int] | None = None,
         multithread: bool = False,
 ) -> list[Structure | None]:
@@ -478,7 +482,8 @@ def _remove_duplicates(
     indices.
 
     Args:
-        structures: List of structures.
+        structures: Sequence of structures.  ``None`` entries are skipped
+            and preserved in the output.
         idxs: When provided, only compare proximity of sites at these
             indices.
         multithread: Whether to use multithreading for duplicate
