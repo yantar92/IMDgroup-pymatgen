@@ -125,26 +125,29 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
         "imdg.log",
     ])
 
+    # Regex patterns matched with re.fullmatch against file names to
+    # select the parser class.  Patterns (rather than fixed names) are
+    # needed for files with variable names, such as VASP log files.
     FILE_MAPPINGS: typing.ClassVar = {
-        "INCAR": Incar,
-        "POSCAR": pmgPoscar,
-        "CONTCAR": pmgPoscar,
-        "KPOINTS": pmgKpoints,
-        "POTCAR": pmgPotcar,
-        "vasprun": Vasprun,
-        "OUTCAR": Outcar,
+        r'INCAR': Incar,
+        r'POSCAR': pmgPoscar,
+        r'CONTCAR': pmgPoscar,
+        r'KPOINTS': pmgKpoints,
+        r'POTCAR': pmgPotcar,
+        r'vasprun\.xml(\.gz)?': Vasprun,
+        r'OUTCAR': Outcar,
         # FIXME: Need to modify parent clases to make them dumpable
-        "OSZICAR": pmgOszicar,
-        "CHGCAR": pmgChgcar,
+        r'OSZICAR': pmgOszicar,
+        r'CHGCAR': pmgChgcar,
         # "WAVECAR": pmgWavecar,
-        "WAVEDER": pmgWaveder,
-        "LOCPOT": pmgLocpot,
+        r'WAVEDER': pmgWaveder,
+        r'LOCPOT': pmgLocpot,
         # "XDATCAR": pmgXdatcar,
         # "EIGENVAL": pmgEigenval,
-        "PROCAR": pmgProcar,
-        "ELFCAR": pmgElfcar,
+        r'PROCAR': pmgProcar,
+        r'ELFCAR': pmgElfcar,
         # "DYNMAT": pmgDynmat,
-        "WSWQ": pmgWSWQ,
+        r'WSWQ': pmgWSWQ,
     }
 
     def _should_exclude(self, filename: str) -> bool:
@@ -581,8 +584,8 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
         if item in self._parsed_files:
             return self._parsed_files[item]
         path = Path(self.path)
-        for k, cls_ in self.FILE_MAPPINGS.items():
-            if k in item and (path / item).exists():
+        for pattern, cls_ in self.FILE_MAPPINGS.items():
+            if re.fullmatch(pattern, item) and (path / item).exists():
                 # Avoid being stuck in IO
                 # It can happen with Outcar
                 # See https://github.com/materialsproject/pymatgen/issues/4550
@@ -610,7 +613,7 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
         if (path / item).exists():
             raise RuntimeError(
                 f"Unable to parse {item}. "
-                f"Supported files are {list(self.FILE_MAPPINGS.keys())}.")
+                f"Supported file patterns are {list(self.FILE_MAPPINGS.keys())}.")
         return None
 
     @staticmethod
