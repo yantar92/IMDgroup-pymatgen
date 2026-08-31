@@ -41,6 +41,7 @@ import sys
 import threading
 import atexit
 from pathlib import Path
+from typing import cast, Collection
 import lmdb
 import numpy as np
 from monty.json import MSONable
@@ -545,13 +546,17 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
             dict[str, IMDGVaspDir]: Mapping of ``{path: IMDGVaspDir}``.
         """
         if isinstance(rootpath, list):
-            rootpath = [Path(p) for p in rootpath]
+            paths = [Path(p) for p in rootpath]
         else:
-            rootpath = [Path(rootpath)]
+            paths = [Path(rootpath)]
         valid_paths = {}
+        walk_it = cast(
+            Collection[tuple[Path, list[str], list[str]]],
+            itertools.chain.from_iterable(p.walk() for p in paths),
+        )
         for parent, _, files in alive_it(
-                itertools.chain.from_iterable([p.walk() for p in rootpath]),
-                title=f"Scanning {list(map(str, rootpath))} for VASP directories"):
+                walk_it, title=f"Scanning {list(map(str, paths))} for VASP directories"
+        ):
             for vaspfile in ['OUTCAR', 'vasprun.xml', 'POSCAR', 'OSZICAR']:
                 if vaspfile in files and (
                         path_filter is None or path_filter(parent)):
