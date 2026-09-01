@@ -42,7 +42,7 @@ from termcolor import colored
 from pymatgen.io.vasp.outputs import UnconvergedVASPWarning
 from IMDgroup.pymatgen.io.vasp.outputs import VasprunWarning
 from IMDgroup.pymatgen.core.structure import structure_distance
-from IMDgroup.pymatgen.io.vasp.outputs import Vasplog
+from IMDgroup.pymatgen.io.vasp.outputs import Vasplog, Outcar
 from IMDgroup.pymatgen.io.vasp.vaspdir import IMDGVaspDir
 from IMDgroup.pymatgen.io.vasp.inputs import Incar
 
@@ -221,7 +221,7 @@ def vasp_output_time(path):
 
 
 def _get_warning_list(
-        logs: list[Vasplog],
+        logs: list[Vasplog | Outcar],
         ignore_list: None | list[str] = None) -> tuple[str, set[str]]:
     """Get warning list from list of LOGS.
     Return a tuple (formatted_warning_list_string, warning_types_list)
@@ -245,7 +245,7 @@ def _get_warning_list(
     return (warning_list, all_warn_names_present)
 
 
-def _get_progress(logs: list[Vasplog]) -> str:
+def _get_progress(logs: list[Vasplog | Outcar]) -> str:
     """Get formatted progress string from list of LOGS.
     """
     progress_data = logs[-1].progress
@@ -382,7 +382,7 @@ def status(args):
             logger.debug('skipping converged run')
             continue
 
-        if logs := (not nebp) and Vasplog.from_dir(wdir):
+        if logs := (not nebp) and vaspdir.logs():
             logger.debug(
                 "Found VASP logs in %s: %s",
                 wdir, [log.file.name for log in logs])
