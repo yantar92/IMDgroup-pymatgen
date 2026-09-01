@@ -31,6 +31,7 @@ import warnings
 import logging
 import re
 import os
+import io
 from pathlib import Path
 from monty.json import MSONable
 from monty.io import zopen
@@ -163,53 +164,14 @@ class Vasprun(pmgVasprun):
         return converged_ionic
 
 
-class Outcar(pmgOutcar):
-    """Modified version of pymatgen's Outcar that stores all fields."""
+class VasplogMixin:
+    """Shared log-parsing logic for VASP log files and OUTCAR.
 
-    def as_dict(self) -> dict:
-        """MSONable dict."""
-        dct = super().as_dict()
-        for key, value in vars(self).items():
-            if key not in dct:
-                dct[key] = value
-        return dct
-
-    @property
-    def final_forces(self) -> np.ndarray | None:
-        """Force vectors from the final ionic step.
-
-        Parses the last ``TOTAL-FORCE`` table from the OUTCAR and
-        returns one force vector per atom.
-
-        Returns:
-            np.ndarray | None: Array of shape ``(n_atoms, 3)`` with
-            forces in eV/Angstrom, or ``None`` when the table is
-            missing or cannot be parsed.
-        """
-        try:
-            forces = self.read_table_pattern(
-                header_pattern=r"POSITION\s+TOTAL-FORCE \(eV/Angst\)\s+-+",
-                row_pattern=(
-                    r"[-+]?\d+\.\d+\s+[-+]?\d+\.\d+\s+[-+]?\d+\.\d+\s+"
-                    r"([-+]?\d+\.\d+)\s+([-+]?\d+\.\d+)\s+([-+]?\d+\.\d+)"
-                ),
-                footer_pattern=r"-+",
-                postprocess=float,
-                last_one_only=True,
-            )
-        except (IndexError, OSError, ValueError):
-            return None
-        if not forces:
-            return None
-        return np.array(forces)
-
-
-class Vasplog(MSONable):
-    """Parser for VASP log files (slurm output, stdout, OUTCAR).
-
-    Extracts warnings and progress messages from VASP output using
-    configurable regex patterns.  The parsed log file path is stored
-    in ``file``.
+    Builds a deduplicated line index (``self.lines`` and
+    ``self.line_counts``) and exposes regex-driven warning/progress
+    extraction.  Subclasses supply the raw log lines via
+    :meth:`_raw_log_lines`: ``Vasplog`` reads them from a file,
+    ``Outcar`` reuses the text already slurped by pymatgen.
     """
 
     # Maximum log file size to be read
@@ -368,34 +330,42 @@ class Vasplog(MSONable):
 
     VASP_LOG_FILES = [r'slurm.+', r'stdout', r'OUTCAR', r'vasp.out']
 
-    def __init__(self, filename: PathLike) -> None:
-        """Initialize parser from a log file.
+    @staticmethod
+    def _dedup_lines(raw_lines):
+        """Strip and deduplicate raw log lines into an index.
 
         Args:
-            filename: Path to the log file to parse.
+            raw_lines: Unstripped log lines.
+
+        Returns:
+            tuple[list[str], dict[str, int]]: A pair ``(lines,
+            line_counts)`` where ``lines`` holds each unique stripped
+            line in first-seen order and ``line_counts`` maps each
+            line to its total number of occurrences.
         """
-        self.file = Path(filename)
-        self._warnings = None
-        self._progress = None
-        self.line_counts = {}
-        self.lines = []
-        logger.debug("Reading VASP log file: %s", self.file)
-        file_size = self.file.stat().st_size
-        if file_size > self.MAX_SIZE:
-            warnings.warn(
-                f"{os.path.relpath(filename)} is too large: {file_size} > {self.MAX_SIZE}."
-                " Reading partially",
-                ResourceWarning
-            )
-        with zopen(self.file, mode="rt", encoding="UTF-8") as f:
-            full_lines = f.readlines(self.MAX_SIZE)
-            for line in full_lines:
-                line = line.strip()
-                if line in self.line_counts:
-                    self.line_counts[line] += 1
-                else:
-                    self.lines.append(line)
-                    self.line_counts[line] = 1
+        lines = []
+        line_counts = {}
+        for line in raw_lines:
+            line = line.strip()
+            if line in line_counts:
+                line_counts[line] += 1
+            else:
+                lines.append(line)
+                line_counts[line] = 1
+        return lines, line_counts
+
+    def _raw_log_lines(self) -> list[str]:
+        """Return the raw (unstripped) log lines to index.
+
+        Subclasses must implement this.
+        """
+        raise NotImplementedError
+
+    def _ensure_log_index(self) -> None:
+        """Populate ``self.lines`` and ``self.line_counts`` if needed."""
+        if getattr(self, 'line_counts', None) is None:
+            self.lines, self.line_counts = self._dedup_lines(
+                self._raw_log_lines())
 
     @property
     def warnings(self):
@@ -406,8 +376,9 @@ class Vasplog(MSONable):
             See ``VASP_WARNINGS`` for the full list of recognised
             warning types.
         """
-        if self._warnings is None:
-            self._warnings = self.parse(Vasplog.VASP_WARNINGS)
+        self._ensure_log_index()
+        if getattr(self, '_warnings', None) is None:
+            self._warnings = self.parse(self.VASP_WARNINGS)
         return self._warnings
 
     @property
@@ -419,12 +390,13 @@ class Vasplog(MSONable):
             See ``VASP_PROGRESS`` for the full list of recognised
             progress types.
         """
-        if self._progress is None:
-            self._progress = self.parse(Vasplog.VASP_PROGRESS)
+        self._ensure_log_index()
+        if getattr(self, '_progress', None) is None:
+            self._progress = self.parse(self.VASP_PROGRESS)
         return self._progress
 
-    @staticmethod
-    def from_dir(dirname: PathLike) -> list['Vasplog']:
+    @classmethod
+    def from_dir(cls, dirname: PathLike) -> list['Vasplog']:
         """Parse all log files found in a directory.
 
         Args:
@@ -433,13 +405,13 @@ class Vasplog(MSONable):
         Returns:
             list[Vasplog]: One Vasplog instance per log file found.
         """
-        files = Vasplog.vasp_log_files(dirname)
+        files = cls.vasp_log_files(dirname)
         if files is None:
             return []
         return [Vasplog(f) for f in files]
 
-    @staticmethod
-    def vasp_log_files(path: PathLike) -> list[Path] | None:
+    @classmethod
+    def vasp_log_files(cls, path: PathLike) -> list[Path] | None:
         """Find VASP log files in a directory.
 
         Files are sorted by modification time.  OUTCAR is excluded
@@ -460,7 +432,7 @@ class Vasplog(MSONable):
         matching: list[Path] = []
         for f in files:
             if any(re.match(regexp, f.name)
-                   for regexp in Vasplog.VASP_LOG_FILES):
+                   for regexp in cls.VASP_LOG_FILES):
                 matching.append(f)
         if len(matching) > 1:
             # Ignore OUTCAR (huge) unless we have no choice
@@ -531,3 +503,92 @@ class Vasplog(MSONable):
 
         logger.debug("Found %d log patterns", len(result))
         return result
+
+
+class Outcar(VasplogMixin, pmgOutcar):
+    """Modified version of pymatgen's Outcar that stores all fields."""
+
+    def _raw_log_lines(self) -> list[str]:
+        """Return OUTCAR lines, limited to ``MAX_SIZE`` bytes.
+
+        Mirrors :meth:`Vasplog.__init__` by reading the first
+        ``MAX_SIZE`` bytes of the already-slurped ``_text`` so that
+        warning/progress output matches file-based parsing.
+        """
+        with io.StringIO(self._text) as f:
+            return f.readlines(self.MAX_SIZE)
+
+    @property
+    def file(self) -> Path:
+        """Path to the OUTCAR file (uniform with :class:`Vasplog`)."""
+        return Path(self.filename)
+
+    def as_dict(self) -> dict:
+        """MSONable dict."""
+        dct = super().as_dict()
+        for key, value in vars(self).items():
+            if key not in dct:
+                dct[key] = value
+        return dct
+
+    @property
+    def final_forces(self) -> np.ndarray | None:
+        """Force vectors from the final ionic step.
+
+        Parses the last ``TOTAL-FORCE`` table from the OUTCAR and
+        returns one force vector per atom.
+
+        Returns:
+            np.ndarray | None: Array of shape ``(n_atoms, 3)`` with
+            forces in eV/Angstrom, or ``None`` when the table is
+            missing or cannot be parsed.
+        """
+        try:
+            forces = self.read_table_pattern(
+                header_pattern=r"POSITION\s+TOTAL-FORCE \(eV/Angst\)\s+-+",
+                row_pattern=(
+                    r"[-+]?\d+\.\d+\s+[-+]?\d+\.\d+\s+[-+]?\d+\.\d+\s+"
+                    r"([-+]?\d+\.\d+)\s+([-+]?\d+\.\d+)\s+([-+]?\d+\.\d+)"
+                ),
+                footer_pattern=r"-+",
+                postprocess=float,
+                last_one_only=True,
+            )
+        except (IndexError, OSError, ValueError):
+            return None
+        if not forces:
+            return None
+        return np.array(forces)
+
+
+class Vasplog(VasplogMixin, MSONable):
+    """Parser for VASP log files (slurm output, stdout, OUTCAR).
+
+    Extracts warnings and progress messages from VASP output using
+    configurable regex patterns.  The parsed log file path is stored
+    in ``file``.
+    """
+
+    def __init__(self, filename: PathLike) -> None:
+        """Initialize parser from a log file.
+
+        Args:
+            filename: Path to the log file to parse.
+        """
+        self.file = Path(filename)
+        self._warnings = None
+        self._progress = None
+        logger.debug("Reading VASP log file: %s", self.file)
+        file_size = self.file.stat().st_size
+        if file_size > self.MAX_SIZE:
+            warnings.warn(
+                f"{os.path.relpath(filename)} is too large: {file_size} > {self.MAX_SIZE}."
+                " Reading partially",
+                ResourceWarning
+            )
+        self.lines, self.line_counts = self._dedup_lines(self._raw_log_lines())
+
+    def _raw_log_lines(self) -> list[str]:
+        """Return the raw (unstripped) log lines from the file."""
+        with zopen(self.file, mode="rt", encoding="UTF-8") as f:
+            return f.readlines(self.MAX_SIZE)
