@@ -58,7 +58,7 @@ from pymatgen.io.vasp.outputs import Procar as pmgProcar
 from pymatgen.io.vasp.outputs import Elfcar as pmgElfcar
 from pymatgen.io.vasp.outputs import WSWQ as pmgWSWQ
 from IMDgroup.pymatgen.io.vasp.inputs import Incar
-from IMDgroup.pymatgen.io.vasp.outputs import Vasprun, Outcar
+from IMDgroup.pymatgen.io.vasp.outputs import Vasprun, Outcar, Vasplog
 from IMDgroup.pymatgen.core.structure import structure_distance
 
 logger = logging.getLogger(__name__)
@@ -136,6 +136,12 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
         r'POTCAR': pmgPotcar,
         r'vasprun\.xml(\.gz)?': Vasprun,
         r'OUTCAR': Outcar,
+        # VASP log files (slurm output, stdout, vasp.out).  OUTCAR
+        # serves as a log via the Outcar class when it is the only
+        # log file present.
+        r'slurm.+': Vasplog,
+        r'stdout.*': Vasplog,
+        r'vasp\.out.*': Vasplog,
         # FIXME: Need to modify parent clases to make them dumpable
         r'OSZICAR': pmgOszicar,
         r'CHGCAR': pmgChgcar,
@@ -615,6 +621,32 @@ class IMDGVaspDir(collections.abc.Mapping, MSONable):
                 f"Unable to parse {item}. "
                 f"Supported file patterns are {list(self.FILE_MAPPINGS.keys())}.")
         return None
+
+    def logs(self) -> list[Vasplog | Outcar]:
+        """Parse VASP log files in this directory through the file cache.
+
+        Discovers log files via :meth:`Vasplog.vasp_log_files` and
+        parses each through :meth:`__getitem__`, so parsed warnings
+        and progress are cached alongside the other files.  Returns
+        ``Vasplog`` instances for slurm/stdout/vasp.out logs and an
+        ``Outcar`` when OUTCAR is the only log file.
+
+        Returns:
+            list: Parsed log objects, skipping files that fail to parse.
+        """
+        files = Vasplog.vasp_log_files(self.path)
+        if files is None:
+            return []
+        logs = []
+        for f in files:
+            try:
+                log = self[f.name]
+            except RuntimeError:
+                logger.debug("No parser for log file %s", f.name)
+                continue
+            if log is not None:
+                logs.append(log)
+        return logs
 
     @staticmethod
     def _get_file_hash(filename: Path | str) -> str:
