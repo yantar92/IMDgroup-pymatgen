@@ -26,7 +26,6 @@
 
 
 """This module implements abstraction over Vasp input/output directory."""
-import collections
 import fnmatch
 import typing
 import hashlib
@@ -42,6 +41,7 @@ import threading
 import atexit
 from pathlib import Path
 from typing import cast, Collection
+from collections.abc import Mapping
 import lmdb
 import numpy as np
 from monty.json import MSONable
@@ -88,7 +88,7 @@ if HAS_SIGALRM:
 
 # Rewriting the original VaspDir/PMGDir class to add caching, dumping,
 # and other goodies.
-class IMDGVaspDir(collections.abc.Mapping, MSONable):
+class IMDGVaspDir(Mapping, MSONable):
     """Dictionary-like access to all files in a VASP calculation directory.
 
     Files are lazily parsed to minimise initialisation cost.  Example::
