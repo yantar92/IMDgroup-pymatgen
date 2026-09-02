@@ -122,6 +122,11 @@ class IMDGVaspDir(Mapping, MSONable):
 
     TIMEOUT = 60 * 2  # 2 minutes
 
+    # Version of the cache record schema.  Bump when the structure of
+    # cached records changes so that entries written by older package
+    # versions are discarded on load instead of being misread.
+    CACHE_VERSION: typing.ClassVar[int] = 1
+
     # Glob patterns for files to exclude from hash computation and
     # directory iteration.  Log files that change without affecting
     # VASP results belong here.  Individual instances can extend this
@@ -501,6 +506,7 @@ class IMDGVaspDir(Mapping, MSONable):
     def _dump_to_cache(self) -> bool:
         """Dump parsed data to cache."""
         data = {
+            'version': self.CACHE_VERSION,
             'hash': self._get_hash(),
             'parsed_files': self._parsed_files,
             'warnings': self._warnings,
@@ -517,7 +523,8 @@ class IMDGVaspDir(Mapping, MSONable):
         with self._pending_lock:
             pending = self._pending_writes.get(key)
         if pending is not None:
-            if pending.get('hash') == current_hash:
+            if (pending.get('version') == self.CACHE_VERSION
+                    and pending.get('hash') == current_hash):
                 self._parsed_files = pending['parsed_files']
                 self._warnings = pending.get('warnings', VaspWarnings())
                 self._warnings_collected = pending.get(
@@ -526,30 +533,39 @@ class IMDGVaspDir(Mapping, MSONable):
                     "Loaded pending cache for %s",
                     os.path.relpath(self.path))
                 return
-            # Stale pending entry, remove it
+            # Version or hash mismatch: stale pending entry, remove it.
             logger.debug(
-                "Pending cache hash mismatch for %s (pending=%s, current=%s)",
+                "Pending cache mismatch for %s "
+                "(version=%s, hash=%s; expected version=%s, hash=%s)",
                 os.path.relpath(self.path),
-                pending.get('hash'), current_hash)
+                pending.get('version'), pending.get('hash'),
+                self.CACHE_VERSION, current_hash)
             with self._pending_lock:
                 self._pending_writes.pop(key, None)
         # Fall back to disk cache (LMDB)
         cache_data = self._load_from_cache()
         if cache_data is not None:
-            cached_hash = cache_data.get('hash')
-            if cached_hash == current_hash:
-                self._parsed_files = cache_data['parsed_files']
-                self._warnings = cache_data.get('warnings', VaspWarnings())
-                self._warnings_collected = cache_data.get(
-                    'warnings_collected', False)
+            if cache_data.get('version') == self.CACHE_VERSION:
+                cached_hash = cache_data.get('hash')
+                if cached_hash == current_hash:
+                    self._parsed_files = cache_data['parsed_files']
+                    self._warnings = cache_data.get('warnings', VaspWarnings())
+                    self._warnings_collected = cache_data.get(
+                        'warnings_collected', False)
+                    logger.debug(
+                        "Loaded disk cache for %s",
+                        os.path.relpath(self.path))
+                    return
                 logger.debug(
-                    "Loaded disk cache for %s",
-                    os.path.relpath(self.path))
-                return
-            logger.debug(
-                "Disk cache hash mismatch for %s (cached=%s, current=%s)",
-                os.path.relpath(self.path),
-                cached_hash, current_hash)
+                    "Disk cache hash mismatch for %s (cached=%s, current=%s)",
+                    os.path.relpath(self.path),
+                    cached_hash, current_hash)
+            else:
+                logger.debug(
+                    "Disk cache version mismatch for %s "
+                    "(cached=%s, current=%s); discarding",
+                    os.path.relpath(self.path),
+                    cache_data.get('version'), self.CACHE_VERSION)
         else:
             logger.debug(
                 "No disk cache entry for %s",
