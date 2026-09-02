@@ -673,7 +673,7 @@ class IMDGVaspDir(Mapping, MSONable):
         Records are overwritten by name, so re-running a check is
         idempotent.
         """
-        self._warnings.set(record)
+        self._warnings.overwrite(record)
         warnings.warn(record.message, VaspWarning)
 
     @property

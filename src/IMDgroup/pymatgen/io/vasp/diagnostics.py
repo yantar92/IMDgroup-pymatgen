@@ -123,7 +123,7 @@ class VaspWarnings(MSONable):
     """Name-keyed, insertion-ordered collection of warning records.
 
     ``add`` accumulates (for repeating log warnings, where the same
-    pattern appears many times); ``set`` overwrites (for single-shot
+    pattern appears many times); ``overwrite`` replaces (for single-shot
     derived checks, so re-running a check is idempotent).
     """
 
@@ -140,8 +140,8 @@ class VaspWarnings(MSONable):
         else:
             self._records[record.name] = record
 
-    def set(self, record: VaspWarningRecord) -> None:
-        """Insert or overwrite a record (idempotent for derived checks)."""
+    def overwrite(self, record: VaspWarningRecord) -> None:
+        """Insert or replace a record (idempotent for derived checks)."""
         self._records[record.name] = record
 
     def __getitem__(self, name: str) -> VaspWarningRecord:

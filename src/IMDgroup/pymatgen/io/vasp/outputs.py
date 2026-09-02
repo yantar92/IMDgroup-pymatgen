@@ -64,7 +64,7 @@ class Vasprun(pmgVasprun):
         """
         if getattr(self, '_warnings', None) is None:
             self._warnings = VaspWarnings()
-        self._warnings.set(record)
+        self._warnings.overwrite(record)
         warnings.warn(record.message, VaspWarning)
 
     @property
