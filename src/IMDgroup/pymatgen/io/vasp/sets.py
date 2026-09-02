@@ -42,7 +42,7 @@ from pymatgen.core import Species, DummySpecies, Structure
 from pymatgen.io.vasp.sets import VaspInputSet, BadInputSetWarning
 from pymatgen.io.vasp.inputs import Potcar, Kpoints, Poscar, BadPoscarWarning
 from pymatgen.io.vasp.outputs import Vasprun
-from pymatgen.util.due import Doi, due
+from duecredit import Doi, due
 from pymatgen.ext.matproj import MPRester
 from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
 from pymatgen.io.ase import AseAtomsAdaptor

@@ -27,6 +27,7 @@ dependencies = [
 "termcolor",
 "networkx",
 "cachetools",
+"duecredit>=0.11",
 "lmdb",
 "typing-extensions"
 ]
