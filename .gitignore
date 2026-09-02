@@ -6,3 +6,4 @@ flycheck_*
 .aider*
 docs/_build/
 docs/_generated/
+/uv.lock
