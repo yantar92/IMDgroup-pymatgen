@@ -31,7 +31,6 @@ import warnings
 import logging
 import re
 import os
-import io
 from pathlib import Path
 from monty.json import MSONable
 from monty.io import zopen
@@ -556,11 +555,13 @@ class Outcar(VasplogMixin, pmgOutcar):
     def _raw_log_lines(self) -> list[str]:
         """Return OUTCAR lines, limited to ``MAX_SIZE`` bytes.
 
-        Mirrors :meth:`Vasplog.__init__` by reading the first
-        ``MAX_SIZE`` bytes of the already-slurped ``_text`` so that
-        warning/progress output matches file-based parsing.
+        Reads the first ``MAX_SIZE`` bytes from the OUTCAR file,
+        mirroring :meth:`Vasplog._raw_log_lines`.  We read from disk
+        instead of reusing pymatgen's in-memory text cache because its
+        attribute name is not stable across pymatgen versions (``_text``
+        was replaced by ``_lines``).
         """
-        with io.StringIO(self._text) as f:
+        with zopen(self.filename, mode="rt", encoding="UTF-8") as f:
             return f.readlines(self.MAX_SIZE)
 
     @property
