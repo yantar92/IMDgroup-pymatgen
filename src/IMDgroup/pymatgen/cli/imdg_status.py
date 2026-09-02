@@ -344,110 +344,112 @@ def status(args):
     incars = []
     all_warn_names_present = set()
     dirs_with_warnings = {}  # warning_name: list of dirs
-    for wdir in alive_it(paths, enrich_print=False, title="Reading VASP outputs"):
-        vaspdir = vaspdirs.get(wdir)
-        assert vaspdir is not None
-        incar = vaspdir['INCAR']
-        if incar is not None:
-            incar['SYSTEM'] = wdir
-            incars.append(incar)
-        # As we read VASP directories, they will take up more and more memory
-        # Avoid overflowing memory when reading too many dirs.
-        del vaspdirs[wdir]
-        nebp = vaspdir.nebp
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", category=VaspWarning)
+        for wdir in alive_it(paths, enrich_print=False, title="Reading VASP outputs"):
+            vaspdir = vaspdirs.get(wdir)
+            assert vaspdir is not None
+            incar = vaspdir['INCAR']
+            if incar is not None:
+                incar['SYSTEM'] = wdir
+                incars.append(incar)
+            # As we read VASP directories, they will take up more and more memory
+            # Avoid overflowing memory when reading too many dirs.
+            del vaspdirs[wdir]
+            nebp = vaspdir.nebp
 
-        run_status = colored("unknown", "red")
-        run_prefix = _get_run_prefix(vaspdir)
+            run_status = colored("unknown", "red")
+            run_prefix = _get_run_prefix(vaspdir)
 
-        if slurm_runningp(wdir):
-            running = True
-            converged = False
-            run_status = colored("running", "yellow")
-        else:
-            running = False
-            converged = vaspdir.converged_electronic and vaspdir.converged_ionic\
-                and vaspdir.converged_manual
-            run_status = colored("converged", "green") if converged\
-                else colored("unconverged", "red")
-            if converged and not vaspdir.converged_sequence:
-                run_status = colored("converged; next step pending", "green")
+            if slurm_runningp(wdir):
+                running = True
+                converged = False
+                run_status = colored("running", "yellow")
+            else:
+                running = False
+                converged = vaspdir.converged_electronic and vaspdir.converged_ionic\
+                    and vaspdir.converged_manual
+                run_status = colored("converged", "green") if converged\
+                    else colored("unconverged", "red")
+                if converged and not vaspdir.converged_sequence:
+                    run_status = colored("converged; next step pending", "green")
 
-        logger.debug(
-            '%s: running = %s, converged = %s',
-            wdir, running, converged)
-
-        if args.skip_converged and converged:
-            logger.debug('skipping converged run')
-            continue
-
-        if logs := (not nebp) and vaspdir.logs():
             logger.debug(
-                "Found VASP logs in %s: %s",
-                wdir, [log.file.name for log in logs])
-            if not converged:
-                progress = _get_progress(logs)
-            else:
-                progress = ""
-            warning_list, warn_names = _get_warning_list(vaspdir.warnings, args.nowarn)
-            all_warn_names_present = all_warn_names_present.union(warn_names)
-            if not converged and not running:
-                for warn_name in warn_names:
-                    if warn_name not in dirs_with_warnings:
-                        dirs_with_warnings[warn_name] = [wdir.replace("./", "")]
-                    else:
-                        dirs_with_warnings[warn_name].append(wdir.replace("./", ""))
-                if len(warn_names) == 0:
-                    if 'UNCONVERGED' not in dirs_with_warnings:
-                        dirs_with_warnings['UNCONVERGED'] = []
-                    dirs_with_warnings['UNCONVERGED'].append(wdir.replace("./", ""))
-        else:
-            if not nebp:
-                logger.debug("Slurm log file not found in %s", wdir)
-            progress = ""
-            warning_list = ""
+                '%s: running = %s, converged = %s',
+                wdir, running, converged)
 
-        if args.problematic and warning_list == ""\
-           and (converged or running):
-            continue
+            if args.skip_converged and converged:
+                logger.debug('skipping converged run')
+                continue
 
-        if not running:
-            if vaspdir['vasprun.xml'] is None and\
-               (Path(wdir) / 'vasprun.xml').is_file():
-                run_status = colored("incomplete vasprun.xml", "red")
-            final_energy = vaspdir.final_energy
-            if final_energy is None or final_energy == np.nan:
-                progress = " N/A" + progress
-            else:
-                outcar = None if args.fast else vaspdir['OUTCAR']
-                max_force = None
-                if outcar is not None:
-                    cpu_time_sec =\
-                        outcar.run_stats.get('Total CPU time used (sec)')
-                    cpu_time =\
-                        str(datetime.timedelta(seconds=round(cpu_time_sec)))\
-                        if cpu_time_sec is not None else None
-                    n_cores = outcar.run_stats['cores']
-                    max_force = vaspdir.max_force()
+            if logs := (not nebp) and vaspdir.logs():
+                logger.debug(
+                    "Found VASP logs in %s: %s",
+                    wdir, [log.file.name for log in logs])
+                if not converged:
+                    progress = _get_progress(logs)
                 else:
-                    cpu_time = None
-                    n_cores = None
-                final_energy_str = "" if np.isnan(final_energy)\
-                    else f"{final_energy:.4f}eV"
-                force_str = f" Fmax: {max_force:.4f}eV/Å"\
-                    if max_force is not None else ""
-                progress = f" | {final_energy_str}" + force_str +\
-                    (f" CPU time: {cpu_time} ({n_cores} cores)"
-                     if n_cores is not None else "") + " " + progress
-        mtime = vasp_output_time(wdir)
-        if mtime is None:
-            continue
-        delta = mtime - datetime.datetime.now().timestamp()
-        if nebp:
-            progress = progress + "\n" + _get_neb_summary(vaspdir)
-        print(
-            f"[{print_seconds(delta): >15}]",
-            colored(f"{wdir.replace("./", "")}:", attrs=['bold']),
-            " ".join([run_prefix, run_status, progress]) + warning_list)
+                    progress = ""
+                warning_list, warn_names = _get_warning_list(vaspdir.warnings, args.nowarn)
+                all_warn_names_present = all_warn_names_present.union(warn_names)
+                if not converged and not running:
+                    for warn_name in warn_names:
+                        if warn_name not in dirs_with_warnings:
+                            dirs_with_warnings[warn_name] = [wdir.replace("./", "")]
+                        else:
+                            dirs_with_warnings[warn_name].append(wdir.replace("./", ""))
+                    if len(warn_names) == 0:
+                        if 'UNCONVERGED' not in dirs_with_warnings:
+                            dirs_with_warnings['UNCONVERGED'] = []
+                        dirs_with_warnings['UNCONVERGED'].append(wdir.replace("./", ""))
+            else:
+                if not nebp:
+                    logger.debug("Slurm log file not found in %s", wdir)
+                progress = ""
+                warning_list = ""
+
+            if args.problematic and warning_list == ""\
+               and (converged or running):
+                continue
+
+            if not running:
+                if vaspdir['vasprun.xml'] is None and\
+                   (Path(wdir) / 'vasprun.xml').is_file():
+                    run_status = colored("incomplete vasprun.xml", "red")
+                final_energy = vaspdir.final_energy
+                if final_energy is None or final_energy == np.nan:
+                    progress = " N/A" + progress
+                else:
+                    outcar = None if args.fast else vaspdir['OUTCAR']
+                    max_force = None
+                    if outcar is not None:
+                        cpu_time_sec =\
+                            outcar.run_stats.get('Total CPU time used (sec)')
+                        cpu_time =\
+                            str(datetime.timedelta(seconds=round(cpu_time_sec)))\
+                            if cpu_time_sec is not None else None
+                        n_cores = outcar.run_stats['cores']
+                        max_force = vaspdir.max_force()
+                    else:
+                        cpu_time = None
+                        n_cores = None
+                    final_energy_str = "" if np.isnan(final_energy)\
+                        else f"{final_energy:.4f}eV"
+                    force_str = f" Fmax: {max_force:.4f}eV/Å"\
+                        if max_force is not None else ""
+                    progress = f" | {final_energy_str}" + force_str +\
+                        (f" CPU time: {cpu_time} ({n_cores} cores)"
+                         if n_cores is not None else "") + " " + progress
+            mtime = vasp_output_time(wdir)
+            if mtime is None:
+                continue
+            delta = mtime - datetime.datetime.now().timestamp()
+            if nebp:
+                progress = progress + "\n" + _get_neb_summary(vaspdir)
+            print(
+                f"[{print_seconds(delta): >15}]",
+                colored(f"{wdir.replace("./", "")}:", attrs=['bold']),
+                " ".join([run_prefix, run_status, progress]) + warning_list)
 
     if len(all_warn_names_present) > 0:
         print(colored("Warnings found: ", "yellow"), all_warn_names_present)
