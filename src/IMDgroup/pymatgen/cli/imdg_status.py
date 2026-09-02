@@ -40,7 +40,7 @@ from alive_progress import alive_it
 import numpy as np
 from termcolor import colored
 from pymatgen.io.vasp.outputs import UnconvergedVASPWarning
-from IMDgroup.pymatgen.io.vasp.outputs import VasprunWarning
+from IMDgroup.pymatgen.io.vasp.diagnostics import VaspWarning, VaspWarnings
 from IMDgroup.pymatgen.core.structure import structure_distance
 from IMDgroup.pymatgen.io.vasp.outputs import Vasplog, Outcar
 from IMDgroup.pymatgen.io.vasp.vaspdir import IMDGVaspDir
@@ -221,27 +221,26 @@ def vasp_output_time(path):
 
 
 def _get_warning_list(
-        logs: list[Vasplog | Outcar],
+        warnings: VaspWarnings,
         ignore_list: None | list[str] = None) -> tuple[str, set[str]]:
-    """Get warning list from list of LOGS.
+    """Get warning list from a WARNINGS container.
     Return a tuple (formatted_warning_list_string, warning_types_list)
     """
     warning_list = ""
     all_warn_names_present = set()
-    for log in logs:
-        for warn_name, data in log.warnings.items():
-            if ignore_list is not None and warn_name in ignore_list:
-                continue
-            all_warn_names_present.add(warn_name)
-            warning_list += "\n" +\
-                colored(
-                    f"⮤Warning ({data['count']}x) {warn_name}: ",
-                    "yellow") + data['message']
-            if tips := data.get('tips'):
-                for tip in tips:
-                    warning_list += '\n' + colored(
-                        " ➙ TIP: ", "magenta", attrs=['bold'])\
-                        + tip
+    for warn_name, record in warnings.items():
+        if ignore_list is not None and warn_name in ignore_list:
+            continue
+        all_warn_names_present.add(warn_name)
+        warning_list += "\n" +\
+            colored(
+                f"⮤Warning ({record.count}x) {warn_name}: ",
+                "yellow") + record.message
+        if record.tips:
+            for tip in record.tips:
+                warning_list += '\n' + colored(
+                    " ➙ TIP: ", "magenta", attrs=['bold'])\
+                    + tip
     return (warning_list, all_warn_names_present)
 
 
@@ -250,7 +249,7 @@ def _get_progress(logs: list[Vasplog | Outcar]) -> str:
     """
     progress_data = logs[-1].progress
     if len(progress_data.values()) > 0:
-        return list(progress_data.values())[-1]['message']
+        return list(progress_data.values())[-1].message
     return "N/A"
 
 
@@ -316,7 +315,7 @@ def status(args):
         warnings.filterwarnings(
             "ignore", category=UnconvergedVASPWarning, append=True)
         warnings.filterwarnings(
-            "ignore", category=VasprunWarning, append=True)
+            "ignore", category=VaspWarning, append=True)
 
         vaspdirs = IMDGVaspDir.read_vaspdirs(
             args.dir, path_filter=include_dirp)
@@ -390,7 +389,7 @@ def status(args):
                 progress = _get_progress(logs)
             else:
                 progress = ""
-            warning_list, warn_names = _get_warning_list(logs, args.nowarn)
+            warning_list, warn_names = _get_warning_list(vaspdir.warnings, args.nowarn)
             all_warn_names_present = all_warn_names_present.union(warn_names)
             if not converged and not running:
                 for warn_name in warn_names:

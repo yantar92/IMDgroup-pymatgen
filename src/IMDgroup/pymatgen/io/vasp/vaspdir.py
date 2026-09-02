@@ -59,6 +59,11 @@ from pymatgen.io.vasp.outputs import Elfcar as pmgElfcar
 from pymatgen.io.vasp.outputs import WSWQ as pmgWSWQ
 from IMDgroup.pymatgen.io.vasp.inputs import Incar
 from IMDgroup.pymatgen.io.vasp.outputs import Vasprun, Outcar, Vasplog
+from IMDgroup.pymatgen.io.vasp.diagnostics import (
+    VaspWarning,
+    VaspWarningRecord,
+    VaspWarnings,
+)
 from IMDgroup.pymatgen.core.structure import structure_distance
 
 logger = logging.getLogger(__name__)
@@ -183,6 +188,8 @@ class IMDGVaspDir(Mapping, MSONable):
         self._neb_vaspdirs = None
         self._prev_vaspdirs = None
         self._parsed_files = None
+        self._warnings = VaspWarnings()
+        self._warnings_collected = False
 
     _pending_writes: typing.ClassVar[dict[str, dict]] = {}
     _pending_lock: typing.ClassVar[threading.Lock] = threading.Lock()
@@ -421,6 +428,8 @@ class IMDGVaspDir(Mapping, MSONable):
         self._parsed_files = None  # Pacify linter.  Same is done in reset().
         self._prev_vaspdirs = None  # Pacify linter.  Same is done in reset().
         self._neb_vaspdirs = None  # Pacify linter.  Same is done in reset().
+        self._warnings = None  # Pacify linter.  Same is done in reset().
+        self._warnings_collected = False  # Pacify linter.
         if exclude_patterns is None:
             self._exclude_patterns = self.EXCLUDE_PATTERNS
         else:
@@ -493,7 +502,9 @@ class IMDGVaspDir(Mapping, MSONable):
         """Dump parsed data to cache."""
         data = {
             'hash': self._get_hash(),
-            'parsed_files': self._parsed_files
+            'parsed_files': self._parsed_files,
+            'warnings': self._warnings,
+            'warnings_collected': self._warnings_collected,
         }
         self._add_pending_write(self._cache_key, data)
         return True
@@ -508,6 +519,9 @@ class IMDGVaspDir(Mapping, MSONable):
         if pending is not None:
             if pending.get('hash') == current_hash:
                 self._parsed_files = pending['parsed_files']
+                self._warnings = pending.get('warnings', VaspWarnings())
+                self._warnings_collected = pending.get(
+                    'warnings_collected', False)
                 logger.debug(
                     "Loaded pending cache for %s",
                     os.path.relpath(self.path))
@@ -525,6 +539,9 @@ class IMDGVaspDir(Mapping, MSONable):
             cached_hash = cache_data.get('hash')
             if cached_hash == current_hash:
                 self._parsed_files = cache_data['parsed_files']
+                self._warnings = cache_data.get('warnings', VaspWarnings())
+                self._warnings_collected = cache_data.get(
+                    'warnings_collected', False)
                 logger.debug(
                     "Loaded disk cache for %s",
                     os.path.relpath(self.path))
@@ -538,6 +555,8 @@ class IMDGVaspDir(Mapping, MSONable):
                 "No disk cache entry for %s",
                 os.path.relpath(self.path))
         self._parsed_files = {}
+        self._warnings = VaspWarnings()
+        self._warnings_collected = False
         logger.debug("No valid cache for %s", os.path.relpath(self.path))
 
     @staticmethod
@@ -648,6 +667,41 @@ class IMDGVaspDir(Mapping, MSONable):
                 logs.append(log)
         return logs
 
+    def _record(self, record: VaspWarningRecord) -> None:
+        """Record a directory-level warning and emit it.
+
+        Records are overwritten by name, so re-running a check is
+        idempotent.
+        """
+        self._warnings.set(record)
+        warnings.warn(record.message, VaspWarning)
+
+    @property
+    def warnings(self) -> VaspWarnings:
+        """Structured warnings for this directory.
+
+        Aggregates log-file warnings (:class:`Vasplog`/:class:`Outcar`),
+        :class:`Vasprun` accuracy checks, and directory-level checks
+        (energy reliability, displacements, framework symmetry).  The
+        container is cached and replayed on subsequent loads.
+
+        Returns:
+            VaspWarnings: Name-keyed warning records.
+        """
+        if not self._warnings_collected:
+            for log in self.logs():
+                for record in log.warnings.values():
+                    self._warnings.add(record)
+            if run := self['vasprun.xml']:
+                for record in run.warnings.values():
+                    self._warnings.add(record)
+            # Records energy reliability and, transitively, runs the
+            # displacement/framework-symmetry checks via converged_*.
+            self.final_energy
+            self._warnings_collected = True
+            self._dump_to_cache()
+        return self._warnings
+
     @staticmethod
     def _get_file_hash(filename: Path | str) -> str:
         """Get hash of FILENAME.
@@ -671,9 +725,14 @@ class IMDGVaspDir(Mapping, MSONable):
         """Final energy computed in current Vasp outputs.
         """
         def warn_unconverged():
-            warnings.warn(
-                f"Reading final energy from unconverged run: {os.path.relpath(self.path)}"
-            )
+            self._record(VaspWarningRecord(
+                name="unconverged_energy",
+                message=(
+                    "Reading final energy from unconverged run: "
+                    f"{os.path.relpath(self.path)}"
+                ),
+                source=self.path,
+            ))
         if run := self['vasprun.xml']:
             if not self.converged:
                 warn_unconverged()
@@ -684,10 +743,14 @@ class IMDGVaspDir(Mapping, MSONable):
         if outcar := self['OUTCAR']:
             final_energy = outcar.final_energy
             if not isinstance(final_energy, float):
-                warnings.warn(
-                    f"Problems reading final energy (={final_energy}) from"
-                    f" {os.path.relpath(self.path)}/OUTCAR."
-                )
+                self._record(VaspWarningRecord(
+                    name="unparseable_energy",
+                    message=(
+                        f"Problems reading final energy (={final_energy}) from"
+                        f" {os.path.relpath(self.path)}/OUTCAR."
+                    ),
+                    source=self.path,
+                ))
                 final_energy = np.nan
             elif not self.converged:
                 warn_unconverged()
@@ -831,9 +894,15 @@ class IMDGVaspDir(Mapping, MSONable):
         vol = self.structure.volume
         avg_bond_length = (vol / len(self.structure))**(1 / 3)
         if max_displacement > 2.0 * avg_bond_length:
-            warnings.warn(
-                f"{os.path.relpath(self.path)}: "
-                f"Large atomic displacement {max_displacement}")
+            self._record(VaspWarningRecord(
+                name="large_displacement",
+                message=(
+                    f"{os.path.relpath(self.path)}: "
+                    f"Large atomic displacement {max_displacement}"
+                ),
+                source=self.path,
+                metadata={"max_displacement": float(max_displacement)},
+            ))
             return False
         return True
 
@@ -883,10 +952,16 @@ class IMDGVaspDir(Mapping, MSONable):
             except Exception:
                 rms = float('inf')
             if rms > max_rms_threshold or np.isclose(rms, 0):
-                warnings.warn(
-                    f"{os.path.relpath(self.path)}: "
-                    f"Framework symmetry changed ({init_sg[0]} to {final_sg[0]}) "
-                    f"with displacement (RMS={rms:.3f}Å)")
+                self._record(VaspWarningRecord(
+                    name="framework_symmetry",
+                    message=(
+                        f"{os.path.relpath(self.path)}: "
+                        f"Framework symmetry changed ({init_sg[0]} to {final_sg[0]}) "
+                        f"with displacement (RMS={rms:.3f}Å)"
+                    ),
+                    source=self.path,
+                    metadata={"rms_displacement": float(rms)},
+                ))
                 return False
         return True
 

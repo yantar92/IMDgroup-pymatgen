@@ -40,12 +40,13 @@ from pymatgen.util.typing import PathLike
 from pymatgen.io.vasp.outputs import Vasprun as pmgVasprun
 from pymatgen.io.vasp.outputs import Outcar as pmgOutcar
 from IMDgroup.pymatgen.io.vasp.inputs import Incar
+from IMDgroup.pymatgen.io.vasp.diagnostics import (
+    VaspWarning,
+    VaspWarningRecord,
+    VaspWarnings,
+)
 
 logger = logging.getLogger(__name__)
-
-
-class VasprunWarning(Warning):
-    """Warning emitted for potentially problematic VASP runs."""
 
 
 class Vasprun(pmgVasprun):
@@ -55,13 +56,41 @@ class Vasprun(pmgVasprun):
     non-trivial ISIF values are used.
     """
 
+    def _record(self, record: VaspWarningRecord) -> None:
+        """Record a structured warning and emit it.
+
+        Records are overwritten by name, so re-running a check is
+        idempotent.
+        """
+        if getattr(self, '_warnings', None) is None:
+            self._warnings = VaspWarnings()
+        self._warnings.set(record)
+        warnings.warn(record.message, VaspWarning)
+
+    @property
+    def warnings(self) -> VaspWarnings:
+        """Structured warnings collected for this run.
+
+        On first access, runs the derived accuracy checks (energy,
+        stress, forces) and returns their records.  Accessing
+        ``final_energy``, ``check_stress``, or ``check_forces``
+        directly also populates the container.
+        """
+        if getattr(self, '_warnings', None) is None:
+            self._warnings = VaspWarnings()
+        if not getattr(self, '_warnings_checked', False):
+            self.final_energy
+            self.converged_ionic
+            self._warnings_checked = True
+        return self._warnings
+
     @property
     def final_energy(self) -> float:
         """Final energy from the VASP run.
 
-        Emits ``VasprunWarning`` when the energy may be inaccurate
-        due to relaxation with ISIF values that change cell shape
-        or volume.
+        Records an energy-accuracy warning when the energy may be
+        inaccurate due to relaxation with ISIF values that change cell
+        shape or volume.
         """
         energy = super().final_energy
         n_steps = len(self.ionic_steps)
@@ -71,11 +100,17 @@ class Vasprun(pmgVasprun):
                Incar.ISIF_FIX_SHAPE_VOL,
                Incar.ISIF_FIX_SHAPE_VOL_TRACE,
                Incar.ISIF_FIX_SHAPE_VOL_FAST] and n_steps > 1:
-            warnings.warn(
-                "Energy may not be accurate when using "
-                f"ISIF({self.incar.get('ISIF')})!={Incar.ISIF_FIX_SHAPE_VOL}",
-                VasprunWarning
-            )
+            self._record(VaspWarningRecord(
+                name="energy_accuracy",
+                message=(
+                    "Energy may not be accurate when using "
+                    f"ISIF({self.incar.get('ISIF')})!={Incar.ISIF_FIX_SHAPE_VOL}"
+                ),
+                tips=[
+                    "Relax with ISIF=2, 3, or 4, or verify the energy separately."
+                ],
+                source=getattr(self, 'filename', None),
+            ))
 
         return energy
 
@@ -86,8 +121,9 @@ class Vasprun(pmgVasprun):
 
         Returns:
             bool: True if the hydrostatic stress is below
-            ``PRESSURE_CONVERGENCE_THRESHOLD``.  Emits
-            ``VasprunWarning`` otherwise.
+            ``PRESSURE_CONVERGENCE_THRESHOLD``.  Records a
+            ``stress_convergence`` warning and emits ``VaspWarning``
+            otherwise.
         """
         stress_tensor = np.array(self.ionic_steps[-1]['stress'])
         external_pressure = np.trace(stress_tensor) / 3
@@ -95,11 +131,16 @@ class Vasprun(pmgVasprun):
         #     stress_tensor = (stress_tensor + stress_tensor.T) / 2
         # principal_stresses = np.linalg.eigvals(stress_tensor)
         if external_pressure > self.PRESSURE_CONVERGENCE_THRESHOLD:
-            warnings.warn(
-                f"{os.path.relpath(self.filename)}: "
-                f"Hydrostatic stress is {external_pressure}"
-                f" > {self.PRESSURE_CONVERGENCE_THRESHOLD}",
-                VasprunWarning)
+            self._record(VaspWarningRecord(
+                name="stress_convergence",
+                message=(
+                    f"{os.path.relpath(self.filename)}: "
+                    f"Hydrostatic stress is {external_pressure}"
+                    f" > {self.PRESSURE_CONVERGENCE_THRESHOLD}"
+                ),
+                source=getattr(self, 'filename', None),
+                metadata={"hydrostatic_pressure": float(external_pressure)},
+            ))
             return False
         return True
 
@@ -139,10 +180,15 @@ class Vasprun(pmgVasprun):
             max_force = max(max_force, force_mag)
 
         if max_force > threshold:
-            warnings.warn(
-                f"{os.path.relpath(self.filename)}: "
-                f"Large force found {max_force:.3f} > {threshold}eV/Å",
-                VasprunWarning)
+            self._record(VaspWarningRecord(
+                name="force_convergence",
+                message=(
+                    f"{os.path.relpath(self.filename)}: "
+                    f"Large force found {max_force:.3f} > {threshold}eV/Å"
+                ),
+                source=getattr(self, 'filename', None),
+                metadata={"max_force": float(max_force), "threshold": threshold},
+            ))
             return False
         return True
 
@@ -368,13 +414,13 @@ class VasplogMixin:
                 self._raw_log_lines())
 
     @property
-    def warnings(self):
+    def warnings(self) -> VaspWarnings:
         """Parsed warning records.
 
         Returns:
-            dict: Mapping of ``{log_type: {'message': str, 'count': int}}``.
-            See ``VASP_WARNINGS`` for the full list of recognised
-            warning types.
+            VaspWarnings: Name-keyed warning records.  See
+            ``VASP_WARNINGS`` for the full list of recognised warning
+            types.
         """
         self._ensure_log_index()
         if getattr(self, '_warnings', None) is None:
@@ -382,13 +428,13 @@ class VasplogMixin:
         return self._warnings
 
     @property
-    def progress(self):
+    def progress(self) -> VaspWarnings:
         """Parsed progress messages.
 
         Returns:
-            dict: Mapping of ``{log_type: {'message': str, 'count': int}}``.
-            See ``VASP_PROGRESS`` for the full list of recognised
-            progress types.
+            VaspWarnings: Name-keyed progress records.  See
+            ``VASP_PROGRESS`` for the full list of recognised progress
+            types.
         """
         self._ensure_log_index()
         if getattr(self, '_progress', None) is None:
@@ -453,8 +499,9 @@ class VasplogMixin:
                   explanatory messages.
 
         Returns:
-            dict: ``{log_type: {'message': str, 'tips': list | None,
-            'count': int}}``.
+            VaspWarnings: ``{name: VaspWarningRecord}`` where ``name``
+            is the log type and the record carries ``message``, ``tips``
+            and ``count``.
         """
         # Pre-compile all patterns
         exclude_re = [re.compile(p) for p in log_matchers.get('__exclude', [])]
@@ -471,7 +518,7 @@ class VasplogMixin:
                 'context': context_rules.get(warn_name, 0)
             }
 
-        result = {}
+        result = VaspWarnings()
         # Process text line by line for memory efficiency
         i = 0
         n_lines = len(self.lines)
@@ -490,15 +537,13 @@ class VasplogMixin:
                     end_idx = min(i - 1 + context + 1, n_lines)
                     context_block = '\n'.join(self.lines[i - 1:end_idx])
 
-                    # Update results
-                    if warn_name not in result:
-                        result[warn_name] = {
-                            'message': context_block,
-                            'tips': extra_msgs.get(warn_name),
-                            'count': 0
-                        }
-                    result[warn_name]['count'] += self.line_counts[line]
-                    result[warn_name]['message'] = context_block
+                    result.add(VaspWarningRecord(
+                        name=warn_name,
+                        message=context_block,
+                        tips=extra_msgs.get(warn_name) or [],
+                        count=self.line_counts[line],
+                        source=str(getattr(self, 'file', None)),
+                    ))
                     break  # only count one match per line
 
         logger.debug("Found %d log patterns", len(result))
