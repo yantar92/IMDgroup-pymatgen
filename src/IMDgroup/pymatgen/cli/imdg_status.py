@@ -390,7 +390,10 @@ def status(args):
                     progress = _get_progress(logs)
                 else:
                     progress = ""
-                warning_list, warn_names = _get_warning_list(vaspdir.warnings, args.nowarn)
+                nowarn_list = ['unconverged_energy']  if running else []
+                if args.nowarn:
+                    nowarn_list += args.nowarn
+                warning_list, warn_names = _get_warning_list(vaspdir.warnings, nowarn_list)
                 all_warn_names_present = all_warn_names_present.union(warn_names)
                 if not converged and not running:
                     for warn_name in warn_names:
