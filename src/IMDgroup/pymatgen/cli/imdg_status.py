@@ -134,10 +134,9 @@ def add_args(parser):
     )
     parser.add_argument(
         "--nowarn",
-        help="List of warnings to ignore",
+        help="Warning names to ignore (names are printed in the "
+        "'Warnings found' summary)",
         nargs="+",
-        choices=[key for key in Vasplog.VASP_WARNINGS
-                 if '__' not in key],
         default=None
     )
     parser.add_argument(
