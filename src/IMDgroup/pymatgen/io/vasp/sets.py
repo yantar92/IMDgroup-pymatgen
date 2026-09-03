@@ -237,7 +237,7 @@ class IMDVaspInputSet(VaspInputSet):
         return incar_updates
 
     @property
-    def incar(self) -> Incar | None:
+    def incar(self) -> Incar | None:  # pyright: ignore[reportIncompatibleMethodOverride]
         """INCAR for the input set.
 
         Automatically derives a SYSTEM name from formula, lattice type,
@@ -249,6 +249,7 @@ class IMDVaspInputSet(VaspInputSet):
         incar = super().incar
         # Use IMDG version of Incar class
         incar = Incar(incar)
+        # FIXME: This is never reached as Incar always returns non-None.
         # Empty incar.  Do nothing.
         if incar is None or not list(incar):
             return incar
