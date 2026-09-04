@@ -333,7 +333,7 @@ class IMDVaspInputSet(VaspInputSet):
         return super().poscar
 
     @property
-    def potcar_symbols(self) -> list[str] | None:
+    def potcar_symbols(self) -> list[str] | None:  # pyright: ignore[reportIncompatibleMethodOverride]
         """List of POTCAR symbols.
 
         Auto-fills missing element potentials using ASE-recommended
@@ -355,7 +355,7 @@ class IMDVaspInputSet(VaspInputSet):
         return super().potcar_symbols
 
     @property
-    def potcar(self) -> Potcar | None:
+    def potcar(self) -> Potcar | None:  # pyright: ignore[reportIncompatibleMethodOverride]
         """POTCAR for the input set.
 
         When ``no_potcar`` is True, returns None.
