@@ -364,7 +364,7 @@ class IMDVaspInputSet(VaspInputSet):
             return None
         return super().potcar
 
-    def write_input(self, output_dir, **kwargs) -> None:
+    def write_input(self, output_dir, *args, **kwargs) -> None:
         """Write VASP input files to a directory.
 
         In addition to standard pymatgen behaviour, writes an
@@ -373,9 +373,10 @@ class IMDVaspInputSet(VaspInputSet):
 
         Args:
             output_dir: Target directory for the input files.
-            **kwargs: Forwarded to ``VaspInputSet.write_input``.
+            *args, **kwargs: Forwarded to
+                ``VaspInputSet.write_input``.
         """
-        super().write_input(output_dir, **kwargs)
+        super().write_input(output_dir, *args, **kwargs)
         output_dir = Path(output_dir)
         # Write inputset info
         log_file = output_dir / "IMDVaspInputSet.log"
@@ -399,11 +400,11 @@ class IMDVaspInputSet(VaspInputSet):
         if self.images is not None:
             # Write images
             for d, image in zip(self.incar.image_dir_names(), self.images):
-                image.write_input(output_dir / d, **kwargs)
-            logger.debug(
-                "Writing trajectory file %s",
-                output_dir / 'NEB_trajectory.cif')
-            # Store NEB path snapshot
+                image.write_input(output_dir / d, *args, **kwargs)
+                logger.debug(
+                    "Writing trajectory file %s",
+                    output_dir / 'NEB_trajectory.cif')
+                # Store NEB path snapshot
             trajectory = merge_structures(
                 [img.structure for img in self.images])
             trajectory.to_file(output_dir / 'NEB_trajectory.cif')
@@ -768,9 +769,9 @@ class IMDNEBVaspInputSet(IMDDerivedInputSet):
                     BadInputSetWarning
                 )
 
-        self.update_images()
+                self.update_images()
 
-    def write_input(self, output_dir, **kwargs) -> None:
+    def write_input(self, output_dir, *args, **kwargs) -> None:
         """Write NEB input files to a directory.
 
         In addition to standard behaviour, writes a ``NEB-inputs.txt``
@@ -778,9 +779,10 @@ class IMDNEBVaspInputSet(IMDDerivedInputSet):
 
         Args:
             output_dir: Target directory for the input files.
-            **kwargs: Forwarded to ``VaspInputSet.write_input``.
+            *args, **kwargs: Forwarded to
+                ``VaspInputSet.write_input``.
         """
-        super().write_input(output_dir, **kwargs)
+        super().write_input(output_dir, *args, **kwargs)
         # Save information about the initial/final image inputs.
         log_file = os.path.join(output_dir, "NEB-inputs.txt")
         with open(log_file, "w", encoding='utf-8') as f:
