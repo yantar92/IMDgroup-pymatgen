@@ -399,7 +399,13 @@ class IMDVaspInputSet(VaspInputSet):
         # NEB input
         if self.images is not None:
             # Write images
-            for d, image in zip(self.incar.image_dir_names(), self.images):
+            if incar := self.incar:
+                image_dirs = incar.image_dir_names()
+            else:
+                image_dirs = None
+            if image_dirs is None:
+                image_dirs = []
+            for d, image in zip(image_dirs, self.images):
                 image.write_input(output_dir / d, *args, **kwargs)
                 logger.debug(
                     "Writing trajectory file %s",
