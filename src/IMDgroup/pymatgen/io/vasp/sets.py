@@ -411,8 +411,14 @@ class IMDVaspInputSet(VaspInputSet):
                     "Writing trajectory file %s",
                     output_dir / 'NEB_trajectory.cif')
                 # Store NEB path snapshot
-            trajectory = merge_structures(
-                [img.structure for img in self.images])
+            image_structures = []
+            for img in self.images:
+                s = img.structure
+                if s is None:
+                    raise ValueError(
+                        "Cannot build NEB trajectory: an image has no structure")
+                image_structures.append(s)
+            trajectory = merge_structures(image_structures)
             trajectory.to_file(str(output_dir / 'NEB_trajectory.cif'))
             # Visualize information about fixed/not fixed sites, if any
             write_selective_dynamics_summary_maybe(
