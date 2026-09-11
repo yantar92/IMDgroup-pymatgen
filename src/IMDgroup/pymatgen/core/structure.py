@@ -650,7 +650,7 @@ def structure_matches(
             'SLURM_CPUS_ON_NODE',
             multiprocessing.cpu_count()))
         # experimental: leave some buffer to avoid process being stuck
-        cpus = min(1, cpus - 1)
+        cpus = max(1, cpus - 1)
         if isinstance(multithread, int):
             cpus = min(multithread, cpus)
         with Pool(processes=cpus) as pool:
