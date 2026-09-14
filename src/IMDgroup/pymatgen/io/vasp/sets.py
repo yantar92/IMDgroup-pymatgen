@@ -476,9 +476,15 @@ class IMDDerivedInputSet(IMDVaspInputSet):
         return super().kpoints
 
     @property
-    def kpoints_updates(self):
+    def kpoints_updates(self):  # type: ignore[reportIncompatibleMethodOverride]
         """KPOINTS updates, preferring prev_kpoints unconditionally."""
-
+        # FIXME: Upstream ``VaspInputSet.kpoints_updates`` is annotated
+        # to return ``dict``, but its ``kpoints`` getter explicitly
+        # handles a ``Kpoints`` return (see the
+        # ``isinstance(kpoints_updates, Kpoints)`` branch).  The stale
+        # annotation makes Pyright flag this override as incompatible.
+        # Need to report a bug: the annotation should be
+        # ``dict | Kpoints``.
         if self.prev_kpoints and isinstance(self.prev_kpoints, Kpoints):
             return self.prev_kpoints
         return super().kpoints_updates
