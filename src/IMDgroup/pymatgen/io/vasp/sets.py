@@ -496,6 +496,7 @@ class IMDDerivedInputSet(IMDVaspInputSet):
             self._vaspdir = self.directory
             self.directory = self._vaspdir.path
         else:
+            assert self.directory is not None
             self._vaspdir = IMDGVaspDir(self.directory)
 
         if self._vaspdir.nebp:
