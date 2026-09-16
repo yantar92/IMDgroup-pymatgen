@@ -505,7 +505,9 @@ class IMDDerivedInputSet(IMDVaspInputSet):
                 "Found NEB input in %s",
                 self.directory
             )
-            for subdir in self._vaspdir.neb_dirs():
+            neb_dirs = self._vaspdir.neb_dirs()
+            assert neb_dirs is not None
+            for subdir in neb_dirs:
                 # Re-use user-specified class parameters
                 # overriding directory
                 kwargs = {
