@@ -521,7 +521,7 @@ class IMDDerivedInputSet(IMDVaspInputSet):
                 }
                 params = {k: kwargs.get(k, getattr(self, k))
                           for k in self.__dict__}
-                self.images.append(IMDDerivedInputSet(**params))
+                self.images.append(type(self)(**params))
 
         # Directory settings take precedence.
         self.inherit_incar = True
