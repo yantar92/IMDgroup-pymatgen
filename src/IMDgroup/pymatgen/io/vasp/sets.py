@@ -593,7 +593,8 @@ class IMDDerivedInputSet(IMDVaspInputSet):
             # the incar parameters. For example, it does not store NCORE.
             # Force using the actual INCAR file.
             incar = Incar.from_file(incar_path)
-            self.prev_incar = incar
+            # FIXME: pymatgen's type definition is too narrow.
+            self.prev_incar = incar   # type:ignore[assignment]
         elif self.force_prev_incar_file:
             self.prev_incar = None
         else:
@@ -601,7 +602,8 @@ class IMDDerivedInputSet(IMDVaspInputSet):
             parent_incar_path = os.path.join(parent_dir, "INCAR")
             if IMDGVaspDir(parent_dir).nebp and os.path.isfile(parent_incar_path):
                 incar = Incar.from_file(parent_incar_path)
-                self.prev_incar = incar
+                # FIXME: pymatgen's type definition is too narrow.
+                self.prev_incar = incar   # type:ignore[assignment]
 
         # self.override_from_prev_calc does not inherit POTCAR.  Force it.
         if (potcars := sorted(glob(str(Path(self.directory) / "POTCAR*"))))\
