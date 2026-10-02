@@ -133,7 +133,7 @@ access them using Python's built-in `help()` function:
 
 # Installation
 
-    git clone https://git.sr.ht/~yantar92/IMDgroup-pymatgen
+    git clone https://github.com/yantar92/IMDgroup-pymatgen
     cd IMDgroup-pymatgen
     pip install .
 
