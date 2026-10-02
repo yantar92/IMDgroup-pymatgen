@@ -731,7 +731,7 @@ class IMDNEBVaspInputSet(IMDDerivedInputSet):
     }
 
     @property
-    def incar(self) -> Incar:
+    def incar(self) -> Incar | None:
         """INCAR for the NEB run.
 
         Warns when IMAGES=0 or IBRION != 1, and forces IBRION=1
@@ -739,13 +739,13 @@ class IMDNEBVaspInputSet(IMDDerivedInputSet):
         """
         incar = super().incar
 
-        if incar['IMAGES'] == 0:
+        if incar and incar['IMAGES'] == 0:
             warnings.warn(
                 "IMAGES=0 makes no sense for NEB",
                 BadInputSetWarning,
             )
 
-        if incar['IBRION'] != 1:
+        if incar and incar['IBRION'] != 1:
             warnings.warn(
                 f"IBRION({incar['IBRION']}) ≠ 1.  Forcing IBRION=1\n"
                 "See https://www.vasp.at/wiki/index.php/SPRING",
