@@ -42,7 +42,12 @@ from termcolor import colored
 from pymatgen.io.vasp.outputs import UnconvergedVASPWarning
 from IMDgroup.pymatgen.io.vasp.diagnostics import VaspWarning, VaspWarnings
 from IMDgroup.pymatgen.core.structure import structure_distance
-from IMDgroup.pymatgen.io.vasp.outputs import Vasplog, Outcar
+from IMDgroup.pymatgen.io.vasp.outputs import (
+    Outcar,
+    RunTimingStats,
+    Vasplog,
+    read_outcar_timing_stats,
+)
 from IMDgroup.pymatgen.io.vasp.vaspdir import IMDGVaspDir
 from IMDgroup.pymatgen.io.vasp.inputs import Incar
 
@@ -189,6 +194,53 @@ def print_seconds(seconds):
     if negative:
         output.append("ago")
     return " ".join(output)
+
+
+def format_duration(seconds):
+    """Format a duration in seconds compactly.
+
+    Args:
+        seconds: Duration in seconds, or NaN for undefined.
+
+    Returns:
+        str: Human-readable duration (e.g. ``"6.1s"``, ``"14m51s"``,
+        ``"1h20m"``), or ``"N/A"`` when seconds is NaN.
+    """
+    if seconds is None or np.isnan(seconds):
+        return "N/A"
+    if seconds < 60:
+        return f"{seconds:.1f}s"
+    if seconds < 3600:
+        minutes, seconds = divmod(int(seconds), 60)
+        return f"{minutes}m{seconds:02d}s"
+    hours, remainder = divmod(int(seconds), 3600)
+    minutes = remainder // 60
+    return f"{hours}h{minutes:02d}m"
+
+
+def format_timing_stats(stats: RunTimingStats) -> str:
+    """Format RunTimingStats for display.
+
+    Omits the ``+/-`` std term when fewer than two samples are
+    available, and returns an empty string when no SCF cycle was
+    recorded.
+
+    Args:
+        stats: RunTimingStats instance.
+
+    Returns:
+        str: e.g. ``"SCF: 6.1+/-2.5s | relax: 14m51s"``.
+    """
+    if stats.scf.n == 0:
+        return ""
+
+    def fmt(mean_std):
+        mean = format_duration(mean_std.mean)
+        if mean_std.n < 2 or np.isnan(mean_std.std):
+            return mean
+        return f"{mean}+/-{format_duration(mean_std.std)}"
+
+    return f"SCF: {fmt(stats.scf)} | relax: {fmt(stats.ionic)}"
 
 
 def vasp_output_time(path):
@@ -411,6 +463,14 @@ def status(args):
                 progress = ""
                 warning_list = ""
 
+            if running and not nebp and not args.fast:
+                outcar_path = Path(wdir) / 'OUTCAR'
+                if outcar_path.is_file():
+                    timing_str = format_timing_stats(
+                        read_outcar_timing_stats(outcar_path))
+                    if timing_str:
+                        progress = progress + " " + timing_str
+
             if args.problematic and warning_list == ""\
                and (converged or running):
                 continue
@@ -425,6 +485,7 @@ def status(args):
                 else:
                     outcar = None if args.fast else vaspdir['OUTCAR']
                     max_force = None
+                    timing_str = ""
                     if outcar is not None:
                         cpu_time_sec =\
                             outcar.run_stats.get('Total CPU time used (sec)')
@@ -433,6 +494,7 @@ def status(args):
                             if cpu_time_sec is not None else None
                         n_cores = outcar.run_stats['cores']
                         max_force = vaspdir.max_force()
+                        timing_str = format_timing_stats(outcar.timing_stats)
                     else:
                         cpu_time = None
                         n_cores = None
@@ -442,7 +504,8 @@ def status(args):
                         if max_force is not None else ""
                     progress = f" | {final_energy_str}" + force_str +\
                         (f" CPU time: {cpu_time} ({n_cores} cores)"
-                         if n_cores is not None else "") + " " + progress
+                         if n_cores is not None else "") +\
+                        (f" {timing_str}" if timing_str else "") + " " + progress
             mtime = vasp_output_time(wdir)
             if mtime is None:
                 continue

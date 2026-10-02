@@ -31,6 +31,8 @@ import warnings
 import logging
 import re
 import os
+from collections.abc import Iterable
+from dataclasses import dataclass
 from pathlib import Path
 from monty.json import MSONable
 from monty.io import zopen
@@ -549,6 +551,81 @@ class VasplogMixin:
         return result
 
 
+_IONIC_STEP_RE = re.compile(r'Ionic step\s+(\d+)')
+_ITERATION_RE = re.compile(r'Iteration\s+(\d+)\(\s*(\d+)\)')
+_LOOP_RE = re.compile(
+    r'LOOP:\s+cpu time\s+([0-9.]+):\s+real time\s+([0-9.]+)'
+)
+
+
+@dataclass(frozen=True)
+class MeanStd:
+    """Sample mean and standard deviation of a timing series."""
+    n: int
+    mean: float
+    std: float
+
+
+@dataclass(frozen=True)
+class RunTimingStats:
+    """Wall-clock timing statistics for a VASP run."""
+    scf: MeanStd       # seconds per electronic SCF cycle
+    ionic: MeanStd     # seconds per ionic (relaxation) step
+
+
+def _mean_std(values: list[float]) -> MeanStd:
+    """Sample mean and std (ddof=1); std is NaN for fewer than 2 values."""
+    arr = np.asarray(values, dtype=float)
+    if arr.size == 0:
+        return MeanStd(0, float('nan'), float('nan'))
+    if arr.size == 1:
+        return MeanStd(1, float(arr[0]), float('nan'))
+    return MeanStd(arr.size, float(arr.mean()), float(arr.std(ddof=1)))
+
+
+def _compute_timing_stats(lines: Iterable[str]) -> RunTimingStats:
+    """Aggregate timing from an iterable of OUTCAR lines.
+
+    A SCF cycle is one ``LOOP: ... real time`` record.  An ionic step
+    time is the sum of ``LOOP`` records within one ``Ionic step``
+    block.  Both are wall-clock time in seconds.
+    """
+    scf_times: list[float] = []
+    ionic_step_times: dict[int, float] = {}
+    ionic_step = 0
+    for line in lines:
+        if m := _IONIC_STEP_RE.search(line):
+            ionic_step = int(m.group(1))
+        elif m := _ITERATION_RE.search(line):
+            if ionic_step == 0:  # NSW=0: no "Ionic step" marker printed
+                ionic_step = int(m.group(1))
+        elif m := _LOOP_RE.search(line):
+            real_time = float(m.group(2))
+            scf_times.append(real_time)
+            ionic_step_times[ionic_step] = ionic_step_times.get(ionic_step, 0.0) + real_time
+    return RunTimingStats(
+        scf=_mean_std(scf_times),
+        ionic=_mean_std(list(ionic_step_times.values())),
+    )
+
+
+def read_outcar_timing_stats(filename: PathLike) -> RunTimingStats:
+    """Stream OUTCAR and compute SCF / ionic step timing statistics.
+
+    Reads only timing markers, so it is cheap enough for ongoing runs
+    where a full pymatgen :class:`Outcar` parse is not desirable.
+
+    Args:
+        filename: Path to the OUTCAR file.
+
+    Returns:
+        RunTimingStats: Mean and sample std of wall-clock time per SCF
+        cycle and per ionic step, in seconds.
+    """
+    with zopen(filename, mode='rt', encoding='UTF-8') as f:
+        return _compute_timing_stats(f)
+
+
 class Outcar(VasplogMixin, pmgOutcar):
     """Modified version of pymatgen's Outcar that stores all fields."""
 
@@ -605,6 +682,30 @@ class Outcar(VasplogMixin, pmgOutcar):
         if not forces:
             return None
         return np.array(forces)
+
+    def _in_memory_lines(self) -> list[str] | None:
+        """Return pymatgen's cached OUTCAR lines, if available."""
+        lines = getattr(self, '_lines', None)
+        if lines is not None:
+            return lines
+        text = getattr(self, '_text', None)
+        if text is not None:
+            return text.splitlines()
+        return None
+
+    @property
+    def timing_stats(self) -> RunTimingStats:
+        """Mean +/- std of SCF cycle and ionic step wall-clock time.
+
+        Parses pymatgen's in-memory OUTCAR lines, so it reuses the
+        ``Outcar`` object cached by :class:`IMDGVaspDir` without
+        re-reading the file from disk.
+        """
+        lines = self._in_memory_lines()
+        if lines is None:
+            # Older pymatgen without an in-memory text cache.
+            return read_outcar_timing_stats(self.filename)
+        return _compute_timing_stats(lines)
 
 
 class Vasplog(VasplogMixin, MSONable):
