@@ -125,6 +125,17 @@ Set or unset individual INCAR tags using PARAM:VALUE pairs.
 Use VALUE:None to remove a tag.""")
     incar_add_args(parser_incar)
 
+    parser_potcar = subparsers.add_parser(
+        "potcar",
+        help="Change POTCAR pseudopotentials",
+        description="""\
+Change POTCAR pseudopotentials.
+
+Set individual pseudopotentials using ELEMENT:POTCAR pairs, e.g.
+'Li:Li_sv' or 'C:C'.  The resolved mapping is written to an INCAR.toml
+[POTCAR] section so that gorun reproduces the same POTCAR.""")
+    potcar_add_args(parser_potcar)
+
     parser_supercell = subparsers.add_parser(
         "supercell",
         help="Create supercell with rescaled k-points",
@@ -707,6 +718,87 @@ def incar(args):
     )
     output_dir_suffix = ','.join(
         [f'{key}.{val}' for key, val in incar_overrides.items()])
+    inputset.name = output_dir_suffix
+    return {'inputsets': [inputset]}
+
+
+def _validate_potcar_pair(element: str, symbol: str) -> None:
+    """Validate an ELEMENT:SYMBOL POTCAR override pair.
+
+    Args:
+        element: Element symbol (e.g. ``"Li"``).
+        symbol: Full POTCAR name (e.g. ``"Li_sv"`` or ``"Li"``).
+
+    Raises:
+        ValueError: If SYMBOL is not a valid potential name for ELEMENT.
+    """
+    if symbol == element:
+        return
+    if not symbol.startswith(element):
+        raise ValueError(
+            f"POTCAR name {symbol!r} does not start with "
+            f"element symbol {element!r}"
+        )
+    if not symbol[len(element):].startswith('_'):
+        raise ValueError(
+            f"POTCAR name {symbol!r} is not a valid potential name "
+            f"for element {element!r}"
+        )
+
+
+def potcar_add_args(parser):
+    """Setup parser arguments for POTCAR.
+
+    Args:
+        parser: Subparser from argparse.
+    """
+    parser.set_defaults(func_derive=potcar)
+    parser.add_argument(
+        "parameters",
+        nargs="*",
+        help="ELEMENT:POTCAR to be set in the POTCAR."
+        " (e.g. Li:Li_sv, C:C)",
+        type=str)
+
+
+def potcar(args):
+    """Create custom POTCAR setup.
+
+    Args:
+        args: Parsed command-line arguments from argparse.
+
+    Returns:
+        dict: ``{'inputsets': [inputset]}``.
+    """
+    potcar_overrides = {}
+    if not args.parameters:
+        warnings.warn(
+            "No POTCAR settings provided.  Creating a copy of the inputs."
+        )
+    else:
+        for str_val in args.parameters:
+            if ":" not in str_val:
+                raise ValueError(
+                    f"Invalid POTCAR setting {str_val!r}.  "
+                    "Expected ELEMENT:POTCAR (e.g. Li:Li_sv).")
+            key, val = str_val.split(":")
+            if not val:
+                raise ValueError(
+                    f"Empty POTCAR value for {key!r} in {str_val!r}")
+            _validate_potcar_pair(key, val)
+            potcar_overrides[key] = val
+
+    inputset = IMDDerivedInputSet(
+        directory=args.input_directory,
+        inherit_prev_incarpy=args.inherit_prev_incarpy,
+    )
+    for element, symbol in potcar_overrides.items():
+        inputset._config_dict.setdefault('POTCAR', {})[element] = symbol
+
+    output_dir_suffix = "POTCAR"
+    if potcar_overrides:
+        output_dir_suffix += "." + ','.join(
+            [f'{key}.{val}' for key, val in potcar_overrides.items()])
     inputset.name = output_dir_suffix
     return {'inputsets': [inputset]}
 

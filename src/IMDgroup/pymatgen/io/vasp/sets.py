@@ -29,6 +29,7 @@
 
 import os
 import math
+import json
 import warnings
 import logging
 import copy
@@ -125,6 +126,28 @@ def write_selective_dynamics_summary_maybe(structure, fname):
     return False
 
 
+# FIXME: We should merge with existing INCAR.toml
+# later.  This is a stub.
+def _write_potcar_toml(output_dir: Path, potcar_mapping: dict[str, str]) -> None:
+    """Write the ``[POTCAR]`` section of ``INCAR.toml`` in OUTPUT_DIR.
+
+    The section maps element symbols to full POTCAR names, following
+    the same convention as pymatgen input sets.  ``gorun`` reads this
+    section (see ``potcar_setups``) to reproduce the same
+    pseudopotentials when generating ``POTCAR`` from ``POSCAR``.
+
+    Args:
+        output_dir: Directory to write ``INCAR.toml`` into.
+        potcar_mapping: Mapping of element symbols to full POTCAR names
+            (e.g. ``{"C": "C", "Li": "Li_sv"}``).
+    """
+    lines = ["[POTCAR]"]
+    for element, symbol in potcar_mapping.items():
+        lines.append(f"{element} = {json.dumps(symbol)}")
+    (Path(output_dir) / "INCAR.toml").write_text(
+        "\n".join(lines) + "\n", encoding="utf-8")
+
+
 @dataclass
 class IMDVaspInputSet(VaspInputSet):
     """IMDGroup variant of VaspInputSet.
@@ -143,6 +166,8 @@ class IMDVaspInputSet(VaspInputSet):
        subdirectories).
     7. ``no_kpoints``, ``no_potcar``, ``no_poscar``, ``no_incar``
        flags to suppress writing individual files.
+    8. Writes an ``INCAR.toml`` ``[POTCAR]`` section recording the
+       resolved pseudopotentials so that ``gorun`` can reproduce them.
     """
     functional: str | None = None
     images: list[Self] | None = None
@@ -368,8 +393,9 @@ class IMDVaspInputSet(VaspInputSet):
         """Write VASP input files to a directory.
 
         In addition to standard pymatgen behaviour, writes an
-        ``IMDVaspInputSet.log`` file and, for NEB runs, writes the
-        image subdirectories and a trajectory CIF.
+        ``IMDVaspInputSet.log`` file, an ``INCAR.toml`` recording the
+        resolved POTCAR mapping, and, for NEB runs, the image
+        subdirectories and a trajectory CIF.
 
         Args:
             output_dir: Target directory for the input files.
@@ -385,6 +411,17 @@ class IMDVaspInputSet(VaspInputSet):
                 if field.name not in ['images']:
                     field_value = getattr(self, field.name)
                     f.write(f"{field.name}: {field_value}\n")
+        # Record the resolved POTCAR mapping in INCAR.toml so that
+        # gorun's generate_potcar reproduces the same pseudopotentials
+        # when it regenerates POTCAR from POSCAR.
+        if not self.no_potcar:
+            potcar_symbols = self.potcar_symbols
+            if potcar_symbols is not None:
+                assert self.poscar is not None
+                _write_potcar_toml(
+                    output_dir,
+                    dict(zip(self.poscar.site_symbols, potcar_symbols))
+                )
         if self.images is None and self.structure is not None:
             write_selective_dynamics_summary_maybe(
                 self.structure,
