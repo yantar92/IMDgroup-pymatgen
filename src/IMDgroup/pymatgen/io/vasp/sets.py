@@ -35,7 +35,7 @@ import copy
 from xml.etree.ElementTree import ParseError
 from glob import glob
 from pathlib import Path
-from dataclasses import dataclass, fields
+from dataclasses import dataclass, fields, field
 from typing import Self
 import numpy as np
 from pymatgen.core import Species, DummySpecies, Structure
@@ -443,7 +443,7 @@ class IMDDerivedInputSet(IMDVaspInputSet):
     - ``inherit_prev_incarpy``: When True, copy ``INCAR.py`` from source.
     - ``INCAR.[0-9]*`` files are always copied (used by gorun workflows).
     """
-    directory: str | None = None
+    directory: str | IMDGVaspDir = field(kw_only=True)
     images = None
     force_prev_incar_file: bool = False
     force_prev_kpoints_file: bool = False
@@ -496,7 +496,6 @@ class IMDDerivedInputSet(IMDVaspInputSet):
             self._vaspdir = self.directory
             self.directory = self._vaspdir.path
         else:
-            assert self.directory is not None
             self._vaspdir = IMDGVaspDir(self.directory)
 
         if self._vaspdir.nebp:
@@ -710,7 +709,7 @@ class IMDNEBVaspInputSet(IMDDerivedInputSet):
     References:
         IDPP: S. Smidstrup et al., J. Chem. Phys. 140, 214106 (2014).
     """
-    target_directory: str | None = None
+    target_directory: str | IMDGVaspDir = field(kw_only=True)
     fix_cutoff: float | None = None
     frac_tol: float = 0.5
     method: str = 'IDPP'
@@ -758,6 +757,8 @@ class IMDNEBVaspInputSet(IMDDerivedInputSet):
         # Do not write top-level POSCAR
         self.no_poscar = True
 
+        super().__post_init__()
+
         beg_run = Vasprun(os.path.join(self.directory, 'vasprun.xml'))
         try:
             end_run = Vasprun(os.path.join(
@@ -770,8 +771,6 @@ class IMDNEBVaspInputSet(IMDDerivedInputSet):
             )
         if end_run is not None:
             assert beg_run.converged and end_run.converged
-
-        super().__post_init__()
 
         if end_run is None:
             poscar = Poscar.from_file(
