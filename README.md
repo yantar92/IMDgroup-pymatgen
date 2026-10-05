@@ -107,6 +107,25 @@ differences:
     output directories, preserving context/history.
 
 
+## Elaborate Command-Line Interface
+
+A single `imdg` command line tool covers the full VASP workflow:
+creating, altering, analyzing, and visualizing inputs and outputs.
+
+-   ****Create**:** `imdg create` generates fresh VASP inputs from a
+    Materials Project ID, a CIF/POSCAR file, or a simple atomic formula.
+-   ****Alter**:** `imdg derive` derives new calculations (relaxations,
+    static runs, strains, supercells, NEB) from existing directories
+    while preserving history, and `imdg diff` compares structures or
+    INCAR files between directories.
+-   ****Analyze**:** `imdg status` monitors runs for warnings and
+    convergence, while `imdg analyze` summarizes key properties
+    (energy, volume change, displacement, forces) in tabular form.
+-   ****Visualize**:** `imdg visualize` plots NEB trajectories, ATAT
+    cluster-expansion results, formation-energy convex hulls, and
+    voltage profiles.
+
+
 # Getting Help
 
 
