@@ -1,18 +1,18 @@
 
 # Table of Contents
 
-1.  [IMDgroup-pymatgen](#org98c7535)
-2.  [Key Features & Optimizations](#org48dd9e3)
-3.  [Getting Help](#orgb834ae1)
-4.  [Installation](#org7195280)
-5.  [Command Line Interface](#org4c2988e)
-6.  [Python API](#orgde4edf9)
-7.  [Changelog](#orgcb37496)
-8.  [Acknowledgements](#org1526244)
+1.  [IMDgroup-pymatgen](#org8c9b5b7)
+2.  [Key Features & Optimizations](#org8723a89)
+3.  [Getting Help](#org13da20e)
+4.  [Installation](#orgffa2d95)
+5.  [Command Line Interface](#org17e52c6)
+6.  [Python API](#org564033f)
+7.  [Changelog](#org61e6d06)
+8.  [Acknowledgements](#org5c72769)
 
 
 
-<a id="org98c7535"></a>
+<a id="org8c9b5b7"></a>
 
 # IMDgroup-pymatgen
 
@@ -22,7 +22,7 @@ tailored to research performed in the [Inverse Materials Design group](https://w
 API Documentation: <https://yantar92.github.io/IMDgroup-pymatgen/>
 
 
-<a id="org48dd9e3"></a>
+<a id="org8723a89"></a>
 
 # Key Features & Optimizations
 
@@ -33,8 +33,7 @@ Unlike standard pymatgen tools, this library is specifically designed
 to handle **huge numbers of VASP outputs** efficiently.
 
 -   **Persistent Caching:** The core `IMDGVaspDir` class implements a
-    persistent disk cache (stored in `~/.cache/imdgVASPDIRcache` or
-    `XDG_CACHE_HOME`).
+    persistent disk cache.
 -   **Lazy Loading:** Parsed VASP data is cached automatically. Subsequent
     analysis of the same directories is orders of magnitude faster,
     making it feasible to analyze thousands of calculations repeatedly
@@ -65,10 +64,26 @@ Example output:
 ![img](https://raw.githubusercontent.com/yantar92/IMDgroup-pymatgen/main/docs/img/imdg-status.png)
 
 
-## Extensions to pymatgen
+## Command-line interface covering full VASP workflow
 
-While heavily based on `pymatgen`, this library introduces several key
-differences:
+A single `imdg` command line tool covers the full VASP workflow:
+creating, altering, analyzing, and visualizing inputs and outputs.
+
+-   ****Create**:** `imdg create` generates fresh VASP inputs from a
+    Materials Project ID, a CIF/POSCAR file, or a simple atomic formula.
+-   ****Alter**:** `imdg derive` derives new calculations (relaxations,
+    static runs, strains, supercells, NEB, changing functionals) from
+    existing directories while preserving history, and `imdg diff`
+    compares structures or INCAR files between directories.
+-   ****Analyze**:** `imdg status` monitors runs for warnings and
+    convergence, while `imdg analyze` summarizes key properties
+    (energy, volume change, displacement, forces) in tabular form.
+-   ****Visualize**:** `imdg visualize` plots NEB trajectories, ATAT
+    cluster-expansion results, formation-energy convex hulls, and
+    voltage profiles.
+
+
+## Extensions to pymatgen
 
 -   **`imdg analyze` vs `pmg analyze`**
     -   The `imdg analyze` command is built on the caching `IMDGVaspDir` class.
@@ -78,31 +93,23 @@ differences:
         changes `%a`, `%b`, `%c`, and total atomic displacement `displ`).
     -   It supports grouping runs by identical `INCAR` parameters to
         easily compare different calculation settings.
--   **Enhanced Input Sets:** New input sets like `IMDDerivedInputSet` allow deriving new
-    calculations (relaxations, strains, NEB) directly from existing
-    output directories, preserving context/history.
+    -   Unreliable energies values are explicitly masked to avoid using
+        unreliable energies, e.g. from relaxations where the cell shape or
+        volume change distorting the initial static k-point grid
+
+-   **Enhanced Input Sets:** New input sets extend pymatgen's with workflow support beyond
+    `from_prev_calc`:
+    -   **NEB:** `IMDNEBVaspInputSet` builds images by IDPP interpolation, and
+        writes appropriate image subdirectories.
+    -   **Extra checks:** warnings for low `ENCUT`, k-point density outliers,
+        conflicting `NCORE/NPAR`, etc.
+    -   **Deriving from other input sets:** `IMDDerivedInputSet` inherits
+        settings from a previous directory even when VASP outputs are
+        absent or only partially present. This is handy to adjust common
+        VASP setup for parameter studies.
 
 
-## Elaborate Command-Line Interface
-
-A single `imdg` command line tool covers the full VASP workflow:
-creating, altering, analyzing, and visualizing inputs and outputs.
-
--   ****Create**:** `imdg create` generates fresh VASP inputs from a
-    Materials Project ID, a CIF/POSCAR file, or a simple atomic formula.
--   ****Alter**:** `imdg derive` derives new calculations (relaxations,
-    static runs, strains, supercells, NEB) from existing directories
-    while preserving history, and `imdg diff` compares structures or
-    INCAR files between directories.
--   ****Analyze**:** `imdg status` monitors runs for warnings and
-    convergence, while `imdg analyze` summarizes key properties
-    (energy, volume change, displacement, forces) in tabular form.
--   ****Visualize**:** `imdg visualize` plots NEB trajectories, ATAT
-    cluster-expansion results, formation-energy convex hulls, and
-    voltage profiles.
-
-
-<a id="orgb834ae1"></a>
+<a id="org13da20e"></a>
 
 # Getting Help
 
@@ -128,7 +135,7 @@ access them using Python's built-in `help()` function:
     help(IMDGVaspDir)
 
 
-<a id="org7195280"></a>
+<a id="orgffa2d95"></a>
 
 # Installation
 
@@ -139,7 +146,7 @@ access them using Python's built-in `help()` function:
 <!-- docs-section: cli -->
 
 
-<a id="org4c2988e"></a>
+<a id="org17e52c6"></a>
 
 # Command Line Interface
 
@@ -181,6 +188,9 @@ tool uses caching to quickly re-analyze large directory trees.
     
     # Group results by similar INCAR parameters
     imdg analyze --group
+    
+    # Output compat table
+    imdg analyze --short
 
 **Available Fields**:
 
@@ -238,6 +248,9 @@ strain application, or NEB setup.
 -   `incar`: Modify specific INCAR tags.
     
         imdg derive . --output high_prec incar PREC:Accurate EDIFF:1e-7
+-   `potcar`: Override pseudopotentials with `ELEMENT:POTCAR` pairs.
+    
+        imdg derive . --output Li_sv potcar Li:Li_sv C:C
 -   `fix`: Apply selective dynamics constraints.
 -   `ins`: Insert atoms/molecules into voids (see `pmg-insert-molecule`).
 -   `fill`: Fill sites based on relaxed unique insertion points.
@@ -290,8 +303,7 @@ containing all images along the minimum-energy path.
 Visualise ATAT cluster-expansion results.
 
     # Requires running inside an ATAT directory
-    imdg visualize atat [--plot_extra <dirs>] \
-      [--cmin <min>] [--cmax <max>]
+    imdg visualize atat
 
 Output files (written inside each ATAT directory):
 
@@ -318,17 +330,12 @@ Plot a formation-energy convex hull from VASP outputs or a pickle file.
 
 Output files (written in the current working directory):
 
--   **`formation_en.<format>` (default: `formation_en.png`):** Phase
-    diagram plot (density `--dpi`, default 600).  A `formation_en.svg`
-    is also saved unless the requested format is svg.
+-   **`formation_en.<format>` (default: `formation_en.png`):** Phase diagram plot.
 -   **`formation_en.txt`:** All entries (both ground state and above
-    hull) in space-separated columns: ID, Energy, Concentration,
-    Formation Energy (meV/atom), Energy above hull (meV/atom),
-    Formula.
+    hull) in space-separated columns.
 -   **`formation_en_gs.txt`:** Same format, ground-state entries only.
 -   **`formation_en_min.txt`:** Minimum-energy entry per reduced
-    composition: ID, Energy, Formation energy (meV/atom), Energy above
-    hull (meV/atom), Reduced formula.
+    composition.
 
 The command reads entries from VASP directories recursively
 (optionally filtered with `--include` / `--exclude`) or from a pickle
@@ -348,17 +355,11 @@ Plot a voltage profile from VASP outputs or a pickle file.
 
 Output files (written in the directory specified on the command line):
 
--   **`voltage.<format>` (default: `voltage.png`):** Voltage profile
-    plot.  A `voltage.svg` is also saved unless the requested format is
-    svg.
--   **`voltage.out`:** Voltage profile data in space-separated columns:
-    x (working-ion fraction), voltage (V), capacity (mAh/g,
-    normalised by the most-discharged host).
+-   **`voltage.<format>` (default: `voltage.png`):** Voltage profile plot.
+-   **`voltage.out`:** Voltage profile data in space-separated columns.
 
 The command uses pymatgen's `InsertionElectrode` machinery on the
-same entry-reading pipeline as `hull`.  The x-axis of the plot can be
-set with `--xaxis` (choices: `frac_x`, `x_form`, `capacity_grav`,
-`capacity_vol`).
+same entry-reading pipeline as `hull`.
 
 
 ## `pmg-insert-molecule`
@@ -376,7 +377,7 @@ folder as input.
 <!-- docs-section: python-api -->
 
 
-<a id="orgde4edf9"></a>
+<a id="org564033f"></a>
 
 # Python API
 
@@ -391,7 +392,7 @@ folder as input.
 
 The `IMDGVaspDir` class provides a dictionary-like interface to VASP
 directories with aggressive caching to handle high-throughput analysis
-on file systems like Lustre.
+on file systems like LUSTRE.
 
     from IMDgroup.pymatgen.io.vasp.vaspdir import IMDGVaspDir
     
@@ -471,7 +472,7 @@ diffusion paths in a material.
 <!-- docs-section: acknowledgements -->
 
 
-<a id="orgcb37496"></a>
+<a id="org61e6d06"></a>
 
 # Changelog
 
@@ -534,7 +535,7 @@ Changes since `1.0.0`:
 <!-- docs-section: features -->
 
 
-<a id="org1526244"></a>
+<a id="org5c72769"></a>
 
 # Acknowledgements
 
