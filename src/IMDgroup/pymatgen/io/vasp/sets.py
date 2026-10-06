@@ -481,7 +481,6 @@ class IMDDerivedInputSet(IMDVaspInputSet):
     - ``INCAR.[0-9]*`` files are always copied (used by gorun workflows).
     """
     directory: str | IMDGVaspDir = field(kw_only=True)
-    images = None
     force_prev_incar_file: bool = False
     force_prev_kpoints_file: bool = False
     inherit_prev_incarpy: bool = False
@@ -846,6 +845,7 @@ class IMDNEBVaspInputSet(IMDDerivedInputSet):
             *args, **kwargs: Forwarded to
                 ``VaspInputSet.write_input``.
         """
+        assert self.images is not None
         super().write_input(output_dir, *args, **kwargs)
         # Save information about the initial/final image inputs.
         log_file = os.path.join(output_dir, "NEB-inputs.txt")
@@ -888,7 +888,8 @@ class IMDNEBVaspInputSet(IMDDerivedInputSet):
             # idpp_interpolate(images_ase, fmax=0.001)
             # mic=True is important as periodic boundary conditions are not
             # considered between images otherwise
-            idpp_interpolate(images_ase, mic=True, traj=None)
+            # Note: traj=None is handled OK despite type mismatch (no type definition in ASE)
+            idpp_interpolate(images_ase, mic=True, traj=None)  # pyright: ignore[reportArgumentType] 
             str_images = [adaptor.get_structure(s) for s in images_ase]
 
         # Setup NEB image VASP inputsets
