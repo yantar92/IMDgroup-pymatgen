@@ -7,6 +7,10 @@ tailored to research performed in the [[https://www.oimalyi.org/][Inverse Materi
 
 API Documentation: [[https://yantar92.github.io/IMDgroup-pymatgen/]]
 
+#+begin_export md
+<!-- docs-section: features -->
+#+end_export
+
 * Key Features & Optimizations
 :PROPERTIES:
 :ID:       d74c43c3-9fbd-483c-bdcf-23a815a0eb40
@@ -466,7 +470,7 @@ diffusion paths in a material.
 #+end_src
 
 #+begin_export md
-<!-- docs-section: acknowledgements -->
+<!-- docs-section: changelog -->
 #+end_export
 
 * Changelog
@@ -525,7 +529,7 @@ Changes since =1.0.0=:
   ~lmdb~ added.
 
 #+begin_export md
-<!-- docs-section: features -->
+<!-- docs-section: acknowledgements -->
 #+end_export
 
 * Acknowledgements

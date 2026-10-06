@@ -1,18 +1,18 @@
 
 # Table of Contents
 
-1.  [IMDgroup-pymatgen](#org8c9b5b7)
-2.  [Key Features & Optimizations](#org8723a89)
-3.  [Getting Help](#org13da20e)
-4.  [Installation](#orgffa2d95)
-5.  [Command Line Interface](#org17e52c6)
-6.  [Python API](#org564033f)
-7.  [Changelog](#org61e6d06)
-8.  [Acknowledgements](#org5c72769)
+1.  [IMDgroup-pymatgen](#org56d192c)
+2.  [Key Features & Optimizations](#org0a40c71)
+3.  [Getting Help](#org9687408)
+4.  [Installation](#orgada8fd6)
+5.  [Command Line Interface](#org96d5a70)
+6.  [Python API](#org615d5b8)
+7.  [Changelog](#org4a930b4)
+8.  [Acknowledgements](#org4290d60)
 
 
 
-<a id="org8c9b5b7"></a>
+<a id="org56d192c"></a>
 
 # IMDgroup-pymatgen
 
@@ -21,8 +21,10 @@ tailored to research performed in the [Inverse Materials Design group](https://w
 
 API Documentation: <https://yantar92.github.io/IMDgroup-pymatgen/>
 
+<!-- docs-section: features -->
 
-<a id="org8723a89"></a>
+
+<a id="org0a40c71"></a>
 
 # Key Features & Optimizations
 
@@ -109,7 +111,7 @@ creating, altering, analyzing, and visualizing inputs and outputs.
         VASP setup for parameter studies.
 
 
-<a id="org13da20e"></a>
+<a id="org9687408"></a>
 
 # Getting Help
 
@@ -135,7 +137,7 @@ access them using Python's built-in `help()` function:
     help(IMDGVaspDir)
 
 
-<a id="orgffa2d95"></a>
+<a id="orgada8fd6"></a>
 
 # Installation
 
@@ -146,7 +148,7 @@ access them using Python's built-in `help()` function:
 <!-- docs-section: cli -->
 
 
-<a id="org17e52c6"></a>
+<a id="org96d5a70"></a>
 
 # Command Line Interface
 
@@ -377,7 +379,7 @@ folder as input.
 <!-- docs-section: python-api -->
 
 
-<a id="org564033f"></a>
+<a id="org615d5b8"></a>
 
 # Python API
 
@@ -469,10 +471,10 @@ diffusion paths in a material.
     for start, end in pairs:
         print(f"Path from {start} to {end}")
 
-<!-- docs-section: acknowledgements -->
+<!-- docs-section: changelog -->
 
 
-<a id="org61e6d06"></a>
+<a id="org4a930b4"></a>
 
 # Changelog
 
@@ -532,10 +534,10 @@ Changes since `1.0.0`:
 -   Dependencies: pymatgen version bumped; `duecredit` imported directly;
     `lmdb` added.
 
-<!-- docs-section: features -->
+<!-- docs-section: acknowledgements -->
 
 
-<a id="org5c72769"></a>
+<a id="org4290d60"></a>
 
 # Acknowledgements
 
