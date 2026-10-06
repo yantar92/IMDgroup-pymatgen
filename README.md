@@ -8,46 +8,6 @@ tailored to research performed in the [Inverse Materials Design group](https://w
 API Documentation: <https://yantar92.github.io/IMDgroup-pymatgen/>
 
 
-# Changelog
-
-
-## 1.1.0
-
-Changes since `1.0.0`:
-
--   New `imdg visualize` subcommands:
-    -   **`hull`:** plot a formation-energy convex hull from VASP outputs or
-        pickled entries.
-    -   **`voltage`:** plot a voltage profile.
-    -   **`atat`:** gained `--plot_extra` and `--classic_residuals` options.
--   New `imdg derive` subcommand `fix` (selective-dynamics constraints),
-    plus new options: `fill --tol`, `neb_diffusion --limit`, and
-    `kpoints --grid`.
--   New standard input sets: `IMDStandardVaspInputSet_relax` and
-    `IMDStandardVaspInputSet_scf`.
--   `imdg analyze`:
-    -   Grouping by INCAR is now the default (`--nogroup` disables it;
-        previously enabled with `--group`).
-    -   New `--short` flag.
-    -   New `max_force` and `space_group` fields.
--   `imdg status`:
-    -   Reports maximum residual force.
-    -   Summarizes INCAR variation across runs.
--   `IMDGVaspDir` cache rewritten on top of LMDB, with cache versioning,
-    age-based eviction, periodic flushing, and cached VASP logs.
--   New `IMDgroup.utils.mpl.mpl_defaults` helper for consistent matplotlib
-    styling.
--   New `IMDStructure.from_structure` constructor and
-    `structure_remove_duplicates` helper.
--   `InsertMoleculeTransformation` now honors the insertion limit exactly.
--   `get_neb_pairs` prioritizes shorter paths and skips very short hops.
--   Documentation: Sphinx API reference and GitHub Pages deployment.
--   Dependencies: pymatgen version bumped; `duecredit` imported directly;
-    `lmdb` added.
-
-<!-- docs-section: features -->
-
-
 # Key Features & Optimizations
 
 
@@ -485,6 +445,67 @@ diffusion paths in a material.
         print(f"Path from {start} to {end}")
 
 <!-- docs-section: acknowledgements -->
+
+
+# Changelog
+
+
+## 1.2.0
+
+Changes since `1.1.0`:
+
+-   New `imdg derive` subcommand `potcar` (override pseudopotentials with
+    `ELEMENT:POTCAR` pairs, written to `INCAR.toml`).
+-   `imdg status`:
+    -   Reports convergence speed: mean +/- standard deviation of wall-clock
+        time per electronic (SCF) cycle and per ionic step.
+    -   New `--skip-running` flag.
+    -   Renamed `--skip_converged` to `--skip-converged`.
+-   `INCAR.toml` now records non-default metadata (the resolved POTCAR
+    mapping, the k-point grid density, and the exchange-correlation
+    functional) so that `gorun` and other tools can reproduce the written
+    inputs.
+-   `IMDDerivedInputSet` transfers `INCAR.toml` from the source directory.
+-   `IMDGVaspDir` is now string-like (`__fspath__`), so instances can be
+    used wherever a filesystem path is expected.
+-   Dependencies: `tomli` added (Python < 3.11).
+
+
+## 1.1.0
+
+Changes since `1.0.0`:
+
+-   New `imdg visualize` subcommands:
+    -   **`hull`:** plot a formation-energy convex hull from VASP outputs or
+        pickled entries.
+    -   **`voltage`:** plot a voltage profile.
+    -   **`atat`:** gained `--plot_extra` and `--classic_residuals` options.
+-   New `imdg derive` subcommand `fix` (selective-dynamics constraints),
+    plus new options: `fill --tol`, `neb_diffusion --limit`, and
+    `kpoints --grid`.
+-   New standard input sets: `IMDStandardVaspInputSet_relax` and
+    `IMDStandardVaspInputSet_scf`.
+-   `imdg analyze`:
+    -   Grouping by INCAR is now the default (`--nogroup` disables it;
+        previously enabled with `--group`).
+    -   New `--short` flag.
+    -   New `max_force` and `space_group` fields.
+-   `imdg status`:
+    -   Reports maximum residual force.
+    -   Summarizes INCAR variation across runs.
+-   `IMDGVaspDir` cache rewritten on top of LMDB, with cache versioning,
+    age-based eviction, periodic flushing, and cached VASP logs.
+-   New `IMDgroup.utils.mpl.mpl_defaults` helper for consistent matplotlib
+    styling.
+-   New `IMDStructure.from_structure` constructor and
+    `structure_remove_duplicates` helper.
+-   `InsertMoleculeTransformation` now honors the insertion limit exactly.
+-   `get_neb_pairs` prioritizes shorter paths and skips very short hops.
+-   Documentation: Sphinx API reference and GitHub Pages deployment.
+-   Dependencies: pymatgen version bumped; `duecredit` imported directly;
+    `lmdb` added.
+
+<!-- docs-section: features -->
 
 
 # Acknowledgements
