@@ -150,8 +150,13 @@ def add_args(parser):
         action="store_true"
     )
     parser.add_argument(
-        "--skip_converged",
+        "--skip-converged",
         help="Do not check converged runs",
+        action="store_true"
+    )
+    parser.add_argument(
+        "--skip-running",
+        help="Do not check running runs",
         action="store_true"
     )
     parser.add_argument(
@@ -429,6 +434,10 @@ def status(args):
             logger.debug(
                 '%s: running = %s, converged = %s',
                 wdir, running, converged)
+
+            if args.skip_running and running:
+                logger.debug('skipping running run')
+                continue
 
             if args.skip_converged and converged:
                 logger.debug('skipping converged run')
