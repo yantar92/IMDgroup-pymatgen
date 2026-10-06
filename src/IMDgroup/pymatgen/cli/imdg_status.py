@@ -26,6 +26,7 @@
 
 
 """Check status of running VASP calculations."""
+import argparse
 import sys
 import os
 import re
@@ -153,6 +154,14 @@ def add_args(parser):
         "--skip-converged",
         help="Do not check converged runs",
         action="store_true"
+    )
+    # Backward-compatible alias (undocumented).  `--skip_converged`
+    # was renamed to `--skip-converged` in 1.2.0.
+    parser.add_argument(
+        "--skip_converged",
+        dest="skip_converged",
+        help=argparse.SUPPRESS,
+        action="store_true",
     )
     parser.add_argument(
         "--skip-running",
