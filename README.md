@@ -1,4 +1,18 @@
 
+# Table of Contents
+
+1.  [IMDgroup-pymatgen](#org98c7535)
+2.  [Key Features & Optimizations](#org48dd9e3)
+3.  [Getting Help](#orgb834ae1)
+4.  [Installation](#org7195280)
+5.  [Command Line Interface](#org4c2988e)
+6.  [Python API](#orgde4edf9)
+7.  [Changelog](#orgcb37496)
+8.  [Acknowledgements](#org1526244)
+
+
+
+<a id="org98c7535"></a>
 
 # IMDgroup-pymatgen
 
@@ -7,6 +21,8 @@ tailored to research performed in the [Inverse Materials Design group](https://w
 
 API Documentation: <https://yantar92.github.io/IMDgroup-pymatgen/>
 
+
+<a id="org48dd9e3"></a>
 
 # Key Features & Optimizations
 
@@ -86,6 +102,8 @@ creating, altering, analyzing, and visualizing inputs and outputs.
     voltage profiles.
 
 
+<a id="orgb834ae1"></a>
+
 # Getting Help
 
 
@@ -110,6 +128,8 @@ access them using Python's built-in `help()` function:
     help(IMDGVaspDir)
 
 
+<a id="org7195280"></a>
+
 # Installation
 
     git clone https://github.com/yantar92/IMDgroup-pymatgen
@@ -118,6 +138,8 @@ access them using Python's built-in `help()` function:
 
 <!-- docs-section: cli -->
 
+
+<a id="org4c2988e"></a>
 
 # Command Line Interface
 
@@ -354,6 +376,8 @@ folder as input.
 <!-- docs-section: python-api -->
 
 
+<a id="orgde4edf9"></a>
+
 # Python API
 
 
@@ -447,6 +471,8 @@ diffusion paths in a material.
 <!-- docs-section: acknowledgements -->
 
 
+<a id="orgcb37496"></a>
+
 # Changelog
 
 
@@ -507,6 +533,8 @@ Changes since `1.0.0`:
 
 <!-- docs-section: features -->
 
+
+<a id="org1526244"></a>
 
 # Acknowledgements
 

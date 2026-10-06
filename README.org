@@ -1,5 +1,5 @@
 # -*- after-save-hook: (org-md-export-to-markdown); -*-
-#+options: toc:nil
+#+options: toc:1
 * IMDgroup-pymatgen
 
 This package provides a set of add-ons and helpers for [[https://pymatgen.org/][pymatgen]],
