@@ -29,7 +29,6 @@
 
 import os
 import math
-import json
 import warnings
 import logging
 import copy
@@ -52,6 +51,10 @@ from ase.calculators.vasp.setups \
 from ase.mep import idpp_interpolate
 from IMDgroup.pymatgen.core.structure import\
     merge_structures, structure_interpolate2, structure_is_valid2
+from IMDgroup.pymatgen.io.vasp.incar_toml import (
+    read_incar_toml,
+    write_incar_toml,
+)
 from IMDgroup.pymatgen.io.vasp.inputs import\
     Incar, _load_yaml_config
 from IMDgroup.pymatgen.io.vasp.vaspdir import IMDGVaspDir
@@ -62,6 +65,12 @@ POTCAR_RECOMMENDED = dict(
     for name, suffix in ase_potential_defaults['recommended'].items())
 # Fix https://gitlab.com/ase/ase/-/work_items/657
 POTCAR_RECOMMENDED['W'] = 'W_sv'
+
+# Group-standard default POTCAR functional (PBE_64 release).
+POTCAR_FUNCTIONAL_DEFAULT = 'PBE_64'
+
+# Group-standard default for KPOINTS.grid_density.
+KPOINTS_GRID_DENSITY = 10000
 
 __author__ = "Ihor Radchenko <yantar92@posteo.net>"
 MODULE_DIR = os.path.dirname(__file__)
@@ -126,28 +135,6 @@ def write_selective_dynamics_summary_maybe(structure, fname):
     return False
 
 
-# FIXME: We should merge with existing INCAR.toml
-# later.  This is a stub.
-def _write_potcar_toml(output_dir: Path, potcar_mapping: dict[str, str]) -> None:
-    """Write the ``[POTCAR]`` section of ``INCAR.toml`` in OUTPUT_DIR.
-
-    The section maps element symbols to full POTCAR names, following
-    the same convention as pymatgen input sets.  ``gorun`` reads this
-    section (see ``potcar_setups``) to reproduce the same
-    pseudopotentials when generating ``POTCAR`` from ``POSCAR``.
-
-    Args:
-        output_dir: Directory to write ``INCAR.toml`` into.
-        potcar_mapping: Mapping of element symbols to full POTCAR names
-            (e.g. ``{"C": "C", "Li": "Li_sv"}``).
-    """
-    lines = ["[POTCAR]"]
-    for element, symbol in potcar_mapping.items():
-        lines.append(f"{element} = {json.dumps(symbol)}")
-    (Path(output_dir) / "INCAR.toml").write_text(
-        "\n".join(lines) + "\n", encoding="utf-8")
-
-
 @dataclass
 class IMDVaspInputSet(VaspInputSet):
     """IMDGroup variant of VaspInputSet.
@@ -166,8 +153,9 @@ class IMDVaspInputSet(VaspInputSet):
        subdirectories).
     7. ``no_kpoints``, ``no_potcar``, ``no_poscar``, ``no_incar``
        flags to suppress writing individual files.
-    8. Writes an ``INCAR.toml`` ``[POTCAR]`` section recording the
-       resolved pseudopotentials so that ``gorun`` can reproduce them.
+    8. Writes an ``INCAR.toml`` recording non-default metadata
+       (POTCAR mapping, k-point density, functional) so that ``gorun``
+       and other tools can reproduce the written inputs.
     """
     functional: str | None = None
     images: list[Self] | None = None
@@ -178,7 +166,7 @@ class IMDVaspInputSet(VaspInputSet):
     no_incar: bool = False
     # __structure: Structure | None = None
 
-    CONFIG = {'INCAR': {}, 'POTCAR_FUNCTIONAL': "PBE_64"}
+    CONFIG = {'INCAR': {}, 'POTCAR_FUNCTIONAL': POTCAR_FUNCTIONAL_DEFAULT}
 
     # @property
     # def structure(self):
@@ -389,13 +377,99 @@ class IMDVaspInputSet(VaspInputSet):
             return None
         return super().potcar
 
+    def _potcar_toml_mapping(self) -> dict[str, str]:
+        """Resolved element -> full POTCAR name mapping.
+
+        Mirrors the written POTCAR file: one entry per species in the
+        POSCAR, keyed by element symbol with the resolved potential
+        name as the value.
+        """
+        potcar_symbols = self.potcar_symbols
+        if potcar_symbols is None:
+            return {}
+        assert self.poscar is not None
+        return dict(zip(self.poscar.site_symbols, potcar_symbols))
+
+    def _kpoints_grid_density(self) -> float | None:
+        """Return the grid density used to generate KPOINTS, or None.
+
+        Returns None when KPOINTS were not generated from a density
+        recipe (an explicit grid or an inherited KPOINTS file has no
+        single density value to record).
+        """
+        user = self.user_kpoints_settings
+        if isinstance(user, dict) and 'grid_density' in user:
+            return user['grid_density']
+        if isinstance(user, Kpoints):
+            return None
+        updates = self.kpoints_updates
+        if isinstance(updates, dict) and 'grid_density' in updates:
+            return updates['grid_density']
+        if isinstance(updates, Kpoints):
+            return None
+        kconfig = self._config_dict.get('KPOINTS', {})
+        if isinstance(kconfig, dict) and 'grid_density' in kconfig:
+            return kconfig['grid_density']
+        return None
+
+    def _write_incar_toml_metadata(self, output_dir: Path) -> None:
+        """Write ``INCAR.toml`` recording non-default constructor metadata.
+
+        Records the resolved POTCAR mapping, the k-point grid density
+        recipe, and the exchange-correlation functional so that ``gorun``
+        and other tools can reproduce the written POTCAR/KPOINTS
+        consistently.  The file is merged with any existing
+        ``INCAR.toml``: foreign content is preserved, and only values
+        that differ from the group defaults are written.
+        """
+        path = Path(output_dir) / 'INCAR.toml'
+        raw_existing = read_incar_toml(path)
+
+        potcar_mapping = self._potcar_toml_mapping()
+
+        values: dict[str, object] = {
+            'POTCAR': dict(potcar_mapping),
+        }
+        if (density := self._kpoints_grid_density()) is not None:
+            values['KPOINTS'] = {'grid_density': density}
+        functional: dict[str, object] = {
+            'potcar_functional': self.potcar_functional,
+        }
+        if self.functional is not None:
+            functional['functional'] = self.functional
+        values['FUNCTIONAL'] = functional
+
+        # The [POTCAR] table is fully owned by pymatgen: its defaults
+        # cover every element seen now or previously, so stale or removed
+        # entries are dropped and only non-default values are written.
+        raw_potcar = raw_existing.get('POTCAR', {})
+        potcar_defaults = dict(POTCAR_RECOMMENDED)
+        for element in set(potcar_mapping) | set(
+                raw_potcar if isinstance(raw_potcar, dict) else {}):
+            potcar_defaults.setdefault(element, element)
+
+        defaults: dict[str, object] = {
+            'POTCAR': potcar_defaults,
+            'KPOINTS': {'grid_density': KPOINTS_GRID_DENSITY},
+            'FUNCTIONAL': {'potcar_functional': POTCAR_FUNCTIONAL_DEFAULT},
+        }
+
+        write_incar_toml(
+            values,
+            raw_existing=raw_existing,
+            defaults=defaults,
+            path=path,
+            bootstrap=False,
+        )
+
     def write_input(self, output_dir, *args, **kwargs) -> None:
         """Write VASP input files to a directory.
 
         In addition to standard pymatgen behaviour, writes an
-        ``IMDVaspInputSet.log`` file, an ``INCAR.toml`` recording the
-        resolved POTCAR mapping, and, for NEB runs, the image
-        subdirectories and a trajectory CIF.
+        ``IMDVaspInputSet.log`` file, an ``INCAR.toml`` recording
+        non-default metadata (POTCAR mapping, k-point density,
+        functional), and, for NEB runs, the image subdirectories and a
+        trajectory CIF.
 
         Args:
             output_dir: Target directory for the input files.
@@ -411,17 +485,10 @@ class IMDVaspInputSet(VaspInputSet):
                 if field.name not in ['images']:
                     field_value = getattr(self, field.name)
                     f.write(f"{field.name}: {field_value}\n")
-        # Record the resolved POTCAR mapping in INCAR.toml so that
-        # gorun's generate_potcar reproduces the same pseudopotentials
-        # when it regenerates POTCAR from POSCAR.
+        # Record non-default metadata in INCAR.toml so that gorun can
+        # reproduce the POTCAR/KPOINTS when regenerating input files.
         if not self.no_potcar:
-            potcar_symbols = self.potcar_symbols
-            if potcar_symbols is not None:
-                assert self.poscar is not None
-                _write_potcar_toml(
-                    output_dir,
-                    dict(zip(self.poscar.site_symbols, potcar_symbols))
-                )
+            self._write_incar_toml_metadata(output_dir)
         if self.images is None and self.structure is not None:
             write_selective_dynamics_summary_maybe(
                 self.structure,
@@ -694,8 +761,8 @@ class IMDStandardVaspInputSet(IMDVaspInputSet):
                   'NCORE': 16,
                   'NELMIN': 6,
               },
-              'KPOINTS': {'grid_density': 10000},
-              'POTCAR_FUNCTIONAL': 'PBE_64',
+              'KPOINTS': {'grid_density': KPOINTS_GRID_DENSITY},
+              'POTCAR_FUNCTIONAL': POTCAR_FUNCTIONAL_DEFAULT,
               'POTCAR': POTCAR_RECOMMENDED}
 
 
@@ -766,7 +833,7 @@ class IMDNEBVaspInputSet(IMDDerivedInputSet):
             "IBRION": 1,
             "IMAGES": 5,
             "SPRING": -5},
-        'POTCAR_FUNCTIONAL': "PBE_64"
+        'POTCAR_FUNCTIONAL': POTCAR_FUNCTIONAL_DEFAULT
     }
 
     @property

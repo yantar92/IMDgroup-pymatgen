@@ -29,6 +29,7 @@ dependencies = [
 "cachetools",
 "duecredit>=0.11",
 "lmdb",
+"tomli>=1.1.0; python_version < '3.11'",
 "typing-extensions"
 ]
 
