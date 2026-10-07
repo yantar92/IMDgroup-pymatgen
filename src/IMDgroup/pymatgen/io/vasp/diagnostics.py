@@ -95,7 +95,7 @@ class VaspWarningRecord(MSONable):
             message=other.message,
             tips=other.tips or self.tips,
             count=self.count + other.count,
-            source=self.source or other.source,
+            source=other.source or self.source,
             metadata={**self.metadata, **other.metadata},
         )
 
