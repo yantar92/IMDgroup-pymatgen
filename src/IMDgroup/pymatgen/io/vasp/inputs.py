@@ -128,9 +128,9 @@ class Incar(pmgIncar):
 
         Args:
             setup: ``"functional"`` to retrieve functional settings.
-            name: Functional name.  Supported values: PBE, PBEsol,
-                PBE+D2, PBE+TS, vdW-DF, vdW-DF2, optB88-vdW,
-                optB86b-vdW.
+            name: Functional name (case-insensitive).  Supported
+                values: pbe, pbesol, pbe+d2, pbe+d3-0, pbe+d3-bj,
+                pbe+ts, vdw-df, vdw-df2, optb88-vdw, optb86b-vdw.
 
         Returns:
             dict: INCAR parameter dictionary.
@@ -142,11 +142,16 @@ class Incar(pmgIncar):
         settings = None
         if setup == "functional":
             functional_config = _load_yaml_config("functionals")
+            name = name.lower()
             if name not in functional_config:
+                functional_names = [
+                    key for key in functional_config
+                    if key != "PMG-PARENT" and not key.startswith("__")
+                ]
                 raise KeyError(
                     "Invalid or unsupported functional. "
                     + "Supported functionals are "
-                    + ', '.join(functional_config) + "."
+                    + ', '.join(functional_names) + "."
                 )
             settings = functional_config.get(name)
         if settings:
