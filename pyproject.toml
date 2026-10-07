@@ -38,6 +38,7 @@ homepage = "https://www.oimalyi.org/"
 
 [project.optional-dependencies]
 dev = ["pyright"]
+test = ["pytest"]
 docs = [
     "sphinx>=7.0",
     "sphinx-rtd-theme>=2.0",
@@ -64,3 +65,8 @@ include = [
 
 [tool.pylint]
 source-roots=['./src']
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+pythonpath = ["src"]
