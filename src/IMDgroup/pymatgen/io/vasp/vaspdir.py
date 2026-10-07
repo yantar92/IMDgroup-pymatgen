@@ -1004,7 +1004,7 @@ class IMDGVaspDir(Mapping, MSONable):
                     reverse=True,
                     terminate_on_match=True
                 )
-            converged_ionic = outcar.data['converged_ionic']
+            converged_ionic = bool(outcar.data['converged_ionic'])
         if converged_ionic:
             self.check_framework_symmetry()
             self.check_displacements()
