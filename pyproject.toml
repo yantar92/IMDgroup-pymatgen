@@ -70,3 +70,6 @@ source-roots=['./src']
 testpaths = ["tests"]
 addopts = "-ra"
 pythonpath = ["src"]
+markers = [
+    "integration: tests that require generated VASP fixtures (see scripts/prepare_vasp_fixtures.sh)",
+]
