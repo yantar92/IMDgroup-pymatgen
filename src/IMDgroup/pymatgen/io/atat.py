@@ -69,10 +69,10 @@ def check_sublattice_flip(
     configuration as ``str_before``, when compared against the
     reference ``sublattice``.
 
-    The species scanned by cluster expansion must be marked with the
-    same dummy species name (e.g. X) in all arguments.  For example,
-    in an ATAT Li,Vac system, both Li and Vac should be replaced with
-    X.
+    Vacancies must be marked with a dummy species (e.g. X) in all
+    arguments.  The scanned species (e.g. Li in an ATAT Li,Vac
+    system) must keep its real element symbol; otherwise a flipped
+    configuration is indistinguishable from the original.
 
     Args:
         str_before: Structure before relaxation.
