@@ -697,10 +697,12 @@ def structure_remove_duplicates(
     for struct in structs:
         if struct is None:
             result.append(None)
-        elif not structure_matches(struct, result,
-                                   cmp_fun=cmp_fun,
-                                   warn=warn,
-                                   multithread=multithread):
+        elif structure_matches(struct, result,
+                               cmp_fun=cmp_fun,
+                               warn=warn,
+                               multithread=multithread):
+            result.append(None)
+        else:
             result.append(struct)
     return result
 
