@@ -613,7 +613,7 @@ class IMDGVaspDir(Mapping, MSONable):
         return self.path
 
     def __contains__(self, item):
-        return item in self.files
+        return any(f.name == item for f in self.files)
 
     def __len__(self):
         return len(self.files)
