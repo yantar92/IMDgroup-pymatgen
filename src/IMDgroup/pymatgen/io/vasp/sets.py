@@ -937,6 +937,9 @@ class IMDNEBVaspInputSet(IMDDerivedInputSet):
         else:
             self.target_structure = end
         frac_tol = 0 if self.method == 'IDPP' else self.frac_tol
+        assert isinstance(beg, Structure)
+        assert isinstance(end, Structure)
+        assert self.incar and "IMAGES" in self.incar
 
         str_images = structure_interpolate2(
             beg, end,
