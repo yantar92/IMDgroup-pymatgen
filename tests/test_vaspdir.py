@@ -224,11 +224,10 @@ def test_initial_structure_from_poscar(tmp_path) -> None:
     assert d.initial_structure.lattice.a == pytest.approx(5.0)
 
 
-def test_initial_structure_raises_without_structure(tmp_path) -> None:
-    """initial_structure raises when no POSCAR/vasprun is present."""
+def test_initial_structure_none_without_structure(tmp_path) -> None:
+    """initial_structure is None when no POSCAR/vasprun is present."""
     d = IMDGVaspDir(str(tmp_path))
-    with pytest.raises(FileNotFoundError):
-        d.initial_structure
+    assert d.initial_structure is None
 
 
 def test_initial_structure_follows_prev_dirs(tmp_path) -> None:
@@ -370,12 +369,11 @@ def test_structure_vasprun_fallback(converged_vasp_dir) -> None:
     assert len(structure) == 1
 
 
-def test_structure_raises_without_contcar_or_vasprun(tmp_path) -> None:
-    """structure raises when neither CONTCAR nor vasprun is present."""
+def test_structure_none_without_contcar_or_vasprun(tmp_path) -> None:
+    """structure is None when neither CONTCAR nor vasprun is present."""
     _write_poscar(tmp_path, a=5.0)
     d = IMDGVaspDir(str(tmp_path))
-    with pytest.raises(FileNotFoundError):
-        d.structure
+    assert d.structure is None
 
 
 def test_final_energy_reliable_scf_float(converged_vasp_dir) -> None:

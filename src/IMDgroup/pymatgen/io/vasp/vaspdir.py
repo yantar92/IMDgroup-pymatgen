@@ -812,11 +812,12 @@ class IMDGVaspDir(Mapping, MSONable):
         return self.final_energy
 
     @property
-    def initial_structure(self) -> Structure:
+    def initial_structure(self) -> Structure | None:
         """Initial structure of the calculation.
 
         Follows the chain of ``prev_dirs`` to find the earliest
-        initial structure if previous runs exist.
+        initial structure if previous runs exist.  Returns ``None``
+        when no structure is available.
         """
         if prevs := self.prev_dirs():
             return prevs[0].initial_structure
@@ -824,16 +825,19 @@ class IMDGVaspDir(Mapping, MSONable):
             return poscar.structure
         if run := self['vasprun.xml']:
             return run.initial_structure
-        raise FileNotFoundError(f"{self.path}: No vasprun.xml/POSCAR available")
+        return None
 
     @property
-    def structure(self) -> Structure:
-        """Last known structure (CONTCAR if present, else final from vasprun)."""
+    def structure(self) -> Structure | None:
+        """Last known structure (CONTCAR if present, else final from vasprun).
+
+        Returns ``None`` when neither CONTCAR nor vasprun.xml is available.
+        """
         if contcar := self['CONTCAR']:
             return contcar.structure
         if run := self['vasprun.xml']:
             return run.final_structure
-        raise FileNotFoundError("No vasprun.xml/CONTCAR available")
+        return None
 
     @property
     def total_magnetization(self) -> float | None:
@@ -917,6 +921,8 @@ class IMDGVaspDir(Mapping, MSONable):
         Returns:
             bool: True if displacements are acceptable.
         """
+        assert self.initial_structure is not None
+        assert self.structure is not None
         max_displacement = 0
         for i, site in enumerate(self.initial_structure):
             displacement = site.distance(self.structure[i])
@@ -953,6 +959,8 @@ class IMDGVaspDir(Mapping, MSONable):
         Returns:
             bool: True if framework symmetry is preserved.
         """
+        assert self.initial_structure is not None
+        assert self.structure is not None
         if framework_elements is None:
             from collections import Counter
             elements = Counter([str(site.specie) for site in self.initial_structure])

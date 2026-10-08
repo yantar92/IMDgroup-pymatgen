@@ -125,12 +125,12 @@ def read_field(field: str, vaspdir: IMDGVaspDir):
     """
     try:
         return _read_field_1(field, vaspdir)
-    except FileNotFoundError:
+    except (FileNotFoundError, TypeError, AttributeError):
         return "N/A"
 
 
 def _read_field_1(field: str, vaspdir: IMDGVaspDir):
-    """Read a single analysis field (internal, may raise FileNotFoundError).
+    """Read a single analysis field (internal, may raise).
 
     Args:
         field: Field name.
@@ -141,6 +141,9 @@ def _read_field_1(field: str, vaspdir: IMDGVaspDir):
 
     Raises:
         FileNotFoundError: If the required data files are missing.
+        TypeError, AttributeError: If the required structure is missing
+            (``vaspdir.structure`` / ``vaspdir.initial_structure`` are
+            ``None``).  These are caught by :func:`read_field`.
     """
     val = None
 
