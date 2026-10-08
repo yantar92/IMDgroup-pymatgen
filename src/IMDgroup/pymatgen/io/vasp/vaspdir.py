@@ -83,6 +83,7 @@ def timeout_handler(signum, frame):
     Raises:
         TimeoutException: Always raised.
     """
+    _, _ = signum, frame  # Suppress unused variable warning
     raise TimeoutException
 
 
@@ -692,6 +693,7 @@ class IMDGVaspDir(Mapping, MSONable):
         Records are overwritten by name, so re-running a check is
         idempotent.
         """
+        assert isinstance(self._warnings, VaspWarnings)
         self._warnings.overwrite(record)
         warnings.warn(record.message, VaspWarning)
 
@@ -707,6 +709,7 @@ class IMDGVaspDir(Mapping, MSONable):
         Returns:
             VaspWarnings: Name-keyed warning records.
         """
+        assert isinstance(self._warnings, VaspWarnings)
         if not self._warnings_collected:
             for log in self.logs():
                 for record in log.warnings.values():
