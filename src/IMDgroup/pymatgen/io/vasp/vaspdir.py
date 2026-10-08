@@ -128,6 +128,12 @@ class IMDGVaspDir(Mapping, MSONable):
     # versions are discarded on load instead of being misread.
     CACHE_VERSION: typing.ClassVar[int] = 1
 
+    # LMDB map size in bytes.  Exposed as a class attribute so tests can
+    # shrink it to exercise the eviction path without allocating the full
+    # default map.  LMDB uses a sparse mmap, so the default does not
+    # consume physical disk until pages are actually written.
+    MAP_SIZE: typing.ClassVar[int] = 2**40  # 1TB
+
     # Glob patterns for files to exclude from hash computation and
     # directory iteration.  Log files that change without affecting
     # VASP results belong here.  Individual instances can extend this
@@ -231,13 +237,13 @@ class IMDGVaspDir(Mapping, MSONable):
         cache_dir = cls._get_cache_dir()
         cache_dir.mkdir(parents=True, exist_ok=True)
         db_path = cache_dir / "cache.lmdb"
-        # 1TB map size; LMDB uses sparse mmap so only written pages
-        # consume actual disk.  Eviction logic in _lmdb_set_many
-        # reclaims pages when the map fills.
+        # LMDB uses a sparse mmap so only written pages consume actual
+        # disk.  Eviction logic in _lmdb_set_many reclaims pages when
+        # the map fills.  The map size is configurable via MAP_SIZE.
         try:
             cls._lmdb_env = lmdb.open(
                 str(db_path),
-                map_size=2**40,  # 1TB
+                map_size=cls.MAP_SIZE,
                 max_dbs=2,
                 lock=True,
                 subdir=False,
