@@ -651,6 +651,8 @@ class IMDGVaspDir(Mapping, MSONable):
                     return obj
                 # except TimeoutException:
                 except Exception as e:
+                    if HAS_SIGALRM:
+                        signal.alarm(0)
                     logger.debug("Failed to read %s: %s", path / item, e)
                     self._parsed_files[item] = None
                     self._dump_to_cache()
