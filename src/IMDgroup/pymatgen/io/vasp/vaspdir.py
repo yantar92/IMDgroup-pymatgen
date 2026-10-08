@@ -790,7 +790,7 @@ class IMDGVaspDir(Mapping, MSONable):
             str: ``"unconverged"`` when the run has not converged.
         """
         if not self.converged:
-            return "unconvegred"
+            return "unconverged"
         incar = self['INCAR']
         assert incar is not None
         run = self['vasprun.xml']
