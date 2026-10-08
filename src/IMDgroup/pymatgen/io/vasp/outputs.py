@@ -145,18 +145,32 @@ class Vasprun(pmgVasprun):
             return False
         return True
 
+    @property
+    def nebp(self) -> bool:
+        """Whether this run is a NEB image (``IMAGES`` in the INCAR).
+
+        NEB runs keep images on a spring, so large forces are expected
+        and do not signal a convergence problem.
+        """
+        return 'IMAGES' in self.incar
+
     def check_forces(self, threshold=0.05) -> bool:
         """Check residual forces, respecting selective dynamics.
 
         Only force components in unconstrained directions are
         considered when selective dynamics information is available.
+        NEB images are skipped: large forces are expected there.
 
         Args:
             threshold: Force threshold in eV/Angstrom.
 
         Returns:
-            bool: True if all forces are below threshold.
+            bool: True if all forces are below threshold, or if this is
+            a NEB image.
         """
+        if self.nebp:
+            return True
+
         final_forces = np.array(self.ionic_steps[-1]['forces'])
 
         # Get selective dynamics info if available
