@@ -1139,15 +1139,15 @@ class IMDGVaspDir(Mapping, MSONable):
                 mtimes.append(prev.mtime())
         return max(mtimes)
 
-    def prev_dirs(self) -> list['IMDGVaspDir'] | None:
+    def prev_dirs(self) -> list['IMDGVaspDir']:
         """List of previous VASP runs in the chain.
 
         Previous runs are assumed to reside in ``gorun_*``
         subdirectories containing a ``POSCAR``.
 
         Returns:
-            list[IMDGVaspDir] | None: Sorted list of previous-run
-            directories, or None.
+            list[IMDGVaspDir]: Sorted list of previous-run
+            directories.  Empty when there are none.
         """
         if self._prev_vaspdirs is None:
             path = Path(self.path)
