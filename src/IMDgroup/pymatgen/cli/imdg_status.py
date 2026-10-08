@@ -335,7 +335,7 @@ def _get_neb_summary(vaspdir: IMDGVaspDir) -> str:
     neb_structures = []
     neb_structures_initial = []
     for nebimagedir in neb_dirs:
-        contcar_struct = nebimagedir.structure
+        contcar_struct = nebimagedir.final_structure
         poscar_struct = nebimagedir.initial_structure
         neb_structures.append(contcar_struct or poscar_struct)
         neb_structures_initial.append(poscar_struct)

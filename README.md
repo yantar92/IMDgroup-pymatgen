@@ -1,18 +1,18 @@
 
 # Table of Contents
 
-1.  [IMDgroup-pymatgen](#org56d192c)
-2.  [Key Features & Optimizations](#org0a40c71)
-3.  [Getting Help](#org9687408)
-4.  [Installation](#orgada8fd6)
-5.  [Command Line Interface](#org96d5a70)
-6.  [Python API](#org615d5b8)
-7.  [Changelog](#org4a930b4)
-8.  [Acknowledgements](#org4290d60)
+1.  [IMDgroup-pymatgen](#org76eb73c)
+2.  [Key Features & Optimizations](#org7a3bc3f)
+3.  [Getting Help](#org6dc11cd)
+4.  [Installation](#org340bc22)
+5.  [Command Line Interface](#orge872279)
+6.  [Python API](#org211a06d)
+7.  [Changelog](#org54caa9f)
+8.  [Acknowledgements](#org655da19)
 
 
 
-<a id="org56d192c"></a>
+<a id="org76eb73c"></a>
 
 # IMDgroup-pymatgen
 
@@ -24,7 +24,7 @@ API Documentation: <https://yantar92.github.io/IMDgroup-pymatgen/>
 <!-- docs-section: features -->
 
 
-<a id="org0a40c71"></a>
+<a id="org7a3bc3f"></a>
 
 # Key Features & Optimizations
 
@@ -111,7 +111,7 @@ creating, altering, analyzing, and visualizing inputs and outputs.
         VASP setup for parameter studies.
 
 
-<a id="org9687408"></a>
+<a id="org6dc11cd"></a>
 
 # Getting Help
 
@@ -137,7 +137,7 @@ access them using Python's built-in `help()` function:
     help(IMDGVaspDir)
 
 
-<a id="orgada8fd6"></a>
+<a id="org340bc22"></a>
 
 # Installation
 
@@ -148,7 +148,7 @@ access them using Python's built-in `help()` function:
 <!-- docs-section: cli -->
 
 
-<a id="org96d5a70"></a>
+<a id="orge872279"></a>
 
 # Command Line Interface
 
@@ -379,7 +379,7 @@ folder as input.
 <!-- docs-section: python-api -->
 
 
-<a id="org615d5b8"></a>
+<a id="org211a06d"></a>
 
 # Python API
 
@@ -402,7 +402,7 @@ on file systems like LUSTRE.
     vdir = IMDGVaspDir("path/to/vasp/calculation")
     
     # Access parsed pymatgen objects
-    structure = vdir.structure
+    structure = vdir.final_structure
     energy = vdir.final_energy
     incar = vdir["INCAR"]
     
@@ -474,7 +474,7 @@ diffusion paths in a material.
 <!-- docs-section: changelog -->
 
 
-<a id="org4a930b4"></a>
+<a id="org54caa9f"></a>
 
 # Changelog
 
@@ -537,7 +537,7 @@ Changes since `1.0.0`:
 <!-- docs-section: acknowledgements -->
 
 
-<a id="org4290d60"></a>
+<a id="org655da19"></a>
 
 # Acknowledgements
 

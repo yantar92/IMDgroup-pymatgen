@@ -142,7 +142,7 @@ def _read_field_1(field: str, vaspdir: IMDGVaspDir):
     Raises:
         FileNotFoundError: If the required data files are missing.
         TypeError, AttributeError: If the required structure is missing
-            (``vaspdir.structure`` / ``vaspdir.initial_structure`` are
+            (``vaspdir.final_structure`` / ``vaspdir.initial_structure`` are
             ``None``).  These are caught by :func:`read_field`.
     """
     val = None
@@ -157,7 +157,7 @@ def _read_field_1(field: str, vaspdir: IMDGVaspDir):
     elif field == 'e_per_atom':
         val = vaspdir.final_energy_reliable
         if not isinstance(val, str):
-            val = val / len(vaspdir.structure)
+            val = val / len(vaspdir.final_structure)
             val = f"{val:.5f}"
     elif field == 'total_mag':
         val = vaspdir.total_magnetization
@@ -176,60 +176,60 @@ def _read_field_1(field: str, vaspdir: IMDGVaspDir):
                 val = f"{val:.4f}"
     elif field == '%vol':
         vol0 = vaspdir.initial_structure.volume
-        val = vaspdir.structure.volume / vol0 - 1
+        val = vaspdir.final_structure.volume / vol0 - 1
         val = f"{val * 100:.2f}"
     elif field == 'displ':
         try:
             displ = structure_distance(
                 vaspdir.initial_structure,
-                vaspdir.structure,
+                vaspdir.final_structure,
                 match_first=True,
                 norm=True)
         except ValueError:
             # structures are too different
             displ = structure_distance(
                 vaspdir.initial_structure,
-                vaspdir.structure,
+                vaspdir.final_structure,
                 match_first=False,
                 norm=True)
         val = f"{displ:.2f}"
     elif field == 'space_group':
-        val = vaspdir.structure.get_space_group_info()[0]
+        val = vaspdir.final_structure.get_space_group_info()[0]
     elif field == 'a':
-        val = vaspdir.structure.lattice.a
+        val = vaspdir.final_structure.lattice.a
     elif field == '%a':
         a0 = vaspdir.initial_structure.lattice.a
-        val = vaspdir.structure.lattice.a / a0 - 1
+        val = vaspdir.final_structure.lattice.a / a0 - 1
         val = f"{val * 100:.2f}"
     elif field == 'b':
-        val = vaspdir.structure.lattice.b
+        val = vaspdir.final_structure.lattice.b
     elif field == '%b':
         b0 = vaspdir.initial_structure.lattice.b
-        val = vaspdir.structure.lattice.b / b0 - 1
+        val = vaspdir.final_structure.lattice.b / b0 - 1
         val = f"{val * 100:.2f}"
     elif field == 'c':
-        val = vaspdir.structure.lattice.c
+        val = vaspdir.final_structure.lattice.c
     elif field == '%c':
         c0 = vaspdir.initial_structure.lattice.c
-        val = vaspdir.structure.lattice.c / c0 - 1
+        val = vaspdir.final_structure.lattice.c / c0 - 1
         val = f"{val * 100:.2f}"
     elif field == 'alpha':
-        val = vaspdir.structure.lattice.alpha
+        val = vaspdir.final_structure.lattice.alpha
     elif field == '%alpha':
         alpha0 = vaspdir.initial_structure.lattice.alpha
-        val = vaspdir.structure.lattice.alpha / alpha0 - 1
+        val = vaspdir.final_structure.lattice.alpha / alpha0 - 1
         val = f"{val * 100:.2f}"
     elif field == 'beta':
-        val = vaspdir.structure.lattice.beta
+        val = vaspdir.final_structure.lattice.beta
     elif field == '%beta':
         beta0 = vaspdir.initial_structure.lattice.beta
-        val = vaspdir.structure.lattice.beta / beta0 - 1
+        val = vaspdir.final_structure.lattice.beta / beta0 - 1
         val = f"{val * 100:.2f}"
     elif field == 'gamma':
-        val = vaspdir.structure.lattice.gamma
+        val = vaspdir.final_structure.lattice.gamma
     elif field == '%gamma':
         gamma0 = vaspdir.initial_structure.lattice.gamma
-        val = vaspdir.structure.lattice.gamma / gamma0 - 1
+        val = vaspdir.final_structure.lattice.gamma / gamma0 - 1
         val = f"{val * 100:.2f}"
 
     return val

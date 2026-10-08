@@ -162,7 +162,7 @@ def neb(args):
         neb_dirs = vaspdir.neb_dirs()
         assert neb_dirs is not None
         neb_structures = [
-            (imagedir.final_structure or imagedir.structure)
+            (imagedir.final_structure or imagedir.initial_structure)
             for imagedir in neb_dirs]
         trajectory = merge_structures(neb_structures)
         cif_name = 'NEB_trajectory_converged.cif'
@@ -737,12 +737,12 @@ def _atat_1(
         if not vaspdir.converged:
             displ = np.nan
         elif not IMDatat.check_volume_distortion(
-                vaspdir.initial_structure, vaspdir.structure):
+                vaspdir.initial_structure, vaspdir.final_structure):
             displ = np.nan
             print(colored(f"{vaspdir.path}: large volume distortion (this must not happen)", "red"))
         elif (not Path(f"{idx}/str.out.old").is_file()
               and not IMDatat.check_sublattice_flip(
-                  vaspdir.initial_structure, vaspdir.structure, sublattice)):
+                  vaspdir.initial_structure, vaspdir.final_structure, sublattice)):
             displ = np.nan
             print(colored(f"{vaspdir.path}: sublattice flip (this must not happen)", "red"))
         elif Path(f"{idx}/sublattice_deviation").is_file():
@@ -755,7 +755,7 @@ def _atat_1(
             logger.debug(
                 "Calculating sublattice deviation from %s",
                 f"{idx}/ATAT")
-            str_after_normalized = vaspdir.structure.copy()
+            str_after_normalized = vaspdir.final_structure.copy()
             str_after_normalized.lattice = sublattice.lattice
             displ = structure_distance(
                 str_after_normalized, sublattice,
@@ -1033,9 +1033,9 @@ def _hull_get_entries_recursively(
                 n_skipped += 1
                 continue
             entry = ComputedStructureEntry(
-                vaspdir.structure, vaspdir.final_energy)
-            entry.data["volume"] = vaspdir.structure.volume
-            entry.data["formula"] = vaspdir.structure.composition.formula
+                vaspdir.final_structure, vaspdir.final_energy)
+            entry.data["volume"] = vaspdir.final_structure.volume
+            entry.data["formula"] = vaspdir.final_structure.composition.formula
             entry.data["ID"] = vasp_path
             entries.append(entry)
         except Exception as e:
@@ -1397,9 +1397,9 @@ def hull(args):
                     print(f"Skipping {extra_path}: unconverged")
                     continue
                 extra_entry = ComputedStructureEntry(
-                    extra_vaspdir.structure, extra_vaspdir.final_energy)
-                extra_entry.data["volume"] = extra_vaspdir.structure.volume
-                extra_entry.data["formula"] = extra_vaspdir.structure.composition.formula
+                    extra_vaspdir.final_structure, extra_vaspdir.final_energy)
+                extra_entry.data["volume"] = extra_vaspdir.final_structure.volume
+                extra_entry.data["formula"] = extra_vaspdir.final_structure.composition.formula
                 extra_entry.data["ID"] = extra_path
                 entries.append(extra_entry)
                 print(f"Added {extra_path}: {extra_entry.energy_per_atom} eV/atom")
@@ -1673,9 +1673,9 @@ def voltage(args):
                     print(f"Skipping {extra_path}: unconverged")
                     continue
                 extra_entry = ComputedStructureEntry(
-                    extra_vaspdir.structure, extra_vaspdir.final_energy)
-                extra_entry.data["volume"] = extra_vaspdir.structure.volume
-                extra_entry.data["formula"] = extra_vaspdir.structure.composition.formula
+                    extra_vaspdir.final_structure, extra_vaspdir.final_energy)
+                extra_entry.data["volume"] = extra_vaspdir.final_structure.volume
+                extra_entry.data["formula"] = extra_vaspdir.final_structure.composition.formula
                 extra_entry.data["ID"] = extra_path
                 entries.append(extra_entry)
                 print(f"Added {extra_path}: {extra_entry.energy_per_atom} eV/atom")

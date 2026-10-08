@@ -111,7 +111,7 @@ class IMDGVaspDir(Mapping, MSONable):
     Properties that require parsing multiple files:
 
     - ``final_energy``, ``final_energy_reliable``
-    - ``initial_structure``, ``structure``
+    - ``initial_structure``, ``final_structure``
     - ``total_magnetization``
     - ``converged``, ``converged_ionic``, ``converged_electronic``,
       ``converged_sequence``, ``converged_manual``
@@ -815,9 +815,14 @@ class IMDGVaspDir(Mapping, MSONable):
     def initial_structure(self) -> Structure | None:
         """Initial structure of the calculation.
 
-        Follows the chain of ``prev_dirs`` to find the earliest
-        initial structure if previous runs exist.  Returns ``None``
-        when no structure is available.
+        The initial state is the earliest structure in the calculation
+        chain.  When ``gorun_*`` subdirectories (``prev_dirs``) exist,
+        their initial structure is returned, because the current
+        directory is not the true starting geometry.  Otherwise the
+        current directory's POSCAR, then the vasprun.xml initial
+        structure, is used.
+
+        Returns ``None`` when no structure is available.
         """
         if prevs := self.prev_dirs():
             return prevs[0].initial_structure
@@ -828,16 +833,35 @@ class IMDGVaspDir(Mapping, MSONable):
         return None
 
     @property
-    def structure(self) -> Structure | None:
-        """Last known structure (CONTCAR if present, else final from vasprun).
+    def final_structure(self) -> Structure | None:
+        """Final structure of the calculation in the current directory.
 
-        Returns ``None`` when neither CONTCAR nor vasprun.xml is available.
+        Unlike :attr:`initial_structure`, this never consults
+        ``prev_dirs``: the final geometry always belongs to the current
+        directory.  Reads CONTCAR when present, otherwise the final
+        structure from vasprun.xml.
+
+        Returns ``None`` when neither CONTCAR nor vasprun.xml is
+        available.
         """
         if contcar := self['CONTCAR']:
             return contcar.structure
         if run := self['vasprun.xml']:
             return run.final_structure
         return None
+
+    @property
+    def structure(self) -> Structure | None:
+        """Deprecated alias for :attr:`final_structure`.
+
+        Use :attr:`final_structure` instead.
+        """
+        warnings.warn(
+            "IMDGVaspDir.structure is deprecated; use final_structure.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return self.final_structure
 
     @property
     def total_magnetization(self) -> float | None:
@@ -922,13 +946,13 @@ class IMDGVaspDir(Mapping, MSONable):
             bool: True if displacements are acceptable.
         """
         assert self.initial_structure is not None
-        assert self.structure is not None
+        assert self.final_structure is not None
         max_displacement = 0
         for i, site in enumerate(self.initial_structure):
-            displacement = site.distance(self.structure[i])
+            displacement = site.distance(self.final_structure[i])
             max_displacement = max(max_displacement, displacement)
-        vol = self.structure.volume
-        avg_bond_length = (vol / len(self.structure))**(1 / 3)
+        vol = self.final_structure.volume
+        avg_bond_length = (vol / len(self.final_structure))**(1 / 3)
         if max_displacement > 2.0 * avg_bond_length:
             self._record(VaspWarningRecord(
                 name="large_displacement",
@@ -960,7 +984,7 @@ class IMDGVaspDir(Mapping, MSONable):
             bool: True if framework symmetry is preserved.
         """
         assert self.initial_structure is not None
-        assert self.structure is not None
+        assert self.final_structure is not None
         if framework_elements is None:
             from collections import Counter
             elements = Counter([str(site.specie) for site in self.initial_structure])
@@ -975,7 +999,7 @@ class IMDGVaspDir(Mapping, MSONable):
             )
 
         init_framework = filter_framework(self.initial_structure)
-        final_framework = filter_framework(self.structure)
+        final_framework = filter_framework(self.final_structure)
 
         # Check if framework symmetry changed
         init_sg = init_framework.get_space_group_info(symprec=symprec)

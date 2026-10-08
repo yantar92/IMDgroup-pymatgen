@@ -349,31 +349,41 @@ def test_logs_discovers_slurm(tmp_path) -> None:
     assert [log.file.name for log in logs] == ["slurm.out"]
 
 
-# --- structure / energy family -------------------------------------
+# --- final_structure / energy family -------------------------------
 
 
-def test_structure_prefers_contcar(tmp_path) -> None:
-    """structure returns CONTCAR when present, over POSCAR/vasprun."""
+def test_final_structure_prefers_contcar(tmp_path) -> None:
+    """final_structure returns CONTCAR when present, over POSCAR/vasprun."""
     _write_poscar(tmp_path, a=5.0)
     _write_poscar(tmp_path, a=6.0, filename="CONTCAR")
     d = IMDGVaspDir(str(tmp_path))
-    assert d.structure.lattice.a == pytest.approx(6.0)
+    assert d.final_structure.lattice.a == pytest.approx(6.0)
 
 
-def test_structure_vasprun_fallback(converged_vasp_dir) -> None:
-    """structure falls back to vasprun final_structure without CONTCAR."""
+def test_final_structure_vasprun_fallback(converged_vasp_dir) -> None:
+    """final_structure falls back to vasprun final structure without CONTCAR."""
     (converged_vasp_dir / "CONTCAR").unlink()
     d = IMDGVaspDir(str(converged_vasp_dir))
-    structure = d.structure
+    structure = d.final_structure
     assert isinstance(structure, Structure)
     assert len(structure) == 1
 
 
-def test_structure_none_without_contcar_or_vasprun(tmp_path) -> None:
-    """structure is None when neither CONTCAR nor vasprun is present."""
+def test_final_structure_none_without_contcar_or_vasprun(tmp_path) -> None:
+    """final_structure is None when neither CONTCAR nor vasprun is present."""
     _write_poscar(tmp_path, a=5.0)
     d = IMDGVaspDir(str(tmp_path))
-    assert d.structure is None
+    assert d.final_structure is None
+
+
+def test_structure_is_deprecated_alias(tmp_path) -> None:
+    """structure warns and delegates to final_structure."""
+    _write_poscar(tmp_path, a=5.0)
+    _write_poscar(tmp_path, a=6.0, filename="CONTCAR")
+    d = IMDGVaspDir(str(tmp_path))
+    with pytest.warns(DeprecationWarning):
+        structure = d.structure
+    assert structure is d.final_structure
 
 
 def test_final_energy_reliable_scf_float(converged_vasp_dir) -> None:
