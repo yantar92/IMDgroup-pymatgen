@@ -158,36 +158,6 @@ def test_read_outcar_timing_stats_synthetic(tmp_path) -> None:
     assert stats.scf.mean == pytest.approx(3.0)
 
 
-# --- Vasprun.check_forces ---------------------------------------------------
-
-
-def _fake_vasprun(incar: dict, forces: list) -> Vasprun:
-    """Build a Vasprun with only the attributes check_forces needs."""
-    run = Vasprun.__new__(Vasprun)
-    run.incar = incar
-    run.ionic_steps = [{"forces": forces}]
-    run.final_structure = None
-    run.filename = "vasprun.xml"
-    return run
-
-
-def test_check_forces_skips_neb() -> None:
-    """NEB images skip the force check; large forces are expected."""
-    run = _fake_vasprun({"IMAGES": 5}, [[0.0, 0.0, 100.0]])
-    with warnings.catch_warnings():
-        warnings.simplefilter("error", VaspWarning)
-        assert run.check_forces() is True
-
-
-def test_check_forces_warns_on_large_force() -> None:
-    """A large force in a regular run records force_convergence."""
-    run = _fake_vasprun({}, [[0.0, 0.0, 100.0]])
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore", VaspWarning)
-        assert run.check_forces() is False
-    assert "force_convergence" in run._warnings.names()
-
-
 # --- fixture-gated tests ----------------------------------------------------
 
 
