@@ -27,6 +27,8 @@
 
 """This module implements useful VASP input sets to be used for the group research."""
 
+from __future__ import annotations
+
 import os
 import math
 import warnings
@@ -36,7 +38,6 @@ from xml.etree.ElementTree import ParseError
 from glob import glob
 from pathlib import Path
 from dataclasses import dataclass, fields, field
-from typing import Self
 import numpy as np
 from pymatgen.core import Species, DummySpecies, Structure
 from pymatgen.io.vasp.sets import VaspInputSet, BadInputSetWarning
@@ -158,7 +159,7 @@ class IMDVaspInputSet(VaspInputSet):
        and other tools can reproduce the written inputs.
     """
     functional: str | None = None
-    images: list[Self] | None = None
+    images: list[IMDVaspInputSet] | None = None
     name: str | None = None
     no_kpoints: bool = False
     no_potcar: bool = False
@@ -1010,7 +1011,8 @@ class IMDNEBVaspInputSet(IMDDerivedInputSet):
         return None
 
 
-@due.dcite(
+# FIXME: due.dcite is only available dynamically.  Needs to be fixed upstream.
+@due.dcite(  # pyright: ignore[reportAttributeAccessIssue]
     Doi("10.1007/s10570-024-05754-7"),
     description="Understanding of dielectric properties of cellulose",
 )
