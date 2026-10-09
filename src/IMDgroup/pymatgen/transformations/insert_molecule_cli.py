@@ -31,7 +31,7 @@ import os
 import sys
 import argparse
 import logging
-import yaml
+from monty.serialization import dumpfn
 import numpy as np
 import pymatgen.io.vasp.sets as vaspset
 # Used by str_to_class
@@ -161,8 +161,7 @@ def main():
 
     settings_file = os.path.join(
         args.output_dir, "pmg-insert-molecule-settings.yaml")
-    with open(settings_file, "w", encoding="utf-8") as file:
-        yaml.dump(vars(args), file)
+    dumpfn(vars(args), settings_file)
     return 0
 
 
