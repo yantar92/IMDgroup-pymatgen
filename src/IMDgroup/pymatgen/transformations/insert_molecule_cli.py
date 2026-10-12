@@ -153,9 +153,17 @@ def main():
             except AttributeError:
                 return None
 
+    vasp_input_set = str_to_class(args.vasp_input)
+    if vasp_input_set is None:
+        raise ValueError(
+            f"Unknown VASP input set: {args.vasp_input}.  "
+            "The class must be defined in pymatgen.io.vasp.sets or "
+            "IMDgroup.pymatgen.io.vasp.sets."
+        )
+
     vaspset.batch_write_input(
         structures,
-        vasp_input_set=str_to_class(args.vasp_input),
+        vasp_input_set=vasp_input_set,
         output_dir=args.output_dir,
         potcar_spec=True)
 
