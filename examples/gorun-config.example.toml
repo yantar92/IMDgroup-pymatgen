@@ -1,0 +1,230 @@
+[cluster.names]
+athena = ['login01.athena.cyfronet.pl']
+ares   = ['login01.ares.cyfronet.pl']
+helios = ['login01.helios.cyfronet.pl']
+lumi = ['uan01']
+
+[athena]
+queues = ['plgrid-gpu-a100']
+VASP-setup = "module load nvompic/2022a FFTW/3.3.10"
+
+[athena.defaults.sbatch]
+nodes = 1
+time  = '48:00:00'
+ntasks-per-node = 8
+gres = 'gpu:8'
+cpus-per-task = 1
+mem = '40G'
+constraint = '"memfs"'
+account = 'plgkeyteche3-gpu-a100'
+
+[athena.plgrid-gpu-a100]
+type = 'GPU'
+max-nodes = 48
+max-cpus-per-node  = 2
+max-cores-per-cpu  = 64
+max-gpus-per-node = 8
+max-time = '48:00:00'
+max-jobs = 99999
+
+[athena.plgrid-gpu-a100.sbatch]
+partition = 'plgrid-gpu-a100'
+
+[ares]
+queues = ['plgrid', 'plgrid-testing', 'plgrid-now']
+VASP-setup = "module load intel/2023b imkl/2023.2.0"
+
+[ares.defaults.sbatch]
+nodes = 4
+time  = '72:00:00'
+ntasks-per-node = 48
+
+[ares.plgrid]
+type = 'CPU'
+max-nodes = 532
+max-cpus-per-node  = 1
+max-cores-per-cpu  = 48
+max-time = '72:00:00'
+max-jobs = 99999
+
+[ares.plgrid.sbatch]
+partition = 'plgrid'
+
+[ares.plgrid-testing]
+type = 'CPU'
+partition = 'plgrid-testing'
+max-cpus-per-node  = 1
+max-cores-per-cpu  = 48
+max-time = '1:00:00'
+max-nodes = 1
+max-jobs = 1
+
+[ares.plgrid-testing.sbatch]
+partition = 'plgrid-testing'
+time = '1:00:00'
+nodes = 2
+
+[ares.plgrid-now]
+type = 'CPU'
+partition = 'plgrid-now'
+max-nodes = 1 # node limit
+max-cpus-per-node  = 1
+max-cores-per-cpu  = 48
+max-time = '12:00:00'
+max-jobs = 1
+
+[ares.plgrid-now.sbatch]
+partition = 'plgrid-now'
+time = '12:00:00'
+nodes = 1
+
+[helios]
+queues = ['plgrid', 'plgrid-long']
+VASP-setup = 'module load intel-compilers/2023.2.1 impi/2021.10.0 imkl/2023.2.0; export I_MPI_HYDRA_BOOTSTRAP="${I_MPI_HYDRA_BOOTSTRAP:-slurm}"; export I_MPI_FABRICS="${I_MPI_FABRICS:-shm:ofi}"; export OMP_NUM_THREADS="${OMP_NUM_THREADS:-1}"; export OMP_STACKSIZE="${OMP_STACKSIZE:-512m}"'
+# https://docs.cyfronet.pl/display/~plgpawlik/Helios#Helios-Samplejobscripts
+shebang = '#!/bin/bash -l'
+
+[helios.defaults.sbatch]
+nodes = 1
+time  = '72:00:00'
+ntasks-per-node = 96
+mem = '50G'
+account = 'plgkeyteche3-cpu'
+
+[helios.plgrid]
+type = 'CPU'
+partition = 'plgrid'
+max-nodes = 272
+max-cpus-per-node  = 2
+max-cores-per-cpu  = 96
+max-time = '72:00:00'
+max-jobs = 99999
+
+[helios.plgrid.sbatch]
+partition = 'plgrid'
+
+[helios.plgrid-long]
+type = 'CPU'
+max-nodes = 272
+max-cpus-per-node  = 2
+max-cores-per-cpu  = 96
+max-time = '168:00:00'
+max-jobs = 99999
+
+[helios.plgrid-long.sbatch]
+partition = 'plgrid-long'
+
+# https://docs.lumi-supercomputer.eu/runjobs/scheduled-jobs/partitions/
+[lumi]
+queues = ['standard', 'small']
+VASP-setup = "export EBU_USER_PREFIX=/projappl/project_465001654/dist/EasyBuild\nmodule load LUMI/24.03 partition/C PrgEnv-gnu cray-fftw/3.3.10.7 OpenBLAS/0.3.24-cpeGNU-24.03  ScaLAPACK/4.2-cpeGNU-24.03-amd"
+# https://docs.lumi-supercomputer.eu/runjobs/scheduled-jobs/lumic-job/
+mpiexec = "srun"
+
+[lumi.standard]
+type = 'CPU'
+partition = 'standard'
+max-nodes = 512
+max-cpus-per-node  = 2
+max-cores-per-cpu  = 128
+max-time = '48:00:00'
+max-jobs = 120
+
+[lumi.defaults.sbatch]
+nodes = 1
+time  = '48:00:00'
+ntasks-per-node = 128
+account = 'project_465001654'
+
+[lumi.standard.sbatch]
+partition = 'standard'
+
+[lumi.small]
+type = 'CPU'
+partition = 'small'
+max-nodes = 4
+max-cpus-per-node  = 2
+max-cores-per-cpu  = 128
+max-time = '72:00:00'
+max-jobs = 220
+
+[lumi.small.sbatch]
+partition = 'small'
+time = '72:00:00'
+
+# -- MACE fine-tuning on LUMI GPU nodes --
+#
+# The ``setup`` string must export two variables:
+#
+#   GORUN_WRAPPER        Launcher prefix including the shell -- e.g.
+#                        ``srun ... singularity run ... bash``.
+#                        When non-empty, the adapter wraps the Python command in::
+#
+#                            ${GORUN_WRAPPER} <<'EOF'
+#                            ${GORUN_INNER_SETUP}
+#                            python -u -m mace.cli.<subcommand> ...
+#                            EOF
+#
+#   GORUN_INNER_SETUP    Commands to run inside the wrapper before Python
+#                        (e.g. ``source .../bin/activate``, venv setup).
+#
+# All other environment variables (PyTorch flags, OpenMP, cache
+# directories, etc.) belong in ``setup`` as regular exports.
+# Nothing is hard-coded by the adapter.
+#
+# On systems without a container, leave GORUN_WRAPPER empty or unset;
+# the adapter runs the Python command directly.
+[lumi.gpu]
+# Adapter-specific queues override the server-level ``queues`` list.
+# When present, gorun uses these queues instead of the server default.
+queues = ['small-g']
+shebang = '#!/bin/bash -l'
+setup = """
+module purge
+module use /appl/local/laifs/modules
+module load lumi-aif-singularity-bindings
+
+export SIF="$SCRATCH/lumi-python-gpu.sif"
+export GORUN_WRAPPER="srun --ntasks=1 --cpu-bind=cores singularity run $SIF bash"
+# export GORUN_INNER_SETUP='source /scratch/project_465002777/mace-venv/bin/activate'
+export GORUN_INNER_SETUP=''
+
+# PyTorch / CUDA tuning
+export OMP_NUM_THREADS="${SLURM_CPUS_PER_TASK}"
+export PYTORCH_CUDA_ALLOC_CONF="expandable_segments:True,max_split_size_mb:512"
+export TORCHINDUCTOR_CUDAGRAPH_SKIP_DYNAMIC_GRAPHS=1
+export TORCH_WARN_ON_WEIGHTS_ONLY=0
+export PYTHONUNBUFFERED=1
+"""
+
+# Adapter-specific sbatch defaults are merged on top of server-level
+# defaults.  This example overrides the CPU-oriented values from
+# [lumi.defaults.sbatch] with GPU-appropriate settings.
+[lumi.mace.defaults.sbatch]
+nodes = 1
+ntasks-per-node = 1
+cpus-per-task = 4
+gpus = 1
+mem = '60G'
+time = '72:00:00'
+account = 'project_465002777'
+
+[lumi.small-g]
+type = 'GPU'
+partition = 'small-g'
+max-nodes = 2
+max-cpus-per-node = 1
+max-gpus-per-node = 8
+max-time = '72:00:00'
+max-jobs = 2
+
+[lumi.small-g.sbatch]
+partition = 'small-g'
+nodes = 1
+ntasks-per-node = 1
+ntasks = 1
+cpus-per-task = 4
+gpus = 1
+mem = '60G'
+time = '72:00:00'
+account = 'project_465002777'

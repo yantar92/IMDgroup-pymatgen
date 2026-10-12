@@ -5,12 +5,14 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "IMDgroup-pymatgen"
 version = "1.2.0"
-description = "Pymatgen add-ons for Inverse Materials Design group"
-authors = [ {name = "Ihor Radchenko", email = "yantar92@posteo.net"} ]
+description = "Pymatgen add-ons and cluster job-submission tools for the Inverse Materials Design group"
+authors = [ {name = "Ihor Radchenko", email = "yantar92@posteo.net"},
+            {name = "Oleksandr I. Malyi", email = "oleksandrmalyi@gmail.com"} ]
 readme = {file = "README.org", content-type = "text/x-org"}
-keywords = ["crystal", "materials", "science", "structure", "VASP", "pymatgen"]
+keywords = ["crystal", "materials", "science", "structure", "VASP", "pymatgen", "cluster", "MACE", "slurm", "ase"]
 classifiers = [
 	    "Development Status :: 2 - Pre-Alpha",
+            "Environment :: Console",
             "License :: OSI Approved :: MIT License",
             "Operating System :: OS Independent",
             "Programming Language :: Python :: 3.12",
@@ -18,7 +20,8 @@ classifiers = [
             "Topic :: Scientific/Engineering :: Chemistry",
             "Topic :: Scientific/Engineering :: Information Analysis",
             "Topic :: Scientific/Engineering :: Physics",
-            "Topic :: Software Development :: Libraries :: Python Modules"]
+            "Topic :: Software Development :: Libraries :: Python Modules",
+            "Topic :: System :: Clustering"]
 requires-python = ">=3.12, <3.14"
 dependencies = [
 "numpy>=1.26.4",
@@ -26,6 +29,9 @@ dependencies = [
 "alive_progress==3.1.5",
 "ase>=3.23.0",
 "termcolor",
+"pandas",
+"python-dateutil",
+"scikit-learn",
 "networkx",
 "cachetools",
 "duecredit>=0.11",
@@ -50,6 +56,14 @@ docs = [
 [project.scripts]
 pmg-insert-molecule = "IMDgroup.pymatgen.transformations.insert_molecule_cli:main"
 imdg = "IMDgroup.pymatgen.cli.imdg:main"
+gorun = "IMDgroup.gorun.gorun:main"
+gorun-mace = "IMDgroup.gorun.gorun:main_mace"
+gorun-mace-finetune = "IMDgroup.gorun.gorun:main_mace"
+gorun-atat-local = "IMDgroup.gorun.gorun_atat_local:main"
+gorun-maps = "IMDgroup.gorun.gorun_maps:main"
+
+[tool.setuptools]
+script-files = ["scripts/gorun-all-ready.sh"]
 
 [tool.setuptools.packages.find]
 exclude = ["tests"]
@@ -77,4 +91,5 @@ addopts = "-ra --cov=IMDgroup --cov-report=term-missing"
 pythonpath = ["src"]
 markers = [
     "integration: tests that require generated VASP fixtures (see scripts/prepare_vasp_fixtures.sh)",
+    "heavy: tests that import ase/pandas/pymatgen",
 ]

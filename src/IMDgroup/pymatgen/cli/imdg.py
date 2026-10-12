@@ -25,7 +25,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-"""Master script to work with VASP inputs and outputs."""
+"""Master CLI for VASP workflows and cluster job submission."""
 
 import argparse
 import logging
@@ -39,6 +39,7 @@ import IMDgroup.pymatgen.cli.imdg_diff
 import IMDgroup.pymatgen.cli.imdg_analyze
 import IMDgroup.pymatgen.cli.imdg_status
 import IMDgroup.pymatgen.cli.imdg_visualize
+import IMDgroup.pymatgen.cli.imdg_run
 
 logger = logging.getLogger(__name__)
 
@@ -92,13 +93,22 @@ def main():
     Returns:
         int: Exit code from the selected subcommand.
     """
+    # ``imdg run ...`` forwards to gorun's own parser, which is the single
+    # source of truth for the run subcommands (vasp, mace-finetune, maps,
+    # atat-local, gpu).  Intercepting before argparse ensures ``--help``
+    # and every gorun flag behave exactly like the ``gorun*`` entry points.
+    if len(sys.argv) > 1 and sys.argv[1] == "run":
+        from IMDgroup.gorun.gorun import main as gorun_main
+        return gorun_main(sys.argv[2:])
+
     parser = argparse.ArgumentParser(
         description="""
-        imdg is a script to generate and analyze VASP inputs/outputs.
-        The script is similar to pymatgen's pmg, but implements
-        workflows used in the Inverse Material Design Group.
+        imdg is a script to generate, analyze, and run VASP
+        calculations.  The script is similar to pymatgen's pmg, but
+        implements workflows used in the Inverse Material Design Group,
+        including cluster job submission via "imdg run".
 
-        The scripts supports several subcommands.  Type "imdg
+        imdg supports several subcommands.  Type "imdg
         sub-command -h" to get help for individual sub-commands.
         """,
         epilog="Author: Ihor Radchenko"
@@ -189,6 +199,19 @@ subcommands.""")
     IMDgroup.pymatgen.cli.imdg_visualize.add_args(parser_visualize)
     parser_visualize.set_defaults(
         func=IMDgroup.pymatgen.cli.imdg_visualize.visualize)
+
+    parser_run = subparsers.add_parser(
+        "run",
+        help="Submit/run VASP, MACE, ATAT, or GPU jobs (forwards to gorun)",
+        description="""\
+Submit or run calculations through the gorun job-submission layer.
+
+Forwards all remaining arguments to ``gorun``, so ``imdg run --help``
+and ``imdg run <subcommand> --help`` behave exactly like the ``gorun*``
+entry points.  Subcommands: vasp, mace-finetune, maps, atat-local,
+gpu.""")
+    IMDgroup.pymatgen.cli.imdg_run.add_args(parser_run)
+    parser_run.set_defaults(func=IMDgroup.pymatgen.cli.imdg_run.run)
 
     args = parser.parse_args()
 
