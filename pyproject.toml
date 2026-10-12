@@ -39,7 +39,7 @@ homepage = "https://www.oimalyi.org/"
 
 [project.optional-dependencies]
 dev = ["pyright"]
-test = ["pytest"]
+test = ["pytest", "pytest-cov"]
 docs = [
     "sphinx>=7.0",
     "sphinx-rtd-theme>=2.0",
@@ -67,9 +67,13 @@ include = [
 [tool.pylint]
 source-roots=['./src']
 
+[tool.coverage.run]
+branch = true
+source = ["IMDgroup"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-ra"
+addopts = "-ra --cov=IMDgroup --cov-report=term-missing"
 pythonpath = ["src"]
 markers = [
     "integration: tests that require generated VASP fixtures (see scripts/prepare_vasp_fixtures.sh)",
