@@ -183,7 +183,6 @@ def fake_cluster(monkeypatch, tmp_path):
     fakebin.mkdir()
     vasp_path = tmp_path / "fakevasp"
     (vasp_path / "bin").mkdir(parents=True)
-    (vasp_path / "pp").mkdir()
     log = tmp_path / "fake.log"
 
     def _chmod_x(path: Path) -> None:
@@ -245,7 +244,6 @@ def fake_cluster(monkeypatch, tmp_path):
     )
     monkeypatch.setenv("GORUN_FAKE_LOG", str(log))
     monkeypatch.setenv("VASP_PATH", str(vasp_path))
-    monkeypatch.setenv("VASP_PP_PATH", str(vasp_path / "pp"))
     monkeypatch.setenv("CLUSTER_NAME", "testhost")
 
     return SimpleNamespace(fakebin=fakebin, vasp_path=vasp_path, log=log)

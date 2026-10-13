@@ -19,9 +19,6 @@ Writing POTCAR needs a pseudopotential directory, also in `~/.pmgrc.yaml`:
 
     pmg config --add PMG_VASP_PSP_DIR /path/to/potentials
 
-`gorun` regenerates POTCAR through a different path and reads
-`VASP_PP_PATH` instead (see [gorun](gorun.md)).
-
 ## Cluster setup
 
 `gorun` needs a config and two VASP paths before it can submit. A
@@ -50,7 +47,6 @@ version with more clusters and the GPU / MACE / ATAT sections).
 
 ```bash
 export VASP_PATH=/path/to/vasp
-export VASP_PP_PATH=/path/to/potentials
 ```
 
 Alternatively, you can use your own way to run VASP.

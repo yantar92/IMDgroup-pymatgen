@@ -52,16 +52,15 @@ partition = 'plgrid'
 
 See `examples/gorun-config.example.toml` for a more complete example.
 
-VASP itself needs two environment variables:
+VASP itself needs one environment variable:
 
 ```bash
 export VASP_PATH=/path/to/vasp
-export VASP_PP_PATH=/path/to/potentials
 ```
 
-`VASP_PATH` points at the VASP installation (binaries under `bin/`);
-`VASP_PP_PATH` at the pseudopotential directory gorun's ASE-based POTCAR
-generation reads.
+`VASP_PATH` points at the VASP installation (binaries under `bin/`).
+POTCAR generation is done by pymatgen and reads `PMG_VASP_PSP_DIR` from
+`~/.pmgrc.yaml` (see [quickstart](quickstart.md)).
 
 ## `gorun vasp`
 

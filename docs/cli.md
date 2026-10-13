@@ -22,8 +22,7 @@ imdg create "Li 10x10x10"
 `mp-*` ids require a Materials Project API key (`PMG_MAPI_KEY` in
 `~/.pmgrc.yaml`, set via `pmg config --add PMG_MAPI_KEY <key>`), and
 POTCAR generation requires a pseudopotential directory (`PMG_VASP_PSP_DIR`
-in `~/.pmgrc.yaml`). Note `gorun` regenerates POTCAR through a separate
-path and reads `VASP_PP_PATH` instead (see [gorun](gorun.md)).
+in `~/.pmgrc.yaml`).
 
 ## `imdg derive`
 

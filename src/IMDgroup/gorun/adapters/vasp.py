@@ -56,20 +56,11 @@ from IMDgroup.gorun.slurm import clear_slurm_logs
 
 _PYTHON_HEADER = """
 from pathlib import Path
-from ase.calculators.vasp import Vasp
 from ase.io import read as ase_read
-from IMDgroup.gorun.cleanVASP import generate_potcar
+from IMDgroup.gorun.vasp_calculator import IMDASEVasp
 from IMDgroup.pymatgen.io.vasp.vaspdir import IMDGVaspDir
 
-# Replace ASE's POTCAR generation with your function
-def custom_write_potcar(self, suffix="", directory='.'):
-    '''Use our generate_potcar function instead of ASE's'''
-    generate_potcar(path=directory, keep_existing=False)
-
-calc=Vasp(directory='.', txt='-')
-
-# Replace the method on this instance
-calc.write_potcar = custom_write_potcar.__get__(calc, type(calc))
+calc = IMDASEVasp(directory='.', txt='-')
 
 # Already copied from INCAR.X if necessary
 calc.read_incar('INCAR')
@@ -123,9 +114,13 @@ class VaspAdapter:
     # ------------------------------------------------------------------
 
     def validate_environment(self) -> None:
-        """Require ``VASP_PATH`` and ``VASP_PP_PATH``."""
+        """Require ``VASP_PATH``.
+
+        POTCAR generation uses pymatgen, which reads ``PMG_VASP_PSP_DIR``
+        from ``~/.pmgrc.yaml`` rather than an environment variable.
+        """
         missing = []
-        for var in ("VASP_PATH", "VASP_PP_PATH"):
+        for var in ("VASP_PATH",):
             if var not in os.environ:
                 missing.append(var)
         if missing:

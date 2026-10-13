@@ -24,25 +24,15 @@ def _adapter(**kwargs) -> VaspAdapter:
 
 
 def test_validate_environment_missing_vars_raises(monkeypatch) -> None:
-    """Missing VASP_PATH and VASP_PP_PATH raise OSError."""
+    """Missing VASP_PATH raises OSError."""
     monkeypatch.delenv("VASP_PATH", raising=False)
-    monkeypatch.delenv("VASP_PP_PATH", raising=False)
-    with pytest.raises(OSError):
-        _adapter().validate_environment()
-
-
-def test_validate_environment_one_missing_raises(monkeypatch) -> None:
-    """A single missing variable is reported."""
-    monkeypatch.setenv("VASP_PATH", "/x")
-    monkeypatch.delenv("VASP_PP_PATH", raising=False)
     with pytest.raises(OSError):
         _adapter().validate_environment()
 
 
 def test_validate_environment_ok(monkeypatch) -> None:
-    """Both variables set passes validation."""
+    """VASP_PATH set passes validation."""
     monkeypatch.setenv("VASP_PATH", "/x")
-    monkeypatch.setenv("VASP_PP_PATH", "/y")
     _adapter().validate_environment()
 
 

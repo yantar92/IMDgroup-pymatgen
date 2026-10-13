@@ -13,6 +13,8 @@ binaries on =PATH=, so they are kept opt-in behind
 
 from __future__ import annotations
 
+import os
+import sys
 import shutil
 import subprocess
 from pathlib import Path
@@ -32,6 +34,33 @@ def _copy_vasp_inputs(target: Path) -> None:
     """Copy a minimal VASP input set into *target*."""
     for name in ("INCAR", "POSCAR", "KPOINTS", "POTCAR"):
         shutil.copy(FIXTURES / name, target / name)
+
+
+_SAMPLE_INCAR_PY = """\
+# Sample INCAR.py: apply a constraint and record that the wrapper ran.
+from ase.constraints import FixAtoms
+
+assert atoms is not None and len(atoms) > 0
+assert calc is not None
+assert vaspdir is not None
+
+atoms.set_constraint(FixAtoms(mask=[a.symbol == "Si" for a in atoms]))
+Path("incar_py_ran").touch()
+"""
+
+
+def _use_test_python(monkeypatch) -> None:
+    """Prepend the test interpreter's directory to PATH.
+
+    The INCAR.py wrapper runs a bare ``python`` heredoc; ensure that
+    resolves to the interpreter running the tests (which has IMDgroup
+    and ase importable), not a system python.
+    """
+    bin_dir = os.path.dirname(sys.executable)
+    monkeypatch.setenv(
+        "PATH",
+        bin_dir + os.pathsep + os.environ.get("PATH", ""),
+    )
 
 
 # --- VASP -------------------------------------------------------------------
@@ -69,6 +98,55 @@ def test_vasp_local_runs_fake_binary(fake_cluster, tmp_path: Path, monkeypatch) 
     assert rc == 0
     assert (tmp_path / "vasp_ran").exists()
     assert "vasp vasp_ncl" in fake_cluster.log.read_text()
+
+
+def test_vasp_incar_py_mark_uses_subclass(
+    fake_cluster, tmp_path: Path, monkeypatch
+) -> None:
+    """INCAR.py wrapper generates a script using IMDASEVasp, not a patch."""
+    monkeypatch.chdir(tmp_path)
+    _copy_vasp_inputs(tmp_path)
+    (tmp_path / "INCAR.py").write_text(_SAMPLE_INCAR_PY)
+
+    rc = gorun_main(
+        ["vasp", "--mark", "--keep", "POTCAR", "--config", CONFIG]
+    )
+
+    assert rc == 0
+    sub = (tmp_path / "sub").read_text()
+    assert "from IMDgroup.gorun.vasp_calculator import IMDASEVasp" in sub
+    assert "IMDASEVasp(directory='.', txt='-')" in sub
+    assert "custom_write_potcar" not in sub
+    assert "write_potcar = " not in sub
+    assert (
+        'VASP_COMMAND="gorun vasp --local --no-incar-py --force '
+        '--no-clean --keep POSCAR"' in sub
+    )
+
+
+def test_vasp_incar_py_local_executes_body(
+    fake_cluster, tmp_path: Path, monkeypatch
+) -> None:
+    """INCAR.py wrapper runs the user body and cleans the UNCONVERGED marker."""
+    _use_test_python(monkeypatch)
+    monkeypatch.chdir(tmp_path)
+    for name in ("INCAR", "POSCAR", "KPOINTS"):
+        shutil.copy(FIXTURES / name, tmp_path / name)
+    # A minimal POTCAR with a LEXCH line so ASE's read_potcar can parse it.
+    # --keep POTCAR prevents gorun from regenerating it through pymatgen.
+    (tmp_path / "POTCAR").write_text("LEXCH = PE\n")
+    (tmp_path / "INCAR.py").write_text(_SAMPLE_INCAR_PY)
+
+    rc = gorun_main(
+        ["vasp", "--local", "--keep", "POTCAR", "--config", CONFIG]
+    )
+
+    assert rc == 0
+    assert (tmp_path / "incar_py_ran").exists()
+    assert not (tmp_path / "UNCONVERGED").exists()
+    # The wrapper must not have rewritten POTCAR (IMDASEVasp.write_potcar is
+    # a no-op).
+    assert (tmp_path / "POTCAR").read_text() == "LEXCH = PE\n"
 
 
 def test_vasp_mark_multiple_dirs(fake_cluster, tmp_path: Path, monkeypatch) -> None:
