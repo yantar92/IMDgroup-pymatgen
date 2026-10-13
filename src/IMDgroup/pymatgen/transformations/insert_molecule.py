@@ -246,7 +246,9 @@ class InsertMoleculeTransformation(AbstractTransformation):
         Returns:
             bool: True if the site is far enough from all other sites.
         """
+        site_index: int | None = None
         if isinstance(site, int):
+            site_index = site
             site = structure[site]
         if cutoff is None:
             cutoff = self._get_largest_radius(structure)
@@ -259,12 +261,22 @@ class InsertMoleculeTransformation(AbstractTransformation):
                 r=cutoff + site.specie.atomic_radius,
                 zip_results=False)
         for nidx, distance in zip(neighbor_indices, distances):
+            # Skip the site itself.  With an integer index we compare
+            # indices: two distinct atoms may share coordinates and
+            # species, so value equality would wrongly skip the other
+            # one too.  With a foreign PeriodicSite (molecule proximity
+            # check) there is no index, so fall back to value equality.
+            if site_index is not None:
+                if nidx == site_index:
+                    continue
+            elif site == structure[nidx]:
+                continue
             max_distance =\
                 self.proximity_threshold * (
                     structure[nidx].specie.atomic_radius
                     + site.specie.atomic_radius
                 )
-            if distance < max_distance and site != structure[nidx]:
+            if distance < max_distance:
                 return False
         return True
 

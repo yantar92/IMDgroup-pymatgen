@@ -53,12 +53,6 @@ def test_check_proximity_detects_close_and_far() -> None:
     assert transformer._check_proximity(close, 0) is False
 
 
-@pytest.mark.xfail(
-    reason="_check_proximity excludes the site itself by value equality "
-           "(site != structure[nidx]), so two distinct atoms of the same "
-           "species on the same site are skipped as if they were one atom.",
-    strict=False,
-)
 def test_check_proximity_detects_overlapping_atoms() -> None:
     """Two same-species atoms on one site should be reported as too close."""
     transformer = InsertMoleculeTransformation(
@@ -207,12 +201,6 @@ def test_all_inserts_into_graphite_matrix(graphite_matrix: Structure) -> None:
             assert not matcher.fit(inserts[i], inserts[j])
 
 
-@pytest.mark.xfail(
-    reason="See test_check_proximity_detects_overlapping_atoms: a second Na "
-           "is allowed to land on the already-inserted Na, producing an "
-           "invalid structure.",
-    strict=False,
-)
 def test_sequential_insertion_has_no_overlaps(
         graphite_matrix: Structure) -> None:
     """Inserting a second Na must not overlap the first."""
