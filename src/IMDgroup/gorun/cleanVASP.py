@@ -33,10 +33,11 @@ import shutil
 import re
 import warnings
 from pathlib import Path
-import ase.io.vasp
-from ase.calculators.vasp import Vasp
-from pymatgen.io.vasp.inputs import Incar
-from pymatgen.io.vasp.outputs import Potcar
+from pymatgen.io.vasp.inputs import Incar, Poscar, Potcar
+from IMDgroup.pymatgen.io.vasp.sets import (
+    POTCAR_FUNCTIONAL_DEFAULT,
+    POTCAR_RECOMMENDED,
+)
 from IMDgroup.pymatgen.io.vasp.vaspdir import IMDGVaspDir
 from IMDgroup.gorun.core.incar import read_incar_toml
 from xml.etree.ElementTree import ParseError
@@ -176,16 +177,16 @@ def clean_vasp_inputs(path='.') -> None:
             clean_vasp_input(os.path.join(path, file))
 
 
-def potcar_setups(path='.') -> dict[str, str]:
-    """Return ASE ``setups`` dict for POTCAR generation in PATH.
+def potcar_symbols_map(path='.') -> dict[str, str]:
+    """Return element -> full POTCAR name mapping for PATH.
 
-    The dict starts from the VASP-recommended pseudopotentials (with a
-    fix that maps W to ``_sv``, matching VASP's recommendation rather
-    than ASE's ``_pv``) and is overridden by any entries in the
-    ``[POTCAR]`` section of ``INCAR.toml`` in PATH.
+    The mapping starts from the group-standard recommended
+    pseudopotentials (``POTCAR_RECOMMENDED`` in
+    ``IMDgroup.pymatgen.io.vasp.sets``) and is overridden by any entries
+    in the ``[POTCAR]`` section of ``INCAR.toml`` in PATH.
 
     ``INCAR.toml`` POTCAR entries use the same convention as pymatgen
-    input sets (see ``IMDgroup.pymatgen`` ``sets.py``): keys are
+    input sets (see ``IMDgroup.pymatgen.io.vasp.sets``): keys are
     element symbols and values are full POTCAR names, e.g.::
 
         [POTCAR]
@@ -195,20 +196,14 @@ def potcar_setups(path='.') -> dict[str, str]:
     A plain (no-suffix) potential is requested by setting the value
     equal to the element symbol, e.g. ``C = "C"``.
 
-    The returned dict maps element symbols to ASE suffix strings
-    (``"_sv"``, ``""``, ...), which is what ASE's ``Vasp`` calculator
-    expects in its ``setups`` argument.
+    The returned dict maps element symbols to full POTCAR names
+    (``"W_sv"``, ``"Li_sv"``, ``"C"``, ...).
     """
-    setups: dict[str, str] = {
-        'base': 'recommended',
-        # ASE bug: 'recommended' maps W to '_pv', while VASP recommends
-        # W_sv (see https://vasp.at/wiki/index.php/Available_pseudopotentials).
-        'W': '_sv',
-    }
+    symbols: dict[str, str] = dict(POTCAR_RECOMMENDED)
     toml = read_incar_toml(Path(path) / 'INCAR.toml')
     potcar = toml.get('POTCAR')
     if potcar is None:
-        return setups
+        return symbols
     if not isinstance(potcar, dict):
         raise ValueError(
             "INCAR.toml [POTCAR] section must be a table, "
@@ -222,7 +217,7 @@ def potcar_setups(path='.') -> dict[str, str]:
                 f"got {type(symbol).__name__}"
             )
         if symbol == element:
-            suffix = ''
+            pass
         elif symbol.startswith(element):
             suffix = symbol[len(element):]
             if not suffix.startswith('_'):
@@ -235,8 +230,8 @@ def potcar_setups(path='.') -> dict[str, str]:
                 f"INCAR.toml [POTCAR] value {symbol!r} does not start with "
                 f"the element symbol {element!r}"
             )
-        setups[element] = suffix
-    return setups
+        symbols[element] = symbol
+    return symbols
 
 
 def generate_potcar(path='.', keep_existing=False) -> None:
@@ -252,39 +247,40 @@ def generate_potcar(path='.', keep_existing=False) -> None:
         if os.path.exists(p) and os.path.getsize(p) > 0:
             poscar_path = p
             break
-    if poscar_path is not None:
-        potcar_path = os.path.join(path, 'POTCAR')
-        if os.path.isfile(potcar_path) and keep_existing:
-            print(f'{path}: Not updating existing POTCAR.')
-            return
-        atoms = ase.io.vasp.read_vasp(poscar_path)
-        calc_temp = Vasp(
-            xc='PBE',
-            setups=potcar_setups(path))
-        calc_temp.initialize(atoms)
-        size_before = 0
-        prev_potcar = None
-        if os.path.isfile(potcar_path):
-            prev_potcar = Potcar.from_file(potcar_path)
-            size_before = os.path.getsize(potcar_path)
-            shutil.copy2(potcar_path, potcar_path + '.old')
-        calc_temp.write_potcar()
-        # Sometimes, for initial/final NEB inputs, POTCAR is not written
-        if os.path.isfile(potcar_path):
-            size_after = os.path.getsize(potcar_path)
-            if size_before == 0:
-                print(f'{path}: Generated POTCAR.')
-            elif size_after != size_before:
-                print(f'{path}: Updated POTCAR.  (old POTCAR saved to POTCAR.old)')
-                new_potcar = Potcar.from_file(potcar_path)
-                assert prev_potcar is not None
-                if prev_potcar.symbols != new_potcar.symbols:
-                    warnings.warn(
-                        f"Changed pseudopotentials from {prev_potcar.symbols}"
-                        f" to {new_potcar.symbols}"
-                    )
-            else:
-                os.unlink(potcar_path + '.old')
+    if poscar_path is None:
+        return
+    potcar_path = os.path.join(path, 'POTCAR')
+    if os.path.isfile(potcar_path) and keep_existing:
+        print(f'{path}: Not updating existing POTCAR.')
+        return
+
+    poscar = Poscar.from_file(poscar_path, check_for_potcar=False)
+    symbol_map = potcar_symbols_map(path)
+    symbols = [symbol_map.get(el, el) for el in poscar.site_symbols]
+    potcar = Potcar(symbols, functional=POTCAR_FUNCTIONAL_DEFAULT)
+
+    size_before = 0
+    prev_potcar = None
+    if os.path.isfile(potcar_path):
+        prev_potcar = Potcar.from_file(potcar_path)
+        size_before = os.path.getsize(potcar_path)
+        shutil.copy2(potcar_path, potcar_path + '.old')
+
+    potcar.write_file(potcar_path)
+    size_after = os.path.getsize(potcar_path)
+    if size_before == 0:
+        print(f'{path}: Generated POTCAR.')
+    elif size_after != size_before:
+        print(f'{path}: Updated POTCAR.  (old POTCAR saved to POTCAR.old)')
+        new_potcar = Potcar.from_file(potcar_path)
+        assert prev_potcar is not None
+        if prev_potcar.symbols != new_potcar.symbols:
+            warnings.warn(
+                f"Changed pseudopotentials from {prev_potcar.symbols}"
+                f" to {new_potcar.symbols}"
+            )
+    else:
+        os.unlink(potcar_path + '.old')
 
 
 def check_incar(path):
@@ -309,7 +305,7 @@ def prepare_vasp_dir(path='.', keep_potcar=False, keep_poscar=False) -> None:
         contcar_to_poscar(path)
     # Clean the POSCAR, INCAR, and KPOINTS files before running the job.
     clean_vasp_inputs(path)
-    # If POSCAR exists, initialize ASE and generate the POTCAR file.
+    # If POSCAR exists, generate the POTCAR file with pymatgen.
     generate_potcar(path, keep_potcar)
     # Copy over vdw kernel
     put_vdw_kernel(path)

@@ -19,7 +19,7 @@ from IMDgroup.gorun.cleanVASP import (
     directory_contains_vasp_outputp,
     mdp,
     nebp,
-    potcar_setups,
+    potcar_symbols_map,
 )
 
 
@@ -173,50 +173,50 @@ def test_check_incar_unknown_tag_warns(tmp_path: Path) -> None:
         check_incar(str(tmp_path))
 
 
-# --- potcar_setups ----------------------------------------------------------
+# --- potcar_symbols_map -----------------------------------------------------
 
 
-def test_potcar_setups_defaults(tmp_path: Path) -> None:
-    """Without INCAR.toml, the recommended defaults are returned."""
-    setups = potcar_setups(str(tmp_path))
-    assert setups["base"] == "recommended"
-    assert setups["W"] == "_sv"
+def test_potcar_symbols_map_defaults(tmp_path: Path) -> None:
+    """Without INCAR.toml, the recommended full names are returned."""
+    symbols = potcar_symbols_map(str(tmp_path))
+    assert symbols["W"] == "W_sv"
+    assert symbols["Li"] == "Li_sv"
 
 
-def test_potcar_setups_from_toml(tmp_path: Path) -> None:
-    """[POTCAR] overrides map full names to ASE suffixes."""
+def test_potcar_symbols_map_from_toml(tmp_path: Path) -> None:
+    """[POTCAR] overrides map element symbols to full POTCAR names."""
     (tmp_path / "INCAR.toml").write_text(
         '[POTCAR]\nW = "W_sv"\nLi = "Li_sv"\nC = "C"\n'
     )
-    setups = potcar_setups(str(tmp_path))
-    assert setups["W"] == "_sv"
-    assert setups["Li"] == "_sv"
-    assert setups["C"] == ""
+    symbols = potcar_symbols_map(str(tmp_path))
+    assert symbols["W"] == "W_sv"
+    assert symbols["Li"] == "Li_sv"
+    assert symbols["C"] == "C"
 
 
-def test_potcar_setups_override_default_w(tmp_path: Path) -> None:
+def test_potcar_symbols_map_override_default_w(tmp_path: Path) -> None:
     """A user override for W wins over the built-in fix."""
     (tmp_path / "INCAR.toml").write_text('[POTCAR]\nW = "W_pv"\n')
-    setups = potcar_setups(str(tmp_path))
-    assert setups["W"] == "_pv"
+    symbols = potcar_symbols_map(str(tmp_path))
+    assert symbols["W"] == "W_pv"
 
 
-def test_potcar_setups_non_table_raises(tmp_path: Path) -> None:
+def test_potcar_symbols_map_non_table_raises(tmp_path: Path) -> None:
     """A non-table POTCAR value raises ValueError."""
     (tmp_path / "INCAR.toml").write_text('POTCAR = "W_sv"\n')
     with pytest.raises(ValueError):
-        potcar_setups(str(tmp_path))
+        potcar_symbols_map(str(tmp_path))
 
 
-def test_potcar_setups_bad_prefix_raises(tmp_path: Path) -> None:
+def test_potcar_symbols_map_bad_prefix_raises(tmp_path: Path) -> None:
     """A value that is not a valid potential name raises ValueError."""
     (tmp_path / "INCAR.toml").write_text('[POTCAR]\nW = "Wv_sv"\n')
     with pytest.raises(ValueError):
-        potcar_setups(str(tmp_path))
+        potcar_symbols_map(str(tmp_path))
 
 
-def test_potcar_setups_wrong_element_raises(tmp_path: Path) -> None:
+def test_potcar_symbols_map_wrong_element_raises(tmp_path: Path) -> None:
     """A value not starting with the element symbol raises ValueError."""
     (tmp_path / "INCAR.toml").write_text('[POTCAR]\nW = "Li_sv"\n')
     with pytest.raises(ValueError):
-        potcar_setups(str(tmp_path))
+        potcar_symbols_map(str(tmp_path))
