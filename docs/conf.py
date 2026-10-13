@@ -31,6 +31,10 @@ extensions = [
     "sphinxcontrib.mermaid",
 ]
 
+# Treat ```mermaid fences as mermaid directives, so sphinxcontrib.mermaid
+# renders them as diagrams instead of literal code blocks.
+myst_fence_as_directive = ["mermaid"]
+
 # Napoleon settings (Google-style docstrings)
 napoleon_google_docstring = True
 napoleon_numpy_docstring = False
