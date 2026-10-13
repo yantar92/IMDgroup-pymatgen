@@ -39,6 +39,12 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+from alive_progress import config_handler
+
+# alive_progress runs a background thread for the spinner/refresh.  Running
+# many bars in sequence under pytest (non-TTY) intermittently hangs.  The
+# progress bar is purely cosmetic, so disable it globally during tests.
+config_handler.set_global(disable=True)
 
 
 def _materialize_fixture(tmp_path: Path, name: str) -> Path:
