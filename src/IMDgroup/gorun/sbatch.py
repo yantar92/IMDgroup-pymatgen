@@ -36,34 +36,61 @@ from pymatgen.io.vasp.inputs import Incar
 from IMDgroup.gorun.slurm import barf_if_no_cmd
 
 
-def barf_if_no_env(variable: str) -> None:
-    """Throw an error when environment VARIABLE is not set.
+def _candidate_config_paths() -> list[str]:
+    """Config paths to try, in priority order.
+
+    ``--config PATH`` is handled separately in :func:`get_config` and
+    takes precedence over everything.  Otherwise, a group-wide
+    ``$IMDGroup`` checkout is preferred when present, and a per-user XDG
+    location is the default for everyone else.
     """
-    if variable not in os.environ:
-        print(colored(
-            f'{variable} is not set, while it must be in IMD Group bashrc',
-            'red'))
-        sys.exit(1)
+    paths: list[str] = []
+    if "IMDGroup" in os.environ:
+        paths.append(
+            os.path.join(os.environ["IMDGroup"], "dist", "etc", "gorun.toml"))
+    xdg = os.environ.get("XDG_CONFIG_HOME")
+    if not xdg:
+        xdg = os.path.join(os.path.expanduser("~"), ".config")
+    paths.append(os.path.join(xdg, "gorun", "gorun.toml"))
+    return paths
 
 
-def default_config_path():
-    """Return path to default config file location.
-    """
-    barf_if_no_env('IMDGroup')
-    return f"{os.environ['IMDGroup']}/dist/etc/gorun.toml"
+def _missing_config_message(searched: list[str]) -> str:
+    """Short explanation plus a starting point when no config exists."""
+    return "\n".join([
+        "No gorun configuration found.  Looked for:",
+        *(f"  {path}" for path in searched),
+        "",
+        "Create one by copying the example and editing it for your cluster:",
+        "",
+        "  mkdir -p ~/.config/gorun",
+        "  cp examples/gorun-config.example.toml ~/.config/gorun/gorun.toml",
+        "",
+        "or pass an explicit path with --config PATH.",
+    ])
 
 
 def get_config(args: dict) -> dict:
     """Read config file, if any.
+
+    Resolution order: ``--config PATH`` (explicit) > ``$IMDGroup``
+    checkout > ``$XDG_CONFIG_HOME/gorun/gorun.toml`` (defaulting to
+    ``~/.config/gorun/gorun.toml``).
     """
-    if args.config is None:
-        config_path = default_config_path()
-    else:
+    if args.config is not None:
         config_path = args.config
-    if os.path.exists(config_path):
-        with open(config_path, "rb") as f:
-            return tomllib.load(f)
-    raise FileNotFoundError(f"Cannot find config in {config_path}")
+        if os.path.exists(config_path):
+            with open(config_path, "rb") as f:
+                return tomllib.load(f)
+        raise FileNotFoundError(f"Cannot find config in {config_path}")
+
+    searched = _candidate_config_paths()
+    for config_path in searched:
+        if os.path.exists(config_path):
+            with open(config_path, "rb") as f:
+                return tomllib.load(f)
+    print(colored(_missing_config_message(searched), "red"))
+    sys.exit(1)
 
 
 def current_server(config: dict) -> str:

@@ -124,7 +124,8 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     shared.add_argument(
         "--config", type=str, default=None,
-        help="Path to TOML config (default: $IMDGroup/dist/etc/gorun.toml).",
+        help="Path to TOML config (default: $IMDGroup/dist/etc/gorun.toml, "
+             "falling back to ~/.config/gorun/gorun.toml).",
     )
     shared.add_argument(
         "--keep", action="append", default=None,
