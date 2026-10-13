@@ -106,8 +106,6 @@ class InsertMoleculeTransformation(AbstractTransformation):
                 insertions.
             multithread: Whether to use multithreading.
         """
-        if step is None:
-            step = 0.5
         if isinstance(molecule, SpeciesLike):
             try:
                 molecule = Molecule([get_el_sp(molecule)], [[0, 0, 0]])
