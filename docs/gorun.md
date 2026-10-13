@@ -31,7 +31,26 @@ If none is found, gorun prints a short message with a copy-paste example
 and exits.
 
 The config maps hostnames to cluster definitions, queues, module loads,
-and resource defaults. See `examples/gorun-config.example.toml`.
+and resource defaults:
+
+```toml
+[cluster.names]
+ares = ['login01.ares.cyfronet.pl']
+
+[ares]
+queues = ['plgrid']
+VASP-setup = "module load intel/2023b imkl/2023.2.0"
+
+[ares.defaults.sbatch]
+nodes = 4
+time = '72:00:00'
+ntasks-per-node = 48
+
+[ares.plgrid.sbatch]
+partition = 'plgrid'
+```
+
+See `examples/gorun-config.example.toml` for a more complete example.
 
 VASP itself needs two environment variables:
 
