@@ -1,0 +1,26 @@
+name: Heavy CI
+
+on:
+  schedule:
+    # Daily at 03:00 UTC.
+    - cron: "0 3 * * *"
+  workflow_dispatch:
+
+jobs:
+  test-heavy:
+    name: Heavy tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install project and test dependencies
+        run: pip install -e ".[test]"
+
+      - name: Run heavy tests
+        run: pytest -m heavy
