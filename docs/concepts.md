@@ -3,7 +3,7 @@
 This page names the recurring manual tasks the package helps to
 automate. If you recognize them, you know what to reach for.
 
-## Assembling inputs by hand
+## Automatic VASP input setup
 
 You start from a Materials Project id, a CIF you already have, or a
 formula, and you want a sane VASP directory. `imdg create` produces it;
@@ -13,17 +13,17 @@ of a hand edit.
 
 See [imdg create](cli.md#imdg-create) and [imdg derive](cli.md#imdg-derive) for the full command reference.
 
-## Repeating cluster submission boilerplate
+## One-command VASP submission
 
 Every cluster wants its own sbatch script, module loads, and queue
 guesses. `gorun` encodes these once in a config, picks the
 earliest-finishing queue, backs up the previous run, checks convergence,
-and regenerates POTCAR. The same `gorun` submits MACE fine-tuning, an
-arbitrary GPU `RUNFILE`, and ATAT `maps`.
+and regenerates POTCAR. The same `gorun` submits MACE fine-tuning or
+an arbitrary GPU-dependent scripts.
 
 See [gorun](gorun.md) for the submission reference.
 
-## Checking hundreds of directories one by one
+## Detect convergence and anomalies in running/finished calculations
 
 grep-ping OUTCARs does not scale. `imdg status` collapses running /
 converged / warning states across a tree and flags suspicious structural
@@ -32,7 +32,7 @@ for a human look.
 
 See [imdg status](cli.md#imdg-status).
 
-## Recomputing the same summary table by hand
+## Overview for many calculations
 
 `imdg analyze` reports energy, %vol, displacement, lattice changes, and
 max force across a tree, grouped by identical INCAR settings, and cached
@@ -40,7 +40,7 @@ so re-running is fast.
 
 See [imdg analyze](cli.md#imdg-analyze).
 
-## Not knowing whether two results are comparable
+## Comparing runs
 
 Two energies can look fine while differing in functional, POTCAR, ENCUT,
 k-points, or constraints. `imdg analyze` groups by settings, `imdg diff`
@@ -48,10 +48,3 @@ shows where INCARs or structures differ, and energies judged unreliable
 are masked rather than silently used.
 
 See [imdg analyze](cli.md#imdg-analyze) and [imdg diff](cli.md#imdg-diff).
-
-## Re-writing the same plot script every project
-
-`imdg visualize` covers NEB trajectories, ATAT summaries, formation-energy
-hulls, and voltage profiles.
-
-See [imdg visualize](cli.md#imdg-visualize).
