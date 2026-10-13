@@ -28,6 +28,7 @@
 """Insert molecules and atoms into a given structure."""
 
 import logging
+from typing import cast
 from multiprocessing import Pool
 from alive_progress import alive_bar
 import numpy as np
@@ -112,7 +113,12 @@ class InsertMoleculeTransformation(AbstractTransformation):
             except ValueError as e:
                 if isinstance(molecule, str):
                     # Try to parse as filename
-                    molecule = Molecule.from_file(molecule)
+                    # FIXME: Molecule.from_file is annotated as
+                    # returning IMolecule | Molecule, but it always
+                    # returns a Molecule when called on Molecule.
+                    # Report upstream to narrow the annotation to
+                    # Molecule/Self.
+                    molecule = cast(Molecule, Molecule.from_file(molecule))
                 else:
                     raise\
                         ValueError(
