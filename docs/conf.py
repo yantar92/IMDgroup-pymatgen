@@ -81,6 +81,9 @@ html_theme_options = {
     "navigation_depth": 4,
     "collapse_navigation": False,
     "sticky_navigation": True,
+    "repository_url": "https://github.com/yantar92/IMDgroup-pymatgen",
+    "repository_branch": "main",
+    "path_to_docs": "docs/",
 }
 
 # Quiet warnings about undocumented members (the package has many)
