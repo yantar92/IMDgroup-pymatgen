@@ -87,9 +87,9 @@ source = ["IMDgroup"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-ra --cov=IMDgroup --cov-report=term-missing"
+addopts = "-ra -m 'not heavy' --cov=IMDgroup --cov-report=term-missing"
 pythonpath = ["src"]
 markers = [
     "integration: tests that require generated VASP fixtures (see scripts/prepare_vasp_fixtures.sh)",
-    "heavy: tests that import ase/pandas/pymatgen",
+    "heavy: slow tests, skipped by default (run with pytest -m heavy)",
 ]

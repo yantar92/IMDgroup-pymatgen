@@ -175,6 +175,7 @@ def test_insert_molecule_rejects_too_close() -> None:
 # --- all_inserts / apply_transformation / wrapper -----------------------------
 
 
+@pytest.mark.heavy
 def test_all_inserts_into_graphite_matrix(graphite_matrix: Structure) -> None:
     """A loosened Na scan yields the expected valid, distinct structures."""
     transformer = InsertMoleculeTransformation(
@@ -201,6 +202,7 @@ def test_all_inserts_into_graphite_matrix(graphite_matrix: Structure) -> None:
             assert not matcher.fit(inserts[i], inserts[j])
 
 
+@pytest.mark.heavy
 def test_sequential_insertion_has_no_overlaps(
         graphite_matrix: Structure) -> None:
     """Inserting a second Na must not overlap the first."""
