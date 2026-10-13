@@ -5,8 +5,8 @@
 :maxdepth: 2
 :caption: User guide
 
-quickstart
 concepts
+quickstart
 cli
 gorun
 python_api
