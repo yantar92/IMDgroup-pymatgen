@@ -28,6 +28,7 @@ extensions = [
     "sphinx.ext.intersphinx",
     "autodocsumm",
     "myst_parser",
+    "sphinxcontrib.mermaid",
 ]
 
 # Napoleon settings (Google-style docstrings)

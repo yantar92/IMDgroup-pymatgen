@@ -1,20 +1,21 @@
 ```{include} ../README.md
-:end-before: <!-- docs-section: features -->
 ```
 
 ```{toctree}
 :maxdepth: 2
-:caption: User Guide
+:caption: User guide
 
-getting_started
+quickstart
+concepts
 cli
+gorun
 python_api
 acknowledgements
 ```
 
 ```{toctree}
 :maxdepth: 2
-:caption: API Reference
+:caption: API reference
 
 api
 ```
