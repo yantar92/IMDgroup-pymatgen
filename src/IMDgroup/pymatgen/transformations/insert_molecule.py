@@ -548,13 +548,11 @@ class InsertMoleculeTransformation(AbstractTransformation):
 
         logger.info("Found %d candidates", len(structure_inserts))
 
-        result = structure_inserts
         sorted_idx =\
             [i[0] for i in sorted(
                 enumerate(structure_inserts_positions),
                 key=lambda x: x[1])]
-        for i, idx in enumerate(sorted_idx):
-            result[i] = structure_inserts[idx]
+        result = [structure_inserts[idx] for idx in sorted_idx]
         if limit is not None:
             return result[:limit]
         return result
