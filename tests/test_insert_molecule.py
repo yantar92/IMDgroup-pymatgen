@@ -30,6 +30,13 @@ MATRIX_POSCAR = (
 )
 
 
+def _write_molecule(tmp_path: Path, molecule: Molecule) -> Path:
+    """Write a Molecule to an XYZ file with pymatgen and return its path."""
+    path = tmp_path / "molecule.xyz"
+    molecule.to(filename=str(path), fmt="xyz")
+    return path
+
+
 @pytest.fixture
 def graphite_matrix() -> Structure:
     """The defective 63-atom graphite supercell used for Na insertion."""
@@ -80,15 +87,39 @@ def test_get_site_grid_spacing() -> None:
 
 
 def test_get_site_grid_random_sampling() -> None:
-    """A negative step_noise requests fully random sampling."""
+    """A negative step_noise requests uniform random sampling over the cell."""
     structure = Structure(
         Lattice.cubic(4.0), ["C"], [[0, 0, 0]], coords_are_cartesian=True)
-    transformer = InsertMoleculeTransformation("Na", step=1.0, step_noise=-5)
+    transformer = InsertMoleculeTransformation("Na", step=1.0, step_noise=-1000)
     grid = transformer._get_site_grid(structure)
-    assert len(grid) == 5
+    assert len(grid) == 1000
     coords = np.array(grid)
     assert np.all(coords >= 0.0)
     assert np.all(coords < 1.0)
+    # Uniform on [0, 1): mean 0.5, std sqrt(1 / 12).
+    assert np.allclose(np.mean(coords), 0.5, atol=0.02)
+    assert np.allclose(np.std(coords), np.sqrt(1.0 / 12.0), atol=0.02)
+
+
+def test_get_site_grid_positive_step_noise_statistics() -> None:
+    """A positive step_noise adds Gaussian jitter with the expected std."""
+    structure = Structure(
+        Lattice.cubic(4.0), ["C"], [[0, 0, 0]], coords_are_cartesian=True)
+    clean = np.array(
+        InsertMoleculeTransformation("Na", step=1.0)._get_site_grid(structure))
+    np.random.seed(1234)
+    noisy = np.array(
+        InsertMoleculeTransformation(
+            "Na", step=1.0, step_noise=0.5)._get_site_grid(structure))
+    assert noisy.shape == clean.shape
+
+    # The noise added per coordinate is
+    # ``step_noise * (step / a) * standard_normal()``.
+    # With step=1.0 and a=4.0, that is 0.5 * 0.25 = 0.125.
+    noise = noisy - clean
+    expected_std = 0.5 * (1.0 / 4.0)
+    assert np.allclose(np.mean(noise), 0.0, atol=0.05)
+    assert abs(np.std(noise) - expected_std) < 0.03
 
 
 # --- _get_angle_grid / rotate_molecule_euler --------------------------------
@@ -124,6 +155,69 @@ def test_rotate_molecule_euler_preserves_bond_and_anchor() -> None:
     assert not np.allclose(rotated[1].coords, [3.0, 0.0, 0.0])
 
 
+# --- molecule file input -----------------------------------------------------
+
+
+def test_init_parses_molecule_file(tmp_path: Path) -> None:
+    """A path to a molecule file is parsed into a multi-atom Molecule."""
+    water = Molecule(
+        ["O", "H", "H"],
+        [[0.0, 0.0, 0.0], [0.96, 0.0, 0.0], [-0.24, 0.93, 0.0]],
+    )
+    mol_file = _write_molecule(tmp_path, water)
+    transformer = InsertMoleculeTransformation(str(mol_file), step=1.0)
+    assert isinstance(transformer.molecule, Molecule)
+    assert len(transformer.molecule) == 3
+    assert [site.specie.symbol for site in transformer.molecule] == \
+        ["O", "H", "H"]
+
+
+def test_molecule_rotation_end_to_end(tmp_path: Path) -> None:
+    """A real molecule file flows through __init__ -> all_inserts with rotation."""
+    water = Molecule(
+        ["O", "H", "H"],
+        [[0.0, 0.0, 0.0], [0.96, 0.0, 0.0], [-0.24, 0.93, 0.0]],
+    )
+    mol_file = _write_molecule(tmp_path, water)
+    transformer = InsertMoleculeTransformation(
+        str(mol_file), step=4.0, anglestep=np.pi / 2, matcher=None)
+
+    # anglestep populates the Euler-angle grid for the multi-atom molecule.
+    assert transformer._candidate_angles
+    assert len(transformer._candidate_angles) == 8
+
+    host = Structure(
+        Lattice.cubic(8.0), ["C"], [[0, 0, 0]], coords_are_cartesian=True)
+    inserts = transformer.all_inserts(host)
+
+    # matcher=None skips the StructureMatcher dedup, but the molecule
+    # proximity check (known_inserts) still collapses redundant rotations:
+    # 7 valid grid positions x 7 distinct Euler orientations = 49.  The 8
+    # angle triplets collapse to 7 because beta=0 makes the two z-rotations
+    # (alpha and gamma) degenerate.
+    assert len(inserts) == 49
+    orientations = set()
+    for structure in inserts:
+        assert len(structure) == 4  # host C + O + 2 H
+        o_sites = [site for site in structure if site.specie.symbol == "O"]
+        h_sites = [site for site in structure if site.specie.symbol == "H"]
+        assert len(o_sites) == 1 and len(h_sites) == 2
+        assert o_sites[0].label == "insert-O0"
+        assert {site.label for site in h_sites} == {"insert-H1", "insert-H2"}
+        # Relative H coordinates (wrapped) characterise the orientation.
+        o = o_sites[0]
+        rel = tuple(sorted(
+            tuple(np.round(
+                (np.array(h.frac_coords) - np.array(o.frac_coords) + 0.5)
+                % 1.0 - 0.5, 3))
+            for h in h_sites
+        ))
+        orientations.add(rel)
+    # Euler rotations produce 7 distinct orientations (one of the 8 triplets
+    # is degenerate with another).
+    assert len(orientations) == 7
+
+
 # --- _check_molecule_proximity -----------------------------------------------
 
 
@@ -139,8 +233,51 @@ def test_check_molecule_proximity_detects_identical_vs_shifted() -> None:
         Lattice.cubic(10.0), molecule.species,
         [[5.0, 0, 0], [7.0, 0, 0]], coords_are_cartesian=True)
     assert transformer._check_molecule_proximity(
-        same, same.copy(), 5.0) is False
-    assert transformer._check_molecule_proximity(same, shifted, 5.0) is True
+        same, same.copy()) is False
+    assert transformer._check_molecule_proximity(same, shifted) is True
+
+
+def test_check_molecule_proximity_single_atom() -> None:
+    """A single-atom placement is distinct only when displaced."""
+    transformer = InsertMoleculeTransformation("Na", step=1.0)
+    single = Structure(
+        Lattice.cubic(10.0), ["Na"], [[0, 0, 0]], coords_are_cartesian=True)
+    shifted = Structure(
+        Lattice.cubic(10.0), ["Na"], [[5.0, 0, 0]], coords_are_cartesian=True)
+    assert transformer._check_molecule_proximity(
+        single, single.copy()) is False
+    assert transformer._check_molecule_proximity(
+        single, shifted) is True
+
+
+def test_check_molecule_proximity_uses_proximity_threshold() -> None:
+    """Distinctness is gated by ``proximity_threshold * (r1 + r2)``.
+
+    A molecule compared to itself is never distinct, regardless of its
+    internal bond length.  Distinctness only arises when an atom moves
+    farther than the scaled sum of radii.
+    """
+    transformer = InsertMoleculeTransformation(
+        "Na", step=1.0, proximity_threshold=0.75)
+    base = Structure(
+        Lattice.cubic(10.0), ["Na", "Na"], [[0, 0, 0], [3.0, 0, 0]],
+        coords_are_cartesian=True)
+
+    # Na radius is 1.8 A, so the threshold is 0.75 * (1.8 + 1.8) = 2.7 A.
+    threshold = 0.75 * (1.8 + 1.8)
+    near = Structure(
+        Lattice.cubic(10.0), ["Na", "Na"],
+        [[threshold - 0.5, 0, 0], [3.0 + threshold - 0.5, 0, 0]],
+        coords_are_cartesian=True)
+    far = Structure(
+        Lattice.cubic(10.0), ["Na", "Na"],
+        [[threshold + 0.5, 0, 0], [3.0 + threshold + 0.5, 0, 0]],
+        coords_are_cartesian=True)
+
+    assert transformer._check_molecule_proximity(
+        base, base.copy()) is False
+    assert transformer._check_molecule_proximity(base, near) is False
+    assert transformer._check_molecule_proximity(base, far) is True
 
 
 # --- _insert_molecule ---------------------------------------------------------
@@ -253,6 +390,81 @@ def test_get_all_molecule_inserts_wrapper() -> None:
     inserts = get_all_molecule_inserts("Na", host, step=1.0)
     assert inserts
     assert all(isinstance(s, Structure) for s in inserts)
+
+
+def test_matcher_none_skips_symmetry_deduplication() -> None:
+    """matcher=None keeps symmetry-equivalent inserts."""
+    host = Structure(
+        Lattice.cubic(8.0), ["C"], [[0, 0, 0]], coords_are_cartesian=True)
+    transformer = InsertMoleculeTransformation("Na", step=4.0, matcher=None)
+    inserts = transformer.all_inserts(host)
+
+    # step=4.0 on an 8 A cube yields 8 grid points; the one at the origin
+    # overlaps the host C and is rejected, leaving 7.  Without a
+    # StructureMatcher, none of the symmetry-equivalent positions collapse.
+    assert len(inserts) == 7
+    positions = sorted(
+        tuple(float(c) for c in site.frac_coords)
+        for structure in inserts
+        for site in structure
+        if site.specie.symbol == "Na"
+    )
+    assert positions == [
+        (0.0, 0.0, 0.5),
+        (0.0, 0.5, 0.0),
+        (0.0, 0.5, 0.5),
+        (0.5, 0.0, 0.0),
+        (0.5, 0.0, 0.5),
+        (0.5, 0.5, 0.0),
+        (0.5, 0.5, 0.5),
+    ]
+
+
+def test_multithread_matches_serial_dedup() -> None:
+    """The multithreaded StructureMatcher path agrees with the serial one."""
+    host = Structure(
+        Lattice.cubic(8.0), ["C"], [[0, 0, 0]], coords_are_cartesian=True)
+    serial = InsertMoleculeTransformation(
+        "Na", step=4.0).all_inserts(host, limit=3)
+    parallel = InsertMoleculeTransformation(
+        "Na", step=4.0, multithread=True).all_inserts(host, limit=3)
+
+    def positions(structures: list[Structure]) -> list[list[tuple]]:
+        return [
+            sorted(
+                tuple(float(c) for c in site.frac_coords)
+                for site in structure
+                if site.specie.symbol == "Na"
+            )
+            for structure in structures
+        ]
+
+    assert positions(parallel) == positions(serial)
+
+
+def test_negative_limit_randomly_samples_subset() -> None:
+    """A negative limit returns a random subset of the candidate inserts."""
+    host = Structure(
+        Lattice.cubic(8.0), ["C"], [[0, 0, 0]], coords_are_cartesian=True)
+    transformer = InsertMoleculeTransformation("Na", step=4.0, matcher=None)
+    valid = {
+        tuple(float(c) for c in coords)
+        for coords in transformer._get_site_grid(host)
+        if not np.allclose(coords, [0.0, 0.0, 0.0])
+    }
+
+    np.random.seed(0)
+    inserts = transformer.all_inserts(host, limit=-3)
+    assert len(inserts) == 3
+    positions = [
+        tuple(float(c) for c in site.frac_coords)
+        for structure in inserts
+        for site in structure
+        if site.specie.symbol == "Na"
+    ]
+    # Every sampled position is a valid grid point, with no repeats.
+    assert set(positions) <= valid
+    assert len(positions) == len(set(positions)) == 3
 
 
 def test_is_one_to_many() -> None:
