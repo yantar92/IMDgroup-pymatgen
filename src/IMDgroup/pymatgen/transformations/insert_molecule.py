@@ -34,7 +34,7 @@ from alive_progress import alive_bar
 import numpy as np
 from numpy.typing import ArrayLike
 from pymatgen.transformations.transformation_abc import AbstractTransformation
-from pymatgen.core import (Structure, Molecule, PeriodicSite)
+from pymatgen.core import (Structure, Molecule)
 from pymatgen.util.typing import SpeciesLike
 from pymatgen.core.periodic_table import get_el_sp
 from pymatgen.symmetry.analyzer import PointGroupAnalyzer
@@ -230,7 +230,7 @@ class InsertMoleculeTransformation(AbstractTransformation):
         """
         return max(s.atomic_radius for s in obj.species)
 
-    def _check_proximity(self, structure: Structure, site: int | PeriodicSite,
+    def _check_proximity(self, structure: Structure, site_index: int,
                          cutoff: float | None = None):
         """Check whether a site is far enough from all other sites.
 
@@ -239,19 +239,16 @@ class InsertMoleculeTransformation(AbstractTransformation):
 
         Args:
             structure: Structure to check against.
-            site: Site index or PeriodicSite to test.
+            site_index: Index of the site in ``structure`` to test.
             cutoff: Neighbour search radius in Angstrom.  Defaults to
                 the largest atomic radius in the structure.
 
         Returns:
             bool: True if the site is far enough from all other sites.
         """
-        site_index: int | None = None
-        if isinstance(site, int):
-            site_index = site
-            site = structure[site]
         if cutoff is None:
             cutoff = self._get_largest_radius(structure)
+        atom = structure[site_index]
         # Finding neighbors is extremely fast, faster than direct
         # distance calculation.
         # get_points_in_sphere returns a 4-tuple when zip_results=False,
@@ -263,25 +260,21 @@ class InsertMoleculeTransformation(AbstractTransformation):
                   np.typing.NDArray, np.typing.NDArray],
             structure.lattice.get_points_in_sphere(
                 frac_points=structure.frac_coords,
-                center=site.coords,  # Cartesian
-                r=cutoff + site.specie.atomic_radius,
+                center=atom.coords,  # Cartesian
+                r=cutoff + atom.specie.atomic_radius,
                 zip_results=False),
         )
         for nidx, distance in zip(neighbor_indices, distances):
-            # Skip the site itself.  With an integer index we compare
-            # indices: two distinct atoms may share coordinates and
-            # species, so value equality would wrongly skip the other
-            # one too.  With a foreign PeriodicSite (molecule proximity
-            # check) there is no index, so fall back to value equality.
-            if site_index is not None:
-                if nidx == site_index:
-                    continue
-            elif site == structure[nidx]:
+            # Skip the site itself.  Compare indices rather than value
+            # equality: two distinct atoms may share coordinates and
+            # species, and value equality would wrongly skip the other
+            # one too.
+            if nidx == site_index:
                 continue
             max_distance =\
                 self.proximity_threshold * (
                     structure[nidx].specie.atomic_radius
-                    + site.specie.atomic_radius
+                    + atom.specie.atomic_radius
                 )
             if distance < max_distance:
                 return False
