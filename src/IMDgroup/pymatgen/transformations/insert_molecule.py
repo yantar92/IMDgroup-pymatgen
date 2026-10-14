@@ -287,30 +287,40 @@ class InsertMoleculeTransformation(AbstractTransformation):
                 return False
         return True
 
-    def _check_molecule_proximity(self, structure1, structure2, cutoff):
-        """Check if molecules in the two structures are distinct.
+    def _check_molecule_proximity(self, structure1, structure2):
+        """Check whether two molecule-only structures are distinct placements.
+
         Args:
-          structure1/2 (Structure):
-            Structures containing molecule and nothing else.
-          cutoff (float): cutoff radius
+            structure1 (Structure): Candidate molecule placement.
+            structure2 (Structure): Known molecule placement.
 
-        Each structure provided must only contain molecule to be
-        checked, with nodes corresponding to molecule atoms, in the
-        same order.
+        Both structures must contain only the molecule, with sites in
+        the same order (site ``i`` in each is the same molecule atom).
 
-        Structures are considered the same if each site in the
-        structure is too close to the corresponding site in another
-        structure.  Too close is closer than sum of atomic radii.
+        The placements are the same (returns False) when every atom
+        ``i`` in ``structure1`` is closer than
+        ``proximity_threshold * (r1 + r2)`` to the corresponding atom
+        ``i`` in ``structure2``.  Otherwise at least one atom has moved
+        beyond the threshold and the placements are distinct (returns
+        True).
 
-        The idea is to treat molecule rotations that bring at least
-        one atom in the molecule more than its diameter away from the
-        old location as distinct.
-
-        Returns True when structures are distinct.
+        A molecule compared to itself is therefore always "the same"
+        regardless of its internal bond lengths, while a rotation that
+        moves at least one atom beyond the threshold is distinct.
         """
-        for atom in structure1:
-            if self._check_proximity(structure2, atom, cutoff):
-                # At least one atom is far enough.
+        assert len(structure1) == len(structure2), \
+            "Both structures must contain the same molecule."
+        for idx in range(len(structure1)):
+            site1 = structure1[idx]
+            site2 = structure2[idx]
+            # ``get_distance_and_image`` takes fractional coordinates but
+            # returns the Cartesian (Angstrom) distance, matching the
+            # atomic radii used in ``max_distance`` below.
+            distance = structure1.lattice.get_distance_and_image(
+                site1.frac_coords, site2.frac_coords)[0]
+            max_distance = self.proximity_threshold * (
+                site1.specie.atomic_radius + site2.specie.atomic_radius)
+            if distance >= max_distance:
                 return True
         return False
 
@@ -411,8 +421,6 @@ class InsertMoleculeTransformation(AbstractTransformation):
         # When known_inserts is provided, validate that we do not insert a
         # duplicate.
         if known_inserts is not None:
-            if cutoff is None:
-                cutoff = self._get_largest_radius(structure)
             # Create a copy of structure with only molecule sites
             structure_w_molecule = Structure(
                 lattice=structure.lattice, species=molecule.species,
@@ -420,7 +428,7 @@ class InsertMoleculeTransformation(AbstractTransformation):
             )
             for known in known_inserts:
                 if not self._check_molecule_proximity(
-                        structure_w_molecule, known, cutoff):
+                        structure_w_molecule, known):
                     logger.debug("<skip>")
                     undo_insert()
                     return None
