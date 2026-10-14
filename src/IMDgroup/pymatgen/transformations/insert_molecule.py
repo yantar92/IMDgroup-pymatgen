@@ -254,12 +254,19 @@ class InsertMoleculeTransformation(AbstractTransformation):
             cutoff = self._get_largest_radius(structure)
         # Finding neighbors is extremely fast, faster than direct
         # distance calculation.
-        _, distances, neighbor_indices, _ =\
+        # get_points_in_sphere returns a 4-tuple when zip_results=False,
+        # but pymatgen's return annotation is a union that includes a
+        # 1-element tuple.  Cast to the real shape.
+        # FIXME: report the annotation bug upstream to pymatgen.
+        _, distances, neighbor_indices, _ = cast(
+            tuple[np.typing.NDArray, np.typing.NDArray,
+                  np.typing.NDArray, np.typing.NDArray],
             structure.lattice.get_points_in_sphere(
                 frac_points=structure.frac_coords,
                 center=site.coords,  # Cartesian
                 r=cutoff + site.specie.atomic_radius,
-                zip_results=False)
+                zip_results=False),
+        )
         for nidx, distance in zip(neighbor_indices, distances):
             # Skip the site itself.  With an integer index we compare
             # indices: two distinct atoms may share coordinates and
