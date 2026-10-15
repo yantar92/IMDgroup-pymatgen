@@ -34,7 +34,7 @@ from alive_progress import alive_bar
 import numpy as np
 from numpy.typing import ArrayLike
 from pymatgen.transformations.transformation_abc import AbstractTransformation
-from pymatgen.core import (Structure, Molecule)
+from pymatgen.core import (FloatWithUnit, Structure, Molecule)
 from pymatgen.util.typing import SpeciesLike
 from pymatgen.core.periodic_table import get_el_sp
 from pymatgen.symmetry.analyzer import PointGroupAnalyzer
@@ -224,7 +224,7 @@ class InsertMoleculeTransformation(AbstractTransformation):
                 for beta in angrange
                 for gamma in angrange]
 
-    def _get_largest_radius(self, obj):
+    def _get_largest_radius(self, obj) -> float:
         """Find the largest atomic radius across species in structurelike.
         obj is a Molecule or Structure.
         """
@@ -261,7 +261,7 @@ class InsertMoleculeTransformation(AbstractTransformation):
             structure.lattice.get_points_in_sphere(
                 frac_points=structure.frac_coords,
                 center=atom.coords,  # Cartesian
-                r=cutoff + atom.specie.atomic_radius,
+                r=cutoff + cast(FloatWithUnit, atom.specie.atomic_radius),
                 zip_results=False),
         )
         for nidx, distance in zip(neighbor_indices, distances):
@@ -326,8 +326,7 @@ class InsertMoleculeTransformation(AbstractTransformation):
         Returns:
             Molecule: Rotated copy of ``self.molecule``.
         """
-        if euler_angle is None:
-            return self.molecule
+        assert euler_angle is not None
         molecule = self.molecule.copy()
         # https://en.wikipedia.org/wiki/Euler_angles (Conventions
         # by extrinsic rotations)
