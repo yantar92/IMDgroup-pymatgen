@@ -90,6 +90,19 @@ source = ["IMDgroup"]
 testpaths = ["tests"]
 addopts = "-ra -m 'not heavy' --cov=IMDgroup --cov-report=term-missing"
 pythonpath = ["src"]
+filterwarnings = [
+    # Upstream warnings we cannot fix; harmless in tests.
+    "ignore:Casting complex values to real discards the imaginary part:numpy.exceptions.ComplexWarning:pymatgen\\.core\\.operations",
+    "ignore:No POTCAR file with matching TITEL fields:UserWarning:pymatgen\\.io\\.vasp\\.outputs",
+    # No module field on the spglib filter: pytest.warns() re-emits
+    # unmatched warnings with module="warnings" (see _pytest/recwarn.py),
+    # so a module-scoped filter would miss them.
+    "ignore:Set OLD_ERROR_HANDLING to false and catch the errors directly:DeprecationWarning",
+    "ignore:Setting the shape on a NumPy array has been deprecated:DeprecationWarning:ase\\.atoms",
+    # Our own warning, expected noise in integration tests: the fake VASP
+    # fixture has no vdw_kernel.bindat.
+    "ignore:Cannot find vdw_kernel.bindat:UserWarning:IMDgroup\\.gorun\\.cleanVASP",
+]
 markers = [
     "integration: tests that require generated VASP fixtures (see scripts/prepare_vasp_fixtures.sh)",
     "heavy: slow tests, skipped by default (run with pytest -m heavy)",
