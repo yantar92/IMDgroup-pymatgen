@@ -222,7 +222,15 @@ gpu.""")
         args
     )
 
-    return args.func(args)
+    try:
+        return args.func(args)
+    except (ValueError, OSError) as exc:
+        # User-facing failures: report a one-line message instead of a
+        # traceback.  ``-vv`` re-raises so the full traceback is shown.
+        if args.verbosity >= 2:
+            raise
+        print(colored(f"error: {exc}", "red"), file=sys.stderr)
+        return 1
 
 
 if __name__ == "__main__":
