@@ -92,6 +92,9 @@ class SymmetryFillTransformation(AbstractTransformation):
             Structure: Filled structure.  Each cloned site has a
             ``symop`` property set to the symmetry operation used.
         """
+        _ = _return_ranked_list  # unused
+        if isinstance(structure, str):
+            structure = Structure.from_file(structure)
         all_elements = map(get_el_sp, structure.species)
         elements_to_remove = set(all_elements) - self.element_set
         filled_structure = structure.copy()
@@ -153,8 +156,8 @@ def apply_operation_keep_lattice(structure, op):
     return result
 
 
-def _structure_distance_wrapper(args):
-    return structure_distance(*args)
+# def _structure_distance_wrapper(args):
+#     return structure_distance(*args)
 
 
 class SymmetryCloneTransformation(AbstractTransformation):
@@ -292,6 +295,8 @@ class SymmetryCloneTransformation(AbstractTransformation):
             ``return_ranked_list`` is False, otherwise a list of
             ``{'structure': ...}`` dictionaries.
         """
+        if isinstance(structure, str):
+            structure = Structure.from_file(structure)
         all_clones = self.get_all_clones(structure)
         if not return_ranked_list:
             return all_clones[0]
