@@ -63,7 +63,7 @@ class InsertMoleculeTransformation(AbstractTransformation):
         anglestep: Angular step in radians for molecule rotation.
         proximity_threshold: Threshold multiplier for atomic radii.
         label: Label prefix for inserted atoms.
-        selective_dynamics: Selective dynamics for inserted atoms.
+        selective_dynamics: Selective dynamics flags for inserted atoms.
         reduce_supercell: Whether to reduce to the primitive cell first.
         matcher: StructureMatcher for duplicate detection.
         multithread: Whether to use multithreading.
@@ -99,9 +99,13 @@ class InsertMoleculeTransformation(AbstractTransformation):
                 ``proximity_threshold * (r1 + r2)``.
             label: Prefix for atom labels in the inserted molecule.
                 Each atom gets ``{label}-{element}{index}``.
-            selective_dynamics: Selective dynamics array for inserted
-                atoms (used only when the host structure also uses
-                selective dynamics).
+            selective_dynamics: Selective dynamics flags for the
+                inserted atoms.  When None and the host uses selective
+                dynamics, inserted atoms default to free
+                ``[True, True, True]``.  When provided, the inserted
+                atoms get these flags, and a host without selective
+                dynamics is given free ``[True, True, True]`` flags so
+                the result stays consistent.
             reduce_supercell: When True, reduce the host to its
                 primitive cell before scanning.
             matcher: StructureMatcher for detecting duplicate
@@ -383,6 +387,21 @@ class InsertMoleculeTransformation(AbstractTransformation):
 
         structure_has_selective_dynamics =\
             'selective_dynamics' in structure[0].properties
+        # Decide the selective dynamics flags for the inserted atoms.
+        # Inserts default to free ([True, True, True]) when the host
+        # already uses selective dynamics.  An explicit selective_dynamics
+        # is applied verbatim and, when the host lacks the property, the
+        # host atoms are given free flags so the output stays consistent.
+        if self.selective_dynamics is not None:
+            insert_selective_dynamics = list(self.selective_dynamics)
+            if not structure_has_selective_dynamics:
+                for site in structure:
+                    site.properties['selective_dynamics'] = \
+                        [True, True, True]
+        elif structure_has_selective_dynamics:
+            insert_selective_dynamics = [True, True, True]
+        else:
+            insert_selective_dynamics = None
         for idx, atom in enumerate(molecule):
             structure.insert(
                 idx=idx, species=atom.species, coords=atom.coords,
@@ -390,10 +409,9 @@ class InsertMoleculeTransformation(AbstractTransformation):
             if self.label is not None:
                 structure[idx].label = self.label + "-"\
                     + structure[idx].specie.symbol + str(idx)
-            if structure_has_selective_dynamics \
-               and self.selective_dynamics is not None:
+            if insert_selective_dynamics is not None:
                 structure[idx].properties['selective_dynamics'] = \
-                    self.selective_dynamics
+                    insert_selective_dynamics
 
         # Now, move them as needed to the target coordinates.
         anchor = structure[0].frac_coords
