@@ -37,6 +37,20 @@ def _write_molecule(tmp_path: Path, molecule: Molecule) -> Path:
     return path
 
 
+def _write_structure(tmp_path: Path, structure: Structure) -> Path:
+    """Write a Structure to a POSCAR file and return its path."""
+    path = tmp_path / "host.POSCAR"
+    structure.to(filename=str(path), fmt="poscar")
+    return path
+
+
+def _cubic_supercell() -> Structure:
+    """A 2x1x1 supercell of a simple-cubic primitive cell."""
+    primitive = Structure(
+        Lattice.cubic(4.0), ["C"], [[0, 0, 0]], coords_are_cartesian=True)
+    return primitive * (2, 1, 1)
+
+
 @pytest.fixture
 def graphite_matrix() -> Structure:
     """The defective 63-atom graphite supercell used for Na insertion."""
@@ -120,6 +134,29 @@ def test_get_site_grid_positive_step_noise_statistics() -> None:
     expected_std = 0.5 * (1.0 / 4.0)
     assert np.allclose(np.mean(noise), 0.0, atol=0.05)
     assert abs(np.std(noise) - expected_std) < 0.03
+
+
+def test_get_site_grid_reduces_supercell() -> None:
+    """reduce_supercell=True limits the grid to the primitive cell volume."""
+    transformer = InsertMoleculeTransformation(
+        "Na", step=1.0, reduce_supercell=True)
+    grid = np.array(transformer._get_site_grid(_cubic_supercell()))
+
+    # The primitive cell spans half the supercell along a, so the scan is
+    # confined to 0 <= x < 0.5 and yields 4 x 4 x 4 points.
+    assert grid.shape == (4 * 4 * 4, 3)
+    assert np.all(grid[:, 0] < 0.5)
+
+
+def test_get_site_grid_keeps_full_supercell_when_not_reduced() -> None:
+    """reduce_supercell=False scans the full supercell volume."""
+    transformer = InsertMoleculeTransformation(
+        "Na", step=1.0, reduce_supercell=False)
+    grid = np.array(transformer._get_site_grid(_cubic_supercell()))
+
+    assert grid.shape == (8 * 4 * 4, 3)
+    assert np.all(grid[:, 0] < 1.0)
+    assert np.any(grid[:, 0] > 0.5)
 
 
 # --- _get_angle_grid / rotate_molecule_euler --------------------------------
@@ -299,6 +336,41 @@ def test_insert_molecule_places_and_labels() -> None:
     assert list(result[0].properties["selective_dynamics"]) == \
         [True, True, True]
     assert result[1].species_string == "C"
+    # The host's own selective dynamics flags are preserved.
+    assert list(result[1].properties["selective_dynamics"]) == \
+        [False, False, False]
+
+
+def test_insert_molecule_defaults_free_flags_for_host_with_sd() -> None:
+    """selective_dynamics=None defaults inserted atoms to free flags."""
+    host = Structure(
+        Lattice.cubic(8.0), ["C"], [[0, 0, 0]], coords_are_cartesian=True)
+    host.add_site_property("selective_dynamics", [[False, False, False]])
+    transformer = InsertMoleculeTransformation("Na", step=1.0)
+    result = transformer._insert_molecule(host.copy(), [0.5, 0.5, 0.5])
+    assert result is not None
+    na_site = [site for site in result if site.specie.symbol == "Na"][0]
+    assert list(na_site.properties["selective_dynamics"]) == \
+        [True, True, True]
+    c_site = [site for site in result if site.specie.symbol == "C"][0]
+    assert list(c_site.properties["selective_dynamics"]) == \
+        [False, False, False]
+
+
+def test_insert_molecule_adds_free_flags_to_host_without_sd() -> None:
+    """Explicit selective_dynamics adds free flags to a host lacking SD."""
+    host = Structure(
+        Lattice.cubic(8.0), ["C"], [[0, 0, 0]], coords_are_cartesian=True)
+    transformer = InsertMoleculeTransformation(
+        "Na", step=1.0, selective_dynamics=[True, True, False])
+    result = transformer._insert_molecule(host.copy(), [0.5, 0.5, 0.5])
+    assert result is not None
+    na_site = [site for site in result if site.specie.symbol == "Na"][0]
+    assert list(na_site.properties["selective_dynamics"]) == \
+        [True, True, False]
+    c_site = [site for site in result if site.specie.symbol == "C"][0]
+    assert list(c_site.properties["selective_dynamics"]) == \
+        [True, True, True]
 
 
 def test_insert_molecule_rejects_too_close() -> None:
@@ -307,6 +379,17 @@ def test_insert_molecule_rejects_too_close() -> None:
         Lattice.cubic(8.0), ["C"], [[0, 0, 0]], coords_are_cartesian=True)
     transformer = InsertMoleculeTransformation("Na", step=1.0)
     assert transformer._insert_molecule(host.copy(), [0.1, 0.1, 0.1]) is None
+
+
+def test_insert_molecule_skips_label_when_none() -> None:
+    """label=None leaves the inserted atom with its default species label."""
+    host = Structure(
+        Lattice.cubic(8.0), ["C"], [[0, 0, 0]], coords_are_cartesian=True)
+    transformer = InsertMoleculeTransformation("Na", step=1.0, label=None)
+    result = transformer._insert_molecule(host.copy(), [0.5, 0.5, 0.5])
+    assert result is not None
+    na_site = [site for site in result if site.specie.symbol == "Na"][0]
+    assert na_site.label == "Na"
 
 
 # --- all_inserts / apply_transformation / wrapper -----------------------------
@@ -383,6 +466,29 @@ def test_apply_transformation_ranked_list() -> None:
     assert all("structure" in d for d in results)
 
 
+def test_all_inserts_accepts_structure_path(tmp_path: Path) -> None:
+    """A path to a structure file is parsed by all_inserts."""
+    host = Structure(
+        Lattice.cubic(8.0), ["C"], [[0, 0, 0]], coords_are_cartesian=True)
+    path = _write_structure(tmp_path, host)
+    inserts = InsertMoleculeTransformation("Na", step=4.0).all_inserts(
+        str(path))
+    assert inserts
+    assert all(isinstance(s, Structure) for s in inserts)
+    assert all(len(s) == 2 for s in inserts)
+
+
+def test_apply_transformation_accepts_structure_path(tmp_path: Path) -> None:
+    """A path to a structure file is parsed by apply_transformation."""
+    host = Structure(
+        Lattice.cubic(8.0), ["C"], [[0, 0, 0]], coords_are_cartesian=True)
+    path = _write_structure(tmp_path, host)
+    result = InsertMoleculeTransformation("Na", step=4.0).apply_transformation(
+        str(path))
+    assert isinstance(result, Structure)
+    assert len(result) == 2
+
+
 def test_get_all_molecule_inserts_wrapper() -> None:
     """The convenience wrapper returns a list of Structures."""
     host = Structure(
@@ -390,6 +496,19 @@ def test_get_all_molecule_inserts_wrapper() -> None:
     inserts = get_all_molecule_inserts("Na", host, step=1.0)
     assert inserts
     assert all(isinstance(s, Structure) for s in inserts)
+
+
+def test_get_all_molecule_inserts_forwards_label_and_limit() -> None:
+    """The wrapper passes label and limit through to the transformer."""
+    host = Structure(
+        Lattice.cubic(8.0), ["C"], [[0, 0, 0]], coords_are_cartesian=True)
+    inserts = get_all_molecule_inserts(
+        "Na", host, step=4.0, label="myinsert", limit=2)
+    assert 1 <= len(inserts) <= 2
+    for structure in inserts:
+        na_sites = [site for site in structure if site.specie.symbol == "Na"]
+        assert len(na_sites) == 1
+        assert na_sites[0].label == "myinsert-Na0"
 
 
 def test_matcher_none_skips_symmetry_deduplication() -> None:
@@ -465,6 +584,28 @@ def test_negative_limit_randomly_samples_subset() -> None:
     # Every sampled position is a valid grid point, with no repeats.
     assert set(positions) <= valid
     assert len(positions) == len(set(positions)) == 3
+
+
+def test_negative_limit_shuffles_angle_grid(monkeypatch) -> None:
+    """A negative limit shuffles the molecule's Euler-angle grid."""
+    molecule = Molecule(["Na", "Na"], [[0, 0, 0], [3.0, 0, 0]])
+    host = Structure(
+        Lattice.cubic(8.0), ["C"], [[0, 0, 0]], coords_are_cartesian=True)
+    transformer = InsertMoleculeTransformation(
+        molecule, step=4.0, anglestep=np.pi / 2, matcher=None)
+
+    shuffled = []
+    real_shuffle = np.random.shuffle
+
+    def spy_shuffle(array) -> None:
+        shuffled.append(array)
+        real_shuffle(array)
+
+    monkeypatch.setattr(np.random, "shuffle", spy_shuffle)
+
+    transformer.all_inserts(host, limit=-2)
+
+    assert any(array is transformer._candidate_angles for array in shuffled)
 
 
 def test_is_one_to_many() -> None:
