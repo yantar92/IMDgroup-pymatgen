@@ -57,8 +57,12 @@ def barf_if_no_cmd(cmd: str) -> None:
 
 def directory_queued_p(path: str) -> bool:
     """Return True when there an existing queued task in DIR (string).
+
+    When ``squeue`` is not available (i.e. we are not on a cluster),
+    assume nothing is queued and return False.
     """
-    barf_if_no_cmd('squeue')
+    if not _executable_find('squeue'):
+        return False
     return bool(path in subprocess.check_output
                 ("squeue -u $USER -o %Z | tail -n +2",
                  shell=True).decode('utf-8').split())
@@ -66,8 +70,12 @@ def directory_queued_p(path: str) -> bool:
 
 def user_job_count() -> int:
     """Return the number of currently running slurm jobs.
+
+    When ``squeue`` is not available (i.e. we are not on a cluster),
+    assume there are no queued jobs and return 0.
     """
-    barf_if_no_cmd('squeue')
+    if not _executable_find('squeue'):
+        return 0
     barf_if_no_cmd('wc')
     return int(subprocess.check_output("squeue -u $USER -o %Z | wc -l", shell=True)) - 1
 
