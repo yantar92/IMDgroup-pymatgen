@@ -282,13 +282,6 @@ def add_args(parser):
     Args:
         parser: Sub-parser from argparse.
     """
-    parser.add_argument(
-        "dirs",
-        help="VASP directories to compare",
-        nargs="+",
-        type=str
-    )
-
     subparsers = parser.add_subparsers(required=True)
 
     parser_structure = subparsers.add_parser(
@@ -301,6 +294,12 @@ Reads structures from VASP outputs (vasprun.xml) or POSCAR files,
 matches them by symmetry, and reports groups of identical
 configurations sorted by energy.  Optionally copies unique structures
 to a target directory.""")
+    parser_structure.add_argument(
+        "dirs",
+        help="VASP directories to compare",
+        nargs="+",
+        type=str
+    )
     structure_add_args(parser_structure)
 
     parser_incar = subparsers.add_parser(
@@ -311,6 +310,12 @@ Compare INCAR files across VASP directories.
 
 Groups directories by their INCAR parameters and reports common
 settings and per-group differences.""")
+    parser_incar.add_argument(
+        "dirs",
+        help="VASP directories to compare",
+        nargs="+",
+        type=str
+    )
     incar_add_args(parser_incar)
 
 
