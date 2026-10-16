@@ -125,7 +125,8 @@ class VaspAdapter:
                 missing.append(var)
         if missing:
             raise OSError(
-                f"Required environment variables not set: {', '.join(missing)}"
+                f"Required environment variables not set: {', '.join(missing)}. "
+                "Set it with: export VASP_PATH=/path/to/vasp"
             )
 
     # ------------------------------------------------------------------
