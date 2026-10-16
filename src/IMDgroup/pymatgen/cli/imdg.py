@@ -33,6 +33,7 @@ import os
 import sys
 import warnings
 from termcolor import colored
+from pymatgen.ext.matproj import MPRestError
 import IMDgroup.pymatgen.cli.imdg_create
 import IMDgroup.pymatgen.cli.imdg_derive
 import IMDgroup.pymatgen.cli.imdg_diff
@@ -224,7 +225,7 @@ gpu.""")
 
     try:
         return args.func(args)
-    except (ValueError, OSError) as exc:
+    except (ValueError, OSError, MPRestError) as exc:
         # User-facing failures: report a one-line message instead of a
         # traceback.  ``-vv`` re-raises so the full traceback is shown.
         if args.verbosity >= 2:

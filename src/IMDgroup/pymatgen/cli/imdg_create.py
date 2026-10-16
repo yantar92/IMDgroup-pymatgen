@@ -30,6 +30,7 @@ import os
 import re
 import logging
 import pymatgen.core as pmg
+from pymatgen.ext.matproj import MPRestError
 from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
 from IMDgroup.pymatgen.io.vasp.sets import IMDStandardVaspInputSet
 
@@ -63,9 +64,29 @@ def create_from_mpid(mpid):
 
     Returns:
         Structure with the ``mpid`` property set.
+
+    Raises:
+        ValueError: If the Materials Project API key is missing or
+            invalid.
     """
+    api_key = pmg.SETTINGS.get("PMG_MAPI_KEY", "")
+    if len(api_key) != 32:
+        raise ValueError(
+            "Materials Project API key is missing or invalid. "
+            "Get a key at https://materialsproject.org/dashboard and "
+            "set it with 'pmg config --add PMG_MAPI_KEY <your-key>'."
+        )
     # cast to Structure object.  from_id may return IStructure.
-    structure = pmg.Structure.from_sites(pmg.Structure.from_id(mpid))
+    try:
+        structure = pmg.Structure.from_sites(pmg.Structure.from_id(mpid))
+    except MPRestError as exc:
+        if "status code 401" in str(exc):
+            raise ValueError(
+                f"{exc}. The API key was rejected (HTTP 401); check that "
+                "PMG_MAPI_KEY is correct and active. Get a new key at "
+                "https://materialsproject.org/dashboard."
+            ) from exc
+        raise
     structure.properties['mpid'] = mpid
     logger.info(
         "Downloaded structure %s from Materials Project db:\n%s",
