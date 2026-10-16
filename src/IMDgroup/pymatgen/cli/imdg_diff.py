@@ -82,9 +82,16 @@ def structure_add_args(parser):
 
 def _read_structures(dir_list, force_poscar=False, force_vasprun=False):
     """Read structures from DIR_LIST.
-    When all the directories contain VASP outputs, use final_structure.
-    When all the directories do not have VASP outputs, use POSCAR.
-    If mixed, throw an error.
+
+    ``--poscar`` forces reading POSCAR files; ``--vasprun`` forces
+    reading ``vasprun.xml``.  Without either flag, all directories must
+    agree: if every directory has a ``vasprun.xml`` the final structures
+    are read from it, otherwise the POSCAR files are used.  A mixture is
+    an error.
+
+    With ``--vasprun``, directories without a ``vasprun.xml`` are warned
+    about and skipped.
+
     Args:
       dir_list (list[str]): List of directories to read.
       force_poscar (bool):  Force reading POSCAR.
@@ -110,27 +117,45 @@ def _read_structures(dir_list, force_poscar=False, force_vasprun=False):
         res_structure.properties['source_dir'] = vaspdir
         return res_structure
 
-    used_vasp_output = False
-    used_poscar_output = False
+    has_vasprun = [
+        os.path.isfile(os.path.join(d, "vasprun.xml")) for d in dir_list
+    ]
+
+    if force_poscar:
+        source = ["poscar"] * len(dir_list)
+    elif force_vasprun:
+        source = ["vasprun" if hv else "skip" for hv in has_vasprun]
+    elif all(has_vasprun):
+        source = ["vasprun"] * len(dir_list)
+    elif not any(has_vasprun):
+        source = ["poscar"] * len(dir_list)
+    else:
+        with_output = [d for d, hv in zip(dir_list, has_vasprun) if hv]
+        without_output = [d for d, hv in zip(dir_list, has_vasprun) if not hv]
+        raise ValueError(
+            "Mixed directories: some have VASP output and some do not.\n"
+            f"With vasprun.xml:    {', '.join(with_output)}\n"
+            f"Without vasprun.xml: {', '.join(without_output)}\n"
+            "Re-run with --poscar or --vasprun to choose explicitly."
+        )
+
     structures = []
     with alive_bar(len(dir_list), title='Reading VASP dirs') as abar:
-        for vaspdir in dir_list:
+        for vaspdir, src in zip(dir_list, source):
             abar.text = f'{vaspdir}'
-            if force_poscar:
-                structures.append(read_poscar(vaspdir))
-            else:
+            if src == "vasprun":
                 try:
                     structures.append(read_vasprun(vaspdir))
-                    used_vasp_output = True
-                except FileNotFoundError:
-                    if used_vasp_output or used_poscar_output or force_vasprun:
-                        raise
-                    structures.append(read_poscar(vaspdir))
-                    used_poscar_output = True
                 except ParseError:
                     warnings.warn(
                         f"Failed to read vasprun from {vaspdir}.  Skipping"
                     )
+            elif src == "poscar":
+                structures.append(read_poscar(vaspdir))
+            else:  # "skip"
+                warnings.warn(
+                    f"No vasprun.xml in {vaspdir}.  Skipping (--vasprun)."
+                )
             abar()  # pylint: disable=not-callable
     return structures
 
