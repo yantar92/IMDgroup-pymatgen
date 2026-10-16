@@ -160,15 +160,15 @@ def dispatch_run(args, adapter: SoftwareAdapter) -> int:
     int
         Exit code (0 = success, 1 = failure).
     """
-    # ---- 1. Validate environment ----
-    adapter.validate_environment()
-
-    # ---- 2. Load config ----
+    # ---- 1. Load config ----
     config = get_config(args)
     server = current_server(config)
     if server is None:
         print(colored("Running on unknown server.  Adjust the config.", "red"))
         return 1
+
+    # ---- 2. Validate environment ----
+    adapter.validate_environment()
 
     cwd = Path.cwd()
 
