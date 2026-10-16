@@ -28,6 +28,7 @@
 """Insert molecules and atoms into a given structure."""
 
 import logging
+from collections.abc import Sequence
 from typing import cast
 from multiprocessing import Pool
 from alive_progress import alive_bar
@@ -317,7 +318,7 @@ class InsertMoleculeTransformation(AbstractTransformation):
                 return True
         return False
 
-    def rotate_molecule_euler(self, euler_angle: ArrayLike):
+    def rotate_molecule_euler(self, euler_angle: Sequence[float]):
         """Rotate the molecule by a triplet of extrinsic Euler angles.
 
         Args:
@@ -344,8 +345,8 @@ class InsertMoleculeTransformation(AbstractTransformation):
     def _insert_molecule(
             self,
             structure: Structure,
-            coords: ArrayLike,
-            euler_angle=None,
+            coords: Sequence[float],
+            euler_angle: Sequence[float] | None = None,
             known_inserts=None,
             cutoff=None
     ):
@@ -472,7 +473,7 @@ class InsertMoleculeTransformation(AbstractTransformation):
              as progress_bar:
 
             def append_inserts_fixed_rotation(
-                    euler_angle: ArrayLike | None = None):
+                    euler_angle: Sequence[float] | None = None):
                 """Insert rotated molecule into all possible positions.
                 Modify structure_inserts by side effect, adding all
                 possible positions of self.molecule into structure with
