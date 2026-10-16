@@ -1548,6 +1548,10 @@ def derive(args):
         ValueError: If ``--output`` is empty.
     """
 
+    if not os.path.exists(args.input_directory):
+        raise ValueError(
+            f"Input path does not exist: {args.input_directory}")
+
     if not args.force_running and\
        (Path(args.input_directory) / 'RUNNING').is_file():
         raise IOError(
