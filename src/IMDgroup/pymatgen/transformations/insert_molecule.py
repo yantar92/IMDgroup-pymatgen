@@ -497,6 +497,7 @@ class InsertMoleculeTransformation(AbstractTransformation):
                         insert = self._insert_molecule(
                             structure.copy(), coords, euler_angle,
                             cutoff=cutoff)
+                        assert insert is not None
                         previous_matches = False
                         if self.matcher:
                             if self.multithread:
@@ -595,6 +596,8 @@ class InsertMoleculeTransformation(AbstractTransformation):
             ``return_ranked_list`` is False, otherwise a list of
             ``{'structure': ...}`` dictionaries.
         """
+        if isinstance(structure, str):
+            structure = Structure.from_file(structure)
         if not return_ranked_list:
             return self._generate_inserts(structure, 1)[0]
         return [{"structure": structure}
