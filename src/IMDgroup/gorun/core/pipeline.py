@@ -182,7 +182,7 @@ def dispatch_run(args, adapter: SoftwareAdapter) -> int:
         )
         return 0
 
-    if directory_queued_p(str(cwd)) and not args.force:
+    if not args.local and directory_queued_p(str(cwd)) and not args.force:
         print(
             colored(
                 "A job is already queued for this directory.  Exiting.",
