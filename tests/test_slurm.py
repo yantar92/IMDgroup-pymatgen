@@ -216,6 +216,7 @@ def test_sbatch_estimate_start_unexpected_output_raises(monkeypatch, tmp_path: P
 
 def test_get_best_script_picks_earliest_finish(monkeypatch) -> None:
     """The script whose estimated finish time is earliest wins."""
+    monkeypatch.setattr(slurm_mod, "_executable_find", lambda cmd: True)
     script = "echo hi"
     shebang = "#!/usr/bin/env bash"
     alt_args = [
@@ -236,6 +237,7 @@ def test_get_best_script_picks_earliest_finish(monkeypatch) -> None:
 
 def test_get_best_script_all_none_raises(monkeypatch) -> None:
     """When every queue is unavailable, OSError is raised."""
+    monkeypatch.setattr(slurm_mod, "_executable_find", lambda cmd: True)
     monkeypatch.setattr(slurm_mod, "sbatch_estimate_start", lambda s: None)
     alt_args = [
         {"partition": "a", "time": "01:00:00"},
@@ -243,3 +245,16 @@ def test_get_best_script_all_none_raises(monkeypatch) -> None:
     ]
     with pytest.raises(OSError):
         get_best_script(alt_args, "echo hi", "#!/usr/bin/env bash")
+
+
+def test_get_best_script_no_sbatch_uses_first(monkeypatch) -> None:
+    """Without sbatch, the first queue is used without estimating."""
+    monkeypatch.setattr(slurm_mod, "_executable_find", lambda cmd: False)
+    alt_args = [
+        {"partition": "a", "time": "01:00:00"},
+        {"partition": "b", "time": "00:30:00"},
+    ]
+    script = "echo hi"
+    shebang = "#!/usr/bin/env bash"
+    best = get_best_script(alt_args, script, shebang)
+    assert best == sbatch_script(shebang, alt_args[0], script)

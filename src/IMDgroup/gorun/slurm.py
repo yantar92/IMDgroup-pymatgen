@@ -38,6 +38,8 @@ import shutil
 import dateutil
 from pathlib import Path
 
+from termcolor import colored
+
 logger = logging.getLogger(__name__)
 
 
@@ -178,6 +180,17 @@ def get_best_script(
     SHEBANG is shebang line to be used.
     """
     scripts = [sbatch_script(shebang, args, script) for args in alt_args]
+
+    # Without ``sbatch`` (e.g. testing locally), start-time estimation is
+    # impossible.  Fall back to the first queue, warning only when the
+    # choice is non-trivial (more than one queue).
+    if not _executable_find('sbatch'):
+        if len(scripts) > 1:
+            print(colored(
+                f"sbatch not available.  Using the first queue "
+                f"('{alt_args[0]['partition']}').", "yellow"))
+        return scripts[0]
+
     schedule_estimates = [sbatch_estimate_start(script) for script in scripts]
 
     if all(data is None for data in schedule_estimates):
