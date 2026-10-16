@@ -34,6 +34,7 @@ import sys
 import warnings
 from termcolor import colored
 from pymatgen.ext.matproj import MPRestError
+from IMDgroup.common import configure_progress_output
 import IMDgroup.pymatgen.cli.imdg_create
 import IMDgroup.pymatgen.cli.imdg_derive
 import IMDgroup.pymatgen.cli.imdg_diff
@@ -94,6 +95,8 @@ def main():
     Returns:
         int: Exit code from the selected subcommand.
     """
+    configure_progress_output()
+
     # ``imdg run ...`` forwards to gorun's own parser, which is the single
     # source of truth for the run subcommands (vasp, mace-finetune, maps,
     # atat-local, gpu).  Intercepting before argparse ensures ``--help``

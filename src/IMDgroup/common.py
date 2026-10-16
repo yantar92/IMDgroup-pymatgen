@@ -31,6 +31,19 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+def configure_progress_output():
+    """Send ``alive_progress`` output to stderr.
+
+    ``alive_progress`` writes progress bars and their final receipt to
+    stdout by default.  For CLI tools, stdout is reserved for actual
+    results, so redirect progress to stderr.  This is a process-wide
+    setting; call it once at each CLI entry point.
+    """
+    import sys
+    from alive_progress import config_handler
+    config_handler.set_global(file=sys.stderr)
+
+
 def groupby_cmp(lst, cmp_eq, title_function=None):
     """Group elements of a list by pairwise comparison.
 

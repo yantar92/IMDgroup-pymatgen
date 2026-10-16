@@ -46,6 +46,7 @@ from pathlib import Path
 
 from termcolor import colored
 
+from IMDgroup.common import configure_progress_output
 from IMDgroup.gorun.core.pipeline import dispatch_run
 from IMDgroup.gorun.adapters.vasp import VaspAdapter
 from IMDgroup.gorun.adapters.mace import MaceMultiheadFinetuneAdapter
@@ -638,6 +639,7 @@ def _dispatch_namespace(args: argparse.Namespace) -> int:
 
 def main(argv: list[str] | None = None) -> int:
     """Parse args, build adapter, and dispatch."""
+    configure_progress_output()
     if argv is None:
         argv = sys.argv[1:]
 
