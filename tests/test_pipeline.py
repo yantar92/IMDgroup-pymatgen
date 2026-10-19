@@ -314,3 +314,15 @@ def test_dispatch_run_unknown_server_exits_without_local(
     )
 
     assert dispatch_run(_args(local=False, mark=True), stub_adapter) == 1
+
+
+def test_dispatch_run_local_script_propagates_status(
+    monkeypatch, tmp_path: Path, stub_adapter
+) -> None:
+    """The local run script exits with the computation's status, not 0."""
+    monkeypatch.chdir(tmp_path)
+    _setup_pipeline(monkeypatch)
+    assert dispatch_run(_args(local=True, mark=True), stub_adapter) == 0
+    sub = (tmp_path / "sub").read_text()
+    assert "_gorun_status=$?" in sub
+    assert "exit $_gorun_status" in sub

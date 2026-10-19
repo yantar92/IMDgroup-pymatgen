@@ -256,7 +256,12 @@ def dispatch_run(args, adapter: SoftwareAdapter) -> int:
         setup = adapter.setup_commands(server_config)
     body = adapter.generate_run_commands(cwd, server_config)
 
-    script_body = f"{setup}\n{_RUNNING_SETUP}\n{body}\n{_RUNNING_CLEANUP}\nexit 0"
+    # Capture the computation's exit status before the cleanup step (which
+    # must run regardless) and re-exit with it.
+    script_body = (
+        f"{setup}\n{_RUNNING_SETUP}\n{body}\n"
+        f"_gorun_status=$?\n{_RUNNING_CLEANUP}\nexit $_gorun_status"
+    )
 
     if args.local:
         shebang = server_config.get("shebang", "#!/usr/bin/env bash")
@@ -292,16 +297,24 @@ def dispatch_run(args, adapter: SoftwareAdapter) -> int:
         )
     elif args.local:
         log_name = getattr(adapter, "log_file", "gorun.out")
+        print(colored("Running job locally...", "green"))
         with open(log_name, "a", encoding="utf-8") as f:
-            subprocess.run(
+            result = subprocess.run(
                 script,
                 shell=True,
-                check=True,
                 stdout=f,
                 stderr=f,
                 text=True,
             )
-        print(colored("Running job locally...", "green"))
+        if result.returncode != 0:
+            print(
+                colored(
+                    f"Local run failed with exit status {result.returncode}.  "
+                    f"See {log_name} for details.",
+                    "red",
+                )
+            )
+            return 1
     else:
         with open("sub", "w", encoding="utf-8") as f:
             f.write(script)

@@ -114,6 +114,27 @@ def test_vasp_local_no_config_runs_fake_binary(
     assert "vasp vasp_ncl" in fake_cluster.log.read_text()
 
 
+def test_vasp_local_failure_propagates_status(
+    fake_cluster, tmp_path: Path, monkeypatch
+) -> None:
+    """A local VASP crash returns a non-zero exit code from gorun."""
+    monkeypatch.chdir(tmp_path)
+    _copy_vasp_inputs(tmp_path)
+    # Overwrite the fake VASP binary to fail with a distinctive status.
+    failing = fake_cluster.vasp_path / "bin" / "vasp_ncl"
+    failing.write_text(
+        "#!/bin/sh\n"
+        'echo "vasp failing" >> "$GORUN_FAKE_LOG"\n'
+        "exit 3\n"
+    )
+    failing.chmod(0o755)
+
+    rc = gorun_main(["vasp", "--local", "--keep", "POTCAR"])
+
+    assert rc == 1
+    assert "vasp failing" in fake_cluster.log.read_text()
+
+
 def test_vasp_incar_py_mark_uses_subclass(
     fake_cluster, tmp_path: Path, monkeypatch
 ) -> None:
