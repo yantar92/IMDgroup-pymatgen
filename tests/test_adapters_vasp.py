@@ -30,10 +30,19 @@ def test_validate_environment_missing_vars_raises(monkeypatch) -> None:
         _adapter().validate_environment()
 
 
-def test_validate_environment_ok(monkeypatch) -> None:
-    """VASP_PATH set passes validation."""
-    monkeypatch.setenv("VASP_PATH", "/x")
+def test_validate_environment_ok(monkeypatch, tmp_path: Path) -> None:
+    """VASP_PATH with the selected binary present passes validation."""
+    (tmp_path / "bin").mkdir()
+    (tmp_path / "bin" / "vasp_ncl").touch()
+    monkeypatch.setenv("VASP_PATH", str(tmp_path))
     _adapter().validate_environment()
+
+
+def test_validate_environment_missing_binary(monkeypatch, tmp_path: Path) -> None:
+    """VASP_PATH set but the selected binary absent raises OSError."""
+    monkeypatch.setenv("VASP_PATH", str(tmp_path))
+    with pytest.raises(OSError, match="binary not found"):
+        _adapter().validate_environment()
 
 
 # --- is_valid_input ---------------------------------------------------------

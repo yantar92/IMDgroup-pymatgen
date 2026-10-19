@@ -114,10 +114,11 @@ class VaspAdapter:
     # ------------------------------------------------------------------
 
     def validate_environment(self) -> None:
-        """Require ``VASP_PATH``.
+        """Require ``VASP_PATH`` and the selected VASP binary.
 
         POTCAR generation uses pymatgen, which reads ``PMG_VASP_PSP_DIR``
-        from ``~/.pmgrc.yaml`` rather than an environment variable.
+        from ``~/.config/.pmgrc.yaml`` (legacy ``~/.pmgrc.yaml``)
+        rather than an environment variable.
         """
         missing = []
         for var in ("VASP_PATH",):
@@ -127,6 +128,15 @@ class VaspAdapter:
             raise OSError(
                 f"Required environment variables not set: {', '.join(missing)}. "
                 "Set it with: export VASP_PATH=/path/to/vasp"
+            )
+        vasp_binary = os.path.join(
+            os.environ["VASP_PATH"], "bin", f"vasp_{self.vasp_variant}"
+        )
+        if not os.path.isfile(vasp_binary):
+            raise OSError(
+                f"VASP binary not found: {vasp_binary}.  "
+                "Set VASP_PATH to the VASP installation directory "
+                "(binaries live under bin/)."
             )
 
     # ------------------------------------------------------------------
