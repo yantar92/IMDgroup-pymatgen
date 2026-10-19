@@ -95,7 +95,11 @@ def write_selective_dynamics_summary_maybe(structure, fname):
 
     The CIF uses species substitution for visual cues:
     Fe = fully fixed, Co = partially fixed, Ni = not fixed,
-    X = unknown.
+    X = no selective dynamics assigned.
+
+    A site with no ``selective_dynamics`` (missing key or ``None``) is
+    marked X rather than silently treated as fixed or free, so that an
+    inconsistent assignment is highlighted.
 
     Args:
         structure: Structure with optional ``selective_dynamics``
@@ -110,20 +114,15 @@ def write_selective_dynamics_summary_maybe(structure, fname):
     structure = structure.copy()
     for site in structure:
         site.label = None
-        if 'selective_dynamics' in site.properties and\
-           np.array_equal(site.properties['selective_dynamics'],
-                          [False, False, False]):
+        sd = site.properties.get('selective_dynamics', None)
+        if sd is not None and np.array_equal(sd, [False, False, False]):
             has_fixed = True
             site.species = Species('Fe')  # fixed
-        elif 'selective_dynamics' in site.properties and\
-             site.properties['selective_dynamics'] is not None and\
-             False in site.properties['selective_dynamics']:
+        elif sd is not None and False in sd:
             has_fixed = True
             site.species = Species('Co')  # partially fixed
-        elif 'selective_dynamics' in site.properties and\
-             site.properties['selective_dynamics'] is None:
-            site.species = DummySpecies('X')  # unknown
-            site.properties['selective_dynamics'] = [False, False, False]
+        elif sd is None:
+            site.species = DummySpecies('X')  # no selective dynamics assigned
         else:
             site.species = Species('Ni')  # not fixed
     if has_fixed:

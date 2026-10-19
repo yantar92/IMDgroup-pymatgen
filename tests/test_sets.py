@@ -174,12 +174,8 @@ def test_selective_dynamics_partially_fixed(tmp_path) -> None:
 
 
 def test_selective_dynamics_unknown_alone_writes_nothing(tmp_path) -> None:
-    """An unknown (None) constraint is not a fixed site, so no CIF.
-
-    This documents the current behaviour: ``None`` is visualized as
-    ``X`` but does not count as a constraint for the "has fixed sites"
-    decision, so nothing is written.
-    """
+    """Sites with no selective dynamics are unknown, not fixed: with no
+    fixed site present, nothing is written."""
     fname = tmp_path / "summary.cif"
     assert write_selective_dynamics_summary_maybe(
         _structure_with_sd([None, [True, True, True]]),
@@ -189,7 +185,7 @@ def test_selective_dynamics_unknown_alone_writes_nothing(tmp_path) -> None:
 
 
 def test_selective_dynamics_unknown_with_fixed_visualized(tmp_path) -> None:
-    """An unknown site is visualized as X alongside a fixed site."""
+    """An explicit None site is visualized as X alongside a fixed site."""
     fname = tmp_path / "summary.cif"
     with warnings.catch_warnings():
         # CIF round-trip warns that 'X' is not a valid element symbol.
@@ -198,6 +194,26 @@ def test_selective_dynamics_unknown_with_fixed_visualized(tmp_path) -> None:
             _structure_with_sd([[False, False, False], None]),
             fname,
         )
+        read_back = Structure.from_file(fname)
+    assert sorted(site.specie.symbol for site in read_back) == ["Fe", "X"]
+
+
+def test_selective_dynamics_missing_key_visualized_as_x(tmp_path) -> None:
+    """A site lacking the selective_dynamics key is marked X, not free.
+
+    This is the mixed-assignment case that arises when the function is
+    called independently on a partially-constrained structure.
+    """
+    structure = Structure(
+        lattice=Lattice.cubic(5.0),
+        species=["Li", "Na"],
+        coords=[[0.0, 0.0, 0.0], [0.5, 0.5, 0.5]],
+    )
+    structure[0].properties["selective_dynamics"] = [False, False, False]
+    fname = tmp_path / "summary.cif"
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")  # 'X' is not a valid element symbol
+        assert write_selective_dynamics_summary_maybe(structure, fname) is True
         read_back = Structure.from_file(fname)
     assert sorted(site.specie.symbol for site in read_back) == ["Fe", "X"]
 
