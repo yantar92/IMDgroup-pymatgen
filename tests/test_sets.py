@@ -228,6 +228,43 @@ def test_kpoints_no_kpoints_returns_none(cscl) -> None:
     assert _standard_set(cscl, no_kpoints=True).kpoints is None
 
 
+def test_kpoints_density_low_warns(cscl) -> None:
+    """A mesh below ~5000 k-points/atom warns.
+
+    ``grid_density`` is a target k-points-per-atom; the check runs on
+    the discretized mesh actually generated (``prod(divisions) * n_atoms``).
+    A target of 1000 yields ~686 k-points/atom for CsCl, unambiguously
+    below the 5000 floor.
+    """
+    inset = _standard_set(cscl, user_kpoints_settings={"grid_density": 1000})
+    with pytest.warns(BadInputSetWarning, match="lower than 5000"):
+        inset.kpoints
+
+
+def test_kpoints_density_high_warns(cscl) -> None:
+    """A mesh above ~15000 k-points/atom warns."""
+    inset = _standard_set(cscl, user_kpoints_settings={"grid_density": 50000})
+    with pytest.warns(BadInputSetWarning, match="higher than 15000"):
+        inset.kpoints
+
+
+def test_kpoints_density_default_no_warning(cscl) -> None:
+    """The default 10000 density sits inside the accepted window."""
+    inset = _standard_set(cscl)
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", BadInputSetWarning)
+        assert inset.kpoints is not None
+
+
+def test_kpoints_density_gamma_only_no_warning(cscl) -> None:
+    """A 1x1x1 mesh is exempt from the density check."""
+    inset = _standard_set(
+        cscl, user_kpoints_settings=Kpoints.gamma_automatic((1, 1, 1)))
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", BadInputSetWarning)
+        assert inset.kpoints is not None
+
+
 # ---------------------------------------------------------------------------
 # incar warnings and SYSTEM naming
 # ---------------------------------------------------------------------------

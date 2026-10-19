@@ -212,8 +212,8 @@ class IMDVaspInputSet(VaspInputSet):
         assert kpoints is not None
 
         kpts = kpoints.kpts
-        if kpoints.num_kpts == 0 and len(kpts) != 1\
-           and not kpts[0] == [1, 1, 1]:
+        if kpoints.num_kpts == 0 and len(kpts) == 1\
+           and not kpts[0] == (1, 1, 1):
             n_atoms = len(self.structure)
             n_kpoints = math.prod(kpts[0]) * n_atoms
             # 5-10k kpoints/atom is a reasonable number
@@ -221,16 +221,16 @@ class IMDVaspInputSet(VaspInputSet):
             # target kpoint density because of discretization
             if n_kpoints < 5000:
                 warnings.warn(
-                    "KPOINTS density is lower than 5000."
-                    f"({kpts})"
-                    "\nI hope that you know what you are doing.",
+                    f"KPOINTS density is lower than 5000: {n_kpoints} "
+                    f"(from a {kpts[0]} mesh with {n_atoms} atoms).\n"
+                    "I hope that you know what you are doing.",
                     BadInputSetWarning,
                 )
             if n_kpoints > 15000:
                 warnings.warn(
-                    "KPOINTS density is higher than 15000."
-                    f"({kpts})"
-                    "\nI hope that you know what you are doing.",
+                    f"KPOINTS density is higher than 15000: {n_kpoints} "
+                    f"(from a {kpts[0]} mesh with {n_atoms} atoms).\n"
+                    "I hope that you know what you are doing.",
                     BadInputSetWarning,
                 )
 
