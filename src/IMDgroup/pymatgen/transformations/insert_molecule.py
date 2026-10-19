@@ -99,12 +99,14 @@ class InsertMoleculeTransformation(AbstractTransformation):
             label: Prefix for atom labels in the inserted molecule.
                 Each atom gets ``{label}-{element}{index}``.
             selective_dynamics: Selective dynamics flags for the
-                inserted atoms.  When None and the host uses selective
-                dynamics, inserted atoms default to free
-                ``[True, True, True]``.  When provided, the inserted
-                atoms get these flags, and a host without selective
-                dynamics is given free ``[True, True, True]`` flags so
-                the result stays consistent.
+                inserted atoms.  When None (or all-True, meaning free)
+                and the host uses selective dynamics, inserted atoms
+                default to free ``[True, True, True]``.  A partial
+                constraint (e.g. ``[True, True, False]``) is applied
+                verbatim and, when the host lacks selective dynamics,
+                the host atoms are given free flags so the result stays
+                consistent.  An all-True value on a host without
+                selective dynamics is a no-op (no constraints written).
             reduce_supercell: When True, reduce the host to its
                 primitive cell before scanning.
             matcher: StructureMatcher for detecting duplicate
@@ -137,6 +139,15 @@ class InsertMoleculeTransformation(AbstractTransformation):
         self.anglestep = anglestep
         self.proximity_threshold = proximity_threshold
         self.label = label
+        # [True, True, True] means "free", which is the default for
+        # inserted atoms.  Normalize it to None so a host without
+        # selective dynamics is not given a bogus all-free POSCAR
+        # (pymatgen rejects an all-"T T T" selective-dynamics block as
+        # redundant).
+        if selective_dynamics is not None:
+            selective_dynamics = list(selective_dynamics)
+            if all(selective_dynamics):
+                selective_dynamics = None
         self.selective_dynamics = selective_dynamics
         self._candidate_angles = None
         if len(molecule) > 1 and self.anglestep is not None:
