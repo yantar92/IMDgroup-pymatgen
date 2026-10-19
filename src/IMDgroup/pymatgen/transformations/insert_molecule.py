@@ -28,12 +28,11 @@
 """Insert molecules and atoms into a given structure."""
 
 import logging
-from collections.abc import Sequence
+from collections.abc import Iterable, Sequence
 from typing import cast
 from multiprocessing import Pool
 from alive_progress import alive_bar
 import numpy as np
-from numpy.typing import ArrayLike
 from pymatgen.transformations.transformation_abc import AbstractTransformation
 from pymatgen.core import (FloatWithUnit, Structure, Molecule)
 from pymatgen.util.typing import SpeciesLike
@@ -77,7 +76,7 @@ class InsertMoleculeTransformation(AbstractTransformation):
             anglestep: float | None = None,
             proximity_threshold: float = 0.75,
             label: str | None = "insert",
-            selective_dynamics: ArrayLike | None = None,
+            selective_dynamics: Iterable[bool] | None = None,
             reduce_supercell: bool = True,
             matcher: StructureMatcher | None =
             StructureMatcher(attempt_supercell=True, scale=False),
