@@ -6,6 +6,8 @@ import os
 from pathlib import Path
 from types import SimpleNamespace
 
+import pytest
+
 import IMDgroup.gorun.sbatch as sbatch_mod
 
 from IMDgroup.gorun.sbatch import (
@@ -13,12 +15,74 @@ from IMDgroup.gorun.sbatch import (
     get_default_job_name,
     get_sbatch_args,
     get_user_sbatch_args,
+    load_config,
+    resolve_server,
 )
 
 
 def _args(nodes=None, time=None) -> SimpleNamespace:
     """Build a minimal script-args namespace."""
     return SimpleNamespace(number_of_nodes=nodes, time_limit=time)
+
+
+def _config_args(config_path=None) -> SimpleNamespace:
+    """Build a minimal args namespace for config resolution."""
+    return SimpleNamespace(config=config_path)
+
+
+# --- load_config ------------------------------------------------------------
+
+
+def test_load_config_returns_none_when_missing(monkeypatch, tmp_path) -> None:
+    """No config file on the search path returns None."""
+    monkeypatch.setattr(
+        sbatch_mod, "_candidate_config_paths", lambda: [str(tmp_path / "nope.toml")]
+    )
+    assert load_config(_config_args()) is None
+
+
+def test_load_config_explicit_missing_raises(monkeypatch, tmp_path) -> None:
+    """An explicit --config that is missing raises FileNotFoundError."""
+    missing = str(tmp_path / "missing.toml")
+    with pytest.raises(FileNotFoundError):
+        load_config(_config_args(config_path=missing))
+
+
+def test_load_config_reads_file(monkeypatch, tmp_path) -> None:
+    """A found config file is parsed and returned."""
+    cfg = tmp_path / "gorun.toml"
+    cfg.write_text("[cluster.names]\ntestserver = ['testhost']\n")
+    monkeypatch.setattr(sbatch_mod, "_candidate_config_paths", lambda: [str(cfg)])
+    assert load_config(_config_args()) == {
+        "cluster": {"names": {"testserver": ["testhost"]}}
+    }
+
+
+# --- resolve_server ---------------------------------------------------------
+
+
+def test_resolve_server_matching(monkeypatch, fake_config) -> None:
+    """A matching host returns the server name."""
+    monkeypatch.setenv("CLUSTER_NAME", "testhost")
+    assert resolve_server(fake_config) == "testserver"
+
+
+def test_resolve_server_unmatched_host(monkeypatch, fake_config) -> None:
+    """A host absent from the names table returns None."""
+    monkeypatch.setenv("CLUSTER_NAME", "unknownhost")
+    assert resolve_server(fake_config) is None
+
+
+def test_resolve_server_no_cluster_names(monkeypatch) -> None:
+    """A config without [cluster.names] returns None."""
+    assert resolve_server({"testserver": {}}) is None
+
+
+def test_resolve_server_missing_section(monkeypatch) -> None:
+    """A mapped name with no section in the config returns None."""
+    cfg = {"cluster": {"names": {"other": ["host"]}}}
+    monkeypatch.setenv("CLUSTER_NAME", "host")
+    assert resolve_server(cfg) is None
 
 
 # --- get_user_sbatch_args ---------------------------------------------------

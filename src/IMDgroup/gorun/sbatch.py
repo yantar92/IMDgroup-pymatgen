@@ -28,10 +28,8 @@
 """sbatch config generator.
 """
 import os
-import sys
 import subprocess
 import tomllib
-from termcolor import colored
 from pymatgen.io.vasp.inputs import Incar
 from IMDgroup.gorun.slurm import barf_if_no_cmd
 
@@ -39,7 +37,7 @@ from IMDgroup.gorun.slurm import barf_if_no_cmd
 def _candidate_config_paths() -> list[str]:
     """Config paths to try, in priority order.
 
-    ``--config PATH`` is handled separately in :func:`get_config` and
+    ``--config PATH`` is handled separately in :func:`load_config` and
     takes precedence over everything.  Otherwise, a group-wide
     ``$IMDGroup`` checkout is preferred when present, and a per-user XDG
     location is the default for everyone else.
@@ -70,27 +68,57 @@ def _missing_config_message(searched: list[str]) -> str:
     ])
 
 
-def get_config(args: dict) -> dict:
-    """Read config file, if any.
+def missing_config_message() -> str:
+    """The "no config found" guidance string (public wrapper)."""
+    return _missing_config_message(_candidate_config_paths())
 
-    Resolution order: ``--config PATH`` (explicit) > ``$IMDGroup``
-    checkout > ``$XDG_CONFIG_HOME/gorun/gorun.toml`` (defaulting to
-    ``~/.config/gorun/gorun.toml``).
+
+def _resolve_config_path(args: dict) -> str | None:
+    """Return the config path to read, or None when none is found.
+
+    An explicit ``--config`` path must exist; a miss raises
+    :class:`FileNotFoundError` (the path was requested explicitly, so a
+    miss is an error).  Otherwise the search path is consulted and None
+    is returned when nothing is found.
     """
     if args.config is not None:
-        config_path = args.config
-        if os.path.exists(config_path):
-            with open(config_path, "rb") as f:
-                return tomllib.load(f)
-        raise FileNotFoundError(f"Cannot find config in {config_path}")
+        if not os.path.exists(args.config):
+            raise FileNotFoundError(f"Cannot find config in {args.config}")
+        return args.config
+    for path in _candidate_config_paths():
+        if os.path.exists(path):
+            return path
+    return None
 
-    searched = _candidate_config_paths()
-    for config_path in searched:
-        if os.path.exists(config_path):
-            with open(config_path, "rb") as f:
-                return tomllib.load(f)
-    print(colored(_missing_config_message(searched), "red"))
-    sys.exit(1)
+
+def load_config(args: dict) -> dict | None:
+    """Read the gorun config file, or None when none is found.
+
+    An explicit ``--config`` that is missing raises
+    :class:`FileNotFoundError`; a search path with no result returns
+    None instead of printing and exiting.
+    """
+    path = _resolve_config_path(args)
+    if path is None:
+        return None
+    with open(path, "rb") as f:
+        return tomllib.load(f)
+
+
+def resolve_server(config: dict) -> str | None:
+    """Return the current server name, or None when it cannot be resolved.
+
+    None when *config* has no ``[cluster.names]`` table, when the current
+    host maps to no server name, or when the mapped server has no section
+    in *config*.
+    """
+    names = config.get("cluster", {}).get("names", {})
+    if not names:
+        return None
+    server = current_server(config)
+    if isinstance(config.get(server), dict):
+        return server
+    return None
 
 
 def current_server(config: dict) -> str:

@@ -28,6 +28,7 @@ from __future__ import annotations
 
 import os
 import re
+import shutil
 from pathlib import Path
 
 from termcolor import colored
@@ -265,21 +266,44 @@ class VaspAdapter:
         return self._direct_vasp_script(server_config)
 
     def _direct_vasp_script(self, server_config: dict) -> str:
-        """``<mpiexec> vasp_<variant>`` invocation.
+        """``<launcher> vasp_<variant>`` invocation.
 
-        The launcher comes from ``server_config["mpiexec"]``,
-        defaulting to ``mpiexec`` (LUMI sets ``srun``).  The full
+        The launcher comes from ``server_config["mpiexec"]`` when set;
+        otherwise it defaults to ``mpiexec`` if that command is on PATH,
+        falling back to running the binary directly (single process) so a
+        local VASP install without an MPI launcher still works.  The full
         command is exported as ``VASP_COMMAND`` and then invoked,
         mirroring the legacy gorun script.
         """
         vasp_binary = os.path.join(
             os.environ["VASP_PATH"], "bin", f"vasp_{self.vasp_variant}"
         )
-        mpiexec = server_config.get("mpiexec", "mpiexec")
+        mpiexec = self._mpiexec_command(server_config)
+        launcher = f"{mpiexec} " if mpiexec else ""
         return (
-            f'export VASP_COMMAND="{mpiexec} {vasp_binary}"\n'
+            f'export VASP_COMMAND="{launcher}{vasp_binary}"\n'
             "$VASP_COMMAND"
         )
+
+    def _mpiexec_command(self, server_config: dict) -> str:
+        """Return the MPI launcher prefix, or ``""`` to run VASP directly.
+
+        An explicit ``mpiexec`` key in the config is used verbatim, even
+        when empty (which disables the launcher).  Without one, probe for
+        ``mpiexec`` on PATH; when it is missing (for example a laptop
+        running a local VASP build), warn and invoke the binary directly.
+        """
+        if "mpiexec" in server_config:
+            return server_config["mpiexec"]
+        if shutil.which("mpiexec") is not None:
+            return "mpiexec"
+        print(
+            colored(
+                "mpiexec not found.  Running VASP directly as a single process.",
+                "yellow",
+            )
+        )
+        return ""
 
     def _incar_py_script(self, path: Path) -> str:
         """ASE-wrapped script when INCAR.py is present."""

@@ -44,8 +44,8 @@ def _setup_pipeline(monkeypatch, config=None, server="testserver"):
                 "stub": {},
             }
         }
-    monkeypatch.setattr(pipeline_mod, "get_config", lambda args: config)
-    monkeypatch.setattr(pipeline_mod, "current_server", lambda config: server)
+    monkeypatch.setattr(pipeline_mod, "load_config", lambda args: config)
+    monkeypatch.setattr(pipeline_mod, "resolve_server", lambda config: server)
     monkeypatch.setattr(pipeline_mod, "directory_queued_p", lambda path: False)
     monkeypatch.setattr(pipeline_mod, "user_job_count", lambda: 0)
     monkeypatch.setattr(
@@ -212,3 +212,105 @@ def test_dispatch_run_force_bypasses_running(monkeypatch, tmp_path: Path, stub_a
     (tmp_path / "RUNNING").touch()
     assert dispatch_run(_args(force=True, mark=True), stub_adapter) == 0
     assert (tmp_path / "gorun_ready").exists()
+
+
+# --- dispatch_run local (config-free fallback) ------------------------------
+
+
+def test_dispatch_run_local_no_config_falls_back(monkeypatch, tmp_path: Path, stub_adapter) -> None:
+    """--local with no config file runs without resolving a server."""
+    monkeypatch.chdir(tmp_path)
+    calls: list[str] = []
+
+    def fake_load_config(args):
+        calls.append("load_config")
+        return None
+
+    def fake_resolve_server(config):
+        calls.append("resolve_server")
+        return "testserver"
+
+    monkeypatch.setattr(pipeline_mod, "load_config", fake_load_config)
+    monkeypatch.setattr(pipeline_mod, "resolve_server", fake_resolve_server)
+    monkeypatch.setattr(pipeline_mod, "directory_queued_p", lambda path: False)
+    monkeypatch.setattr(pipeline_mod, "user_job_count", lambda: 0)
+    monkeypatch.setattr(
+        pipeline_mod, "clear_slurm_logs", lambda path, extra_logs=None: None
+    )
+    monkeypatch.setattr(
+        pipeline_mod, "get_sbatch_args", lambda *a, **k: {"partition": "cpu"}
+    )
+    monkeypatch.setattr(
+        pipeline_mod, "get_best_script", lambda *a, **k: "FULL_SCRIPT"
+    )
+
+    assert dispatch_run(_args(local=True, mark=True), stub_adapter) == 0
+    # Config is read, but with no result the server is never resolved.
+    assert calls == ["load_config"]
+    assert (tmp_path / "gorun_ready").exists()
+    sub = (tmp_path / "sub").read_text()
+    # No sbatch headers for a local run.
+    assert "#SBATCH" not in sub
+    assert "#!/usr/bin/env bash" in sub
+
+
+def test_dispatch_run_local_honors_matching_server_section(
+    monkeypatch, tmp_path: Path, stub_adapter
+) -> None:
+    """--local with a resolvable config uses its server section."""
+    monkeypatch.chdir(tmp_path)
+    config = {
+        "testserver": {"shebang": "#!/bin/bash -l", "mpiexec": "srun", "stub": {}}
+    }
+    _setup_pipeline(monkeypatch, config=config, server="testserver")
+    assert dispatch_run(_args(local=True, mark=True), stub_adapter) == 0
+    setup_calls = [c for c in stub_adapter.calls if c[0] == "setup_commands"]
+    assert setup_calls[0][1][0] == config["testserver"]
+
+
+def test_dispatch_run_local_unmatched_server_falls_back(
+    monkeypatch, tmp_path: Path, stub_adapter
+) -> None:
+    """--local with an unmatched host falls back to an empty section."""
+    monkeypatch.chdir(tmp_path)
+    config = {"some_other_server": {"shebang": "#!/bin/bash -l"}}
+    monkeypatch.setattr(pipeline_mod, "load_config", lambda args: config)
+    monkeypatch.setattr(pipeline_mod, "resolve_server", lambda config: None)
+    monkeypatch.setattr(pipeline_mod, "directory_queued_p", lambda path: False)
+    monkeypatch.setattr(pipeline_mod, "user_job_count", lambda: 0)
+    monkeypatch.setattr(
+        pipeline_mod, "clear_slurm_logs", lambda path, extra_logs=None: None
+    )
+    monkeypatch.setattr(
+        pipeline_mod, "get_sbatch_args", lambda *a, **k: {"partition": "cpu"}
+    )
+    monkeypatch.setattr(
+        pipeline_mod, "get_best_script", lambda *a, **k: "FULL_SCRIPT"
+    )
+
+    assert dispatch_run(_args(local=True, mark=True), stub_adapter) == 0
+    setup_calls = [c for c in stub_adapter.calls if c[0] == "setup_commands"]
+    assert setup_calls[0][1][0] == {}
+
+
+def test_dispatch_run_unknown_server_exits_without_local(
+    monkeypatch, tmp_path: Path, stub_adapter
+) -> None:
+    """An unresolvable server exits 1 when --local is not passed."""
+    monkeypatch.chdir(tmp_path)
+    config = {"some_other_server": {"shebang": "#!/bin/bash -l"}}
+    monkeypatch.setattr(pipeline_mod, "load_config", lambda args: config)
+    monkeypatch.setattr(pipeline_mod, "resolve_server", lambda config: None)
+    monkeypatch.setattr(pipeline_mod, "directory_queued_p", lambda path: False)
+    monkeypatch.setattr(pipeline_mod, "user_job_count", lambda: 0)
+    monkeypatch.setattr(
+        pipeline_mod, "clear_slurm_logs", lambda path, extra_logs=None: None
+    )
+    monkeypatch.setattr(
+        pipeline_mod, "get_sbatch_args", lambda *a, **k: {"partition": "cpu"}
+    )
+    monkeypatch.setattr(
+        pipeline_mod, "get_best_script", lambda *a, **k: "FULL_SCRIPT"
+    )
+
+    assert dispatch_run(_args(local=False, mark=True), stub_adapter) == 1

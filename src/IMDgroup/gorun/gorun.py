@@ -108,7 +108,7 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     shared.add_argument(
         "--local", action="store_true",
-        help="Run directly on the login node instead of sbatch.",
+        help="Run directly (login node or local machine) instead of via sbatch.",
     )
     shared.add_argument(
         "--mark", action="store_true",

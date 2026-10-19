@@ -42,7 +42,12 @@ from IMDgroup.gorun.slurm import (
     clear_slurm_logs,
     get_best_script,
 )
-from IMDgroup.gorun.sbatch import get_config, current_server, get_sbatch_args
+from IMDgroup.gorun.sbatch import (
+    load_config,
+    resolve_server,
+    missing_config_message,
+    get_sbatch_args,
+)
 from IMDgroup.gorun.adapters.base import SoftwareAdapter
 
 # ---------------------------------------------------------------------------
@@ -160,12 +165,25 @@ def dispatch_run(args, adapter: SoftwareAdapter) -> int:
     int
         Exit code (0 = success, 1 = failure).
     """
-    # ---- 1. Load config ----
-    config = get_config(args)
-    server = current_server(config)
-    if server is None:
-        print(colored("Running on unknown server.  Adjust the config.", "red"))
-        return 1
+    # ---- 1. Load config and resolve the server section ----
+    config = load_config(args)
+
+    if config is None:
+        if not args.local:
+            print(colored(missing_config_message(), "red"))
+            return 1
+        server = None
+        server_config: dict = {}
+    else:
+        server = resolve_server(config)
+        if server is not None:
+            server_config = config[server]
+        elif args.local:
+            server = None
+            server_config = {}
+        else:
+            print(colored("Running on unknown server.  Adjust the config.", "red"))
+            return 1
 
     # ---- 2. Validate environment ----
     adapter.validate_environment()
@@ -235,21 +253,21 @@ def dispatch_run(args, adapter: SoftwareAdapter) -> int:
         setup = ""
         print(colored("GORUN_SKIP_SETUP is set.  Skipping environment setup.", "yellow"))
     else:
-        setup = adapter.setup_commands(config[server])
-    body = adapter.generate_run_commands(cwd, config[server])
+        setup = adapter.setup_commands(server_config)
+    body = adapter.generate_run_commands(cwd, server_config)
 
     script_body = f"{setup}\n{_RUNNING_SETUP}\n{body}\n{_RUNNING_CLEANUP}\nexit 0"
 
     if args.local:
-        shebang = config[server].get("shebang", "#!/usr/bin/env bash")
+        shebang = server_config.get("shebang", "#!/usr/bin/env bash")
         script = f"{shebang}\n{script_body}"
     else:
-        adapter_cfg = config[server].get(adapter.name, {})
+        adapter_cfg = server_config.get(adapter.name, {})
         queues = (
             [args.queue]
             if args.queue
             else adapter_cfg.get("queues")
-            or config[server].get("queues", [])
+            or server_config.get("queues", [])
         )
         if not queues:
             print(colored("No queues configured for this server.", "red"))
@@ -258,7 +276,7 @@ def dispatch_run(args, adapter: SoftwareAdapter) -> int:
             get_sbatch_args(args, config, server, queue_name, adapter.name)
             for queue_name in queues
         ]
-        shebang = config[server].get("shebang", "#!/usr/bin/env bash")
+        shebang = server_config.get("shebang", "#!/usr/bin/env bash")
         script = get_best_script(alt_args, script_body, shebang)
 
     # ---- 9. Submit ----

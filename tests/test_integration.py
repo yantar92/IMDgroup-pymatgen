@@ -100,6 +100,20 @@ def test_vasp_local_runs_fake_binary(fake_cluster, tmp_path: Path, monkeypatch) 
     assert "vasp vasp_ncl" in fake_cluster.log.read_text()
 
 
+def test_vasp_local_no_config_runs_fake_binary(
+    fake_cluster, tmp_path: Path, monkeypatch
+) -> None:
+    """--local without a config file runs VASP (no cluster config needed)."""
+    monkeypatch.chdir(tmp_path)
+    _copy_vasp_inputs(tmp_path)
+
+    rc = gorun_main(["vasp", "--local", "--keep", "POTCAR"])
+
+    assert rc == 0
+    assert (tmp_path / "vasp_ran").exists()
+    assert "vasp vasp_ncl" in fake_cluster.log.read_text()
+
+
 def test_vasp_incar_py_mark_uses_subclass(
     fake_cluster, tmp_path: Path, monkeypatch
 ) -> None:

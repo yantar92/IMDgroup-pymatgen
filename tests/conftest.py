@@ -170,10 +170,10 @@ def fake_cluster(monkeypatch, tmp_path):
     """Build a fake cluster boundary for end-to-end integration tests.
 
     Creates a ``fakebin/`` directory of executable shims (=sbatch=,
-    =squeue=, =uname=, =date=, =rsync=) and a fake =VASP_PATH= tree,
-    prepends =fakebin= to =PATH=, and sets the environment the gorun
-    entry points expect.  Every fake binary appends its invocation to
-    the log file exposed as ``ns.log``.
+    =squeue=, =uname=, =date=, =rsync=, =mpiexec=) and a fake
+    =VASP_PATH= tree, prepends =fakebin= to =PATH=, and sets the
+    environment the gorun entry points expect.  Every fake binary
+    appends its invocation to the log file exposed as ``ns.log``.
 
     This is used by the =integration= tests in =test_integration.py= to
     run the real gorun pipeline against a fake cluster without a Slurm
@@ -224,6 +224,15 @@ def fake_cluster(monkeypatch, tmp_path):
         '#!/bin/sh\n'
         'echo "rsync $*" >> "$GORUN_FAKE_LOG"\n'
         'exit 0\n',
+    )
+    # A pass-through launcher so mpiexec is found on PATH without
+    # depending on a real MPI runtime.  It execs the VASP binary it is
+    # asked to launch.
+    write_bin(
+        "mpiexec",
+        '#!/bin/sh\n'
+        'echo "mpiexec $*" >> "$GORUN_FAKE_LOG"\n'
+        'exec "$@"\n',
     )
 
     for name in ("vasp_ncl", "vasp_std", "vasp_gam"):
