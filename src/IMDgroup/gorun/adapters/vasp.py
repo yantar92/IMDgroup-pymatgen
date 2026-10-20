@@ -28,7 +28,6 @@ from __future__ import annotations
 
 import os
 import re
-import shutil
 from pathlib import Path
 
 from termcolor import colored
@@ -269,11 +268,9 @@ class VaspAdapter:
         """``<launcher> vasp_<variant>`` invocation.
 
         The launcher comes from ``server_config["mpiexec"]`` when set;
-        otherwise it defaults to ``mpiexec`` if that command is on PATH,
-        falling back to running the binary directly (single process) so a
-        local VASP install without an MPI launcher still works.  The full
-        command is exported as ``VASP_COMMAND`` and then invoked,
-        mirroring the legacy gorun script.
+        otherwise it defaults to ``mpiexec``.  The full command is
+        exported as ``VASP_COMMAND`` and then invoked, mirroring the
+        legacy gorun script.
         """
         vasp_binary = os.path.join(
             os.environ["VASP_PATH"], "bin", f"vasp_{self.vasp_variant}"
@@ -286,24 +283,16 @@ class VaspAdapter:
         )
 
     def _mpiexec_command(self, server_config: dict) -> str:
-        """Return the MPI launcher prefix, or ``""`` to run VASP directly.
+        """Return the MPI launcher prefix.
 
         An explicit ``mpiexec`` key in the config is used verbatim, even
-        when empty (which disables the launcher).  Without one, probe for
-        ``mpiexec`` on PATH; when it is missing (for example a laptop
-        running a local VASP build), warn and invoke the binary directly.
+        when empty (which disables the launcher).  Without one, default to
+        ``mpiexec``.  Disable the launcher by setting ``mpiexec = ""``
+        explicitly.
         """
         if "mpiexec" in server_config:
             return server_config["mpiexec"]
-        if shutil.which("mpiexec") is not None:
-            return "mpiexec"
-        print(
-            colored(
-                "mpiexec not found.  Running VASP directly as a single process.",
-                "yellow",
-            )
-        )
-        return ""
+        return "mpiexec"
 
     def _incar_py_script(self, path: Path) -> str:
         """ASE-wrapped script when INCAR.py is present."""

@@ -197,20 +197,10 @@ def test_setup_commands_no_vasp_config() -> None:
 def test_direct_vasp_script_default_mpiexec(monkeypatch) -> None:
     """The direct script exports VASP_COMMAND with the default launcher."""
     monkeypatch.setenv("VASP_PATH", "/vasp")
-    monkeypatch.setattr(vasp_mod.shutil, "which", lambda cmd: "/usr/bin/mpiexec")
     adapter = _adapter(vasp_variant="std")
     script = adapter._direct_vasp_script({})
     assert 'export VASP_COMMAND="mpiexec /vasp/bin/vasp_std"' in script
     assert script.endswith("$VASP_COMMAND")
-
-
-def test_direct_vasp_script_no_mpiexec(monkeypatch) -> None:
-    """Without mpiexec, the binary runs directly with no launcher prefix."""
-    monkeypatch.setenv("VASP_PATH", "/vasp")
-    monkeypatch.setattr(vasp_mod.shutil, "which", lambda cmd: None)
-    adapter = _adapter(vasp_variant="std")
-    script = adapter._direct_vasp_script({})
-    assert 'export VASP_COMMAND="/vasp/bin/vasp_std"' in script
 
 
 def test_direct_vasp_script_custom_mpiexec(monkeypatch) -> None:
@@ -238,16 +228,9 @@ def test_mpiexec_command_explicit(monkeypatch) -> None:
     assert _adapter()._mpiexec_command({"mpiexec": ""}) == ""
 
 
-def test_mpiexec_command_probe_found(monkeypatch) -> None:
-    """Without an explicit key, mpiexec on PATH is used."""
-    monkeypatch.setattr(vasp_mod.shutil, "which", lambda cmd: "/usr/bin/mpiexec")
+def test_mpiexec_command_default() -> None:
+    """Without an explicit key, mpiexec is always returned."""
     assert _adapter()._mpiexec_command({}) == "mpiexec"
-
-
-def test_mpiexec_command_probe_missing(monkeypatch) -> None:
-    """Without mpiexec on PATH, fall back to running the binary directly."""
-    monkeypatch.setattr(vasp_mod.shutil, "which", lambda cmd: None)
-    assert _adapter()._mpiexec_command({}) == ""
 
 
 # --- _incar_py_script -------------------------------------------------------
