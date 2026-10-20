@@ -34,6 +34,7 @@ from tabulate import tabulate
 import numpy as np
 import pandas as pd
 from alive_progress import alive_it
+from pymatgen.core import Structure
 from IMDgroup.pymatgen.io.vasp.inputs import Incar
 from IMDgroup.pymatgen.core.structure import structure_distance
 from IMDgroup.pymatgen.io.vasp.vaspdir import IMDGVaspDir
@@ -129,6 +130,24 @@ def read_field(field: str, vaspdir: IMDGVaspDir):
         return "N/A"
 
 
+def _require_structure(structure: Structure | None) -> Structure:
+    """Return *structure*, raising ``TypeError`` when it is ``None``.
+
+    Args:
+        structure: Possibly missing structure.
+
+    Returns:
+        Structure: The non-``None`` structure.
+
+    Raises:
+        TypeError: If *structure* is ``None``.  This is caught by
+            :func:`read_field`.
+    """
+    if structure is None:
+        raise TypeError("structure is None")
+    return structure
+
+
 def _read_field_1(field: str, vaspdir: IMDGVaspDir):
     """Read a single analysis field (internal, may raise).
 
@@ -141,9 +160,9 @@ def _read_field_1(field: str, vaspdir: IMDGVaspDir):
 
     Raises:
         FileNotFoundError: If the required data files are missing.
-        TypeError, AttributeError: If the required structure is missing
-            (``vaspdir.final_structure`` / ``vaspdir.initial_structure`` are
-            ``None``).  These are caught by :func:`read_field`.
+        TypeError: If the required structure is missing
+            (``vaspdir.final_structure`` / ``vaspdir.initial_structure`` is
+            ``None``).  Caught by :func:`read_field`.
     """
     val = None
 
@@ -157,7 +176,7 @@ def _read_field_1(field: str, vaspdir: IMDGVaspDir):
     elif field == 'e_per_atom':
         val = vaspdir.final_energy_reliable
         if not isinstance(val, str):
-            val = val / len(vaspdir.final_structure)
+            val = val / len(_require_structure(vaspdir.final_structure))
             val = f"{val:.5f}"
     elif field == 'total_mag':
         val = vaspdir.total_magnetization
@@ -175,61 +194,64 @@ def _read_field_1(field: str, vaspdir: IMDGVaspDir):
                 val = max(np.linalg.norm(force) for force in forces)
                 val = f"{val:.4f}"
     elif field == '%vol':
-        vol0 = vaspdir.initial_structure.volume
-        val = vaspdir.final_structure.volume / vol0 - 1
+        vol0 = _require_structure(vaspdir.initial_structure).volume
+        val = _require_structure(vaspdir.final_structure).volume / vol0 - 1
         val = f"{val * 100:.2f}"
     elif field == 'displ':
+        initial = _require_structure(vaspdir.initial_structure)
+        final = _require_structure(vaspdir.final_structure)
         try:
             displ = structure_distance(
-                vaspdir.initial_structure,
-                vaspdir.final_structure,
+                initial,
+                final,
                 match_first=True,
                 norm=True)
         except ValueError:
             # structures are too different
             displ = structure_distance(
-                vaspdir.initial_structure,
-                vaspdir.final_structure,
+                initial,
+                final,
                 match_first=False,
                 norm=True)
         val = f"{displ:.2f}"
     elif field == 'space_group':
-        val = vaspdir.final_structure.get_space_group_info()[0]
+        structure = _require_structure(vaspdir.final_structure)
+        val = structure.get_space_group_info()[0]
     elif field == 'a':
-        val = vaspdir.final_structure.lattice.a
+        val = _require_structure(vaspdir.final_structure).lattice.a
     elif field == '%a':
-        a0 = vaspdir.initial_structure.lattice.a
-        val = vaspdir.final_structure.lattice.a / a0 - 1
+        a0 = _require_structure(vaspdir.initial_structure).lattice.a
+        val = _require_structure(vaspdir.final_structure).lattice.a / a0 - 1
         val = f"{val * 100:.2f}"
     elif field == 'b':
-        val = vaspdir.final_structure.lattice.b
+        val = _require_structure(vaspdir.final_structure).lattice.b
     elif field == '%b':
-        b0 = vaspdir.initial_structure.lattice.b
-        val = vaspdir.final_structure.lattice.b / b0 - 1
+        b0 = _require_structure(vaspdir.initial_structure).lattice.b
+        val = _require_structure(vaspdir.final_structure).lattice.b / b0 - 1
         val = f"{val * 100:.2f}"
     elif field == 'c':
-        val = vaspdir.final_structure.lattice.c
+        val = _require_structure(vaspdir.final_structure).lattice.c
     elif field == '%c':
-        c0 = vaspdir.initial_structure.lattice.c
-        val = vaspdir.final_structure.lattice.c / c0 - 1
+        c0 = _require_structure(vaspdir.initial_structure).lattice.c
+        val = _require_structure(vaspdir.final_structure).lattice.c / c0 - 1
         val = f"{val * 100:.2f}"
     elif field == 'alpha':
-        val = vaspdir.final_structure.lattice.alpha
+        val = _require_structure(vaspdir.final_structure).lattice.alpha
     elif field == '%alpha':
-        alpha0 = vaspdir.initial_structure.lattice.alpha
-        val = vaspdir.final_structure.lattice.alpha / alpha0 - 1
+        alpha0 = _require_structure(vaspdir.initial_structure).lattice.alpha
+        val = _require_structure(vaspdir.final_structure).lattice.alpha / alpha0 - 1
         val = f"{val * 100:.2f}"
     elif field == 'beta':
-        val = vaspdir.final_structure.lattice.beta
+        val = _require_structure(vaspdir.final_structure).lattice.beta
     elif field == '%beta':
-        beta0 = vaspdir.initial_structure.lattice.beta
-        val = vaspdir.final_structure.lattice.beta / beta0 - 1
+        beta0 = _require_structure(vaspdir.initial_structure).lattice.beta
+        val = _require_structure(vaspdir.final_structure).lattice.beta / beta0 - 1
         val = f"{val * 100:.2f}"
     elif field == 'gamma':
-        val = vaspdir.final_structure.lattice.gamma
+        val = _require_structure(vaspdir.final_structure).lattice.gamma
     elif field == '%gamma':
-        gamma0 = vaspdir.initial_structure.lattice.gamma
-        val = vaspdir.final_structure.lattice.gamma / gamma0 - 1
+        gamma0 = _require_structure(vaspdir.initial_structure).lattice.gamma
+        val = _require_structure(vaspdir.final_structure).lattice.gamma / gamma0 - 1
         val = f"{val * 100:.2f}"
 
     return val
