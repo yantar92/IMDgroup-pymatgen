@@ -256,9 +256,9 @@ class SymmetryCloneTransformation(AbstractTransformation):
 
         with alive_bar(len(self.sym_operations),
                        title='Searching clones',
-                       disable=not progress_bar) as progress_bar:
+                       disable=not progress_bar) as bar:
             for op in self.sym_operations:
-                progress_bar()  # pylint: disable=not-callable
+                bar()  # pylint: disable=not-callable
                 clone = structure.copy()
                 clone = apply_operation_keep_lattice(clone, op)
                 if not _member(clone, clones)\
