@@ -19,10 +19,7 @@ from IMDgroup.pymatgen.io.vasp.inputs import Incar
 from IMDgroup.pymatgen.io.vasp.sets import (
     IMDDerivedInputSet,
     IMDNEBVaspInputSet,
-    IMDRelaxCellulose,
     IMDStandardVaspInputSet,
-    IMDStandardVaspInputSet_relax,
-    IMDStandardVaspInputSet_scf,
     write_selective_dynamics_summary_maybe,
 )
 
@@ -93,21 +90,6 @@ def test_functional_vdw_df(cscl) -> None:
     updates = _standard_set(cscl, functional="vdw-df").incar_updates
     assert updates["LUSE_VDW"] is True
     assert updates["GGA"] == "RE"
-
-
-def test_relax_defaults(cscl) -> None:
-    """The relax set overrides NSW/EDIFFG for geometry optimization."""
-    incar = IMDStandardVaspInputSet_relax(
-        structure=cscl, no_potcar=True).incar
-    assert incar["NSW"] == 500
-    assert incar["EDIFFG"] == -0.01
-
-
-def test_scf_defaults(cscl) -> None:
-    """The SCF set sets NSW=0 and the tetrahedron smearing method."""
-    incar = IMDStandardVaspInputSet_scf(structure=cscl, no_potcar=True).incar
-    assert incar["NSW"] == 0
-    assert incar["ISMEAR"] == -5
 
 
 def test_write_incar_toml_metadata_records_functional(cscl, tmp_path) -> None:

@@ -55,7 +55,6 @@ docs = [
 ]
 
 [project.scripts]
-pmg-insert-molecule = "IMDgroup.pymatgen.transformations.insert_molecule_cli:main"
 imdg = "IMDgroup.pymatgen.cli.imdg:main"
 gorun = "IMDgroup.gorun.gorun:main"
 gorun-mace = "IMDgroup.gorun.gorun:main_mace"

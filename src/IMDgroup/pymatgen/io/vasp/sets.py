@@ -43,8 +43,6 @@ from pymatgen.core import Species, DummySpecies, Structure
 from pymatgen.io.vasp.sets import VaspInputSet, BadInputSetWarning
 from pymatgen.io.vasp.inputs import Potcar, Kpoints, Poscar, BadPoscarWarning
 from pymatgen.io.vasp.outputs import Vasprun
-from duecredit import Doi, due
-from pymatgen.ext.matproj import MPRester
 from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
 from pymatgen.io.ase import AseAtomsAdaptor
 from ase.calculators.vasp.setups \
@@ -56,8 +54,7 @@ from IMDgroup.pymatgen.io.vasp.incar_toml import (
     read_incar_toml,
     write_incar_toml,
 )
-from IMDgroup.pymatgen.io.vasp.inputs import\
-    Incar, _load_yaml_config
+from IMDgroup.pymatgen.io.vasp.inputs import Incar
 from IMDgroup.pymatgen.io.vasp.vaspdir import IMDGVaspDir
 
 # ase uses pairs of 'Si': '_suffix'.  Convert them into 'Si': 'Si_suffix'
@@ -74,20 +71,7 @@ POTCAR_FUNCTIONAL_DEFAULT = 'PBE_64'
 KPOINTS_GRID_DENSITY = 10000
 
 __author__ = "Ihor Radchenko <yantar92@posteo.net>"
-MODULE_DIR = os.path.dirname(__file__)
 logger = logging.getLogger(__name__)
-
-
-
-def _load_cif(fname):
-    return Structure.from_file(f"{MODULE_DIR}/{fname}.cif")
-
-
-def _load_mp(name):
-    with MPRester() as m:
-        structure = m.get_structure_by_material_id(name)  # carbon
-        assert structure.is_valid()
-    return structure
 
 
 def write_selective_dynamics_summary_maybe(structure, fname):
@@ -766,41 +750,6 @@ class IMDStandardVaspInputSet(IMDVaspInputSet):
               'POTCAR': POTCAR_RECOMMENDED}
 
 
-@dataclass
-class IMDStandardVaspInputSet_relax(IMDStandardVaspInputSet):
-    """Standard input set for IMDGroup relaxation runs.
-
-    Sets defaults for EDIFF, EDIFFG, ISTART, and NSW suitable for
-    geometry optimization.
-    """
-    CONFIG = copy.deepcopy(IMDStandardVaspInputSet.CONFIG)
-    CONFIG['INCAR'].update({
-        'ISTART': 0,
-        # Volume relaxation
-        # 500 steps because 100 suggested in some online resources
-        # may not be enough in complex supercells.
-        "NSW": 500,
-        'EDIFF': 1e-06,
-        'EDIFFG': -0.01,
-    })
-
-
-@dataclass
-class IMDStandardVaspInputSet_scf(IMDStandardVaspInputSet):
-    """Standard input set for IMDGroup SCF (static) runs.
-
-    Sets NSW=0, IBRION=-1, ISMEAR=-5 (tetrahedron method) as
-    recommended for accurate total energies.
-    """
-    # https://www.vasp.at/wiki/index.php/Smearing_technique#Which_method_to_use
-    CONFIG = copy.deepcopy(IMDStandardVaspInputSet.CONFIG)
-    CONFIG['INCAR'].update({
-        "NSW": 0,
-        'IBRION': -1,
-        'ISMEAR': -5,
-    })
-
-
 class IMDNEBVaspInputSetWarning(UserWarning):
     """Warning emitted by IMDNEBVaspInputSet."""
 
@@ -1008,50 +957,3 @@ class IMDNEBVaspInputSet(IMDDerivedInputSet):
                     site.properties['selective_dynamics'] =\
                         [False, False, False]
         return None
-
-
-# FIXME: due.dcite is only available dynamically.  Needs to be fixed upstream.
-@due.dcite(  # pyright: ignore[reportAttributeAccessIssue]
-    Doi("10.1007/s10570-024-05754-7"),
-    description="Understanding of dielectric properties of cellulose",
-)
-@dataclass
-class IMDRelaxCellulose(VaspInputSet):
-    """Relaxation input set for cellulose.
-
-    Args:
-        structure: A ``Structure`` object, or the strings ``"ialpha"``
-            or ``"ibeta"`` for the corresponding cellulose phase.
-        user_kpoints_settings: Optional dict or ``Kpoints`` object to
-            override k-point settings.
-
-    References:
-        Yadav, A., Bostroem, M. & Malyi, O.I. Understanding of
-        dielectric properties of cellulose. *Cellulose* 31, 2783-2794
-        (2024). https://doi.org/10.1007/s10570-024-05754-7
-    """
-    CONFIG = _load_yaml_config("IMDRelaxCellulose")
-    force_gamma: bool = True  # Must use gamma-centered k-point grid
-
-    def __post_init__(self) -> None:
-        if self.structure == 'ialpha':
-            self.structure = _load_cif('cellulose_ialpha')
-        if self.structure == 'ibeta':
-            self.structure = _load_cif('cellulose_ibeta')
-        super().__post_init__()
-
-
-@dataclass
-class IMDGraphite(VaspInputSet):
-    """SCF input set for graphite (mp-48 from Materials Project).
-
-    Args:
-        user_kpoints_settings: Optional dict or ``Kpoints`` object to
-            override k-point settings.
-    """
-    CONFIG = _load_yaml_config("IMDGraphite")
-    force_gamma: bool = True  # Must use gamma-centered k-point grid
-
-    def __post_init__(self) -> None:
-        self.structure = _load_mp('mp-48')
-        super().__post_init__()
