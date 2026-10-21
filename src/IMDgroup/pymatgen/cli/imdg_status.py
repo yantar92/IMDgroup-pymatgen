@@ -38,10 +38,10 @@ import shutil
 from dataclasses import dataclass
 from pathlib import Path
 import cachetools.func
-from alive_progress import alive_it
 import numpy as np
 from termcolor import colored
-from rich.console import Console
+from rich.console import Console, Group
+from rich.live import Live
 from rich.table import Table
 from rich.text import Text
 from pymatgen.io.vasp.outputs import UnconvergedVASPWarning
@@ -379,6 +379,42 @@ class _RunRow:
     neb_summary: str
 
 
+def _add_run_row(table, row, has_ref):
+    """Append one run's display cells to TABLE.
+
+    Args:
+        table: rich Table with the status columns already added.
+        row: _RunRow to render.
+        has_ref: Whether the table has the trailing footnote-ref column.
+    """
+    if row.warn_names:
+        status_cell = Text(row.status_label, style="bold black on yellow")
+    else:
+        status_cell = Text(row.status_label, style=row.status_color)
+    dir_cell = Text()
+    if row.is_neb:
+        dir_cell.append("IMAGES ", style="magenta")
+    dir_cell.append(row.dir_display)
+    warn_cell = Text()
+    if row.warn_names:
+        warn_cell.append(", ".join(row.warn_names), style="yellow")
+    else:
+        warn_cell.append("-", style="dim")
+    cells = [
+        row.when,
+        status_cell,
+        dir_cell,
+        row.energy or "-",
+        row.fmax or "-",
+        row.per_step or "-",
+        warn_cell,
+    ]
+    if has_ref:
+        cells.append(
+            Text(f"[{row.ref}]", style="dim") if row.truncated else Text())
+    table.add_row(*cells)
+
+
 def status(args):
     """Run the status subcommand.
 
@@ -435,215 +471,198 @@ def status(args):
     dir_max = max(30, min(48, console.width - 70))
     ref_counter = 0
 
-    with warnings.catch_warnings():
-        warnings.filterwarnings("ignore", category=VaspWarning)
-        for wdir in alive_it(paths, enrich_print=False, title="Reading VASP outputs"):
-            vaspdir = vaspdirs.get(wdir)
-            assert vaspdir is not None
-            incar = vaspdir['INCAR']
-            if incar is not None:
-                incar['SYSTEM'] = wdir
-                incars.append(incar)
-            # Avoid overflowing memory when reading too many dirs.
-            del vaspdirs[wdir]
-            nebp = vaspdir.nebp
+    # Decide the footnote-ref column before streaming: a scanned path
+    # will be ellipsized when it exceeds dir_max, so we know upfront
+    # whether the column is needed (skipped dirs may leave it empty).
+    any_truncated = any(
+        len(w.replace("./", "")) > dir_max for w in paths)
 
-            if slurm_runningp(wdir):
-                running, converged = True, False
-                status_label, status_color = "running", "yellow"
-            else:
-                running = False
-                converged = (vaspdir.converged_electronic
-                             and vaspdir.converged_ionic
-                             and vaspdir.converged_manual)
-                if converged:
-                    status_label = (
-                        "converged; next step pending"
-                        if not vaspdir.converged_sequence
-                        else "converged")
-                    status_color = "green"
+    table = Table(
+        box=None, show_header=True, header_style="bold", padding=(0, 1))
+    table.add_column("WHEN", justify="right", style="dim", no_wrap=True)
+    table.add_column("STATUS", no_wrap=True)
+    table.add_column(
+        "DIR", max_width=dir_max, overflow="ellipsis", no_wrap=True)
+    table.add_column("ENERGY (eV)", justify="right", no_wrap=True)
+    table.add_column("FMAX (eV/\u00c5)", justify="right", no_wrap=True)
+    table.add_column("PER-STEP", no_wrap=True)
+    table.add_column("WARN", overflow="fold", max_width=24)
+    if any_truncated:
+        table.add_column("#", justify="right", no_wrap=True)
+
+    header = Text("Reading VASP outputs...", style="dim")
+
+    with Live(
+            Group(header, table),
+            console=console,
+            refresh_per_second=4) as live:
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", category=VaspWarning)
+            for i, wdir in enumerate(paths, 1):
+                vaspdir = vaspdirs.get(wdir)
+                assert vaspdir is not None
+                incar = vaspdir['INCAR']
+                if incar is not None:
+                    incar['SYSTEM'] = wdir
+                    incars.append(incar)
+                # Avoid overflowing memory when reading too many dirs.
+                del vaspdirs[wdir]
+                nebp = vaspdir.nebp
+
+                if slurm_runningp(wdir):
+                    running, converged = True, False
+                    status_label, status_color = "running", "yellow"
                 else:
-                    status_label, status_color = "unconverged", "red"
+                    running = False
+                    converged = (vaspdir.converged_electronic
+                                 and vaspdir.converged_ionic
+                                 and vaspdir.converged_manual)
+                    if converged:
+                        status_label = (
+                            "converged; next step pending"
+                            if not vaspdir.converged_sequence
+                            else "converged")
+                        status_color = "green"
+                    else:
+                        status_label, status_color = "unconverged", "red"
 
-            logger.debug(
-                '%s: running = %s, converged = %s', wdir, running, converged)
-
-            if args.skip_running and running:
-                logger.debug('skipping running run')
-                continue
-
-            if args.skip_converged and converged:
-                logger.debug('skipping converged run')
-                continue
-
-            progress = ""
-            warn_names: set[str] = set()
-            if logs := (not nebp) and vaspdir.logs():
                 logger.debug(
-                    "Found VASP logs in %s: %s",
-                    wdir, [log.file.name for log in logs])
-                if not converged:
-                    progress = _get_progress(logs)
-                nowarn_list = ['unconverged_energy'] if running else []
-                if args.nowarn:
-                    nowarn_list += args.nowarn
-                warn_names, meta = _collect_warnings(
-                    vaspdir.warnings, nowarn_list)
-                for name, pair in meta.items():
-                    warning_meta.setdefault(name, pair)
-                dir_norm = wdir.replace("./", "")
-                if running:
-                    category = "running"
-                elif converged:
-                    category = "converged"
+                    '%s: running = %s, converged = %s',
+                    wdir, running, converged)
+
+                if args.skip_running and running:
+                    logger.debug('skipping running run')
+                    continue
+
+                if args.skip_converged and converged:
+                    logger.debug('skipping converged run')
+                    continue
+
+                progress = ""
+                warn_names: set[str] = set()
+                if logs := (not nebp) and vaspdir.logs():
+                    logger.debug(
+                        "Found VASP logs in %s: %s",
+                        wdir, [log.file.name for log in logs])
+                    if not converged:
+                        progress = _get_progress(logs)
+                    nowarn_list = ['unconverged_energy'] if running else []
+                    if args.nowarn:
+                        nowarn_list += args.nowarn
+                    warn_names, meta = _collect_warnings(
+                        vaspdir.warnings, nowarn_list)
+                    for name, pair in meta.items():
+                        warning_meta.setdefault(name, pair)
+                    dir_norm = wdir.replace("./", "")
+                    if running:
+                        category = "running"
+                    elif converged:
+                        category = "converged"
+                    else:
+                        category = "unconverged"
+                    for warn_name in warn_names:
+                        dirs_with_warnings.setdefault(
+                            warn_name, {}).setdefault(
+                                category, []).append(dir_norm)
+                    if not warn_names and category == "unconverged":
+                        dirs_with_warnings.setdefault(
+                            'UNCONVERGED', {}).setdefault(
+                                category, []).append(dir_norm)
                 else:
-                    category = "unconverged"
-                for warn_name in warn_names:
-                    dirs_with_warnings.setdefault(
-                        warn_name, {}).setdefault(
-                            category, []).append(dir_norm)
-                if not warn_names and category == "unconverged":
-                    dirs_with_warnings.setdefault(
-                        'UNCONVERGED', {}).setdefault(
-                            category, []).append(dir_norm)
-            else:
-                if not nebp:
-                    logger.debug("Slurm log file not found in %s", wdir)
+                    if not nebp:
+                        logger.debug("Slurm log file not found in %s", wdir)
 
-            per_step = ""
-            if running and not nebp and not args.fast:
-                outcar_path = Path(wdir) / 'OUTCAR'
-                if outcar_path.is_file():
-                    per_step = format_timing_stats(
-                        read_outcar_timing_stats(outcar_path))
+                per_step = ""
+                if running and not nebp and not args.fast:
+                    outcar_path = Path(wdir) / 'OUTCAR'
+                    if outcar_path.is_file():
+                        per_step = format_timing_stats(
+                            read_outcar_timing_stats(outcar_path))
 
-            if args.problematic and not warn_names and (converged or running):
-                continue
+                if args.problematic and not warn_names\
+                        and (converged or running):
+                    continue
 
-            final_energy_str = ""
-            fmax_str = ""
-            cpu_time = ""
-            n_cores = ""
-            if not running:
-                if vaspdir['vasprun.xml'] is None and\
-                   (Path(wdir) / 'vasprun.xml').is_file():
-                    status_label = "incomplete vasprun.xml"
-                    status_color = "red"
-                final_energy = vaspdir.final_energy
-                if final_energy is None or final_energy == np.nan:
-                    final_energy_str = ""
-                else:
-                    final_energy_str = "" if np.isnan(final_energy)\
-                        else f"{final_energy:.4f}"
-                    outcar = None if args.fast else vaspdir['OUTCAR']
-                    if outcar is not None:
-                        cpu_time_sec = outcar.run_stats.get(
-                            'Total CPU time used (sec)')
-                        if cpu_time_sec is not None:
-                            cpu_time = str(datetime.timedelta(
-                                seconds=round(cpu_time_sec)))
-                        cores = outcar.run_stats['cores']
-                        if cores is not None:
-                            n_cores = str(cores)
-                        max_force = vaspdir.max_force()
-                        if max_force is not None:
-                            fmax_str = f"{max_force:.4f}"
-                        per_step = format_timing_stats(outcar.timing_stats)
+                final_energy_str = ""
+                fmax_str = ""
+                cpu_time = ""
+                n_cores = ""
+                if not running:
+                    if vaspdir['vasprun.xml'] is None and\
+                       (Path(wdir) / 'vasprun.xml').is_file():
+                        status_label = "incomplete vasprun.xml"
+                        status_color = "red"
+                    final_energy = vaspdir.final_energy
+                    if final_energy is None or final_energy == np.nan:
+                        final_energy_str = ""
+                    else:
+                        final_energy_str = "" if np.isnan(final_energy)\
+                            else f"{final_energy:.4f}"
+                        outcar = None if args.fast else vaspdir['OUTCAR']
+                        if outcar is not None:
+                            cpu_time_sec = outcar.run_stats.get(
+                                'Total CPU time used (sec)')
+                            if cpu_time_sec is not None:
+                                cpu_time = str(datetime.timedelta(
+                                    seconds=round(cpu_time_sec)))
+                            cores = outcar.run_stats['cores']
+                            if cores is not None:
+                                n_cores = str(cores)
+                            max_force = vaspdir.max_force()
+                            if max_force is not None:
+                                fmax_str = f"{max_force:.4f}"
+                            per_step = format_timing_stats(
+                                outcar.timing_stats)
 
-            mtime = vasp_output_time(wdir)
-            if mtime is None:
-                continue
-            delta = mtime - datetime.datetime.now().timestamp()
+                mtime = vasp_output_time(wdir)
+                if mtime is None:
+                    continue
+                delta = mtime - datetime.datetime.now().timestamp()
 
-            dir_full = wdir.replace("./", "")
-            truncated = len(dir_full) > dir_max
-            ref = 0
-            if truncated:
-                ref_counter += 1
-                ref = ref_counter
+                dir_full = wdir.replace("./", "")
+                truncated = len(dir_full) > dir_max
+                ref = 0
+                if truncated:
+                    ref_counter += 1
+                    ref = ref_counter
 
-            rows.append(_RunRow(
-                dir_full=dir_full,
-                dir_display=dir_full,
-                truncated=truncated,
-                ref=ref,
-                when=print_seconds(delta),
-                running=running,
-                converged=converged,
-                is_neb=nebp,
-                status_label=status_label,
-                status_color=status_color,
-                warn_names=tuple(sorted(warn_names)),
-                energy=final_energy_str,
-                fmax=fmax_str,
-                per_step=per_step,
-                progress=progress,
-                cpu_time=cpu_time,
-                n_cores=n_cores,
-                neb_summary=_get_neb_summary(vaspdir) if nebp else "",
-            ))
+                row = _RunRow(
+                    dir_full=dir_full,
+                    dir_display=dir_full,
+                    truncated=truncated,
+                    ref=ref,
+                    when=print_seconds(delta),
+                    running=running,
+                    converged=converged,
+                    is_neb=nebp,
+                    status_label=status_label,
+                    status_color=status_color,
+                    warn_names=tuple(sorted(warn_names)),
+                    energy=final_energy_str,
+                    fmax=fmax_str,
+                    per_step=per_step,
+                    progress=progress,
+                    cpu_time=cpu_time,
+                    n_cores=n_cores,
+                    neb_summary=_get_neb_summary(vaspdir) if nebp else "",
+                )
+                rows.append(row)
+                _add_run_row(table, row, any_truncated)
+                live.update(Group(
+                    Text(
+                        f"Reading VASP outputs: {i}/{len(paths)}",
+                        style="dim"),
+                    table))
 
-    # ---- rendering ----
-    n_running = sum(1 for r in rows if r.running)
-    n_converged = sum(1 for r in rows if r.converged)
-    n_other = len(rows) - n_running - n_converged
-
-    console.print()
-    console.print(Text.assemble(
-        (f"{len(rows)} runs: ", "bold"),
-        (f"{n_running} running, ", "yellow"),
-        (f"{n_converged} converged, ", "green"),
-        (f"{n_other} unconverged", "red")))
-
-    any_truncated = any(r.truncated for r in rows)
-
-    if rows:
-        table = Table(
-            box=None, show_header=True, header_style="bold", padding=(0, 1))
-        table.add_column("WHEN", justify="right", style="dim", no_wrap=True)
-        table.add_column("STATUS", no_wrap=True)
-        table.add_column(
-            "DIR", max_width=dir_max, overflow="ellipsis", no_wrap=True)
-        table.add_column("ENERGY (eV)", justify="right", no_wrap=True)
-        table.add_column("FMAX (eV/\u00c5)", justify="right", no_wrap=True)
-        table.add_column("PER-STEP", no_wrap=True)
-        table.add_column("WARN", overflow="fold", max_width=24)
-        if any_truncated:
-            table.add_column("#", justify="right", no_wrap=True)
-
-        for r in rows:
-            if r.warn_names:
-                status_cell = Text(
-                    r.status_label, style="bold black on yellow")
-            else:
-                status_cell = Text(r.status_label, style=r.status_color)
-
-            dir_cell = Text()
-            if r.is_neb:
-                dir_cell.append("IMAGES ", style="magenta")
-            dir_cell.append(r.dir_display)
-
-            warn_cell = Text()
-            if r.warn_names:
-                warn_cell.append(", ".join(r.warn_names), style="yellow")
-            else:
-                warn_cell.append("-", style="dim")
-
-            row_cells = [
-                r.when,
-                status_cell,
-                dir_cell,
-                r.energy or "-",
-                r.fmax or "-",
-                r.per_step or "-",
-                warn_cell,
-            ]
-            if any_truncated:
-                row_cells.append(
-                    Text(f"[{r.ref}]", style="dim") if r.truncated else Text())
-            table.add_row(*row_cells)
-
-        console.print(table)
+        n_running = sum(1 for r in rows if r.running)
+        n_converged = sum(1 for r in rows if r.converged)
+        n_other = len(rows) - n_running - n_converged
+        summary = Text.assemble(
+            (f"{len(rows)} runs: ", "bold"),
+            (f"{n_running} running, ", "yellow"),
+            (f"{n_converged} converged, ", "green"),
+            (f"{n_other} unconverged", "red"))
+        live.update(Group(summary, table))
 
     truncated_rows = [r for r in rows if r.truncated]
     if truncated_rows:
