@@ -27,6 +27,7 @@
 
 """sbatch config generator.
 """
+import argparse
 import os
 import subprocess
 import tomllib
@@ -73,7 +74,7 @@ def missing_config_message() -> str:
     return _missing_config_message(_candidate_config_paths())
 
 
-def _resolve_config_path(args: dict) -> str | None:
+def _resolve_config_path(args: argparse.Namespace) -> str | None:
     """Return the config path to read, or None when none is found.
 
     An explicit ``--config`` path must exist; a miss raises
@@ -91,7 +92,7 @@ def _resolve_config_path(args: dict) -> str | None:
     return None
 
 
-def load_config(args: dict) -> dict | None:
+def load_config(args: argparse.Namespace) -> dict | None:
     """Read the gorun config file, or None when none is found.
 
     An explicit ``--config`` that is missing raises
@@ -136,7 +137,7 @@ def current_server(config: dict) -> str:
     return uname
 
 
-def get_user_sbatch_args(script_args) -> dict[str, str]:
+def get_user_sbatch_args(script_args: argparse.Namespace) -> dict[str, str]:
     """Extract explicit sbtach arguments from SCRIPT_ARGS.
     """
     sbatch_args = {}
@@ -157,7 +158,7 @@ def get_default_job_name():
         return {'job-name': os.path.basename(os.getcwd())}
 
 
-def get_sbatch_args(script_args: dict, config: dict,
+def get_sbatch_args(script_args: argparse.Namespace, config: dict,
                     server: str, queue: str,
                     adapter_name: str | None = None) -> dict:
     """Return a dict of arguments for sbatch command.
