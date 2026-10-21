@@ -20,8 +20,10 @@ from IMDgroup.pymatgen.io.vasp.sets import (
     IMDDerivedInputSet,
     IMDNEBVaspInputSet,
     IMDStandardVaspInputSet,
+    IMDVaspInputSet,
     write_selective_dynamics_summary_maybe,
 )
+from IMDgroup.pymatgen.io.vasp.vaspdir import IMDGVaspDir
 
 
 @pytest.fixture
@@ -384,6 +386,58 @@ def test_write_input_selective_dynamics_cif(cscl, tmp_path) -> None:
     assert (tmp_path / "selective_dynamics.cif").exists()
 
 
+def _neb_image(shift: float) -> IMDVaspInputSet:
+    """A CsCl NEB image with its second site displaced by *shift*."""
+    structure = Structure(
+        lattice=Lattice.cubic(4.1),
+        species=["Cs", "Cl"],
+        coords=[[0.0, 0.0, 0.0], [0.5 + shift, 0.5, 0.5]],
+    )
+    image = IMDVaspInputSet(no_kpoints=True, no_potcar=True, no_incar=True)
+    image.structure = structure
+    return image
+
+
+def test_write_input_neb_writes_image_subdirs_and_trajectory(tmp_path) -> None:
+    """The NEB branch writes one subdir per image plus a trajectory CIF."""
+    structure = Structure(
+        lattice=Lattice.cubic(4.1),
+        species=["Cs", "Cl"],
+        coords=[[0.0, 0.0, 0.0], [0.5, 0.5, 0.5]],
+    )
+    inset = IMDStandardVaspInputSet(
+        structure=structure, no_potcar=True,
+        user_incar_settings={"IMAGES": 1})
+    inset.images = [_neb_image(shift) for shift in (0.0, 0.05, 0.10)]
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        inset.write_input(tmp_path)
+
+    for name in ("00", "01", "02"):
+        subdir = tmp_path / name
+        assert subdir.is_dir()
+        assert (subdir / "POSCAR").exists()
+    assert (tmp_path / "NEB_trajectory.cif").exists()
+
+
+def test_write_input_neb_image_without_structure_raises(tmp_path) -> None:
+    """An image lacking a structure aborts the trajectory write."""
+    structure = Structure(
+        lattice=Lattice.cubic(4.1),
+        species=["Cs", "Cl"],
+        coords=[[0.0, 0.0, 0.0], [0.5, 0.5, 0.5]],
+    )
+    image = IMDVaspInputSet(no_kpoints=True, no_potcar=True, no_incar=True)
+    inset = IMDStandardVaspInputSet(structure=structure, no_potcar=True)
+    inset.images = [image]
+
+    with pytest.raises(ValueError, match="Cannot build NEB trajectory"):
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            inset.write_input(tmp_path)
+
+
 # ---------------------------------------------------------------------------
 # IMDDerivedInputSet
 # ---------------------------------------------------------------------------
@@ -399,6 +453,20 @@ def _write_poscar(dirpath, a=4.1) -> Structure:
     )
     Poscar(structure).write_file(dirpath / "POSCAR")
     return structure
+
+
+def _write_neb_parent(dirpath, *, with_kpoints: bool = True):
+    """Create a NEB parent dir (INCAR with IMAGES) and return its path.
+
+    The ``IMAGES`` tag makes ``IMDGVaspDir(parent).nebp`` report True,
+    which is what the parent-dir INCAR/KPOINTS fallback keys off.
+    """
+    parent = dirpath / "neb_parent"
+    parent.mkdir(parents=True, exist_ok=True)
+    (parent / "INCAR").write_text("IMAGES = 1\nENCUT = 500\n")
+    if with_kpoints:
+        Kpoints.gamma_automatic((4, 4, 4)).write_file(parent / "KPOINTS")
+    return parent
 
 
 def test_derived_reads_structure_from_poscar(tmp_path) -> None:
@@ -494,6 +562,87 @@ def test_derived_transfers_incar_variants(tmp_path) -> None:
     assert "INCAR.toml" in default.files_to_transfer
 
 
+def test_derived_accepts_vaspdir_object(tmp_path) -> None:
+    """An IMDGVaspDir object is accepted and coerced to its path string."""
+    _write_poscar(tmp_path)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        inset = IMDDerivedInputSet(
+            directory=IMDGVaspDir(tmp_path), no_potcar=True)
+    assert inset.directory == str(tmp_path)
+    assert inset.structure.reduced_formula == "CsCl"
+
+
+def test_derived_prev_incar_from_file(tmp_path) -> None:
+    """A previous INCAR file sets prev_incar, preserving params vasprun.xml
+    omits (e.g. NCORE is not stored in vasprun.xml)."""
+    _write_poscar(tmp_path)
+    (tmp_path / "INCAR").write_text("ENCUT = 500\nNCORE = 4\n")
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        inset = IMDDerivedInputSet(directory=tmp_path, no_potcar=True)
+    assert inset.prev_incar is not None
+    assert inset.prev_incar["ENCUT"] == 500.0
+    assert inset.prev_incar["NCORE"] == 4
+
+
+def test_derived_prev_kpoints_from_file(tmp_path) -> None:
+    """A KPOINTS file in the directory becomes prev_kpoints."""
+    _write_poscar(tmp_path)
+    (tmp_path / "INCAR").write_text("ENCUT = 500\n")
+    Kpoints.gamma_automatic((4, 4, 4)).write_file(tmp_path / "KPOINTS")
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        inset = IMDDerivedInputSet(directory=tmp_path, no_potcar=True)
+    assert isinstance(inset.prev_kpoints, Kpoints)
+    assert inset.prev_kpoints.kpts == [(4, 4, 4)]
+
+
+def test_derived_prev_incar_parent_neb_fallback(tmp_path) -> None:
+    """A NEB parent's INCAR is inherited when the image dir has none."""
+    parent = _write_neb_parent(tmp_path, with_kpoints=False)
+    _write_poscar(parent / "00")
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        inset = IMDDerivedInputSet(directory=parent / "00", no_potcar=True)
+    assert inset.prev_incar is not None
+    assert inset.prev_incar["IMAGES"] == 1
+    assert inset.prev_incar["ENCUT"] == 500.0
+
+
+def test_derived_prev_kpoints_parent_neb_fallback(tmp_path) -> None:
+    """A NEB parent's KPOINTS is inherited when the image dir has none."""
+    parent = _write_neb_parent(tmp_path)
+    _write_poscar(parent / "00")
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        inset = IMDDerivedInputSet(directory=parent / "00", no_potcar=True)
+    assert isinstance(inset.prev_kpoints, Kpoints)
+    assert inset.prev_kpoints.kpts == [(4, 4, 4)]
+
+
+def test_derived_incar_reflects_file(tmp_path) -> None:
+    """derived.incar returns the base INCAR built on the inherited file."""
+    _write_poscar(tmp_path)
+    (tmp_path / "INCAR").write_text("ENCUT = 500\nNCORE = 4\n")
+    Kpoints.gamma_automatic((4, 4, 4)).write_file(tmp_path / "KPOINTS")
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        inset = IMDDerivedInputSet(directory=tmp_path, no_potcar=True)
+        incar = inset.incar
+    assert incar["ENCUT"] == 500.0
+    assert incar["NCORE"] == 4
+
+
+def test_derived_no_input_raises(tmp_path) -> None:
+    """An empty directory with no POSCAR/CONTCAR raises ValueError."""
+    tmp_path.mkdir(parents=True, exist_ok=True)
+    with pytest.raises(ValueError, match="No VASP input found"):
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            IMDDerivedInputSet(directory=tmp_path, no_potcar=True)
+
+
 # ---------------------------------------------------------------------------
 # IMDNEBVaspInputSet
 # ---------------------------------------------------------------------------
@@ -511,6 +660,140 @@ def test_neb_incar_forces_ibrion_and_warns(monkeypatch) -> None:
         with pytest.warns(UserWarning, match="Forcing IBRION=1"):
             incar = IMDNEBVaspInputSet.incar.fget(neb)
     assert incar["IBRION"] == 1
+
+
+def test_neb_post_init_from_vaspruns(converged_relax_vasp_dir) -> None:
+    """Two consistent converged runs set target_structure without a warning."""
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", BadInputSetWarning)
+        neb = IMDNEBVaspInputSet(
+            directory=converged_relax_vasp_dir,
+            target_directory=converged_relax_vasp_dir,
+            no_potcar=True,
+        )
+    assert neb.target_structure.reduced_formula == "Na"
+    # Consistent INCARs do not trigger image regeneration.
+    assert neb.images is None
+
+
+def test_neb_post_init_target_missing_vasprun_falls_back_to_poscar(
+        converged_relax_vasp_dir, tmp_path) -> None:
+    """A target dir without vasprun.xml falls back to its POSCAR."""
+    _write_poscar(tmp_path / "target")
+    with pytest.warns(UserWarning, match="Falling back to reading POSCAR"):
+        neb = IMDNEBVaspInputSet(
+            directory=converged_relax_vasp_dir,
+            target_directory=tmp_path / "target",
+            no_potcar=True,
+        )
+    assert neb.target_structure.reduced_formula == "CsCl"
+
+
+def test_neb_post_init_incar_inconsistent_warns(
+        converged_relax_vasp_dir, tmp_path, monkeypatch) -> None:
+    """Differing INCARs warn and trigger image regeneration.
+
+    A target dir is built from the same converged run with its SYSTEM tag
+    altered, so the two vasprun.xml files differ only in that parameter.
+    """
+    target = tmp_path / "target"
+    target.mkdir()
+    xml = (converged_relax_vasp_dir / "vasprun.xml").read_text()
+    xml = xml.replace(
+        '<i type="string" name="SYSTEM">Na</i>',
+        '<i type="string" name="SYSTEM">Na_target</i>',
+    )
+    (target / "vasprun.xml").write_text(xml)
+
+    calls: list[int] = []
+    monkeypatch.setattr(
+        IMDNEBVaspInputSet,
+        "update_images",
+        lambda self, *args, **kwargs: calls.append(1),
+    )
+    with pytest.warns(BadInputSetWarning, match="inconsistent"):
+        neb = IMDNEBVaspInputSet(
+            directory=converged_relax_vasp_dir,
+            target_directory=target,
+            no_potcar=True,
+        )
+    assert calls == [1]
+    assert neb.target_structure.reduced_formula == "Na"
+
+
+def test_neb_write_input_writes_neb_inputs_txt(tmp_path, monkeypatch) -> None:
+    """write_input records the begin/end source dirs in NEB-inputs.txt."""
+    neb = object.__new__(IMDNEBVaspInputSet)
+    neb.images = [_neb_image(0.0), _neb_image(0.1), _neb_image(0.2)]
+    neb.directory = "/path/to/begin"
+    neb.target_directory = "/path/to/end"
+    monkeypatch.setattr(
+        IMDVaspInputSet, "write_input", lambda self, *args, **kwargs: None)
+
+    neb.write_input(tmp_path)
+
+    text = (tmp_path / "NEB-inputs.txt").read_text()
+    assert "NEB path computed between:\n" in text
+    assert "00: /path/to/begin\n" in text
+    assert "02: /path/to/end\n" in text
+
+
+def _neb_endpoints():
+    """A begin/end pair sharing a lattice, one atom displaced."""
+    lattice = Lattice.cubic(10.0)
+    beg = Structure(lattice, ["Li", "Na"], [[0, 0, 0], [0.5, 0.5, 0.5]])
+    end = Structure(lattice, ["Li", "Na"], [[0.2, 0, 0], [0.5, 0.5, 0.5]])
+    return beg, end
+
+
+def test_neb_update_images_idpp(tmp_path, monkeypatch) -> None:
+    """IDPP interpolation builds len(IMAGES)+2 image input sets."""
+    monkeypatch.chdir(tmp_path)  # idpp_interpolate writes idpp.log to CWD
+    beg, end = _neb_endpoints()
+
+    neb = object.__new__(IMDNEBVaspInputSet)
+    neb.structure = beg
+    neb.target_structure = end
+    neb.method = "IDPP"
+    neb.fix_cutoff = None
+    neb.frac_tol = 0.5
+    monkeypatch.setattr(
+        IMDDerivedInputSet,
+        "incar",
+        property(lambda self: Incar({"IMAGES": 3, "IBRION": 1})),
+    )
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        neb.update_images()
+
+    assert len(neb.images) == 5  # IMAGES(3) + 2 endpoints
+    assert all(isinstance(img, IMDVaspInputSet) for img in neb.images)
+    assert all(img.structure is not None for img in neb.images)
+
+
+def test_neb_update_images_linear(monkeypatch) -> None:
+    """Non-IDPP interpolation applies frac_tol validation and builds images."""
+    beg, end = _neb_endpoints()
+
+    neb = object.__new__(IMDNEBVaspInputSet)
+    neb.structure = beg
+    neb.target_structure = end
+    neb.method = "linear"
+    neb.fix_cutoff = None
+    neb.frac_tol = 0.5
+    monkeypatch.setattr(
+        IMDDerivedInputSet,
+        "incar",
+        property(lambda self: Incar({"IMAGES": 3, "IBRION": 1})),
+    )
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        neb.update_images()
+
+    assert len(neb.images) == 5
+    assert all(img.structure is not None for img in neb.images)
 
 
 def test_fix_atoms_maybe_fixes_distant_atoms() -> None:
