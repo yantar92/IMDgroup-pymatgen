@@ -84,16 +84,23 @@ INCAR is on by default.
 ```bash
 imdg analyze
 imdg analyze --fields energy e_per_atom displ
+imdg analyze --fields ALL
 imdg analyze --nogroup
-imdg analyze --short
+imdg analyze --format csv
+imdg analyze --format json
 ```
 
 Fields: `energy`, `e_per_atom`, `max_force`, `%vol`, `displ`,
 `space_group`, `a`, `b`, `c`, `alpha`, `beta`, `gamma`, and the
-`%`-changes of each. Energies judged unreliable (for example, from a
-volume/shape relaxation that shifted the k-point grid) or unconverged are
-shown as `unreliable` / `unconverged` instead of a number, so they are
-not silently used.
+`%`-changes of each. The table view shows a smaller set by
+default. Pass `--fields ALL` to show every field.  Energies judged
+unreliable (for example, from a volume/shape relaxation that shifted
+the k-point grid) or unconverged are shown as `unreliable` /
+`unconverged` instead of a number, so they are not silently used.
+
+`--format` controls the output. The default `table` renders a rich
+table; `csv`, `json`, and `orgtbl` bypass rich and emit all fields
+(unless `--fields` narrows them) for programmatic use.
 
 ## `imdg diff`
 

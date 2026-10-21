@@ -29,11 +29,14 @@
 Based on pymatgen's pymatgen.cli.pmg_analyze."""
 import logging
 import re
+import sys
 from pathlib import Path
 from tabulate import tabulate
 import numpy as np
 import pandas as pd
 from alive_progress import alive_it
+from rich.console import Console
+from rich.table import Table
 from pymatgen.core import Structure
 from IMDgroup.pymatgen.io.vasp.inputs import Incar
 from IMDgroup.pymatgen.core.structure import structure_distance
@@ -54,6 +57,12 @@ ALL_FIELDS = {
     'alpha': 'α', 'beta': 'β', 'gamma': 'γ',
     '%alpha': '%α', '%beta': '%β', '%gamma': '%γ'
 }
+
+# Fields shown by default in the human-readable table.  Machine formats
+# (csv/json/orgtbl) default to every field for full fidelity.
+DEFAULT_FIELDS = [
+    'energy', 'e_per_atom', 'max_force', '%vol', 'displ', 'space_group',
+]
 
 
 def add_args(parser):
@@ -79,25 +88,28 @@ def add_args(parser):
         if k not in ['dir', 'incar_group']]
     parser.add_argument(
         "--fields",
-        help="""List of fields to report
+        help="""List of fields to report.  Use ALL to show every field.
+When omitted, the table shows a short default set; machine formats
+(--format csv/json/orgtbl) show all fields.
 energy: Final energy
 e_per_atom: Final energy per atom
 max_force: Maximum atomic force in the final step (eV/Å)
 %%vol: Volume change before/after the run
 displ: Total atom displacement / number of displaced atoms
 space_group, a, b, c, alpha, beta, gamma: Lattice parameters
-%%a, %%b, %%c, %%alpa, %%beta, %%gamma: Change before/after the run
+%%a, %%b, %%c, %%alpha, %%beta, %%gamma: Change before/after the run
 """,
         nargs="+",
-        choices=all_fields,
-        default=all_fields
+        choices=all_fields + ['ALL'],
+        default=None
     )
     parser.add_argument(
-        "--short",
-        help="""Only include a few fields: energy, e_per_atom,
-        total_mag, max_force, %%vol, displ, space_group, a, b, and c.
-        """,
-        action="store_true"
+        "--format",
+        dest="format",
+        help="""Output format.  'table' is the human-readable rich table
+(default); 'csv', 'json', and 'orgtbl' bypass rich for programmatic use.""",
+        choices=["table", "csv", "json", "orgtbl"],
+        default="table"
     )
     parser.add_argument(
         "--exclude-fields",
@@ -257,6 +269,31 @@ def _read_field_1(field: str, vaspdir: IMDGVaspDir):
     return val
 
 
+def _render_table(df, console=None):
+    """Render a pandas DataFrame as a rich table.
+
+    Args:
+        df: DataFrame whose columns are field keys (plus ``dir`` and,
+            when grouping is enabled, ``incar_group``).
+        console: rich Console to print to (defaults to a new one).
+    """
+    if console is None:
+        console = Console()
+    table = Table(box=None, show_header=True, header_style="bold",
+                  padding=(0, 1))
+    for col in df.columns:
+        label = ALL_FIELDS.get(col, col)
+        if col == 'dir':
+            table.add_column(label, overflow="ellipsis", max_width=40)
+        elif col == 'incar_group':
+            table.add_column(label, justify="right", no_wrap=True)
+        else:
+            table.add_column(label, justify="right", no_wrap=True)
+    for _, row in df.iterrows():
+        table.add_row(*[str(v) for v in row])
+    console.print(table)
+
+
 def analyze(args):
     """Run the analysis subcommand.
 
@@ -266,12 +303,6 @@ def analyze(args):
     Returns:
         int: Exit code (0 on success).
     """
-    if args.short:
-        args.exclude_fields += [
-            '%a', '%b', '%c',
-            'alpha', 'beta', 'gamma',
-            '%alpha', '%beta', '%gamma']
-
     def include_dirp(p):
         p = str(p)
         if args.exclude is not None and re.search(args.exclude, p):
@@ -279,19 +310,22 @@ def analyze(args):
         return True
 
     vaspdirs = IMDGVaspDir.read_vaspdirs(args.dir, path_filter=include_dirp)
+
+    all_fields = [k for k in ALL_FIELDS if k not in ('dir', 'incar_group')]
+    if args.fields is not None:
+        base_fields = all_fields if 'ALL' in args.fields else list(args.fields)
+    elif args.format == 'table':
+        base_fields = list(DEFAULT_FIELDS)
+    else:
+        base_fields = all_fields
+    selected_fields = [f for f in base_fields if f not in args.exclude_fields]
+
     all_data = {}
-    for field in ALL_FIELDS:
-        if field == 'dir':
-            all_data[field] = []
-        elif field == 'incar_group':
-            if not args.nogroup:
-                all_data[field] = []
-        elif field not in args.fields:
-            continue
-        elif field in args.exclude_fields:
-            continue
-        else:
-            all_data[field] = []
+    all_data['dir'] = []
+    if not args.nogroup:
+        all_data['incar_group'] = []
+    for field in selected_fields:
+        all_data[field] = []
 
     file_groups = {}
     if not args.nogroup:
@@ -327,6 +361,15 @@ def analyze(args):
             df = df.sort_values(by=['incar_group', 'dir'])
         else:
             df = df.sort_values('dir')
-        print(tabulate(df, headers=df.columns.to_list(), tablefmt="orgtbl", showindex=False))
+        if args.format == 'table':
+            _render_table(df)
+        elif args.format == 'csv':
+            df.to_csv(sys.stdout, index=False)
+        elif args.format == 'json':
+            sys.stdout.write(df.to_json(orient='records', indent=2) + '\n')
+        else:  # orgtbl
+            print(tabulate(
+                df, headers=df.columns.to_list(),
+                tablefmt="orgtbl", showindex=False))
 
     return 0
