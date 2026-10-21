@@ -33,6 +33,8 @@ import math
 import warnings
 from alive_progress import alive_bar
 from termcolor import colored
+from rich.console import Console
+from rich.text import Text
 from xml.etree.ElementTree import ParseError
 from pymatgen.io.vasp.inputs import Poscar
 from pymatgen.analysis.structure_matcher import StructureMatcher
@@ -255,6 +257,41 @@ def incar_add_args(parser):
     parser.set_defaults(func_diff=diff_incar)
 
 
+def print_incar_groups(common_incar, groups, console=None, max_names=None):
+    """Print common INCAR parameters (condensed) and per-group differences.
+
+    Args:
+        common_incar: Incar with parameters shared by every group.
+        groups: List of groups, each a list of Incar instances carrying
+            a ``SYSTEM`` entry with the source directory name.
+        console: rich Console to print to (defaults to a new one).
+        max_names: Cap the number of directory names shown per group;
+            remaining names are collapsed into ``...``.  ``None`` shows
+            every name.
+    """
+    if console is None:
+        console = Console()
+    common_params = " ".join(
+        f"{key}:{val}" for key, val in common_incar.items())
+    console.print(Text.assemble(
+        ("Common parameters: ", "bold"), (common_params, "")))
+    for idx, group in enumerate(groups):
+        names = [incar['SYSTEM'] for incar in group]
+        if max_names is not None and len(names) > max_names:
+            shown = " ".join(names[:max_names]) + " ..."
+        else:
+            shown = " ".join(names)
+        console.print(Text.assemble(
+            (f"Group {idx + 1}: ", "bold"), (shown, "")))
+        diff_keys = [
+            key for key in group[0]
+            if key not in common_incar and key != "SYSTEM"]
+        diff_incar = Incar({key: group[0][key] for key in diff_keys})
+        if diff_keys:
+            console.print(Text(f"Group {idx + 1} params:", style="bold"))
+            console.print(diff_incar.get_str(pretty=True))
+
+
 def diff_incar(args):
     """Handle diff commands.
 
@@ -278,25 +315,9 @@ def diff_incar(args):
                 )
             abar()  # pylint: disable=not-callable
 
-    def _incar_name(incar):
-        """Get INCAR name.
-        Assume that name is stored in SYSTEM parameter.
-        """
-        return incar['SYSTEM']
-
     common_incar, groups = Incar.group_incars(incars)
     assert common_incar is not None
-    print(colored("Common INCAR parameters", attrs=['bold']))
-    print(common_incar.get_str(pretty=True))
-
-    for idx, group in enumerate(groups):
-        print(colored(f"Group {idx + 1}: ", attrs=['bold']), end='')
-        print(' '.join(_incar_name(incar) for incar in group))
-        print(
-            colored(f"Group {idx + 1} params: ", attrs=['bold']),
-            ' '.join(
-                f"{key}:{val}" for key, val in group[0].items()
-                if key not in common_incar and key != "SYSTEM"))
+    print_incar_groups(common_incar, groups)
 
     return 0
 

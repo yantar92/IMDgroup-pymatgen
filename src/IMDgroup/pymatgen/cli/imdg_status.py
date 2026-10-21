@@ -55,6 +55,7 @@ from IMDgroup.pymatgen.io.vasp.outputs import (
 )
 from IMDgroup.pymatgen.io.vasp.vaspdir import IMDGVaspDir
 from IMDgroup.pymatgen.io.vasp.inputs import Incar
+from IMDgroup.pymatgen.cli.imdg_diff import print_incar_groups
 
 logger = logging.getLogger(__name__)
 console = Console()
@@ -696,17 +697,8 @@ def status(args):
 
     common_incar, grouped_incars = Incar.group_incars(incars)
     if common_incar is not None and len(grouped_incars) > 1:
-        print(colored("Multiple INCARs found: ", "yellow"))
-        print(colored("Common INCAR parameters", attrs=['bold']))
-        print(common_incar.get_str(pretty=True))
-        for idx, group in enumerate(grouped_incars):
-            print(colored(f"Group {idx + 1}: ", attrs=['bold']), end='')
-            print(' '.join(incar['SYSTEM'] for incar in group[:3]),
-                  '...' if len(group) > 3 else '')
-            print(
-                colored(f"Group {idx + 1} params: ", attrs=['bold']),
-                ' '.join(
-                    f"{key}:{val}" for key, val in group[0].items()
-                    if key not in common_incar and key != "SYSTEM"))
+        console.print(Text("Multiple INCARs found: ", style="yellow"))
+        print_incar_groups(
+            common_incar, grouped_incars, console=console, max_names=3)
 
     return 0
