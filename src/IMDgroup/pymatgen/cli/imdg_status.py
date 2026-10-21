@@ -381,6 +381,31 @@ class _RunRow:
     neb_summary: str
 
 
+_RICH_TAG_RE = re.compile(r"\[/?[a-z]+?\]")
+
+
+def _strip_markup(text: str) -> str:
+    """Remove simple rich color tags (e.g. ``[red]``) from TEXT."""
+    return _RICH_TAG_RE.sub("", text)
+
+
+def _details_text(row: _RunRow) -> str:
+    """One-line plain-text details for the table column.
+
+    Combines the running progress message, CPU time, and NEB image
+    distances (markup stripped) into a single ``|``-separated string.
+    """
+    parts = []
+    if row.progress:
+        parts.append(row.progress)
+    if row.cpu_time:
+        cores = f" ({row.n_cores} cores)" if row.n_cores else ""
+        parts.append(f"CPU {row.cpu_time}{cores}")
+    if row.neb_summary:
+        parts.append(_strip_markup(row.neb_summary))
+    return " | ".join(parts)
+
+
 def _add_run_row(table, row, has_ref):
     """Append one run's display cells to TABLE.
 
@@ -407,6 +432,7 @@ def _add_run_row(table, row, has_ref):
         row.fmax or "-",
         row.per_step or "-",
         warn_cell,
+        _details_text(row) or "-",
     ]
     if has_ref:
         cells.append(
@@ -440,6 +466,7 @@ def _build_status_table(rows, any_truncated, dir_max):
     table.add_column("FMAX (eV/\u00c5)", justify="right", no_wrap=True)
     table.add_column("PER-STEP", no_wrap=True)
     table.add_column("WARN", overflow="fold")
+    table.add_column("DETAILS", overflow="ellipsis", max_width=40)
     if any_truncated:
         table.add_column("#", justify="right", no_wrap=True)
     for row in rows:
@@ -746,7 +773,12 @@ def status(args):
                 console.print(Text.assemble(
                     ("      TIP: ", "magenta bold"), (str(tip), "")))
 
-    detail_rows = [r for r in rows if r.progress or r.cpu_time or r.neb_summary]
+    # Full details are only useful for runs still in flight or that
+    # failed; converged runs would only repeat the CPU time already
+    # shown in the truncated DETAILS column.
+    detail_rows = [
+        r for r in rows
+        if not r.converged and (r.progress or r.cpu_time or r.neb_summary)]
     if detail_rows:
         console.print()
         console.print("[bold]Details:[/bold]")
