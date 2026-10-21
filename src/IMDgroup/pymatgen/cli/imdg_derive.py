@@ -64,7 +64,6 @@ def add_args(parser):
     """
     parser.add_argument(
         "input_directory",
-        nargs="?",
         default=".",
         help="VASP directory to read system"
     )
