@@ -47,6 +47,25 @@ def configure_progress_output():
     config_handler.set_global(file=sys.stderr)  # pyright: ignore[reportFunctionMemberAccess]
 
 
+def suppress_spglib_warnings():
+    """Silence spglib's raw C-level warnings.
+
+    spglib prints internal retry diagnostics directly to stderr when
+    symmetry detection needs several attempts (e.g. ``"spglib:
+    ssm_get_exact_positions failed."``, ``"spglib: No point group was
+    found"``).  They are harmless and duplicate the structured warnings
+    surfaced by IMDgroup's own diagnostics, but they interleave with
+    rich tables and corrupt the display.
+
+    spglib reads ``SPGLIB_WARNING`` on every call (see its
+    ``warning_enabled``), so setting it at runtime is enough.  We use
+    ``setdefault`` so a user who has already chosen a value keeps
+    control; only the absent-key case is forced to ``OFF``.
+    """
+    import os
+    os.environ.setdefault("SPGLIB_WARNING", "OFF")
+
+
 def groupby_cmp(lst, cmp_eq, title_function=None):
     """Group elements of a list by pairwise comparison.
 
