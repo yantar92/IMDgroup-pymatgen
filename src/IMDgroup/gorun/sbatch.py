@@ -31,8 +31,23 @@ import argparse
 import os
 import subprocess
 import tomllib
+from importlib import resources
 from pymatgen.io.vasp.inputs import Incar
 from IMDgroup.gorun.slurm import barf_if_no_cmd
+
+
+def read_example_config() -> str:
+    """Return the bundled example gorun config as a string.
+
+    The example is shipped as package data, so it is always the copy
+    that matches the installed version (unlike a source-tree file or a
+    URL, which can drift ahead of the code).
+    """
+    return (
+        resources.files("IMDgroup.gorun")
+        .joinpath("data", "gorun-config.example.toml")
+        .read_text(encoding="utf-8")
+    )
 
 
 def _candidate_config_paths() -> list[str]:
@@ -55,15 +70,34 @@ def _candidate_config_paths() -> list[str]:
 
 
 def _missing_config_message(searched: list[str]) -> str:
-    """Short explanation plus a starting point when no config exists."""
+    """Short explanation plus a minimal example when no config exists."""
     return "\n".join([
         "No gorun configuration found.  Looked for:",
         *(f"  {path}" for path in searched),
         "",
-        "Create one by copying the example and editing it for your cluster:",
+        "Create ~/.config/gorun/gorun.toml.  A minimal single-cluster",
+        "example (replace the hostname, queue, and module lines for your",
+        "cluster hostname):",
         "",
-        "  mkdir -p ~/.config/gorun",
-        "  cp examples/gorun-config.example.toml ~/.config/gorun/gorun.toml",
+        "  [cluster.names]",
+        "  ares = ['login01.ares.cyfronet.pl']",
+        "",
+        "  [ares]",
+        "  queues = ['plgrid']",
+        '  VASP-setup = "module load intel/2023b imkl/2023.2.0"',
+        "",
+        "  [ares.defaults.sbatch]",
+        "  nodes = 4",
+        "  time = '72:00:00'",
+        "  ntasks-per-node = 48",
+        "",
+        "  [ares.plgrid.sbatch]",
+        "  partition = 'plgrid'",
+        "",
+        "For the full example (more clusters, GPU/MACE/ATAT sections),",
+        "write the bundled copy to the default location:",
+        "",
+        "  gorun --example-config",
         "",
         "or pass an explicit path with --config PATH.",
     ])

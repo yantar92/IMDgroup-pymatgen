@@ -29,11 +29,11 @@ Usage:
     gorun mace [OPTS] [--time-limit HH:MM:SS]
     gorun gpu [OPTS] [--time-limit HH:MM:SS]
 
-For backward compatibility, plain ``gorun [OPTS] [--nodes N] [--time-limit HH:MM:SS]``
+Plain ``gorun [OPTS] [--nodes N] [--time-limit HH:MM:SS]``
 is treated as ``gorun vasp``.
 
-All subcommands accept ``--dir DIR...`` (one or more) to run the
-pipeline in each listed directory instead of the current directory.
+All subcommands accept ``--dir DIR...`` (one or more) to run the in
+each listed directory instead of the current directory.
 """
 
 from __future__ import annotations
@@ -48,6 +48,7 @@ from termcolor import colored
 
 from IMDgroup.common import configure_progress_output
 from IMDgroup.gorun.core.pipeline import dispatch_run
+from IMDgroup.gorun.sbatch import read_example_config
 from IMDgroup.gorun.adapters.vasp import VaspAdapter
 from IMDgroup.gorun.adapters.mace import MaceMultiheadFinetuneAdapter
 from IMDgroup.gorun.adapters.gpu import GpuAdapter
@@ -100,6 +101,15 @@ def _build_parser(prog: str | None = None) -> argparse.ArgumentParser:
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     subparsers = parser.add_subparsers(dest="software")
+
+    parser.add_argument(
+        "--example-config",
+        nargs="?",
+        const="-",
+        metavar="PATH",
+        help="Write the bundled example config to PATH (or stdout when "
+             "PATH is '-' or omitted) and exit.",
+    )
 
     ## shared flags (parent parser reused by all subcommands)
     shared = argparse.ArgumentParser(add_help=False)
@@ -396,6 +406,12 @@ def _parse_args(
 
     parser = _build_parser(prog=prog)
 
+    # --example-config is a top-level utility flag; route it to the
+    # top-level parser before the backward-compat fallback (which would
+    # otherwise treat it as ``vasp --example-config``).
+    if argv and argv[0].startswith("--example-config"):
+        return parser.parse_args(argv)
+
     # If the first argument is a known subcommand, parse normally.
     if argv and _is_subcommand(argv[0]):
         args = parser.parse_args(argv)
@@ -653,6 +669,17 @@ def _dispatch_namespace(args: argparse.Namespace) -> int:
 # ---------------------------------------------------------------------------
 
 
+def _write_example_config(dest: str) -> int:
+    """Write the bundled example config to *dest* (or stdout) and exit 0."""
+    content = read_example_config()
+    if dest in ("", "-"):
+        sys.stdout.write(content)
+    else:
+        Path(dest).write_text(content, encoding="utf-8")
+        print(f"Wrote example config to {dest}")
+    return 0
+
+
 def main(argv: list[str] | None = None, prog: str | None = None) -> int:
     """Parse args, build adapter, and dispatch.
 
@@ -665,7 +692,10 @@ def main(argv: list[str] | None = None, prog: str | None = None) -> int:
     if argv is None:
         argv = sys.argv[1:]
 
-    return _dispatch_namespace(_parse_args(argv, prog=prog))
+    args = _parse_args(argv, prog=prog)
+    if getattr(args, "example_config", None) is not None:
+        return _write_example_config(args.example_config)
+    return _dispatch_namespace(args)
 
 
 def main_mace(argv: list[str] | None = None) -> int:

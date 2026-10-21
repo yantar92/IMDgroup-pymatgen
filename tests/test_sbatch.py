@@ -58,6 +58,12 @@ def test_load_config_reads_file(monkeypatch, tmp_path) -> None:
     }
 
 
+def test_read_example_config_returns_bundled_toml() -> None:
+    """The bundled example config is readable and has the cluster table."""
+    content = sbatch_mod.read_example_config()
+    assert "[cluster.names]" in content
+
+
 # --- resolve_server ---------------------------------------------------------
 
 

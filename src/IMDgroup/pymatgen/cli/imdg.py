@@ -180,7 +180,7 @@ similarity and filtered by field selection.""")
         "status",
         help="Check running status of VASP calculations",
         description="""\
-Check the running status of VASP calculations.
+Check the running status of VASP calculations and identify anomalies.
 
 Scans directories recursively for VASP inputs and reports convergence
 state, progress, wall-clock timing, SLURM job status, and warnings.
@@ -206,7 +206,7 @@ subcommands.""")
 
     parser_run = subparsers.add_parser(
         "run",
-        help="Submit/run VASP, MACE, ATAT, or GPU jobs (forwards to gorun)",
+        help="Submit/run VASP, MACE, ATAT, or GPU jobs",
         description="""\
 Submit or run calculations through the gorun job-submission layer.
 

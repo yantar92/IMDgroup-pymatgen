@@ -89,6 +89,37 @@ def test_parse_args_debug_flag() -> None:
     assert gorun._parse_args(["vasp", "--debug"]).debug is True
 
 
+def test_parse_args_example_config_stdout_default() -> None:
+    """--example-config without a path defaults to stdout ('-')."""
+    ns = gorun._parse_args(["--example-config"])
+    assert ns.example_config == "-"
+    assert ns.software is None
+
+
+def test_parse_args_example_config_path() -> None:
+    """--example-config PATH captures the destination path."""
+    ns = gorun._parse_args(["--example-config", "out.toml"])
+    assert ns.example_config == "out.toml"
+
+
+# --- _write_example_config --------------------------------------------------
+
+
+def test_write_example_config_stdout(monkeypatch, capsys) -> None:
+    """Writing to '-' emits the bundled content to stdout verbatim."""
+    monkeypatch.setattr(gorun, "read_example_config", lambda: "[cluster.names]\n")
+    assert gorun._write_example_config("-") == 0
+    assert capsys.readouterr().out == "[cluster.names]\n"
+
+
+def test_write_example_config_file(monkeypatch, tmp_path) -> None:
+    """Writing to a path stores the bundled content in that file."""
+    monkeypatch.setattr(gorun, "read_example_config", lambda: "[cluster.names]\n")
+    dest = tmp_path / "gorun.toml"
+    assert gorun._write_example_config(str(dest)) == 0
+    assert dest.read_text() == "[cluster.names]\n"
+
+
 # --- _make_vasp_adapter -----------------------------------------------------
 
 
