@@ -66,4 +66,4 @@ def run(args: argparse.Namespace) -> int:
         int: gorun exit code.
     """
     argv = getattr(args, "argv", None)
-    return gorun_main(argv if argv is not None else [])
+    return gorun_main(argv if argv is not None else [], prog="imdg run")

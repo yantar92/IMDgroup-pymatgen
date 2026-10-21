@@ -82,15 +82,20 @@ def _is_subcommand(name: str) -> bool:
 
 # Argument parsing
 
-def _build_parser() -> argparse.ArgumentParser:
+def _build_parser(prog: str | None = None) -> argparse.ArgumentParser:
     """Build the top-level argument parser with subcommands.
 
     MACE-finetune arguments use ``default=argparse.SUPPRESS`` so that
     ``hasattr`` on the parsed namespace reveals whether a value came
     from the CLI.  The adapter layer (``_make_mace_adapter``) merges
     adapter defaults, INCAR.toml, and CLI overrides.
+
+    Args:
+        prog: Program name for the usage line.  When ``None``, argparse
+            falls back to ``sys.argv[0]`` (e.g. ``gorun`` or ``imdg``).
     """
     parser = argparse.ArgumentParser(
+        prog=prog,
         description=__doc__,
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
@@ -381,13 +386,15 @@ def _build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+def _parse_args(
+        argv: list[str] | None = None,
+        prog: str | None = None) -> argparse.Namespace:
     """Parse *argv*, handling backward-compatible plain ``gorun`` invocations."""
 
     if argv is None:
         argv = sys.argv[1:]
 
-    parser = _build_parser()
+    parser = _build_parser(prog=prog)
 
     # If the first argument is a known subcommand, parse normally.
     if argv and _is_subcommand(argv[0]):
@@ -646,13 +653,19 @@ def _dispatch_namespace(args: argparse.Namespace) -> int:
 # ---------------------------------------------------------------------------
 
 
-def main(argv: list[str] | None = None) -> int:
-    """Parse args, build adapter, and dispatch."""
+def main(argv: list[str] | None = None, prog: str | None = None) -> int:
+    """Parse args, build adapter, and dispatch.
+
+    Args:
+        argv: Command-line arguments (defaults to ``sys.argv[1:]``).
+        prog: Program name for the usage line (defaults to
+            ``sys.argv[0]``).
+    """
     configure_progress_output()
     if argv is None:
         argv = sys.argv[1:]
 
-    return _dispatch_namespace(_parse_args(argv))
+    return _dispatch_namespace(_parse_args(argv, prog=prog))
 
 
 def main_mace(argv: list[str] | None = None) -> int:

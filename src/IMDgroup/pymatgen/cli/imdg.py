@@ -103,7 +103,7 @@ def main():
     # and every gorun flag behave exactly like the ``gorun*`` entry points.
     if len(sys.argv) > 1 and sys.argv[1] == "run":
         from IMDgroup.gorun.gorun import main as gorun_main
-        return gorun_main(sys.argv[2:])
+        return gorun_main(sys.argv[2:], prog="imdg run")
 
     parser = argparse.ArgumentParser(
         description="""
