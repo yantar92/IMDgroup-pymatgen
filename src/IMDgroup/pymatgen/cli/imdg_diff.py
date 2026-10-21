@@ -39,7 +39,7 @@ from xml.etree.ElementTree import ParseError
 from pymatgen.io.vasp.inputs import Poscar
 from pymatgen.analysis.structure_matcher import StructureMatcher
 from IMDgroup.pymatgen.io.vasp.outputs import Vasprun
-from IMDgroup.pymatgen.io.vasp.inputs import Incar
+from IMDgroup.pymatgen.io.vasp.inputs import Incar, INCAR_GROUP_IGNORE_FIELDS
 from IMDgroup.common import groupby_cmp
 
 logger = logging.getLogger(__name__)
@@ -257,6 +257,32 @@ def incar_add_args(parser):
     parser.set_defaults(func_diff=diff_incar)
 
 
+def _ignored_params_summary(groups):
+    """Collect distinct values of grouping-ignored INCAR tags.
+
+    Args:
+        groups: List of groups, each a list of Incar instances.
+
+    Returns:
+        list[str]: ``"TAG:VAL"`` or ``"TAG:VAL1,VAL2,..."`` entries for
+        every ignored tag (except ``SYSTEM``) present in any group, in
+        first-seen order.
+    """
+    ignored = [f for f in INCAR_GROUP_IGNORE_FIELDS if f != 'SYSTEM']
+    seen: dict[str, list] = {}
+    for group in groups:
+        for incar in group:
+            for field in ignored:
+                if field not in incar:
+                    continue
+                vals = seen.setdefault(field, [])
+                if incar[field] not in vals:
+                    vals.append(incar[field])
+    return [
+        f"{field}:{','.join(str(v) for v in vals)}"
+        for field, vals in seen.items()]
+
+
 def print_incar_groups(common_incar, groups, console=None, max_names=None):
     """Print common INCAR parameters (condensed) and per-group differences.
 
@@ -275,6 +301,11 @@ def print_incar_groups(common_incar, groups, console=None, max_names=None):
         f"{key}:{val}" for key, val in common_incar.items())
     console.print(Text.assemble(
         ("Common parameters: ", "bold"), (common_params, "")))
+    ignored_params = _ignored_params_summary(groups)
+    if ignored_params:
+        console.print(Text.assemble(
+            ("Ignored parameters: ", "bold"),
+            (" ".join(ignored_params), "")))
     for idx, group in enumerate(groups):
         names = [incar['SYSTEM'] for incar in group]
         if max_names is not None and len(names) > max_names:
@@ -285,10 +316,12 @@ def print_incar_groups(common_incar, groups, console=None, max_names=None):
             (f"Group {idx + 1}: ", "bold"), (shown, "")))
         diff_keys = [
             key for key in group[0]
-            if key not in common_incar and key != "SYSTEM"]
+            if key not in common_incar
+            and key != "SYSTEM"
+            and key not in INCAR_GROUP_IGNORE_FIELDS]
         diff_incar = Incar({key: group[0][key] for key in diff_keys})
         if diff_keys:
-            console.print(Text(f"Group {idx + 1} params:", style="bold"))
+            # console.print(Text(f"Group {idx + 1} params:", style="bold"))
             console.print(diff_incar.get_str(pretty=True))
 
 

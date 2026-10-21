@@ -36,6 +36,11 @@ from IMDgroup.common import groupby_cmp
 MODULE_DIR = os.path.dirname(__file__)
 
 
+# INCAR tags ignored when grouping INCARs for comparison.  ``SYSTEM``
+# is the directory-name marker and is excluded from display separately.
+INCAR_GROUP_IGNORE_FIELDS = ['SYSTEM', 'NELM', 'NELMIN', 'ALGO', 'SYMPREC']
+
+
 # We copy this over from pymatgen.io.vasp.sets because we need our own
 # MODULE_DIR
 def _load_yaml_config(fname):
@@ -162,7 +167,7 @@ class Incar(pmgIncar):
         raise ValueError(f"Unknown setup: {setup}")
 
     @staticmethod
-    def group_incars(incars, ignore_fields=['SYSTEM', 'NELM', 'NELMIN', 'ALGO', 'SYMPREC']):
+    def group_incars(incars, ignore_fields=None):
         """Group similar INCARs together.
 
         Differences in ``ignore_fields`` are not considered when
@@ -170,13 +175,17 @@ class Incar(pmgIncar):
 
         Args:
             incars: List of Incar objects.
-            ignore_fields: INCAR keys to ignore when grouping.
+            ignore_fields: INCAR keys to ignore when grouping.  Defaults
+                to :data:`INCAR_GROUP_IGNORE_FIELDS`.
 
         Returns:
             tuple: ``(common_incar, groups)`` where ``common_incar`` is
             an Incar with parameters shared by all groups, and
             ``groups`` is a list of lists of Incar objects.
         """
+        if ignore_fields is None:
+            ignore_fields = list(INCAR_GROUP_IGNORE_FIELDS)
+
         def _incar_eq(incar1, incar2):
             """Return True when INCAR1 is equal to INCAR2.
             ignore_fileds fields are ignored.
