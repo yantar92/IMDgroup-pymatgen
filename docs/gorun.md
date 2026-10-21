@@ -1,9 +1,8 @@
-# Job submission: `gorun`
+# Job submission: `imdg run`
 
-`gorun` is a single interface for submitting Slurm jobs on the clusters
-the group uses (for example Athena, Ares, Helios, LUMI). It is not VASP
-only: the same command submits VASP, MACE multihead fine-tuning, ATAT
-`maps`, and arbitrary GPU jobs.
+`imdg run` (= `gorun`) is a single interface for submitting Slurm jobs
+on clusters. It is not VASP only: the same command submits VASP, MACE
+multihead fine-tuning, ATAT `maps`, and arbitrary GPU jobs.
 
 Common behavior across all subcommands:
 
@@ -21,14 +20,10 @@ Common behavior across all subcommands:
 
 ## Configuration
 
-gorun looks for its config in this order:
+`gorun` looks for its config in this order:
 
 1. `--config PATH` (explicit)
-2. `$IMDGroup/dist/etc/gorun.toml` (group checkout, when `IMDGroup` is set)
-3. `~/.config/gorun/gorun.toml` (or `$XDG_CONFIG_HOME/gorun/gorun.toml`)
-
-If none is found, gorun prints a short message with a copy-paste example
-and exits.
+2. `~/.config/gorun/gorun.toml` (or `$XDG_CONFIG_HOME/gorun/gorun.toml`)
 
 The config maps hostnames to cluster definitions, queues, module loads,
 and resource defaults:
@@ -50,7 +45,12 @@ ntasks-per-node = 48
 partition = 'plgrid'
 ```
 
-See `examples/gorun-config.example.toml` for a more complete example.
+A more complete example (more clusters plus the GPU / MACE / ATAT
+sections) ships with the package:
+
+```bash
+gorun --example-config
+```
 
 VASP itself needs one environment variable:
 
@@ -58,9 +58,12 @@ VASP itself needs one environment variable:
 export VASP_PATH=/path/to/vasp
 ```
 
-`VASP_PATH` points at the VASP installation (binaries under `bin/`).
-POTCAR generation is done by pymatgen and reads `PMG_VASP_PSP_DIR` from
-`~/.pmgrc.yaml` (see [quickstart](quickstart.md)).
+`VASP_PATH` is the top-level VASP install directory (not the binary,
+not `bin/`): gorun runs `$VASP_PATH/bin/vasp_std`, `vasp_ncl`, or
+`vasp_gam`. For example, if `vasp_std` lives at
+`/opt/vasp/6.4.3/bin/vasp_std`, set `VASP_PATH=/opt/vasp/6.4.3`.
+POTCAR generation is done by `pymatgen` and reads `PMG_VASP_PSP_DIR`
+from `~/.config/.pmgrc.yaml`; see [quickstart](quickstart.md).
 
 ## `gorun vasp`
 
@@ -69,9 +72,9 @@ for `gorun vasp`.
 
 ```bash
 gorun vasp --nodes 2 --time-limit 24:00:00
-gorun vasp --vasp gam --nodes 1 --time-limit 1:00:00
-gorun vasp --incar ISIF:3 NSW:100
-gorun vasp --local
+gorun --vasp gam --nodes 1 --time-limit 1:00:00
+gorun --incar ISIF:3 NSW:100
+gorun --local
 ```
 
 Before submitting, `gorun` runs safety and convergence checks, backs up
@@ -107,12 +110,10 @@ When `atoms.get_potential_energy()` runs, the calculator invokes
 `gorun vasp --local --no-incar-py --force --no-clean --keep POSCAR` so
 the actual VASP call still goes through gorun's own local runner.
 
-Disable `INCAR.py` for one submission with `--no-incar-py`.
-
 ## `gorun mace-finetune`
 
-**Experimental.** The MACE adapter is under active development; its flags
-and `INCAR.toml` layout may change.
+**Experimental.** The MACE adapter is under development; its flags and
+`INCAR.toml` layout may change.
 
 Submit a MACE multihead fine-tuning job (the two-stage replay protocol:
 `fine_tuning_select` then `run_train`). Training hyperparameters live in
@@ -133,7 +134,7 @@ gorun mace-finetune --incar run_train.batch_size:4 run_train.lr:0.0005
 ```
 
 A custom `RUNFILE.sh` or `RUNFILE.py` in the working directory replaces
-the canned two-stage protocol when you need a different loop.
+the default two-stage protocol when you need a different loop.
 
 ## `gorun gpu`
 
@@ -156,13 +157,14 @@ conventional entry file:
 
 ```bash
 # uses RUNFILE.sh or RUNFILE.py in the current directory
-gorun gpu --time-limit 48:00:00
+gorun gpu
 ```
 
 ## `gorun maps`
 
-Submit an ATAT `maps` (cluster expansion) run, using `gorun-atat-local`
-as the per-structure worker.
+Submit an ATAT `maps` (cluster expansion) run (see the
+[ATAT manual](https://axelvandewalle.github.io/www-avdw/atat/manual.pdf)),
+using `gorun-atat-local` as the per-structure worker.
 
 ```bash
 gorun maps --kpoints 3000 --max_strain 0.1
@@ -179,7 +181,7 @@ strain, and sublattice checks.
 Prepare many directories, then submit with a cap on concurrent jobs:
 
 ```bash
-gorun vasp --mark --dir run1 run2 run3
+gorun --mark --dir run1 run2 run3
 gorun-all-ready.sh -n 20
 ```
 

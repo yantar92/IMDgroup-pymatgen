@@ -20,9 +20,9 @@ imdg create "Li 10x10x10"
 ```
 
 `mp-*` ids require a Materials Project API key (`PMG_MAPI_KEY` in
-`~/.pmgrc.yaml`, set via `pmg config --add PMG_MAPI_KEY <key>`), and
-POTCAR generation requires a pseudopotential directory (`PMG_VASP_PSP_DIR`
-in `~/.pmgrc.yaml`).
+`~/.config/.pmgrc.yaml`, set via `pmg config --add PMG_MAPI_KEY <key>`),
+and POTCAR generation requires a pseudopotential directory
+(`PMG_VASP_PSP_DIR` in `~/.config/.pmgrc.yaml`).
 
 ## `imdg derive`
 
@@ -117,8 +117,8 @@ Generate visual summaries.
 ```bash
 imdg visualize neb
 imdg visualize atat
-imdg visualize hull    . --ion Li
-imdg visualize voltage . --ion Li
+imdg visualize . hull    --ion Li
+imdg visualize . voltage --ion Li
 ```
 
 `neb` writes a trajectory CIF for each converged NEB; `atat` summarizes
