@@ -1,4 +1,4 @@
-# Why this exists
+# Features
 
 This page names the recurring manual tasks the package helps to
 automate. If you recognize them, you know what to reach for.
@@ -32,7 +32,7 @@ for a human look.
 
 See [imdg status](cli.md#imdg-status).
 
-## Overview for many calculations
+## Overview for many (even thousands) calculations
 
 `imdg analyze` reports energy, %vol, displacement, lattice changes, and
 max force across a tree, grouped by identical INCAR settings, and cached
