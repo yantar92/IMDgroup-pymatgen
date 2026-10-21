@@ -466,7 +466,7 @@ def _build_status_table(rows, any_truncated, dir_max):
     table.add_column("FMAX (eV/\u00c5)", justify="right", no_wrap=True)
     table.add_column("PER-STEP", no_wrap=True)
     table.add_column("WARN", overflow="fold")
-    table.add_column("DETAILS", overflow="ellipsis", max_width=30)
+    table.add_column("DETAILS", overflow="ellipsis", max_width=20)
     if any_truncated:
         table.add_column("#", justify="right", no_wrap=True)
     for row in rows:
