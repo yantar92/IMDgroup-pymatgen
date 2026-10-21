@@ -41,7 +41,10 @@ def configure_progress_output():
     """
     import sys
     from alive_progress import config_handler
-    config_handler.set_global(file=sys.stderr)
+    # alive_progress 3.1.5 monkey-patches ``set_global`` onto the
+    # ``config_handler`` callable.  Pyright only sees the function type
+    # and cannot resolve the attached attribute.
+    config_handler.set_global(file=sys.stderr)  # pyright: ignore[reportFunctionMemberAccess]
 
 
 def groupby_cmp(lst, cmp_eq, title_function=None):
