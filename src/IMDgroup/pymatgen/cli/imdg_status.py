@@ -41,7 +41,7 @@ from pathlib import Path
 import cachetools.func
 import numpy as np
 from termcolor import colored
-from rich.console import Console
+from rich.console import Console, Group
 from rich.live import Live
 from rich.table import Table
 from rich.text import Text
@@ -512,12 +512,14 @@ def status(args):
     # Keep only the last N rows in the live render so the table stays
     # short and Live redraws in place (auto-scroll) instead of growing
     # past the terminal height.
-    visible_max = max(10, (console.height or 40) - 5)
+    visible_max = max(10, console.height or 40)
     visible_rows: deque[_RunRow] = deque(maxlen=visible_max)
 
     if console.is_terminal:
         live = Live(
-            _build_status_table([], any_truncated, dir_max),
+            Group(
+                Text("Reading VASP outputs...", style="dim"),
+                _build_status_table([], any_truncated, dir_max)),
             console=console,
             refresh_per_second=4)
         live.start()
@@ -527,7 +529,7 @@ def status(args):
     try:
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", category=VaspWarning)
-            for wdir in paths:
+            for i, wdir in enumerate(paths, 1):
                 vaspdir = vaspdirs.get(wdir)
                 assert vaspdir is not None
                 incar = vaspdir['INCAR']
@@ -678,34 +680,41 @@ def status(args):
                 rows.append(row)
                 visible_rows.append(row)
                 if live is not None:
-                    live.update(
+                    live.update(Group(
+                        Text(
+                            f"Reading VASP outputs: {i}/{len(paths)}",
+                            style="dim"),
                         _build_status_table(
-                            visible_rows, any_truncated, dir_max))
+                            visible_rows, any_truncated, dir_max)))
 
-        # Final frame: render the complete table so the terminal ends
-        # with every row visible, not just the last-N scroll window.
+        n_running = sum(1 for r in rows if r.running)
+        n_converged = sum(1 for r in rows if r.converged)
+        n_other = len(rows) - n_running - n_converged
+        summary = Text.assemble(
+            (f"{len(rows)} runs: ", "bold"),
+            (f"{n_running} running, ", "yellow"),
+            (f"{n_converged} converged, ", "green"),
+            (f"{n_other} unconverged", "red"))
+
+        # Final frame: swap the progress line for the summary and render
+        # the complete table so the terminal ends with every row visible.
         if live is not None:
-            live.update(_build_status_table(rows, any_truncated, dir_max))
+            live.update(Group(
+                summary,
+                _build_status_table(rows, any_truncated, dir_max)))
 
     finally:
         if live is not None:
             live.stop()
 
-    # Non-terminal output: emit the full table once so piping still
-    # carries every row (Live would otherwise only print the final
-    # auto-scroll window).
-    if live is None and rows:
-        console.print(_build_status_table(rows, any_truncated, dir_max))
-
-    n_running = sum(1 for r in rows if r.running)
-    n_converged = sum(1 for r in rows if r.converged)
-    n_other = len(rows) - n_running - n_converged
-    console.print()
-    console.print(Text.assemble(
-        (f"{len(rows)} runs: ", "bold"),
-        (f"{n_running} running, ", "yellow"),
-        (f"{n_converged} converged, ", "green"),
-        (f"{n_other} unconverged", "red")))
+    if live is None:
+        # Non-terminal output: emit the full table and summary once so
+        # piping carries every row (Live would otherwise only print the
+        # final auto-scroll window).
+        if rows:
+            console.print(_build_status_table(rows, any_truncated, dir_max))
+        console.print()
+        console.print(summary)
 
     truncated_rows = [r for r in rows if r.truncated]
     if truncated_rows:
