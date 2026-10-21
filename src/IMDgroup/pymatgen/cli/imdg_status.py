@@ -35,6 +35,7 @@ import logging
 import warnings
 import subprocess
 import shutil
+from collections import deque
 from dataclasses import dataclass
 from pathlib import Path
 import cachetools.func
@@ -413,6 +414,39 @@ def _add_run_row(table, row, has_ref):
     table.add_row(*cells)
 
 
+def _build_status_table(rows, any_truncated, dir_max):
+    """Build a fresh status table holding the given ROWS.
+
+    The table is rebuilt on every live update so it only ever contains
+    the most recent ``rows`` (typically the last N scanned), keeping the
+    render short enough for ``Live`` to redraw in place.
+
+    Args:
+        rows: Iterable of _RunRow to render.
+        any_truncated: Whether the trailing ``#`` footnote column is
+            needed (any scanned path exceeds ``dir_max``).
+        dir_max: Maximum width of the DIR column in cells.
+
+    Returns:
+        Table: A populated rich Table.
+    """
+    table = Table(
+        box=None, show_header=True, header_style="bold", padding=(0, 1))
+    table.add_column("WHEN", justify="right", style="dim", no_wrap=True)
+    table.add_column("STATUS", no_wrap=True)
+    table.add_column(
+        "DIR", max_width=dir_max, overflow="ellipsis", no_wrap=True)
+    table.add_column("ENERGY (eV)", justify="right", no_wrap=True)
+    table.add_column("FMAX (eV/\u00c5)", justify="right", no_wrap=True)
+    table.add_column("PER-STEP", no_wrap=True)
+    table.add_column("WARN", overflow="fold")
+    if any_truncated:
+        table.add_column("#", justify="right", no_wrap=True)
+    for row in rows:
+        _add_run_row(table, row, any_truncated)
+    return table
+
+
 def status(args):
     """Run the status subcommand.
 
@@ -475,20 +509,22 @@ def status(args):
     any_truncated = any(
         len(w.replace("./", "")) > dir_max for w in paths)
 
-    table = Table(
-        box=None, show_header=True, header_style="bold", padding=(0, 1))
-    table.add_column("WHEN", justify="right", style="dim", no_wrap=True)
-    table.add_column("STATUS", no_wrap=True)
-    table.add_column(
-        "DIR", max_width=dir_max, overflow="ellipsis", no_wrap=True)
-    table.add_column("ENERGY (eV)", justify="right", no_wrap=True)
-    table.add_column("FMAX (eV/\u00c5)", justify="right", no_wrap=True)
-    table.add_column("PER-STEP", no_wrap=True)
-    table.add_column("WARN", overflow="fold")
-    if any_truncated:
-        table.add_column("#", justify="right", no_wrap=True)
+    # Keep only the last N rows in the live render so the table stays
+    # short and Live redraws in place (auto-scroll) instead of growing
+    # past the terminal height.
+    visible_max = max(10, (console.height or 40) - 5)
+    visible_rows: deque[_RunRow] = deque(maxlen=visible_max)
 
-    with Live(table, console=console, vertical_overflow="visible") as live:
+    if console.is_terminal:
+        live = Live(
+            _build_status_table([], any_truncated, dir_max),
+            console=console,
+            refresh_per_second=4)
+        live.start()
+    else:
+        live = None
+
+    try:
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", category=VaspWarning)
             for wdir in paths:
@@ -640,8 +676,26 @@ def status(args):
                     neb_summary=_get_neb_summary(vaspdir) if nebp else "",
                 )
                 rows.append(row)
-                _add_run_row(table, row, any_truncated)
-                live.update(table)
+                visible_rows.append(row)
+                if live is not None:
+                    live.update(
+                        _build_status_table(
+                            visible_rows, any_truncated, dir_max))
+
+        # Final frame: render the complete table so the terminal ends
+        # with every row visible, not just the last-N scroll window.
+        if live is not None:
+            live.update(_build_status_table(rows, any_truncated, dir_max))
+
+    finally:
+        if live is not None:
+            live.stop()
+
+    # Non-terminal output: emit the full table once so piping still
+    # carries every row (Live would otherwise only print the final
+    # auto-scroll window).
+    if live is None and rows:
+        console.print(_build_status_table(rows, any_truncated, dir_max))
 
     n_running = sum(1 for r in rows if r.running)
     n_converged = sum(1 for r in rows if r.converged)
