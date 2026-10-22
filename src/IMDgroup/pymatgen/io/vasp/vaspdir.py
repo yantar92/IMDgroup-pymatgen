@@ -202,6 +202,7 @@ class IMDGVaspDir(Mapping, MSONable):
         self._parsed_files = None
         self._warnings = VaspWarnings()
         self._warnings_collected = False
+        self._hash = None
 
     _pending_writes: typing.ClassVar[dict[str, dict]] = {}
     _pending_lock: typing.ClassVar[threading.Lock] = threading.Lock()
@@ -442,6 +443,7 @@ class IMDGVaspDir(Mapping, MSONable):
         self._neb_vaspdirs = None  # Pacify linter.  Same is done in reset().
         self._warnings = None  # Pacify linter.  Same is done in reset().
         self._warnings_collected = False  # Pacify linter.
+        self._hash = None  # Pacify linter.  Same is done in reset().
         if exclude_patterns is None:
             self._exclude_patterns = self.EXCLUDE_PATTERNS
         else:
@@ -745,12 +747,16 @@ class IMDGVaspDir(Mapping, MSONable):
         """Get hash of all files in path.
 
         Hashes are deterministic because ``self.files`` is sorted
-        in :meth:`reset`.
+        in :meth:`reset`.  The result is memoized per instance and
+        invalidated in :meth:`reset`.
         """
+        if self._hash is not None:
+            return self._hash
         hashes = map(self._get_file_hash, self.files)
         combined_hash =\
             hashlib.md5("".join(hashes).encode('utf-8')).hexdigest()
-        return str(combined_hash)
+        self._hash = str(combined_hash)
+        return self._hash
 
     @property
     def final_energy(self) -> float:
