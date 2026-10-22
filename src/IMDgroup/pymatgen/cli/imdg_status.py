@@ -647,21 +647,23 @@ def status(args):
                     else:
                         final_energy_str = "" if np.isnan(final_energy)\
                             else f"{final_energy:.4f}"
-                        outcar = None if args.fast else vaspdir['OUTCAR']
-                        if outcar is not None:
-                            cpu_time_sec = outcar.run_stats.get(
-                                'Total CPU time used (sec)')
-                            if cpu_time_sec is not None:
-                                cpu_time = str(datetime.timedelta(
-                                    seconds=round(cpu_time_sec)))
-                            cores = outcar.run_stats['cores']
-                            if cores is not None:
-                                n_cores = str(cores)
+                        if not args.fast:
+                            run_stats = vaspdir.run_stats
+                            if run_stats is not None:
+                                cpu_time_sec = run_stats.get(
+                                    'Total CPU time used (sec)')
+                                if cpu_time_sec is not None:
+                                    cpu_time = str(datetime.timedelta(
+                                        seconds=round(cpu_time_sec)))
+                                cores = run_stats['cores']
+                                if cores is not None:
+                                    n_cores = str(cores)
                             max_force = vaspdir.max_force()
                             if max_force is not None:
                                 fmax_str = f"{max_force:.4f}"
-                            per_step = format_timing_stats(
-                                outcar.timing_stats)
+                            timing_stats = vaspdir.timing_stats
+                            if timing_stats is not None:
+                                per_step = format_timing_stats(timing_stats)
 
                 mtime = vasp_output_time(wdir)
                 if mtime is None:

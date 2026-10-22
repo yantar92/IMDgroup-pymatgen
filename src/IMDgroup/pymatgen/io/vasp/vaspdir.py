@@ -838,11 +838,11 @@ class IMDGVaspDir(Mapping, MSONable):
         return container
 
     @property
-    def run_stats(self) -> dict | None:
+    def run_stats(self) -> dict[str, typing.Any] | None:
         """Cached ``Outcar.run_stats``, or None without OUTCAR."""
         return self._memoized('run_stats', self._compute_run_stats)
 
-    def _compute_run_stats(self) -> dict | None:
+    def _compute_run_stats(self) -> dict[str, typing.Any] | None:
         outcar = self['OUTCAR']
         if outcar is None:
             return None
