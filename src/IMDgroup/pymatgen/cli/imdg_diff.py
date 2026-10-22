@@ -326,7 +326,7 @@ def print_incar_groups(common_incar, groups, console=None, max_names=None):
             diff_string = ""
         console.print(Text.assemble(
             (f"Group {idx + 1}: ", "bold"), (diff_string, "")))
-        console.print((shown, ""))
+        console.print(shown)
         
 
 
