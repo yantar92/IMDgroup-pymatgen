@@ -362,9 +362,6 @@ def _get_neb_summary(vaspdir: IMDGVaspDir) -> str:
 class _RunRow:
     """Structured display data for a single VASP run."""
     dir_full: str
-    dir_display: str
-    truncated: bool
-    ref: int
     when: str
     running: bool
     converged: bool
@@ -406,13 +403,12 @@ def _details_text(row: _RunRow) -> str:
     return " | ".join(parts)
 
 
-def _add_run_row(table, row, has_ref):
+def _add_run_row(table, row):
     """Append one run's display cells to TABLE.
 
     Args:
         table: rich Table with the status columns already added.
         row: _RunRow to render.
-        has_ref: Whether the table has the trailing footnote-ref column.
     """
     if row.warn_names:
         status_cell = Text(row.status_label, style="bold black on yellow")
@@ -421,7 +417,7 @@ def _add_run_row(table, row, has_ref):
     dir_cell = Text()
     if row.is_neb:
         dir_cell.append("IMAGES ", style="magenta")
-    dir_cell.append(row.dir_display)
+    dir_cell.append(row.dir_full)
     warn_cell = (Text(", ".join(row.warn_names), style="yellow")
                  if row.warn_names else Text("-", style="dim"))
     cells = [
@@ -434,13 +430,10 @@ def _add_run_row(table, row, has_ref):
         warn_cell,
         _details_text(row) or "-",
     ]
-    if has_ref:
-        cells.append(
-            Text(f"[{row.ref}]", style="dim") if row.truncated else Text())
     table.add_row(*cells)
 
 
-def _build_status_table(rows, any_truncated, dir_max):
+def _build_status_table(rows, dir_max):
     """Build a fresh status table holding the given ROWS.
 
     Callers rebuild the table only when ``rows`` changes, so it always
@@ -449,8 +442,6 @@ def _build_status_table(rows, any_truncated, dir_max):
 
     Args:
         rows: Iterable of _RunRow to render.
-        any_truncated: Whether the trailing ``#`` footnote column is
-            needed (any scanned path exceeds ``dir_max``).
         dir_max: Maximum width of the DIR column in cells.
 
     Returns:
@@ -460,17 +451,14 @@ def _build_status_table(rows, any_truncated, dir_max):
         box=None, show_header=True, header_style="bold", padding=(0, 1))
     table.add_column("WHEN", justify="right", style="dim", no_wrap=True)
     table.add_column("STATUS", no_wrap=True)
-    table.add_column(
-        "DIR", max_width=dir_max, overflow="ellipsis", no_wrap=True)
+    table.add_column("DIR", max_width=dir_max, overflow="fold")
     table.add_column("ENERGY (eV)", justify="right", no_wrap=True)
     table.add_column("FMAX (eV/\u00c5)", justify="right", no_wrap=True)
     table.add_column("PER-STEP", no_wrap=True)
     table.add_column("WARN", overflow="fold")
     table.add_column("DETAILS", overflow="ellipsis", no_wrap=True, max_width=20)
-    if any_truncated:
-        table.add_column("#", justify="right", no_wrap=True)
     for row in rows:
-        _add_run_row(table, row, any_truncated)
+        _add_run_row(table, row)
     return table
 
 
@@ -528,13 +516,6 @@ def status(args):
     rows: list[_RunRow] = []
 
     dir_max = max(30, min(48, console.width - 70))
-    ref_counter = 0
-
-    # Decide the footnote-ref column before streaming: a scanned path
-    # will be ellipsized when it exceeds dir_max, so we know upfront
-    # whether the column is needed (skipped dirs may leave it empty).
-    any_truncated = any(
-        len(w.replace("./", "")) > dir_max for w in paths)
 
     # Keep only the last N rows in the live render so the table stays
     # short and Live redraws in place (auto-scroll) instead of growing
@@ -543,7 +524,7 @@ def status(args):
     visible_rows: deque[_RunRow] = deque(maxlen=visible_max)
 
     if console.is_terminal:
-        status_table = _build_status_table([], any_truncated, dir_max)
+        status_table = _build_status_table([], dir_max)
         live = Live(
             Group(
                 Text("Reading VASP outputs...", style="dim"),
@@ -686,17 +667,8 @@ def status(args):
                 delta = mtime - datetime.datetime.now().timestamp()
 
                 dir_full = wdir.replace("./", "")
-                truncated = len(dir_full) > dir_max
-                ref = 0
-                if truncated:
-                    ref_counter += 1
-                    ref = ref_counter
-
                 row = _RunRow(
                     dir_full=dir_full,
-                    dir_display=dir_full,
-                    truncated=truncated,
-                    ref=ref,
                     when=print_seconds(delta),
                     running=running,
                     converged=converged,
@@ -716,7 +688,7 @@ def status(args):
                 visible_rows.append(row)
                 if live is not None:
                     status_table = _build_status_table(
-                        visible_rows, any_truncated, dir_max)
+                        visible_rows, dir_max)
 
         n_running = sum(1 for r in rows if r.running)
         n_converged = sum(1 for r in rows if r.converged)
@@ -732,7 +704,7 @@ def status(args):
         if live is not None:
             live.update(Group(
                 summary,
-                _build_status_table(rows, any_truncated, dir_max)))
+                _build_status_table(rows, dir_max)))
 
     finally:
         if live is not None:
@@ -743,17 +715,9 @@ def status(args):
         # piping carries every row (Live would otherwise only print the
         # final auto-scroll window).
         if rows:
-            console.print(_build_status_table(rows, any_truncated, dir_max))
+            console.print(_build_status_table(rows, dir_max))
         console.print()
         console.print(summary)
-
-    truncated_rows = [r for r in rows if r.truncated]
-    if truncated_rows:
-        console.print()
-        console.print("[bold]Paths:[/bold]")
-        for r in truncated_rows:
-            console.print(Text.assemble(
-                ("  ", ""), (f"[{r.ref}] ", "dim"), (r.dir_full, "")))
 
     if dirs_with_warnings:
         category_order = ("unconverged", "running", "converged")
@@ -790,8 +754,6 @@ def status(args):
         for r in detail_rows:
             head = Text("  ")
             head.append(r.dir_full, style="bold")
-            if r.truncated:
-                head.append(f" [{r.ref}]", style="dim")
             console.print(head)
             if r.progress:
                 console.print(Text.assemble(("      ", ""), (r.progress, "")))
