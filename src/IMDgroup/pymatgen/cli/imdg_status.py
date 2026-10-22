@@ -543,6 +543,7 @@ def status(args):
             last_update = 0.0
             for i, wdir in enumerate(paths, 1):
                 if live is not None:
+                    assert status_table is not None
                     live.update(Group(
                         Text(
                             f"Reading VASP outputs: {i}/{len(paths)}",
