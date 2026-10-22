@@ -443,9 +443,9 @@ def _add_run_row(table, row, has_ref):
 def _build_status_table(rows, any_truncated, dir_max):
     """Build a fresh status table holding the given ROWS.
 
-    The table is rebuilt on every live update so it only ever contains
-    the most recent ``rows`` (typically the last N scanned), keeping the
-    render short enough for ``Live`` to redraw in place.
+    Callers rebuild the table only when ``rows`` changes, so it always
+    contains the most recent ``rows`` (typically the last N scanned),
+    keeping the render short enough for ``Live`` to redraw in place.
 
     Args:
         rows: Iterable of _RunRow to render.
@@ -543,20 +543,28 @@ def status(args):
     visible_rows: deque[_RunRow] = deque(maxlen=visible_max)
 
     if console.is_terminal:
+        status_table = _build_status_table([], any_truncated, dir_max)
         live = Live(
             Group(
                 Text("Reading VASP outputs...", style="dim"),
-                _build_status_table([], any_truncated, dir_max)),
+                status_table),
             console=console,
             refresh_per_second=4)
         live.start()
     else:
         live = None
+        status_table = None
 
     try:
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", category=VaspWarning)
             for i, wdir in enumerate(paths, 1):
+                if live is not None:
+                    live.update(Group(
+                        Text(
+                            f"Reading VASP outputs: {i}/{len(paths)}",
+                            style="dim"),
+                        status_table))
                 vaspdir = vaspdirs.get(wdir)
                 assert vaspdir is not None
                 incar = vaspdir['INCAR']
@@ -707,12 +715,8 @@ def status(args):
                 rows.append(row)
                 visible_rows.append(row)
                 if live is not None:
-                    live.update(Group(
-                        Text(
-                            f"Reading VASP outputs: {i}/{len(paths)}",
-                            style="dim"),
-                        _build_status_table(
-                            visible_rows, any_truncated, dir_max)))
+                    status_table = _build_status_table(
+                        visible_rows, any_truncated, dir_max)
 
         n_running = sum(1 for r in rows if r.running)
         n_converged = sum(1 for r in rows if r.converged)
