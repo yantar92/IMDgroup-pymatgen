@@ -30,7 +30,6 @@ import os
 import re
 import logging
 import pymatgen.core as pmg
-from pymatgen.ext.matproj import MPRestError
 from pymatgen.io.vasp.inputs import PmgVaspPspDirError
 from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
 from IMDgroup.pymatgen.io.vasp.sets import IMDStandardVaspInputSet
@@ -70,6 +69,9 @@ def create_from_mpid(mpid):
         ValueError: If the Materials Project API key is missing or
             invalid.
     """
+    # Imported lazily: pulls the requests/pandas chain via
+    # pymatgen.ext.matproj, which would otherwise slow every subcommand.
+    from pymatgen.ext.matproj import MPRestError
     api_key = pmg.SETTINGS.get("PMG_MAPI_KEY", "")
     if len(api_key) != 32:
         raise ValueError(

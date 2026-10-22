@@ -33,7 +33,6 @@ import os
 import sys
 import warnings
 from termcolor import colored
-from pymatgen.ext.matproj import MPRestError
 from IMDgroup.common import configure_progress_output, suppress_spglib_warnings
 import IMDgroup.pymatgen.cli.imdg_create
 import IMDgroup.pymatgen.cli.imdg_derive
@@ -44,6 +43,19 @@ import IMDgroup.pymatgen.cli.imdg_visualize
 import IMDgroup.pymatgen.cli.imdg_run
 
 logger = logging.getLogger(__name__)
+
+
+def _user_error_types() -> tuple[type[BaseException], ...]:
+    """Exception types reported as one-line user errors in :func:`main`.
+
+    ``MPRestError`` is imported lazily: importing it drags in the whole
+    ``pymatgen.ext.matproj`` module (requests, pandas, ...), which adds
+    several seconds to the startup of every subcommand.  Only ``create``
+    and ``derive`` can raise it, so it is loaded here on the failure path
+    instead of at module import time.
+    """
+    from pymatgen.ext.matproj import MPRestError
+    return (ValueError, OSError, MPRestError)
 
 
 def _showwarning(message, category, _filename, _lineno, file=None, _line=None):
@@ -229,7 +241,7 @@ gpu.""")
 
     try:
         return args.func(args)
-    except (ValueError, OSError, MPRestError) as exc:
+    except _user_error_types() as exc:
         # User-facing failures: report a one-line message instead of a
         # traceback.  ``-vv`` re-raises so the full traceback is shown.
         if args.verbosity >= 2:
