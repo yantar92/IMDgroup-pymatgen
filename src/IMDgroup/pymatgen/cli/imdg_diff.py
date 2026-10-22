@@ -319,10 +319,11 @@ def print_incar_groups(common_incar, groups, console=None, max_names=None):
             if key not in common_incar
             and key != "SYSTEM"
             and key not in INCAR_GROUP_IGNORE_FIELDS]
-        diff_incar = Incar({key: group[0][key] for key in diff_keys})
+        # diff_incar = Incar({key: group[0][key] for key in diff_keys})
         if diff_keys:
+            console.print(" ".join(f"{key}:{group[0][key]}" for key in diff_keys))
             # console.print(Text(f"Group {idx + 1} params:", style="bold"))
-            console.print(diff_incar.get_str(pretty=True))
+            # console.print(diff_incar.get_str(pretty=True))
 
 
 def diff_incar(args):
