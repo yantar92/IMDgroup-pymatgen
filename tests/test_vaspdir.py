@@ -22,6 +22,7 @@ from pymatgen.io.vasp.inputs import Poscar
 
 from IMDgroup.pymatgen.io.vasp.diagnostics import VaspWarning
 from IMDgroup.pymatgen.io.vasp.vaspdir import (
+    _MISSING,
     IMDGVaspDir,
     TimeoutException,
     timeout_handler,
@@ -203,15 +204,15 @@ def test_energy_accuracy_warning(converged_relax_vasp_dir) -> None:
 
 
 def test_lmdb_cache_round_trip(converged_vasp_dir, isolated_lmdb_cache) -> None:
-    """Parsed files are cached to LMDB and reused on a second load."""
+    """Parsed files are cached per-file and reused on a second load."""
     first = IMDGVaspDir(str(converged_vasp_dir))
     assert first["INCAR"] is not None
     IMDGVaspDir.flush_cache()
 
-    cached = IMDGVaspDir._lmdb_get(first._cache_key)
+    cached = IMDGVaspDir._lmdb_get(first._index_key())
     assert cached is not None
     assert cached["version"] == IMDGVaspDir.CACHE_VERSION
-    assert "INCAR" in cached["parsed_files"]
+    assert "hash" in cached
 
     second = IMDGVaspDir(str(converged_vasp_dir))
     assert second["INCAR"] is not None
@@ -738,10 +739,10 @@ def test_lmdb_cache_version_mismatch_discarded(
     assert first["INCAR"] is not None
     IMDGVaspDir.flush_cache()
 
-    cached = IMDGVaspDir._lmdb_get(first._cache_key)
+    cached = IMDGVaspDir._lmdb_get(first._index_key())
     assert cached is not None
     cached["version"] = -1
-    IMDGVaspDir._lmdb_set(first._cache_key, cached)
+    IMDGVaspDir._lmdb_set(first._index_key(), cached)
 
     second = IMDGVaspDir(str(converged_vasp_dir))
     assert second["INCAR"] is not None  # re-parsed, not misread
@@ -780,5 +781,5 @@ def test_lmdb_evict_on_map_full(isolated_lmdb_cache, monkeypatch) -> None:
         IMDGVaspDir._lmdb_set(f"new{i}", {"payload": "x" * 64})
 
     # The oldest entry was evicted; the newest survived the retry.
-    assert IMDGVaspDir._lmdb_get("old0") is None
-    assert IMDGVaspDir._lmdb_get("new39") is not None
+    assert IMDGVaspDir._lmdb_get("old0") is _MISSING
+    assert IMDGVaspDir._lmdb_get("new39") == {"payload": "x" * 64}

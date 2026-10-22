@@ -58,7 +58,12 @@ from pymatgen.io.vasp.outputs import Procar as pmgProcar
 from pymatgen.io.vasp.outputs import Elfcar as pmgElfcar
 from pymatgen.io.vasp.outputs import WSWQ as pmgWSWQ
 from IMDgroup.pymatgen.io.vasp.inputs import Incar
-from IMDgroup.pymatgen.io.vasp.outputs import Vasprun, Outcar, Vasplog
+from IMDgroup.pymatgen.io.vasp.outputs import (
+    RunTimingStats,
+    Vasprun,
+    Outcar,
+    Vasplog,
+)
 from IMDgroup.pymatgen.io.vasp.diagnostics import (
     VaspWarning,
     VaspWarningRecord,
@@ -90,6 +95,12 @@ def timeout_handler(signum, frame):
 HAS_SIGALRM = sys.platform != 'win32'
 if HAS_SIGALRM:
     signal.signal(signal.SIGALRM, timeout_handler)
+
+
+# Sentinel returned by ``_lmdb_get`` when a key is absent, so callers
+# can distinguish "missing" from a stored ``None`` (a file whose parse
+# failed is cached as ``None`` and must not be retried).
+_MISSING = object()
 
 
 # Rewriting the original VaspDir/PMGDir class to add caching, dumping,
@@ -126,7 +137,7 @@ class IMDGVaspDir(Mapping, MSONable):
     # Version of the cache record schema.  Bump when the structure of
     # cached records changes so that entries written by older package
     # versions are discarded on load instead of being misread.
-    CACHE_VERSION: typing.ClassVar[int] = 1
+    CACHE_VERSION: typing.ClassVar[int] = 2
 
     # LMDB map size in bytes.  Exposed as a class attribute so tests can
     # shrink it to exercise the eviction path without allocating the full
@@ -200,11 +211,11 @@ class IMDGVaspDir(Mapping, MSONable):
         self._neb_vaspdirs = None
         self._prev_vaspdirs = None
         self._parsed_files = None
-        self._warnings = VaspWarnings()
-        self._warnings_collected = False
         self._hash = None
+        self._summary = None
+        self._index_valid = False
 
-    _pending_writes: typing.ClassVar[dict[str, dict]] = {}
+    _pending_writes: typing.ClassVar[dict[str, object]] = {}
     _pending_lock: typing.ClassVar[threading.Lock] = threading.Lock()
     _flush_registered: typing.ClassVar[bool] = False
     _lmdb_env: typing.ClassVar[typing.Any] = None
@@ -258,19 +269,19 @@ class IMDGVaspDir(Mapping, MSONable):
             cls._lmdb_meta_db = None
 
     @classmethod
-    def _lmdb_get(cls, key: str) -> dict | None:
+    def _lmdb_get(cls, key: str) -> object:
         cls._init_lmdb()
         if cls._lmdb_env is None:
-            return None
+            return _MISSING
         try:
             with cls._lmdb_env.begin(db=cls._lmdb_db, write=False) as txn:
                 val = txn.get(key.encode())
                 if val is None:
-                    return None
+                    return _MISSING
                 return pickle.loads(val)
         except Exception as e:
             logger.warning("LMDB get failed: %s", e)
-            return None
+            return _MISSING
 
     @classmethod
     def _lmdb_set(cls, key: str, data: dict) -> bool:
@@ -337,7 +348,7 @@ class IMDGVaspDir(Mapping, MSONable):
         return freed
 
     @classmethod
-    def _lmdb_set_many(cls, items: dict[str, dict]) -> bool:
+    def _lmdb_set_many(cls, items: dict[str, object]) -> bool:
         """Write entries with metadata, evicting on MDB_MAP_FULL.
 
         Pre-serializes values to avoid double pickling.  On map-full
@@ -441,9 +452,9 @@ class IMDGVaspDir(Mapping, MSONable):
         self._parsed_files = None  # Pacify linter.  Same is done in reset().
         self._prev_vaspdirs = None  # Pacify linter.  Same is done in reset().
         self._neb_vaspdirs = None  # Pacify linter.  Same is done in reset().
-        self._warnings = None  # Pacify linter.  Same is done in reset().
-        self._warnings_collected = False  # Pacify linter.
         self._hash = None  # Pacify linter.  Same is done in reset().
+        self._summary = None  # Pacify linter.  Same is done in reset().
+        self._index_valid = False  # Pacify linter.  Same is done in reset().
         if exclude_patterns is None:
             self._exclude_patterns = self.EXCLUDE_PATTERNS
         else:
@@ -461,19 +472,34 @@ class IMDGVaspDir(Mapping, MSONable):
             or os.path.expanduser("~/.cache")
         return Path(cache_dir) / "imdgVASPDIRcache"
 
+    def _index_key(self) -> str:
+        """Cache key for the per-directory validity metadata."""
+        return f"{self._cache_key}:index"
+
+    def _summary_key(self) -> str:
+        """Cache key for the per-directory summary (memoized values)."""
+        return f"{self._cache_key}:summary"
+
+    def _file_key(self, item: str) -> str:
+        """Cache key for a single parsed file within this directory."""
+        return f"{self._cache_key}:file:{item}"
+
     def _load_from_cache(self) -> dict | None:
-        """Load cached data from LMDB if valid.
+        """Load the per-directory validity metadata from LMDB.
 
         Returns:
-            Cached data dict on success, ``None`` if no entry exists
-            or the LMDB environment is unavailable.
+            Cached metadata dict on success, ``None`` if no entry
+            exists or the LMDB environment is unavailable.
         """
-        return self._lmdb_get(self._cache_key)
+        data = self._lmdb_get(self._index_key())
+        if data is _MISSING or not isinstance(data, dict):
+            return None
+        return data
 
     _PENDING_FLUSH_THRESHOLD: typing.ClassVar[int] = 200
 
     @classmethod
-    def _add_pending_write(cls, key: str, data: dict) -> None:
+    def _add_pending_write(cls, key: str, data: object) -> None:
         """Add a cache entry to the pending write buffer.
 
         Automatically flushes to LMDB when the number of pending
@@ -512,21 +538,44 @@ class IMDGVaspDir(Mapping, MSONable):
             with cls._pending_lock:
                 cls._pending_writes.update(writes)
 
-    def _dump_to_cache(self) -> bool:
-        """Dump parsed data to cache."""
-        data = {
+    def _dump_index(self) -> bool:
+        """Dump the per-directory validity metadata (version + hash)."""
+        self._add_pending_write(self._index_key(), {
             'version': self.CACHE_VERSION,
             'hash': self._get_hash(),
-            'parsed_files': self._parsed_files,
-            'warnings': self._warnings,
-            'warnings_collected': self._warnings_collected,
-        }
-        self._add_pending_write(self._cache_key, data)
+        })
+        return True
+
+    def _dump_summary(self) -> bool:
+        """Dump the per-directory summary (memoized derived values)."""
+        self._ensure_summary_loaded()
+        self._dump_index()
+        self._add_pending_write(self._summary_key(), self._summary)
+        return True
+
+    def _dump_file_to_cache(self, item: str) -> bool:
+        """Dump a single parsed file to cache.
+
+        A failed parse is stored as ``None``; ``_lmdb_get`` returns the
+        ``_MISSING`` sentinel for an absent key, so the two are
+        distinguishable on load.
+        """
+        self._dump_index()
+        self._add_pending_write(self._file_key(item), self._parsed_files[item])
         return True
 
     def refresh(self):
-        """Reload cached data from disk or re-parse if files changed."""
-        key = self._cache_key
+        """Reload cache validity metadata or reset to an empty state.
+
+        Loads only the tiny per-directory index (version + hash).  The
+        summary (memoized derived values) is loaded lazily on first
+        access, and parsed files are fetched lazily by
+        :meth:`__getitem__`.
+        """
+        # Files may have changed since the hash was last computed, so
+        # invalidate the memoized hash before recomputing it.
+        self._hash = None
+        key = self._index_key()
         current_hash = self._get_hash()
         # First check pending writes (in-process, not yet flushed to LMDB)
         with self._pending_lock:
@@ -534,10 +583,9 @@ class IMDGVaspDir(Mapping, MSONable):
         if pending is not None:
             if (pending.get('version') == self.CACHE_VERSION
                     and pending.get('hash') == current_hash):
-                self._parsed_files = pending['parsed_files']
-                self._warnings = pending.get('warnings', VaspWarnings())
-                self._warnings_collected = pending.get(
-                    'warnings_collected', False)
+                self._parsed_files = {}
+                self._index_valid = True
+                self._summary = None
                 logger.debug(
                     "Loaded pending cache for %s",
                     os.path.relpath(self.path))
@@ -557,10 +605,9 @@ class IMDGVaspDir(Mapping, MSONable):
             if cache_data.get('version') == self.CACHE_VERSION:
                 cached_hash = cache_data.get('hash')
                 if cached_hash == current_hash:
-                    self._parsed_files = cache_data['parsed_files']
-                    self._warnings = cache_data.get('warnings', VaspWarnings())
-                    self._warnings_collected = cache_data.get(
-                        'warnings_collected', False)
+                    self._parsed_files = {}
+                    self._index_valid = True
+                    self._summary = None
                     logger.debug(
                         "Loaded disk cache for %s",
                         os.path.relpath(self.path))
@@ -580,9 +627,47 @@ class IMDGVaspDir(Mapping, MSONable):
                 "No disk cache entry for %s",
                 os.path.relpath(self.path))
         self._parsed_files = {}
-        self._warnings = VaspWarnings()
-        self._warnings_collected = False
+        self._summary = self._fresh_summary()
+        self._index_valid = False
         logger.debug("No valid cache for %s", os.path.relpath(self.path))
+
+    def _fresh_summary(self) -> dict:
+        """Return an empty summary (memo) dict."""
+        return {
+            'warnings': VaspWarnings(),
+            'warnings_collected': False,
+        }
+
+    def _ensure_summary_loaded(self) -> None:
+        """Load the summary (memo) from cache, or reset it to empty.
+
+        Triggers :meth:`refresh` first so the validity of the cached
+        summary is known before it is used.  ``self._summary is None``
+        is the "not yet loaded" sentinel; a loaded summary is always a
+        dict.
+        """
+        if self._parsed_files is None:
+            self.refresh()
+        if self._summary is not None:
+            return
+        if self._index_valid:
+            data = self._lmdb_get(self._summary_key())
+            if data is not _MISSING and isinstance(data, dict):
+                self._summary = data
+            else:
+                self._summary = self._fresh_summary()
+        else:
+            self._summary = self._fresh_summary()
+
+    def _memoized(self, key, compute):
+        """Return ``self._summary[key]``, computing and caching on a miss."""
+        self._ensure_summary_loaded()
+        if key in self._summary:
+            return self._summary[key]
+        value = compute()
+        self._summary[key] = value
+        self._dump_summary()
+        return value
 
     @staticmethod
     def read_vaspdirs(
@@ -639,8 +724,17 @@ class IMDGVaspDir(Mapping, MSONable):
         if item in self._parsed_files:
             return self._parsed_files[item]
         path = Path(self.path)
+        exists = (path / item).exists()
+        # Try the per-file cache before parsing from disk.  Only valid
+        # when the directory hash matched on refresh(); otherwise the
+        # entry may be stale.
+        if exists and self._index_valid:
+            cached = self._lmdb_get(self._file_key(item))
+            if cached is not _MISSING:
+                self._parsed_files[item] = cached
+                return cached
         for pattern, cls_ in self.FILE_MAPPINGS.items():
-            if re.fullmatch(pattern, item) and (path / item).exists():
+            if re.fullmatch(pattern, item) and exists:
                 # Avoid being stuck in IO
                 # It can happen with Outcar
                 # See https://github.com/materialsproject/pymatgen/issues/4550
@@ -657,7 +751,7 @@ class IMDGVaspDir(Mapping, MSONable):
                     if HAS_SIGALRM:
                         signal.alarm(0)
                     self._parsed_files[item] = obj
-                    self._dump_to_cache()
+                    self._dump_file_to_cache(item)
                     return obj
                 # except TimeoutException:
                 except Exception as e:
@@ -665,9 +759,9 @@ class IMDGVaspDir(Mapping, MSONable):
                         signal.alarm(0)
                     logger.debug("Failed to read %s: %s", path / item, e)
                     self._parsed_files[item] = None
-                    self._dump_to_cache()
+                    self._dump_file_to_cache(item)
                     return None
-        if (path / item).exists():
+        if exists:
             raise RuntimeError(
                 f"Unable to parse {item}. "
                 f"Supported file patterns are {list(self.FILE_MAPPINGS.keys())}.")
@@ -705,8 +799,10 @@ class IMDGVaspDir(Mapping, MSONable):
         Records are overwritten by name, so re-running a check is
         idempotent.
         """
-        assert isinstance(self._warnings, VaspWarnings)
-        self._warnings.overwrite(record)
+        self._ensure_summary_loaded()
+        container = self._summary['warnings']
+        assert isinstance(container, VaspWarnings)
+        container.overwrite(record)
         warnings.warn(record.message, VaspWarning)
 
     @property
@@ -716,25 +812,49 @@ class IMDGVaspDir(Mapping, MSONable):
         Aggregates log-file warnings (:class:`Vasplog`/:class:`Outcar`),
         :class:`Vasprun` accuracy checks, and directory-level checks
         (energy reliability, displacements, framework symmetry).  The
-        container is cached and replayed on subsequent loads.
+        container is memoized and replayed on subsequent loads.
 
         Returns:
             VaspWarnings: Name-keyed warning records.
         """
-        assert isinstance(self._warnings, VaspWarnings)
-        if not self._warnings_collected:
+        self._ensure_summary_loaded()
+        container = self._summary['warnings']
+        assert isinstance(container, VaspWarnings)
+        if not self._summary['warnings_collected']:
             for log in self.logs():
                 for record in log.warnings.values():
-                    self._warnings.add(record)
+                    container.add(record)
             if run := self['vasprun.xml']:
                 for record in run.warnings.values():
-                    self._warnings.add(record)
+                    container.add(record)
             # Records energy reliability and, transitively, runs the
             # displacement/framework-symmetry checks via converged_*.
             self.final_energy
-            self._warnings_collected = True
-            self._dump_to_cache()
-        return self._warnings
+            self._summary['warnings_collected'] = True
+            self._dump_summary()
+        return container
+
+    @property
+    def run_stats(self) -> dict | None:
+        """Cached ``Outcar.run_stats``, or None without OUTCAR."""
+        return self._memoized('run_stats', self._compute_run_stats)
+
+    def _compute_run_stats(self) -> dict | None:
+        outcar = self['OUTCAR']
+        if outcar is None:
+            return None
+        return outcar.run_stats
+
+    @property
+    def timing_stats(self) -> RunTimingStats | None:
+        """Cached :attr:`Outcar.timing_stats`, or None without OUTCAR."""
+        return self._memoized('timing_stats', self._compute_timing_stats)
+
+    def _compute_timing_stats(self) -> RunTimingStats | None:
+        outcar = self['OUTCAR']
+        if outcar is None:
+            return None
+        return outcar.timing_stats
 
     @staticmethod
     def _get_file_hash(filename: Path | str) -> str:
@@ -760,8 +880,10 @@ class IMDGVaspDir(Mapping, MSONable):
 
     @property
     def final_energy(self) -> float:
-        """Final energy computed in current Vasp outputs.
-        """
+        """Final energy computed in current Vasp outputs."""
+        return self._memoized('final_energy', self._compute_final_energy)
+
+    def _compute_final_energy(self) -> float:
         def warn_unconverged():
             self._record(VaspWarningRecord(
                 name="unconverged_energy",
@@ -897,6 +1019,11 @@ class IMDGVaspDir(Mapping, MSONable):
             when the OUTCAR forces are unavailable or no unconstrained
             force components remain.
         """
+        return self._memoized(
+            ('max_force', include_constrained),
+            lambda: self._compute_max_force(include_constrained))
+
+    def _compute_max_force(self, include_constrained: bool) -> float | None:
         outcar = self['OUTCAR']
         if outcar is None:
             return None
@@ -998,6 +1125,18 @@ class IMDGVaspDir(Mapping, MSONable):
             elements = Counter([str(site.specie) for site in self.initial_structure])
             framework_elements = [elements.most_common(1)[0][0]]
 
+        # The result depends only on the framework element set, the
+        # symmetry tolerance, and the RMS threshold.  The summary is
+        # persisted across runs, so a warm load skips the spglib calls
+        # below.
+        key = ('symmetry', tuple(framework_elements), symprec, max_rms_threshold)
+        return self._memoized(
+            key,
+            lambda: self._compute_framework_symmetry(
+                framework_elements, symprec, max_rms_threshold))
+
+    def _compute_framework_symmetry(
+            self, framework_elements, symprec, max_rms_threshold) -> bool:
         # Create framework-only structures
         def filter_framework(structure):
             indices = [i for i, site in enumerate(structure)
@@ -1013,6 +1152,7 @@ class IMDGVaspDir(Mapping, MSONable):
         init_sg = init_framework.get_space_group_info(symprec=symprec)
         final_sg = final_framework.get_space_group_info(symprec=symprec)
 
+        result = True
         if init_sg[0] != final_sg[0]:
             # Calculate RMS displacement of framework atoms
             try:
@@ -1032,8 +1172,8 @@ class IMDGVaspDir(Mapping, MSONable):
                     source=self.path,
                     metadata={"rms_displacement": float(rms)},
                 ))
-                return False
-        return True
+                result = False
+        return result
 
     @property
     def converged_ionic(self) -> bool:
@@ -1041,12 +1181,16 @@ class IMDGVaspDir(Mapping, MSONable):
 
         Also checks framework symmetry and displacements.
         """
+        return self._memoized(
+            'converged_ionic', self._compute_converged_ionic)
+
+    def _compute_converged_ionic(self) -> bool:
         converged_ionic = False
         if run := self['vasprun.xml']:
             converged_ionic = run.converged_ionic
         elif 'vasprun.xml' in self:
             # vasprun.xml present but cannot be parsed
-            return False
+            converged_ionic = False
         elif outcar := self['OUTCAR']:
             if 'converged_ionic' not in outcar.data:
                 outcar.read_pattern(
@@ -1064,6 +1208,10 @@ class IMDGVaspDir(Mapping, MSONable):
     @property
     def converged_electronic(self) -> bool:
         """Whether electronic convergence was reached."""
+        return self._memoized(
+            'converged_electronic', self._compute_converged_electronic)
+
+    def _compute_converged_electronic(self) -> bool:
         if run := self['vasprun.xml']:
             return run.converged_electronic
         if 'vasprun.xml' in self:
@@ -1090,6 +1238,10 @@ class IMDGVaspDir(Mapping, MSONable):
         Returns False when ``INCAR.[0-9]+`` files remain (signalling
         that further convergence steps are pending).
         """
+        return self._memoized(
+            'converged_sequence', self._compute_converged_sequence)
+
+    def _compute_converged_sequence(self) -> bool:
         return not any(re.match(r'INCAR\.[0-9]+', file) for file in self)
 
     @property
@@ -1098,6 +1250,10 @@ class IMDGVaspDir(Mapping, MSONable):
 
         Returns False when an ``UNCONVERGED`` file is present.
         """
+        return self._memoized(
+            'converged_manual', self._compute_converged_manual)
+
+    def _compute_converged_manual(self) -> bool:
         return not (Path(self.path) / "UNCONVERGED").is_file()
 
     @property
@@ -1127,6 +1283,9 @@ class IMDGVaspDir(Mapping, MSONable):
 
         Detected by the presence of ``IMAGES`` in the INCAR.
         """
+        return self._memoized('nebp', self._compute_nebp)
+
+    def _compute_nebp(self) -> bool:
         if incar := self['INCAR']:
             return 'IMAGES' in incar
         return False
