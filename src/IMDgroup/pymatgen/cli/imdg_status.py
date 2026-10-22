@@ -61,6 +61,15 @@ from IMDgroup.pymatgen.cli.imdg_diff import print_incar_groups
 
 logger = logging.getLogger(__name__)
 console = Console()
+# rich's ``Console.is_terminal`` is not memoized: it calls ``isatty()``
+# on every access (render, options, size detection), and ``imdg status``
+# hits it ~800 times per run.  On slow terminals each ``isatty()`` can
+# cost several milliseconds, so freeze the result once after the
+# env-aware first detection (FORCE_COLOR, TTY_COMPATIBLE, jupyter, idle)
+# has run.  ``_force_terminal`` is the backing field of the
+# ``force_terminal=`` constructor argument and is checked first by the
+# property, so every later access short-circuits without a syscall.
+console._force_terminal = console.is_terminal
 
 
 def custom_showwarning(
