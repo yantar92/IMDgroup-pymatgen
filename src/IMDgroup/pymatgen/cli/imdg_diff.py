@@ -312,8 +312,6 @@ def print_incar_groups(common_incar, groups, console=None, max_names=None):
             shown = " ".join(names[:max_names]) + " ..."
         else:
             shown = " ".join(names)
-        console.print(Text.assemble(
-            (f"Group {idx + 1}: ", "bold"), (shown, "")))
         diff_keys = [
             key for key in group[0]
             if key not in common_incar
@@ -321,9 +319,15 @@ def print_incar_groups(common_incar, groups, console=None, max_names=None):
             and key not in INCAR_GROUP_IGNORE_FIELDS]
         # diff_incar = Incar({key: group[0][key] for key in diff_keys})
         if diff_keys:
-            console.print(" ".join(f"{key}:{group[0][key]}" for key in diff_keys))
+            diff_string = " ".join(f"{key}:{group[0][key]}" for key in diff_keys)
             # console.print(Text(f"Group {idx + 1} params:", style="bold"))
             # console.print(diff_incar.get_str(pretty=True))
+        else:
+            diff_string = ""
+        console.print(Text.assemble(
+            (f"Group {idx + 1}: ", "bold"), (diff_string, "")))
+        console.print((shown, ""))
+        
 
 
 def diff_incar(args):
