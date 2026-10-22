@@ -30,7 +30,7 @@
 import numpy as np
 from pymatgen.core import DummySpecies, Structure
 from IMDgroup.pymatgen.core.structure import\
-    structure_strain, structure_distance, get_matched_structure
+    IMDStructure, structure_strain, structure_distance, get_matched_structure
 
 
 def check_volume_distortion(
@@ -101,7 +101,7 @@ def check_sublattice_flip(
 
 
 def fit_sublattice_to_structure(
-        sublattice: Structure, structure: Structure) -> Structure:
+        sublattice: Structure, structure: Structure) -> IMDStructure:
     """Adjust a reference sublattice to match a relaxed structure.
 
     Useful for building a new ``str.out`` when the structure has
