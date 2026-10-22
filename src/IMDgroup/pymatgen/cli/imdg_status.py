@@ -769,7 +769,8 @@ def status(args):
                 console.print(Text.assemble(
                     ("  ", ""),
                     (warn_name, "yellow"),
-                    (f"{tag} ({len(dir_list)}): ", ""),
+                    (f"{tag} ({len(dir_list)}):\n", ""),
+                    ("      ", ""),
                     (" ".join(dir_list), "")))
             if msg:
                 console.print(Text.assemble(("      ", ""), (str(msg), "")))
