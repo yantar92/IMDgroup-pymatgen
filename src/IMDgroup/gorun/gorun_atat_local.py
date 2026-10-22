@@ -38,8 +38,10 @@ import subprocess
 import sys
 from argparse import Namespace
 from pathlib import Path
+from typing import Literal
 import numpy as np
 from termcolor import colored
+from pymatgen.io.vasp.outputs import Vasprun
 from IMDgroup.pymatgen.cli.imdg_derive import atat as derive_atat
 from IMDgroup.pymatgen.cli.imdg_derive import scf as derive_scf
 from IMDgroup.pymatgen.core.structure import structure_is_valid2
@@ -55,7 +57,7 @@ from IMDgroup.pymatgen.io.vasp.vaspdir import IMDGVaspDir
 _VASP_COMMAND = ["gorun", "vasp", "--local"]
 
 
-def _run_vasp(vasp_command: list[str], directory: str) -> Vasprun | bool:
+def _run_vasp(vasp_command: list[str], directory: str) -> Vasprun | Literal[False]:
     """Run *vasp_command* in *directory*.
 
     Returns a ``Vasprun`` on success, ``False`` on failure.
@@ -63,7 +65,10 @@ def _run_vasp(vasp_command: list[str], directory: str) -> Vasprun | bool:
     existing = IMDGVaspDir(Path(directory))
     if existing.converged:
         print(f"{directory} already contains converged output.  Not running VASP")
-        return existing['vasprun.xml']
+        vasprun: Vasprun | None = existing['vasprun.xml']
+        if vasprun is None:
+            return False
+        return vasprun
 
     print(f"{datetime.datetime.now()} Running {vasp_command} in {directory}")
     result = subprocess.run(vasp_command, shell=False, cwd=directory, check=False)
@@ -78,9 +83,10 @@ def _run_vasp(vasp_command: list[str], directory: str) -> Vasprun | bool:
         return False
     if not existing.converged_manual:
         return False
-    if vaspdir['vasprun.xml'] is None:
+    vasprun: Vasprun | None = vaspdir['vasprun.xml']
+    if vasprun is None:
         return False
-    return vaspdir['vasprun.xml']
+    return vasprun
 
 
 def run_atat_structure(
@@ -117,6 +123,9 @@ def run_atat_structure(
         assert len(inputset_data['inputsets']) == 1
         inputset = inputset_data['inputsets'][0]
 
+        assert inputset.structure is not None
+        assert inputset.kpoints is not None
+
         if not structure_is_valid2(inputset.structure, frac_tol=frac_tol):
             Path('error').touch()
             Path('error_atoms_too_close').touch()
@@ -146,6 +155,8 @@ def run_atat_structure(
         str_before = vaspdir.initial_structure
         str_after = vaspdir.structure
         try:
+            assert str_before is not None
+            assert str_after is not None
             if not atat.check_volume_distortion(str_before, str_after, max_strain):
                 print(colored(f"POSCAR->CONTCAR strain exceeds {max_strain*100}%", "red"))
                 Path('error').touch()
