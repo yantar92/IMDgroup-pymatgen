@@ -606,7 +606,9 @@ class IMDGVaspDir(Mapping, MSONable):
             itertools.chain.from_iterable(p.walk() for p in paths),
         )
         for parent, _, files in alive_it(
-                walk_it, title=f"Scanning {list(map(str, paths))} for VASP directories"
+                walk_it,
+                title=f"Scanning {list(map(str, paths))} for VASP directories",
+                refresh_secs=1,
         ):
             for vaspfile in ['OUTCAR', 'vasprun.xml', 'POSCAR', 'OSZICAR']:
                 if vaspfile in files and (

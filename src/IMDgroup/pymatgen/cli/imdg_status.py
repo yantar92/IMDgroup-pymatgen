@@ -35,6 +35,7 @@ import logging
 import warnings
 import subprocess
 import shutil
+import time
 from collections import deque
 from dataclasses import dataclass
 from pathlib import Path
@@ -530,7 +531,7 @@ def status(args):
                 Text("Reading VASP outputs...", style="dim"),
                 status_table),
             console=console,
-            refresh_per_second=4)
+            refresh_per_second=1)
         live.start()
     else:
         live = None
@@ -539,6 +540,7 @@ def status(args):
     try:
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", category=VaspWarning)
+            last_update = 0.0
             for i, wdir in enumerate(paths, 1):
                 if live is not None:
                     live.update(Group(
@@ -687,8 +689,11 @@ def status(args):
                 rows.append(row)
                 visible_rows.append(row)
                 if live is not None:
-                    status_table = _build_status_table(
-                        visible_rows, dir_max)
+                    now = time.monotonic()
+                    if now - last_update >= 1.0 or i == len(paths):
+                        status_table = _build_status_table(
+                            visible_rows, dir_max)
+                        last_update = now
 
         n_running = sum(1 for r in rows if r.running)
         n_converged = sum(1 for r in rows if r.converged)
