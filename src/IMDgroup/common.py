@@ -67,14 +67,24 @@ def suppress_spglib_warnings():
 
 
 def groupby_cmp(lst, cmp_eq, title_function=None):
-    """Group elements of a list by pairwise comparison.
+    """Group elements of a list by pairwise equality.
 
-    Groups consecutive elements using a caller-supplied equality function.
+    Each item is compared only against the first member of every existing
+    group, so the number of ``cmp_eq`` calls is O(n * g), where ``g`` is
+    the number of groups produced, instead of O(n^2) over group members.
+
+    This is exact when ``cmp_eq`` is an equivalence relation (reflexive,
+    symmetric, and transitive).  A non-transitive ``cmp_eq`` still works,
+    but it is only compared against the first member of each group, so
+    items that would match a later member but not the representative may
+    be split into separate groups.
 
     Args:
         lst: List of elements to group.
         cmp_eq: Function that takes two elements and returns True if they
-            should belong to the same group.
+            should belong to the same group.  Ideally an equivalence
+            relation; see above for the behavior when it is not
+            transitive.
         title_function: Optional function that takes an element and returns
             a string used in log messages.  When None, "??" is logged.
 
@@ -83,39 +93,14 @@ def groupby_cmp(lst, cmp_eq, title_function=None):
         that are pairwise equivalent according to cmp_eq.
     """
     groups = []
-
-    def _add_to_groups(item):
-        """Add item to groups, creating a new group if needed.
-
-        Mutates the enclosing ``groups`` list by side effect.
-
-        Args:
-            item: Element to place into an existing or new group.
-        """
-        in_group = False
-        for group in groups:
-            for group_item in group:
-                if cmp_eq(item, group_item):
-                    logger.debug(
-                        'Appending %s to existing group',
-                        title_function(item) if title_function is not None
-                        else "??"
-                    )
-                    group.append(item)
-                    in_group = True
-                    break
-            if in_group:
-                break
-        if not in_group:
-            logger.debug(
-                'Creating a new group for %s',
-                title_function(item) if title_function is not None
-                else "??"
-            )
-            # pylint: disable=modified-iterating-list
-            groups.append([item])
-
     for item in lst:
-        _add_to_groups(item)
-
+        title = title_function(item) if title_function is not None else "??"
+        for group in groups:
+            if cmp_eq(item, group[0]):
+                logger.debug('Appending %s to existing group', title)
+                group.append(item)
+                break
+        else:
+            logger.debug('Creating a new group for %s', title)
+            groups.append([item])
     return groups
