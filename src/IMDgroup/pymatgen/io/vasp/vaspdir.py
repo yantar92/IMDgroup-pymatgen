@@ -449,12 +449,12 @@ class IMDGVaspDir(Mapping, MSONable):
         self.path = str(Path(dirname).absolute())
         # This was slower: self.path = str(Path(dirname).resolve())
         self._cache_key = hashlib.md5(self.path.encode('utf-8')).hexdigest()
-        self._parsed_files = None  # Pacify linter.  Same is done in reset().
-        self._prev_vaspdirs = None  # Pacify linter.  Same is done in reset().
-        self._neb_vaspdirs = None  # Pacify linter.  Same is done in reset().
-        self._hash = None  # Pacify linter.  Same is done in reset().
-        self._summary = None  # Pacify linter.  Same is done in reset().
-        self._index_valid = False  # Pacify linter.  Same is done in reset().
+        self._parsed_files: dict[str, object] | None = None  # reset() redoes it.
+        self._prev_vaspdirs: list['IMDGVaspDir'] | None = None  # reset() redoes it.
+        self._neb_vaspdirs: list['IMDGVaspDir'] | None = None  # reset() redoes it.
+        self._hash: str | None = None  # reset() redoes it.
+        self._summary: dict | None = None  # reset() redoes it.
+        self._index_valid: bool = False  # reset() redoes it.
         if exclude_patterns is None:
             self._exclude_patterns = self.EXCLUDE_PATTERNS
         else:
@@ -548,9 +548,9 @@ class IMDGVaspDir(Mapping, MSONable):
 
     def _dump_summary(self) -> bool:
         """Dump the per-directory summary (memoized derived values)."""
-        self._ensure_summary_loaded()
+        summary = self._ensure_summary_loaded()
         self._dump_index()
-        self._add_pending_write(self._summary_key(), self._summary)
+        self._add_pending_write(self._summary_key(), summary)
         return True
 
     def _dump_file_to_cache(self, item: str) -> bool:
@@ -561,6 +561,7 @@ class IMDGVaspDir(Mapping, MSONable):
         distinguishable on load.
         """
         self._dump_index()
+        assert self._parsed_files is not None
         self._add_pending_write(self._file_key(item), self._parsed_files[item])
         return True
 
@@ -581,6 +582,7 @@ class IMDGVaspDir(Mapping, MSONable):
         with self._pending_lock:
             pending = self._pending_writes.get(key)
         if pending is not None:
+            pending = cast(dict, pending)
             if (pending.get('version') == self.CACHE_VERSION
                     and pending.get('hash') == current_hash):
                 self._parsed_files = {}
@@ -638,18 +640,18 @@ class IMDGVaspDir(Mapping, MSONable):
             'warnings_collected': False,
         }
 
-    def _ensure_summary_loaded(self) -> None:
+    def _ensure_summary_loaded(self) -> dict:
         """Load the summary (memo) from cache, or reset it to empty.
 
         Triggers :meth:`refresh` first so the validity of the cached
         summary is known before it is used.  ``self._summary is None``
-        is the "not yet loaded" sentinel; a loaded summary is always a
-        dict.
+        is the "not yet loaded" sentinel; the returned value is always
+        a dict.
         """
         if self._parsed_files is None:
             self.refresh()
         if self._summary is not None:
-            return
+            return self._summary
         if self._index_valid:
             data = self._lmdb_get(self._summary_key())
             if data is not _MISSING and isinstance(data, dict):
@@ -658,14 +660,15 @@ class IMDGVaspDir(Mapping, MSONable):
                 self._summary = self._fresh_summary()
         else:
             self._summary = self._fresh_summary()
+        return self._summary
 
     def _memoized(self, key, compute):
         """Return ``self._summary[key]``, computing and caching on a miss."""
-        self._ensure_summary_loaded()
-        if key in self._summary:
-            return self._summary[key]
+        summary = self._ensure_summary_loaded()
+        if key in summary:
+            return summary[key]
         value = compute()
-        self._summary[key] = value
+        summary[key] = value
         self._dump_summary()
         return value
 
@@ -717,7 +720,7 @@ class IMDGVaspDir(Mapping, MSONable):
     def __iter__(self):
         return iter(f.name for f in self.files)
 
-    def __getitem__(self, item):
+    def __getitem__(self, item) -> typing.Any:
         if self._parsed_files is None:
             self.refresh()
         assert self._parsed_files is not None
@@ -799,8 +802,8 @@ class IMDGVaspDir(Mapping, MSONable):
         Records are overwritten by name, so re-running a check is
         idempotent.
         """
-        self._ensure_summary_loaded()
-        container = self._summary['warnings']
+        summary = self._ensure_summary_loaded()
+        container = summary['warnings']
         assert isinstance(container, VaspWarnings)
         container.overwrite(record)
         warnings.warn(record.message, VaspWarning)
@@ -817,10 +820,10 @@ class IMDGVaspDir(Mapping, MSONable):
         Returns:
             VaspWarnings: Name-keyed warning records.
         """
-        self._ensure_summary_loaded()
-        container = self._summary['warnings']
+        summary = self._ensure_summary_loaded()
+        container = summary['warnings']
         assert isinstance(container, VaspWarnings)
-        if not self._summary['warnings_collected']:
+        if not summary['warnings_collected']:
             for log in self.logs():
                 for record in log.warnings.values():
                     container.add(record)
@@ -830,7 +833,7 @@ class IMDGVaspDir(Mapping, MSONable):
             # Records energy reliability and, transitively, runs the
             # displacement/framework-symmetry checks via converged_*.
             self.final_energy
-            self._summary['warnings_collected'] = True
+            summary['warnings_collected'] = True
             self._dump_summary()
         return container
 
