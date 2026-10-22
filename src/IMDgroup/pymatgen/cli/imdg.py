@@ -28,21 +28,101 @@
 """Master CLI for VASP workflows and cluster job submission."""
 
 import argparse
+import importlib
 import logging
 import os
 import sys
 import warnings
 from termcolor import colored
 from IMDgroup.common import configure_progress_output, suppress_spglib_warnings
-import IMDgroup.pymatgen.cli.imdg_create
-import IMDgroup.pymatgen.cli.imdg_derive
-import IMDgroup.pymatgen.cli.imdg_diff
-import IMDgroup.pymatgen.cli.imdg_analyze
-import IMDgroup.pymatgen.cli.imdg_status
-import IMDgroup.pymatgen.cli.imdg_visualize
-import IMDgroup.pymatgen.cli.imdg_run
 
 logger = logging.getLogger(__name__)
+
+
+# Subcommand registry: name -> module, one-line help, and long description.
+#
+# Subcommand modules are imported lazily in :func:`main`.  Each one
+# drags in heavy third-party dependencies (pymatgen, pandas,
+# matplotlib, sklearn, gorun/...), and importing all seven at startup
+# costs several seconds even when a single subcommand is used.
+_SUBCOMMANDS = {
+    "create": {
+        "module": "IMDgroup.pymatgen.cli.imdg_create",
+        "help": "Create new VASP inputs from scratch",
+        "description": """\
+Create new VASP inputs from scratch.
+
+Accepts a Materials Project ID (e.g. mp-48), a path to a structure
+file (CIF, POSCAR, etc.), or an atom name and cell dimensions
+(e.g. "Li 20x20x20").  Writes a complete set of VASP input files
+to a directory named after the system.""",
+    },
+    "derive": {
+        "module": "IMDgroup.pymatgen.cli.imdg_derive",
+        "help": "Derive new VASP inputs from an existing calculation",
+        "description": """\
+Derive new VASP inputs from an existing calculation.
+
+Applies mutations -- relaxation, strain, supercell scaling, INCAR
+changes, k-point modifications, atom insertion/deletion, functional
+switching, and NEB path generation -- to a VASP directory and writes
+the resulting input files.  Type "imdg derive -h" to see available
+subcommands.""",
+    },
+    "diff": {
+        "module": "IMDgroup.pymatgen.cli.imdg_diff",
+        "help": "Compare VASP inputs and outputs across directories",
+        "description": """\
+Compare VASP inputs and outputs across multiple directories.
+
+Supports structure comparison (grouping by symmetry and energy) and
+INCAR comparison (grouping by parameter differences).  Type
+"imdg diff -h" to see available subcommands.""",
+    },
+    "analyze": {
+        "module": "IMDgroup.pymatgen.cli.imdg_analyze",
+        "help": "Tabular summary of VASP outputs across directories",
+        "description": """\
+Produce a tabular summary of VASP outputs across directories.
+
+Reports energies, lattice parameters, volume changes, atomic
+displacements, and space groups.  Results can be grouped by INCAR
+similarity and filtered by field selection.""",
+    },
+    "status": {
+        "module": "IMDgroup.pymatgen.cli.imdg_status",
+        "help": "Check running status of VASP calculations",
+        "description": """\
+Check the running status of VASP calculations and identify anomalies.
+
+Scans directories recursively for VASP inputs and reports convergence
+state, progress, wall-clock timing, SLURM job status, and warnings.
+Supports filtering by problem status, regexp patterns, and warning
+types.""",
+    },
+    "visualize": {
+        "module": "IMDgroup.pymatgen.cli.imdg_visualize",
+        "help": "Generate plots and visualizations from VASP outputs",
+        "description": """\
+Generate plots and visualizations from VASP outputs.
+
+Includes NEB trajectory export, ATAT cluster expansion summaries,
+formation energy convex hulls, voltage profiles, and selective
+dynamics illustrations.  Type "imdg visualize -h" to see available
+subcommands.""",
+    },
+    "run": {
+        "module": "IMDgroup.pymatgen.cli.imdg_run",
+        "help": "Submit/run VASP, MACE, ATAT, or GPU jobs",
+        "description": """\
+Submit or run calculations through the gorun job-submission layer.
+
+Forwards all remaining arguments to ``gorun``, so ``imdg run --help``
+and ``imdg run <subcommand> --help`` behave exactly like the ``gorun*``
+entry points.  Subcommands: vasp, mace-finetune, maps, atat-local,
+gpu.""",
+    },
+}
 
 
 def _user_error_types() -> tuple[type[BaseException], ...]:
@@ -135,100 +215,37 @@ def main():
         help="log verbosity as -v or -vv (default: no logging)",
         default=0)
 
-    subparsers = parser.add_subparsers(required=True)
+    subparsers = parser.add_subparsers(required=True, dest="command")
 
-    parser_create = subparsers.add_parser(
-        "create",
-        help="Create new VASP inputs from scratch",
-        description="""\
-Create new VASP inputs from scratch.
+    # Register every subcommand with its name/help/description so that
+    # ``imdg --help`` and ``imdg -h`` list them all, but do not import the
+    # subcommand modules yet.  ``add_help=False`` keeps a subparser's
+    # built-in ``-h`` from firing on the probe parse below, before its
+    # subcommand-specific flags have been registered.
+    subparser_by_name = {}
+    for name, spec in _SUBCOMMANDS.items():
+        subparser_by_name[name] = subparsers.add_parser(
+            name,
+            help=spec["help"],
+            description=spec["description"],
+            add_help=False)
 
-Accepts a Materials Project ID (e.g. mp-48), a path to a structure
-file (CIF, POSCAR, etc.), or an atom name and cell dimensions
-(e.g. "Li 20x20x20").  Writes a complete set of VASP input files
-to a directory named after the system.""")
-    IMDgroup.pymatgen.cli.imdg_create.add_args(parser_create)
-    parser_create.set_defaults(func=IMDgroup.pymatgen.cli.imdg_create.create)
+    # Resolve the requested subcommand without importing any subcommand
+    # module.  All subcommand-specific flags are unknown on this pass and
+    # end up in ``_unknown``, which we ignore here.
+    args, _unknown = parser.parse_known_args()
+    command = args.command
 
-    parser_derive = subparsers.add_parser(
-        "derive",
-        help="Derive new VASP inputs from an existing calculation",
-        description="""\
-Derive new VASP inputs from an existing calculation.
-
-Applies mutations -- relaxation, strain, supercell scaling, INCAR
-changes, k-point modifications, atom insertion/deletion, functional
-switching, and NEB path generation -- to a VASP directory and writes
-the resulting input files.  Type "imdg derive -h" to see available
-subcommands.""")
-    IMDgroup.pymatgen.cli.imdg_derive.add_args(parser_derive)
-    parser_derive.set_defaults(func=IMDgroup.pymatgen.cli.imdg_derive.derive)
-
-    parser_diff = subparsers.add_parser(
-        "diff",
-        help="Compare VASP inputs and outputs across directories",
-        description="""\
-Compare VASP inputs and outputs across multiple directories.
-
-Supports structure comparison (grouping by symmetry and energy) and
-INCAR comparison (grouping by parameter differences).  Type
-"imdg diff -h" to see available subcommands.""")
-    IMDgroup.pymatgen.cli.imdg_diff.add_args(parser_diff)
-    parser_diff.set_defaults(func=IMDgroup.pymatgen.cli.imdg_diff.diff)
-
-    parser_analyze = subparsers.add_parser(
-        "analyze",
-        help="Tabular summary of VASP outputs across directories",
-        description="""\
-Produce a tabular summary of VASP outputs across directories.
-
-Reports energies, lattice parameters, volume changes, atomic
-displacements, and space groups.  Results can be grouped by INCAR
-similarity and filtered by field selection.""")
-    IMDgroup.pymatgen.cli.imdg_analyze.add_args(parser_analyze)
-    parser_analyze.set_defaults(
-        func=IMDgroup.pymatgen.cli.imdg_analyze.analyze)
-
-    parser_status = subparsers.add_parser(
-        "status",
-        help="Check running status of VASP calculations",
-        description="""\
-Check the running status of VASP calculations and identify anomalies.
-
-Scans directories recursively for VASP inputs and reports convergence
-state, progress, wall-clock timing, SLURM job status, and warnings.
-Supports filtering by problem status, regexp patterns, and warning
-types.""")
-    IMDgroup.pymatgen.cli.imdg_status.add_args(parser_status)
-    parser_status.set_defaults(
-        func=IMDgroup.pymatgen.cli.imdg_status.status)
-
-    parser_visualize = subparsers.add_parser(
-        "visualize",
-        help="Generate plots and visualizations from VASP outputs",
-        description="""\
-Generate plots and visualizations from VASP outputs.
-
-Includes NEB trajectory export, ATAT cluster expansion summaries,
-formation energy convex hulls, voltage profiles, and selective
-dynamics illustrations.  Type "imdg visualize -h" to see available
-subcommands.""")
-    IMDgroup.pymatgen.cli.imdg_visualize.add_args(parser_visualize)
-    parser_visualize.set_defaults(
-        func=IMDgroup.pymatgen.cli.imdg_visualize.visualize)
-
-    parser_run = subparsers.add_parser(
-        "run",
-        help="Submit/run VASP, MACE, ATAT, or GPU jobs",
-        description="""\
-Submit or run calculations through the gorun job-submission layer.
-
-Forwards all remaining arguments to ``gorun``, so ``imdg run --help``
-and ``imdg run <subcommand> --help`` behave exactly like the ``gorun*``
-entry points.  Subcommands: vasp, mace-finetune, maps, atat-local,
-gpu.""")
-    IMDgroup.pymatgen.cli.imdg_run.add_args(parser_run)
-    parser_run.set_defaults(func=IMDgroup.pymatgen.cli.imdg_run.run)
+    # Import only the requested subcommand module and finish wiring its
+    # subparser.  The entry function is named after the subcommand
+    # (create -> imdg_create.create, status -> imdg_status.status, ...).
+    module = importlib.import_module(_SUBCOMMANDS[command]["module"])
+    subparser = subparser_by_name[command]
+    module.add_args(subparser)
+    subparser.add_argument(
+        "-h", "--help", action="help", default=argparse.SUPPRESS,
+        help="show this help message and exit")
+    subparser.set_defaults(func=getattr(module, command))
 
     args = parser.parse_args()
 
