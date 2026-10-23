@@ -10,7 +10,7 @@ MACE fine-tuning, ATAT, and generic GPU jobs on Slurm clusters.
 API documentation: https://yantar92.github.io/IMDgroup-pymatgen/
 
 ```mermaid
-flowchart LR
+flowchart TB
     subgraph prepare["prepare"]
         create["imdg create"]
         derive["imdg derive"]
