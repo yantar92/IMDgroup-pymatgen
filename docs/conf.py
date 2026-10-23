@@ -35,6 +35,11 @@ extensions = [
 # renders them as diagrams instead of literal code blocks.
 myst_fence_as_directive = ["mermaid"]
 
+# Emit HTML anchors for headings up to level 3.  Without this, references
+# such as [imdg create](cli.md#imdg-create) cannot be resolved and Sphinx
+# reports myst.xref_missing.
+myst_heading_anchors = 3
+
 # Napoleon settings (Google-style docstrings)
 napoleon_google_docstring = True
 napoleon_numpy_docstring = False
@@ -81,9 +86,16 @@ html_theme_options = {
     "navigation_depth": 4,
     "collapse_navigation": False,
     "sticky_navigation": True,
-    "repository_url": "https://github.com/yantar92/IMDgroup-pymatgen",
-    "repository_branch": "main",
-    "path_to_docs": "docs/",
+}
+
+# sphinx_rtd_theme has no repository_* theme options; the "Edit on GitHub"
+# link is built from these html_context values instead.
+html_context = {
+    "display_github": True,
+    "github_user": "yantar92",
+    "github_repo": "IMDgroup-pymatgen",
+    "github_version": "main",
+    "conf_py_path": "/docs/",
 }
 
 # Quiet warnings about undocumented members (the package has many)

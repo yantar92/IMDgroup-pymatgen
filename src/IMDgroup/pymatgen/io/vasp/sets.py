@@ -457,8 +457,9 @@ class IMDVaspInputSet(VaspInputSet):
 
         Args:
             output_dir: Target directory for the input files.
-            *args, **kwargs: Forwarded to
-                ``VaspInputSet.write_input``.
+
+        Any extra positional and keyword arguments are forwarded to
+        ``VaspInputSet.write_input``.
         """
         super().write_input(output_dir, *args, **kwargs)
         output_dir = Path(output_dir)
@@ -858,8 +859,9 @@ class IMDNEBVaspInputSet(IMDDerivedInputSet):
 
         Args:
             output_dir: Target directory for the input files.
-            *args, **kwargs: Forwarded to
-                ``VaspInputSet.write_input``.
+
+        Any extra positional and keyword arguments are forwarded to
+        ``VaspInputSet.write_input``.
         """
         assert self.images is not None
         super().write_input(output_dir, *args, **kwargs)

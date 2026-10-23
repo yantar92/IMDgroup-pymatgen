@@ -20,7 +20,9 @@ jobs:
           python-version: "3.13"
 
       - name: Install project and test dependencies
-        run: pip install -e ".[test]"
+        # Docs dependencies are needed so that tests/test_docs.py can run
+        # instead of skipping.
+        run: pip install -e ".[test,docs]"
 
       - name: Run tests
         run: pytest

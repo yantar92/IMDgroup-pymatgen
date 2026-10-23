@@ -30,7 +30,8 @@ jobs:
         run: pip install ".[docs]"
 
       - name: Build Sphinx documentation
-        run: make -C docs html
+        # -W turns warnings into errors; do not publish a broken tree.
+        run: make -C docs html SPHINXOPTS="-W --keep-going"
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
