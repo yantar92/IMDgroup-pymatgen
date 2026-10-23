@@ -51,12 +51,12 @@
 <g id="node2" class="node">
 <title>inspect</title>
 <path fill="#f0f9ff" stroke="#92c7e7" stroke-width="1.4" d="M604.95,-305.48C604.95,-305.48 344.55,-305.48 344.55,-305.48 338.55,-305.48 332.55,-299.48 332.55,-293.48 332.55,-293.48 332.55,-179.24 332.55,-179.24 332.55,-173.24 338.55,-167.24 344.55,-167.24 344.55,-167.24 604.95,-167.24 604.95,-167.24 610.95,-167.24 616.95,-173.24 616.95,-179.24 616.95,-179.24 616.95,-293.48 616.95,-293.48 616.95,-299.48 610.95,-305.48 604.95,-305.48"/>
-<text xml:space="preserve" text-anchor="start" x="386.25" y="-268.86" font-family="DejaVu Sans" font-weight="bold" font-size="10.00" fill="#3278a4">THOUSANDS OF CALCULATIONS</text>
-<text xml:space="preserve" text-anchor="start" x="381.38" y="-253.16" font-family="DejaVu Sans" font-weight="bold" font-size="16.00" fill="#173a57">Survey &amp; investigate</text>
-<text xml:space="preserve" text-anchor="start" x="396.75" y="-227.91" font-family="DejaVu Sans" font-size="11.00" fill="#405b75">Convergence and anomalies</text>
-<text xml:space="preserve" text-anchor="start" x="387" y="-216.91" font-family="DejaVu Sans" font-size="11.00" fill="#405b75">Settings, structures, and trends</text>
-<text xml:space="preserve" text-anchor="start" x="391.5" y="-205.91" font-family="DejaVu Sans" font-size="11.00" fill="#215c84">Incremental caching of results</text>
-<text xml:space="preserve" text-anchor="start" x="382.88" y="-196.81" font-family="DejaVu Sans Mono" font-weight="bold" font-size="9.00" fill="#215c84">status · analyze · diff · visualize</text>
+<text xml:space="preserve" text-anchor="start" x="386.25" y="-275.86" font-family="DejaVu Sans" font-weight="bold" font-size="10.00" fill="#3278a4">THOUSANDS OF CALCULATIONS</text>
+<text xml:space="preserve" text-anchor="start" x="381.38" y="-260.16" font-family="DejaVu Sans" font-weight="bold" font-size="16.00" fill="#173a57">Survey &amp; investigate</text>
+<text xml:space="preserve" text-anchor="start" x="396.75" y="-234.91" font-family="DejaVu Sans" font-size="11.00" fill="#405b75">Convergence and anomalies</text>
+<text xml:space="preserve" text-anchor="start" x="387" y="-223.91" font-family="DejaVu Sans" font-size="11.00" fill="#405b75">Settings, structures, and trends</text>
+<text xml:space="preserve" text-anchor="start" x="391.5" y="-212.91" font-family="DejaVu Sans" font-size="11.00" fill="#215c84">Incremental caching of results</text>
+<text xml:space="preserve" text-anchor="start" x="382.88" y="-189.81" font-family="DejaVu Sans Mono" font-weight="bold" font-size="9.00" fill="#215c84">status · analyze · diff · visualize</text>
 </g>
 <!-- researcher -->
 <g id="node3" class="node">
@@ -72,13 +72,13 @@
 <g id="node4" class="node">
 <title>refine</title>
 <path fill="#f2faf4" stroke="#9ecaa9" stroke-width="1.4" d="M289.95,-138.24C289.95,-138.24 29.55,-138.24 29.55,-138.24 23.55,-138.24 17.55,-132.24 17.55,-126.24 17.55,-126.24 17.55,-12 17.55,-12 17.55,-6 23.55,0 29.55,0 29.55,0 289.95,0 289.95,0 295.95,0 301.95,-6 301.95,-12 301.95,-12 301.95,-126.24 301.95,-126.24 301.95,-132.24 295.95,-138.24 289.95,-138.24"/>
-<text xml:space="preserve" text-anchor="start" x="89.25" y="-109.62" font-family="DejaVu Sans" font-weight="bold" font-size="10.00" fill="#42805a">ITERATE THE WORKFLOW</text>
-<text xml:space="preserve" text-anchor="start" x="86.25" y="-93.92" font-family="DejaVu Sans" font-weight="bold" font-size="16.00" fill="#214c34">Experiment with</text>
-<text xml:space="preserve" text-anchor="start" x="106.12" y="-77.92" font-family="DejaVu Sans" font-weight="bold" font-size="16.00" fill="#214c34">calculations</text>
-<text xml:space="preserve" text-anchor="start" x="75.37" y="-52.67" font-family="DejaVu Sans" font-size="11.00" fill="#577763">Modify structures and settings</text>
-<text xml:space="preserve" text-anchor="start" x="73.5" y="-41.67" font-family="DejaVu Sans" font-size="11.00" fill="#577763">Explore alternative parameters</text>
-<text xml:space="preserve" text-anchor="start" x="66.75" y="-30.67" font-family="DejaVu Sans" font-size="11.00" fill="#577763">Generate one or many new cases</text>
-<text xml:space="preserve" text-anchor="start" x="104.62" y="-21.57" font-family="DejaVu Sans Mono" font-weight="bold" font-size="9.00" fill="#28633c">create · derive · run</text>
+<text xml:space="preserve" text-anchor="start" x="89.25" y="-116.62" font-family="DejaVu Sans" font-weight="bold" font-size="10.00" fill="#42805a">ITERATE THE WORKFLOW</text>
+<text xml:space="preserve" text-anchor="start" x="86.25" y="-100.92" font-family="DejaVu Sans" font-weight="bold" font-size="16.00" fill="#214c34">Experiment with</text>
+<text xml:space="preserve" text-anchor="start" x="106.12" y="-84.92" font-family="DejaVu Sans" font-weight="bold" font-size="16.00" fill="#214c34">calculations</text>
+<text xml:space="preserve" text-anchor="start" x="75.37" y="-59.67" font-family="DejaVu Sans" font-size="11.00" fill="#577763">Modify structures and settings</text>
+<text xml:space="preserve" text-anchor="start" x="73.5" y="-48.67" font-family="DejaVu Sans" font-size="11.00" fill="#577763">Explore alternative parameters</text>
+<text xml:space="preserve" text-anchor="start" x="66.75" y="-37.67" font-family="DejaVu Sans" font-size="11.00" fill="#577763">Generate one or many new cases</text>
+<text xml:space="preserve" text-anchor="start" x="104.62" y="-14.57" font-family="DejaVu Sans Mono" font-weight="bold" font-size="9.00" fill="#28633c">create · derive · run</text>
 </g>
 </g>
 </svg>

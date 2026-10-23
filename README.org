@@ -39,7 +39,7 @@ API documentation: https://yantar92.github.io/IMDgroup-pymatgen/
   <FONT COLOR="#173A57" POINT-SIZE="16"><B>Survey &amp; investigate</B></FONT><BR/><BR/>
   <FONT COLOR="#405B75" POINT-SIZE="11">Convergence and anomalies</FONT><BR/>
   <FONT COLOR="#405B75" POINT-SIZE="11">Settings, structures, and trends</FONT><BR/>
-  <FONT COLOR="#215C84" POINT-SIZE="11">Incremental caching of results</FONT><BR/>
+  <FONT COLOR="#215C84" POINT-SIZE="11">Incremental caching of results</FONT><BR/><BR/>
   <FONT FACE="DejaVu Sans Mono" COLOR="#215C84" POINT-SIZE="9"><B>status · analyze · diff · visualize</B></FONT>
   >];
       researcher [color="#9A85D6", fillcolor="#F7F3FF", penwidth=1.8, label=<
@@ -54,7 +54,7 @@ API documentation: https://yantar92.github.io/IMDgroup-pymatgen/
   <FONT COLOR="#214C34" POINT-SIZE="16"><B>Experiment with<BR/>calculations</B></FONT><BR/><BR/>
   <FONT COLOR="#577763" POINT-SIZE="11">Modify structures and settings</FONT><BR/>
   <FONT COLOR="#577763" POINT-SIZE="11">Explore alternative parameters</FONT><BR/>
-  <FONT COLOR="#577763" POINT-SIZE="11">Generate one or many new cases</FONT><BR/>
+  <FONT COLOR="#577763" POINT-SIZE="11">Generate one or many new cases</FONT><BR/><BR/>
   <FONT FACE="DejaVu Sans Mono" COLOR="#28633C" POINT-SIZE="9"><B>create · derive · run</B></FONT><BR/>
   >];
       { rank=same; calculations; inspect; }
