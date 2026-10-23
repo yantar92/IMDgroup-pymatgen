@@ -1,0 +1,115 @@
+# -*- after-save-hook: (org-md-export-to-markdown); -*-
+#+options: toc:nil
+* IMDgroup-pymatgen
+:PROPERTIES:
+:ID:       d53f04c7-375d-4382-b314-a6ff99129c76
+:END:
+
+Python and command-line tools for *iterative development of
+computational workflows* for VASP atomistic simulations, built on top
+of [[https://pymatgen.org/][pymatgen]].
+
+Works with ordinary calculation directories produced manually, by scripts,
+or by *any existing workflow tooling that writes standard VASP files*.
+The independent commands do not require a workflow manager or prescribe
+how jobs must be executed.
+
+Also includes ~gorun~, a cluster-agnostic job-submission script for VASP,
+MACE fine-tuning, ATAT, and generic GPU jobs on Slurm clusters.
+
+API documentation: https://yantar92.github.io/IMDgroup-pymatgen/
+
+#+begin_src dot :exports results :file docs/img/workflow-development.svg :noweb no
+  // IMPORTANT: do not indent the lines inside label=<...>.
+  // Graphviz preserves leading spaces as text, causing apparent mis-centering.
+  digraph IMDG_WorkflowDevelopment {
+      graph [rankdir=TB, splines=ortho, bgcolor="transparent", pad=0.15, nodesep=0.43, ranksep=0.40, outputorder=edgesfirst, fontname="DejaVu Sans", labelloc=t, labeljust=c,
+  	   label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="7"><TR><TD><FONT FACE="DejaVu Sans" POINT-SIZE="19" COLOR="#192A40"><B>Iterative development of atomistic simulation workflows</B></FONT></TD></TR></TABLE>>];
+      node [shape=box, style="rounded,filled", fixedsize=true, width=3.95, height=1.92, penwidth=1.4, fontname="DejaVu Sans"];
+      edge [color="#7F93AA", penwidth=1.8, arrowsize=0.72, arrowhead=vee];
+      calculations [color="#B9CBDD", fillcolor="#F5F8FC", label=<
+  <FONT COLOR="#54708F" POINT-SIZE="10"><B>ANY EXISTING WORKFLOW TOOLING</B></FONT><BR/>
+  <FONT COLOR="#16293F" POINT-SIZE="16"><B>Ordinary VASP files<BR/>and directories</B></FONT><BR/><BR/>
+  <FONT COLOR="#405B75" POINT-SIZE="11">Manual setups and scripts</FONT><BR/>
+  <FONT COLOR="#405B75" POINT-SIZE="11">Workflow managers and automation</FONT><BR/>
+  <FONT COLOR="#405B75" POINT-SIZE="11">No special database or import</FONT>
+  >];
+      inspect [color="#92C7E7", fillcolor="#F0F9FF", label=<
+  <FONT COLOR="#3278A4" POINT-SIZE="10"><B>THOUSANDS OF CALCULATIONS</B></FONT><BR/>
+  <FONT COLOR="#173A57" POINT-SIZE="16"><B>Survey &amp; investigate</B></FONT><BR/><BR/>
+  <FONT COLOR="#405B75" POINT-SIZE="11">Convergence and anomalies</FONT><BR/>
+  <FONT COLOR="#405B75" POINT-SIZE="11">Settings, structures, and trends</FONT><BR/>
+  <FONT COLOR="#215C84" POINT-SIZE="11">Incremental caching of results</FONT><BR/>
+  <FONT FACE="DejaVu Sans Mono" COLOR="#215C84" POINT-SIZE="9"><B>status · analyze · diff · visualize</B></FONT>
+  >];
+      researcher [color="#9A85D6", fillcolor="#F7F3FF", penwidth=1.8, label=<
+  <FONT COLOR="#6D52AE" POINT-SIZE="10"><B>RESEARCHER-GUIDED</B></FONT><BR/>
+  <FONT COLOR="#3D2D67" POINT-SIZE="16"><B>Decide what to improve</B></FONT><BR/><BR/>
+  <FONT COLOR="#706288" POINT-SIZE="11">Which results are trustworthy?</FONT><BR/>
+  <FONT COLOR="#706288" POINT-SIZE="11">Why do calculations differ?</FONT><BR/>
+  <FONT COLOR="#706288" POINT-SIZE="11">What should be tested next?</FONT><BR/><BR/>
+  >];
+      refine [color="#9ECAA9", fillcolor="#F2FAF4", label=<
+  <FONT COLOR="#42805A" POINT-SIZE="10"><B>ITERATE THE WORKFLOW</B></FONT><BR/>
+  <FONT COLOR="#214C34" POINT-SIZE="16"><B>Experiment with<BR/>calculations</B></FONT><BR/><BR/>
+  <FONT COLOR="#577763" POINT-SIZE="11">Modify structures and settings</FONT><BR/>
+  <FONT COLOR="#577763" POINT-SIZE="11">Explore alternative parameters</FONT><BR/>
+  <FONT COLOR="#577763" POINT-SIZE="11">Generate one or many new cases</FONT><BR/>
+  <FONT FACE="DejaVu Sans Mono" COLOR="#28633C" POINT-SIZE="9"><B>create · derive · run</B></FONT><BR/>
+  >];
+      { rank=same; calculations; inspect; }
+      { rank=same; refine; researcher; }
+      calculations -> refine [style=invis, weight=20];
+      refine -> researcher [style=invis, weight=20];
+      calculations:e -> inspect:w [constraint=false];
+      inspect:s -> researcher:n;
+      researcher:w -> refine:e [constraint=false];
+      refine:n -> calculations:s [constraint=false, color="#65A17E", penwidth=2.0, xlabel=<<FONT COLOR="#65A17E" POINT-SIZE="11"><B>Update the workflow</B></FONT>>];
+  }
+#+end_src
+
+#+RESULTS:
+[[file:docs/img/workflow-development.svg]]
+
+~imdg~ can handle large collections of calculations (including
+running) and detect anomalies or incomparable results.  It
+deliberately *does not automate fixing anomalies*, leaving it up to
+the user to explore the problems and identify the solutions (with the
+optional help of ~imdg~ tooling).
+
+** Workflow manager compatibility
+
+~imdg~ operates directly on standard VASP directory trees without a
+workflow manager-specific database or import. It can complement manual
+calculations, custom scripts, and existing workflow managers.
+
+~imdg analyze~ groups runs by identical settings, ~imdg diff~ compares
+INCAR settings and structures, and ~imdg analyze~ provides calculation
+summaries.
+
+** High-throughput optimization
+
+~imdg~ can handle directory trees containing *thousands of
+calculations*. Parsing VASP outputs (XML, OUTCAR) is costly on
+supercomputer file systems, so the tools cache parsed results on disk
+(with invalidation if the original data changes).
+
+See the [[https://yantar92.github.io/IMDgroup-pymatgen/python_api.html][Python API]] for ~IMDGVaspDir~, the class providing cached
+directory inspection.
+
+** Installation
+
+#+begin_src bash
+git clone https://github.com/yantar92/IMDgroup-pymatgen
+cd IMDgroup-pymatgen
+pip install .
+#+end_src
+
+This installs the ~imdg~ and ~gorun~ commands.
+
+** Next steps
+
+- [[https://yantar92.github.io/IMDgroup-pymatgen/quickstart.html][Quickstart]]: example graphite (mp-48) workflow
+- [[https://yantar92.github.io/IMDgroup-pymatgen/concepts.html][Why this exists]]: semi-automated workflow development
+- [[https://yantar92.github.io/IMDgroup-pymatgen/cli.html][Command-line reference]] and [[https://yantar92.github.io/IMDgroup-pymatgen/gorun.html][job submission]]
+- [[https://yantar92.github.io/IMDgroup-pymatgen/python_api.html][Python API]]
