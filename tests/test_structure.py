@@ -305,6 +305,16 @@ def test_imdstructure_to_writes_vac(tmp_path) -> None:
     assert "X0+" not in text
 
 
+def test_imdstructure_to_atat_without_filename() -> None:
+    """fmt="atat" with no filename returns the string without writing."""
+    struct = IMDStructure.from_structure(
+        Structure(Lattice.cubic(4.0), ["Li", DummySpecies("X")],
+                  [[0, 0, 0], [0.5, 0, 0]]))
+    text = struct.to(fmt="atat")
+    assert "Vac" in text
+    assert "X0+" not in text
+
+
 def test_imdstructure_from_file_reads_vac(tmp_path) -> None:
     """A str.out with Vac is read back as an IMDStructure with X species."""
     struct = IMDStructure.from_structure(

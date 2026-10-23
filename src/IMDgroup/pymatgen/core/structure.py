@@ -39,7 +39,7 @@ from pymatgen.core.structure import FileFormats
 from pymatgen.analysis.structure_matcher import StructureMatcher
 from pymatgen.util.coord import pbc_shortest_vectors
 from pymatgen.util.typing import PathLike
-from typing import cast
+from typing import Literal, cast
 from typing_extensions import Self
 
 logger = logging.getLogger(__name__)
@@ -114,11 +114,19 @@ class IMDStructure(Structure):
             properties=structure.properties,
         )
 
-    def to_file(self, filename: str = "", fmt="") -> str | None:
-        """A more intuitive alias for .to()."""
+    def to_file(
+            self,
+            filename: str = "",
+            fmt: FileFormats | Literal["atat"] = "") -> str:
+        """A more intuitive alias for .to().
+        """
         return self.to(filename, fmt)
 
-    def to(self, filename: PathLike = "", fmt="", **kwargs) -> str:
+    def to(
+            self,
+            filename: PathLike = "",
+            fmt: FileFormats | Literal["atat"] = "",
+            **kwargs) -> str:
         """Output the structure to a file or string.
         In addition to what pymatgen provides, write "str.out" file suitable
         for ATAT, replacing X0+ species with Vac and dropping occupancies.
@@ -128,12 +136,13 @@ class IMDStructure(Structure):
             filename (PathLike): If provided, output will be written to a file. If
                 fmt is not specified, the format is determined from the
                 filename. Defaults is None, i.e. string output.
-            fmt (str): Format to output to. Defaults to JSON unless filename
-                is provided. If fmt is specifies, it overrides whatever the
-                filename is. Options include "cif", "poscar", "cssr", "json",
-                "xsf", "mcsqs", "prismatic", "yaml", "yml", "fleur-inpgen", "pwmat",
-                "aims".
-                Non-case sensitive.
+            fmt (FileFormats | Literal["atat"]):
+                Format to output to. Defaults to JSON unless filename
+                is provided. If fmt is specified, it overrides
+                whatever the filename is. Options include "cif",
+                "poscar", "cssr", "json", "xsf", "mcsqs", "prismatic",
+                "yaml", "yml", "fleur-inpgen", "pwmat", "aims", plus
+                new "atat".  Non-case sensitive.
             **kwargs: Kwargs passthru to relevant methods. e.g. This allows
                 the passing of parameters like symprec to the
                 CifWriter.__init__ method for generation of symmetric CIFs.
@@ -142,16 +151,16 @@ class IMDStructure(Structure):
             str: String representation of molecule in given format. If a filename
                 is provided, the same string is written to the file.
         """
-        filename, fmt_file = str(filename), fmt.lower()
-        if not fmt:
-            fmt = fmt_file
-        if fmt == "atat" or os.path.basename(filename) in ("str.out"):
+        filename = str(filename)
+        fmt_name = fmt.lower()
+        if fmt_name == "atat" or os.path.basename(filename) == "str.out":
             from pymatgen.io.atat import Mcsqs
             res_str = Mcsqs(self).to_str().replace('X0+', 'Vac').replace('=1.0', '').replace('=1', '')
-            with zopen(filename, mode="wt", encoding="utf8") as file:
-                file.write(res_str)
+            if filename:
+                with zopen(filename, mode="wt", encoding="utf8") as file:
+                    file.write(res_str)
             return res_str
-        return super().to(filename, cast(FileFormats, fmt), **kwargs)
+        return super().to(filename, cast(FileFormats, fmt_name), **kwargs)
 
 
 def merge_structures(
