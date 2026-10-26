@@ -38,7 +38,7 @@ MODULE_DIR = os.path.dirname(__file__)
 
 # INCAR tags ignored when grouping INCARs for comparison.  ``SYSTEM``
 # is the directory-name marker and is excluded from display separately.
-INCAR_GROUP_IGNORE_FIELDS = ['SYSTEM', 'NELM', 'NELMIN', 'ALGO', 'SYMPREC']
+INCAR_GROUP_IGNORE_FIELDS = ['SYSTEM', 'NELM', 'NELMIN', 'ALGO', 'SYMPREC', 'NCORE', 'NPAR']
 
 
 # We copy this over from pymatgen.io.vasp.sets because we need our own
