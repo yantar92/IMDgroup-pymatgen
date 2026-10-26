@@ -102,10 +102,21 @@ the inherited INCAR/KPOINTS, and the mutation applied (`name:` /
 
 [screenshot: imdg derive functional]
 
-## 3. Insert Li (one-to-many)
+## 3. Relax the host (ISIF=2)
 
 ```bash
-imdg derive graphite_vdw --output inserts ins Li --step 0.1 --threshold 0.5 --multithread
+imdg derive graphite_vdw --output graphite_vdw.relax relax RELAX_POS
+```
+
+`relax RELAX_POS` sets ISIF=2: ionic positions relax while the cell
+shape and volume stay fixed. It also sets ISTART=0, NSW=500, IBRION=2
+(CG), EDIFF=1e-6, EDIFFG=-0.01. Use `relax RELAX_POS_SHAPE_VOL`
+(ISIF=3) when the lattice must relax too.
+
+## 4. Insert Li (one-to-many)
+
+```bash
+imdg derive graphite_vdw.relax --output inserts ins Li --step 0.1 --threshold 0.5 --multithread
 ```
 
 Writes one directory per symmetry-inequivalent insertion site.  The
@@ -115,7 +126,7 @@ positions closer to the carbon framework and yields the distinct sites.
 
 [screenshot: imdg derive ins]
 
-## 4. Run
+## 5. Run
 
 `imdg run` (= `gorun`) picks the earliest-finishing queue by default,
 backs up any previous run, checks convergence, and auto-generates
@@ -125,8 +136,8 @@ To run a single directory, do it from inside that directory:
 
 ```bash
 (
-cd inserts/graphite_vdw.ins.Li.0;
-imdg run vasp --nodes 1 --time-limit 12:00:00
+cd inserts/graphite_vdw.relax.ins.Li.0;
+imdg run vasp --time-limit 12:00:00
 )
 ```
 
@@ -147,7 +158,7 @@ from the terminal.
 
 <TODO: real nodes / time / queue for graphite on the target cluster>
 
-## 5. Monitor
+## 6. Monitor
 
 ```bash
 imdg status
@@ -160,7 +171,7 @@ stress / force anomalies) for a human review.
 
 [screenshot: imdg status]
 
-## 6. Analyze
+## 7. Analyze
 
 ```bash
 imdg analyze
@@ -172,10 +183,10 @@ are masked (shown as `unreliable` / `unconverged`) to avoid accidental use.
 
 [screenshot: imdg analyze]
 
-## 7. Diff (compare results)
+## 8. Diff (compare results)
 
 ```bash
-imdg diff incar inserts/*
+imdg diff incar *
 imdg diff structure inserts/*
 ```
 
@@ -185,7 +196,7 @@ structure (symmetry-aware) and sorts groups by energy.
 
 [screenshot: imdg diff structure]
 
-## 8. Perturb and rerun
+## 9. Perturb and rerun
 
 ```bash
 imdg derive <DIR> --output <DIR>.perturbed perturb --distance <DIST>
