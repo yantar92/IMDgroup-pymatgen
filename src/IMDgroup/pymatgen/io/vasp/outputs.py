@@ -240,9 +240,6 @@ class VasplogMixin:
         },
         # Additional message to clarify a warning
         "__extra_message": {
-            'subspacematrix': [
-                "Might happen when NCORE/NPAR is too large"
-            ],
             'slurm_error': [
                 "VASP crashed.  Possible causes: time limit exceeded, not enough memory, VASP bug, cluster problem"
             ],
@@ -251,7 +248,8 @@ class VasplogMixin:
             ],
             # Test data in 2025.graphite.Li.CE/03.CE.fix_lattice.KPOINTS.10k/AA/strain.c.0.00/18111/ATAT.SCF.FIXSUBSPACEMATRIX
             'subspacematrix': [
-                "As long as converged, should not affect final energy"
+                "Might happen when NCORE/NPAR is too large" +
+                "\nAs long as converged, should not affect final energy"
             ],
             'brions': [
                 "The system may be oscilating. Consider smaller POTIM or changing to IBRION=2 or 3"
