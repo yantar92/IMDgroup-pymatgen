@@ -510,7 +510,8 @@ def status(args):
                 break
         has_outcar = (Path(wdir) / 'OUTCAR').is_file()
         if not (has_slurm or has_outcar):
-            paths_no_output.append(wdir)
+            if not slurm_runningp(wdir):
+                paths_no_output.append(wdir)
     paths = sorted(vaspdirs)
     logger.debug("Found VASP dirs: %s", paths)
     if paths_no_output:
