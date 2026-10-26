@@ -17,7 +17,11 @@ file, or a formula.
 imdg create mp-48
 imdg create structure.cif
 imdg create "Li 10x10x10"
+imdg create mp-48 --output graphite
 ```
+
+By default the input is written to a directory named after the system;
+`--output` overrides the directory name.
 
 `mp-*` ids require a Materials Project API key (`PMG_MAPI_KEY` in
 `~/.config/.pmgrc.yaml`, set via `pmg config --add PMG_MAPI_KEY <key>`),

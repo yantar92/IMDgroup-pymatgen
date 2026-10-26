@@ -54,6 +54,11 @@ def add_args(parser):
   Example: ./structure.cif
 """,
         type=str)
+    parser.add_argument(
+        "--output",
+        help="Directory to write the VASP input"
+        " (default: directory named after the system)."
+    )
 
 
 def create_from_mpid(mpid):
@@ -173,8 +178,11 @@ def create(args):
         structure = create_from_mpid(args.what)
         inputset = IMDStandardVaspInputSet(structure=structure)
     assert inputset.incar is not None
+    if args.output == "":
+        raise ValueError("--output cannot be empty")
+    output_dir = args.output if args.output else inputset.incar['SYSTEM']
     try:
-        inputset.write_input(output_dir=inputset.incar['SYSTEM'])
+        inputset.write_input(output_dir=output_dir)
     except PmgVaspPspDirError as exc:
         raise ValueError(
             "Pseudopotential directory not configured. "
