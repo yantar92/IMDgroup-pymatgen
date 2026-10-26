@@ -494,20 +494,39 @@ class IMDVaspInputSet(VaspInputSet):
 
         Any extra positional and keyword arguments are forwarded to
         ``VaspInputSet.write_input``.
+
+        When ``PMG_VASP_PSP_DIR`` is unconfigured, ``write_input``
+        degrades to ``potcar_spec=True`` instead of failing: it emits a
+        warning and writes ``POTCAR.spec`` (the symbol list) rather than
+        POTCAR content, leaving ``INCAR.toml`` with the POTCAR mapping so
+        that ``gorun`` can regenerate the POTCAR on a cluster where the
+        pseudopotential library is available.  A configured-but-missing
+        ``PMG_VASP_PSP_DIR`` raises instead: the user intended to
+        configure it, so proceeding silently would hide a setup mistake.
         """
         try:
             super().write_input(output_dir, *args, **kwargs)
-        except PmgVaspPspDirError as exc:
-            raise PmgVaspPspDirError(
-                "Pseudopotential directory not configured. "
-                "Set it with: pmg config --add PMG_VASP_PSP_DIR "
-                "/path/to/potentials"
-            ) from exc
+        except PmgVaspPspDirError:
+            # PMG_VASP_PSP_DIR is not configured at all.  Degrade to
+            # POTCAR.spec so create/derive still work without a local
+            # pseudopotential library; gorun regenerates the POTCAR on
+            # the cluster where the library is available.
+            warnings.warn(
+                "PMG_VASP_PSP_DIR is not set; writing POTCAR.spec instead "
+                "of POTCAR content.  Configure it with: "
+                "pmg config --add PMG_VASP_PSP_DIR /path/to/potentials",
+                UserWarning,
+                stacklevel=2,
+            )
+            kwargs = {**kwargs, "potcar_spec": True}
+            super().write_input(output_dir, *args, **kwargs)
         except FileNotFoundError as exc:
             # pymatgen reports a configured-but-missing PSP dir as
-            # "PMG_VASP_PSP_DIR='...' does not exist."  A missing POTCAR file
-            # inside a valid dir says "You do not have the right POTCAR..."
-            # instead; that one is already actionable as-is.
+            # "PMG_VASP_PSP_DIR='...' does not exist."  The user intended
+            # to configure it, so fail loudly instead of proceeding.
+            # A missing POTCAR file inside a valid dir says "You do not
+            # have the right POTCAR..." instead; that one is already
+            # actionable as-is.
             if "PMG_VASP_PSP_DIR" in str(exc) and "does not exist" in str(exc):
                 raise FileNotFoundError(
                     f"{exc} Update it with: "

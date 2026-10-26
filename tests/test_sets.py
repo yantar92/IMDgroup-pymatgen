@@ -325,36 +325,44 @@ def test_potcar_no_potcar_returns_none(cscl) -> None:
     assert _standard_set(cscl).potcar is None
 
 
-def test_write_input_psp_dir_not_configured_raises_friendly_error(
+def test_write_input_psp_dir_not_configured_falls_back_to_spec(
         monkeypatch, cscl, tmp_path) -> None:
-    """A missing PMG_VASP_PSP_DIR setting keeps the type and adds a hint."""
-    def _raise(self, *args, **kwargs):
-        raise PmgVaspPspDirError("Set PMG_VASP_PSP_DIR=<directory-path> ...")
+    """An unconfigured PSP dir degrades to POTCAR.spec with a warning."""
+    calls = []
+
+    def _fake_write(self, output_dir, *args, **kwargs):
+        calls.append(kwargs)
+        if not kwargs.get("potcar_spec"):
+            raise PmgVaspPspDirError("Set PMG_VASP_PSP_DIR=<directory-path> ...")
+        (output_dir / "POTCAR.spec").write_text("Cs_sv\nCl\n")
 
     monkeypatch.setattr(
-        "pymatgen.io.vasp.sets.VaspInputSet.write_input", _raise)
+        "pymatgen.io.vasp.sets.VaspInputSet.write_input", _fake_write)
     inset = IMDStandardVaspInputSet(structure=cscl)
-    with pytest.raises(
-            PmgVaspPspDirError, match="Pseudopotential directory not configured"):
+    with pytest.warns(UserWarning, match="POTCAR.spec"):
         inset.write_input(tmp_path)
+    assert "potcar_spec" not in calls[0]
+    assert calls[1]["potcar_spec"] is True
+    assert (tmp_path / "POTCAR.spec").exists()
 
 
-def test_write_input_psp_dir_missing_raises_friendly_error(
+def test_write_input_psp_dir_missing_raises(
         monkeypatch, cscl, tmp_path) -> None:
-    """A configured-but-missing PSP dir keeps FileNotFoundError with a hint."""
+    """A configured-but-missing PSP dir fails loudly with a hint."""
     def _raise(self, *args, **kwargs):
-        raise FileNotFoundError("PMG_VASP_PSP_DIR='/nonexistent' does not exist.")
+        raise FileNotFoundError(
+            "PMG_VASP_PSP_DIR='/nonexistent' does not exist.")
 
     monkeypatch.setattr(
         "pymatgen.io.vasp.sets.VaspInputSet.write_input", _raise)
     inset = IMDStandardVaspInputSet(structure=cscl)
-    with pytest.raises(FileNotFoundError, match="does not exist"):
+    with pytest.raises(FileNotFoundError, match="Update it with"):
         inset.write_input(tmp_path)
 
 
 def test_write_input_wrong_potcar_reraises_file_not_found(
         monkeypatch, cscl, tmp_path) -> None:
-    """A missing POTCAR inside a valid dir is left as FileNotFoundError."""
+    """A missing POTCAR inside a valid dir is not recoverable: re-raise."""
     def _raise(self, *args, **kwargs):
         raise FileNotFoundError(
             "You do not have the right POTCAR with functional='PBE' ... "
