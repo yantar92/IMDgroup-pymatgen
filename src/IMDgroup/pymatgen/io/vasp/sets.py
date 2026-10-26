@@ -788,6 +788,18 @@ class IMDDerivedInputSet(IMDVaspInputSet):
                         potcar.symbols):
                 potcar_dict[el] = symbol
             self._config_dict['POTCAR'] = potcar_dict
+        else:
+            # No POTCAR file: inherit the non-default POTCAR mapping from
+            # the source INCAR.toml so a no-POTCAR (potcar_spec) derived
+            # dir keeps propagating a custom mapping down the chain.
+            # NOTE: this duplicates the [POTCAR] parsing in
+            # IMDgroup.gorun.cleanVASP.potcar_symbols_map (and the pair
+            # validation in imdg_derive._validate_potcar_pair); consider
+            # consolidating read+validate into one helper later.
+            toml = read_incar_toml(Path(self.directory) / "INCAR.toml")
+            potcar_table = toml.get("POTCAR")
+            if isinstance(potcar_table, dict):
+                self._config_dict.setdefault("POTCAR", {}).update(potcar_table)
 
 
 @dataclass
