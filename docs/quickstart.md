@@ -216,7 +216,6 @@ finished set of results:
 
 ```bash
 imdg visualize . hull    --ion Li
-imdg visualize . voltage --ion Li
 ```
 
 See [cli](cli.md) for NEB, ATAT, hull, and voltage options.
