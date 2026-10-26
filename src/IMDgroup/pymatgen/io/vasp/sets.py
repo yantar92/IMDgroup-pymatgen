@@ -525,6 +525,10 @@ class IMDVaspInputSet(VaspInputSet):
                     f.write(f"{field.name}: {field_value}\n")
         # Record non-default metadata in INCAR.toml so that gorun can
         # reproduce the POTCAR/KPOINTS when regenerating input files.
+        # ``no_potcar`` means "no POTCAR is written here" (for example,
+        # NEB image subdirectories whose parent owns the POTCAR), so the
+        # INCAR.toml metadata is skipped too: writing a per-image mapping
+        # would duplicate, and could conflict with, the parent's mapping.
         if not self.no_potcar:
             self._write_incar_toml_metadata(output_dir)
         if self.images is None and self.structure is not None:
