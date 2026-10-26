@@ -35,7 +35,6 @@ import warnings
 import logging
 import copy
 from xml.etree.ElementTree import ParseError
-from glob import glob
 from pathlib import Path
 from dataclasses import dataclass, fields, field
 import numpy as np
@@ -764,13 +763,25 @@ class IMDDerivedInputSet(IMDVaspInputSet):
                 self.prev_incar = incar   # type:ignore[assignment]
 
         # self.override_from_prev_calc does not inherit POTCAR.  Force it.
-        if (potcars := sorted(glob(str(Path(self.directory) / "POTCAR*"))))\
-           and self.poscar is not None:
+        # POTCAR precedence when deriving:
+        #   1. a POTCAR file in the source dir wins (the user may have
+        #      swapped in a custom potential);
+        #   2. otherwise INCAR.toml [POTCAR] non-default entries are used;
+        #   3. otherwise the POTCAR_RECOMMENDED defaults apply (auto-filled
+        #      in potcar_symbols).
+        # Match only the canonical POTCAR file (POTCAR or POTCAR.gz).
+        potcar_path = None
+        for name in ("POTCAR", "POTCAR.gz"):
+            candidate = Path(self.directory) / name
+            if candidate.is_file():
+                potcar_path = candidate
+                break
+        if potcar_path is not None and self.poscar is not None:
             # Override defaults with POTCAR data
             # We still want to transfer the file explicitly to
             # make sure that any non-standard POTCARS are not
             # going to be broken
-            potcar = Potcar.from_file(str(potcars[-1]))
+            potcar = Potcar.from_file(str(potcar_path))
             potcar_dict = {}
             for el, symbol in \
                     zip(self.poscar.site_symbols,
