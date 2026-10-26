@@ -8,6 +8,7 @@ than fabricating POTCAR files (see tests/conftest.py).
 from __future__ import annotations
 
 import warnings
+from types import SimpleNamespace
 
 import pytest
 from pymatgen.core import Lattice, Structure
@@ -270,6 +271,27 @@ def test_incar_isif_relaxation_low_encut_warns(cscl) -> None:
         no_potcar=True,
         user_incar_settings={"ENCUT": 500.0, "ISIF": 3, "NSW": 10},
     )
+    with pytest.warns(BadInputSetWarning, match="volume/shape"):
+        inset.incar
+
+
+def test_encut_reference_fallback_without_potcar(cscl) -> None:
+    """Without a POTCAR, the group 500/550 eV references are used."""
+    inset = IMDStandardVaspInputSet(structure=cscl, no_potcar=True)
+    assert inset._encut_reference() == (500.0, 550.0)
+
+
+def test_incar_encut_warning_uses_potcar_threshold(cscl, monkeypatch) -> None:
+    """ENCUT is compared against the POTCAR-derived ENMAX reference."""
+    fake_potcar = [SimpleNamespace(enmax=262.472)]
+    monkeypatch.setattr(IMDVaspInputSet, "potcar", fake_potcar)
+    inset = IMDStandardVaspInputSet(
+        structure=cscl,
+        no_potcar=True,
+        user_incar_settings={"ENCUT": 300.0, "ISIF": 3, "NSW": 10},
+    )
+    # base reference = 262.472, relax reference = 341.214.  ENCUT=300 is
+    # above the base but below the relaxation reference for ISIF=3.
     with pytest.warns(BadInputSetWarning, match="volume/shape"):
         inset.incar
 

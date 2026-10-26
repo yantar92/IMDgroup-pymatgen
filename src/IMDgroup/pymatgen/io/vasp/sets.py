@@ -70,6 +70,17 @@ POTCAR_FUNCTIONAL_DEFAULT = 'PBE_64'
 # Group-standard default for KPOINTS.grid_density.
 KPOINTS_GRID_DENSITY = 10000
 
+# Reference ENCUT is derived from the largest POTCAR ENMAX.  The base
+# reference is the VASP default ENCUT (the largest ENMAX).  Shape/volume
+# relaxation uses a 30% margin on top because the automatic k-point grid,
+# calculated for the original cell volume, becomes slightly less accurate
+# as the cell changes shape and volume.
+ENCUT_RELAX_FACTOR = 1.3
+
+# Fallback reference ENCUT values used when no POTCAR is available.
+ENCUT_DEFAULT = 500.0
+ENCUT_RELAX_DEFAULT = 550.0
+
 __author__ = "Ihor Radchenko <yantar92@posteo.net>"
 logger = logging.getLogger(__name__)
 
@@ -233,6 +244,23 @@ class IMDVaspInputSet(VaspInputSet):
             incar_updates.update(params)
         return incar_updates
 
+    def _encut_reference(self) -> tuple[float, float]:
+        """Return ``(default, relax)`` reference ENCUT values.
+
+        When a POTCAR can be resolved, the base reference is the VASP
+        default ENCUT (the largest POTCAR ``ENMAX``) and the relaxation
+        reference adds a 30% margin; otherwise the group defaults
+        (``ENCUT_DEFAULT``/``ENCUT_RELAX_DEFAULT``) are used.
+        """
+        try:
+            potcar = self.potcar
+        except (FileNotFoundError, ValueError, KeyError):
+            potcar = None
+        if potcar:
+            enmax = max(single.enmax for single in potcar)
+            return enmax, ENCUT_RELAX_FACTOR * enmax
+        return ENCUT_DEFAULT, ENCUT_RELAX_DEFAULT
+
     @property
     def incar(self) -> Incar | None:  # pyright: ignore[reportIncompatibleMethodOverride]
         """INCAR for the input set.
@@ -266,24 +294,25 @@ class IMDVaspInputSet(VaspInputSet):
 
         incar.check_params()
 
-        if incar['ENCUT'] < 500.0:
+        default_encut, relax_encut = self._encut_reference()
+
+        if incar['ENCUT'] < default_encut:
             warnings.warn(
-                "ENCUT parameter in lower than default 500."
-                f" ({incar['ENCUT']} < 500eV)"
+                f"ENCUT parameter is lower than the reference "
+                f"{default_encut:.1f} eV ({incar['ENCUT']:.1f} eV)."
                 "\nI hope that you know what you are doing.",
                 BadInputSetWarning,
             )
         # Volume/shape relaxation is requested.  Demand increased ENCUT.
-        # 550eV recommended for _volume/shape_ relaxation During
-        # volume/shape relaxation, initial automatic k-point grid
+        # During volume/shape relaxation, initial automatic k-point grid
         # calculated for original volume becomes slightly less accurate
         # unless we increase ENCUT
         elif 'ISIF' in incar:
-            if incar['ENCUT'] < 550.0 and\
+            if incar['ENCUT'] < relax_encut and\
                incar['ISIF'] != Incar.ISIF_FIX_SHAPE_VOL:
                 warnings.warn(
                     "ENCUT parameter is too low for volume/shape relaxation."
-                    f" ({incar['ENCUT']} < 550eV)"
+                    f" ({incar['ENCUT']:.1f} < {relax_encut:.1f} eV)"
                     "\nI hope that you know what you are doing.",
                     BadInputSetWarning,
                 )
