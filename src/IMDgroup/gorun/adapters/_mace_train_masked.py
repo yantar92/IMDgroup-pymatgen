@@ -65,6 +65,12 @@ class MaskedEnergyForcesStressLoss(
     """Standard E+F+S loss with per-atom masking when ``ref.atom_mask``
     is present on the batch."""
 
+    # Pyright infers torch.Tensor | Module which should never happen
+    # in runtime.
+    energy_weight: torch.Tensor
+    forces_weight: torch.Tensor
+    stress_weight: torch.Tensor
+
     def forward(
         self,
         ref,
