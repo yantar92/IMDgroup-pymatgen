@@ -165,6 +165,9 @@ def test_check_energy_increase_warns_when_final_higher() -> None:
     """A final energy above the best intermediate step is flagged."""
     run = Vasprun.__new__(Vasprun)
     run.filename = "vasprun.xml"
+    # check_energy_increase normalizes the increase per atom; a 2-atom
+    # stand-in is enough because only len() is used.
+    run.initial_structure = [None] * 2
     run.ionic_steps = [
         {"e_0_energy": -10.0},
         {"e_0_energy": -11.0},
@@ -181,6 +184,7 @@ def test_check_energy_increase_passes_when_monotonic() -> None:
     """A monotonically decreasing trajectory produces no warning."""
     run = Vasprun.__new__(Vasprun)
     run.filename = "vasprun.xml"
+    run.initial_structure = [None] * 2
     run.ionic_steps = [
         {"e_0_energy": -10.0},
         {"e_0_energy": -11.0},
@@ -191,9 +195,10 @@ def test_check_energy_increase_passes_when_monotonic() -> None:
 
 
 def test_check_energy_increase_tolerates_noise() -> None:
-    """Small increases within the tolerance are not flagged."""
+    """A per-atom increase within the tolerance is not flagged."""
     run = Vasprun.__new__(Vasprun)
     run.filename = "vasprun.xml"
+    run.initial_structure = [None] * 2
     run.ionic_steps = [
         {"e_0_energy": -10.0},
         {"e_0_energy": -11.0},
