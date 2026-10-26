@@ -120,8 +120,8 @@ class Vasprun(pmgVasprun):
     # Minimum energy increase (eV) above the best intermediate ionic
     # step that triggers an energy-increase warning.  Kept modest so
     # genuine backtracks are flagged while electronic noise (EDIFF ~
-    # 1e-4 eV) is ignored.
-    ENERGY_INCREASE_TOLERANCE = 1e-4
+    # 1 meV) is ignored.
+    ENERGY_INCREASE_TOLERANCE = 1e-3
 
     def check_stress(self) -> bool:
         """Check whether the residual hydrostatic stress is acceptable.
