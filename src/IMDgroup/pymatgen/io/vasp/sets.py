@@ -606,8 +606,13 @@ class IMDDerivedInputSet(IMDVaspInputSet):
                     'force_prev_incar_file': True,
                     'force_prev_kpoints_file': True,
                 }
-                params = {k: kwargs.get(k, getattr(self, k))
-                          for k in self.__dict__}
+                # Re-use the user-specified constructor arguments for the
+                # image sub-sets, overriding the directory/image/force flags.
+                params = {
+                    f.name: kwargs.get(f.name, getattr(self, f.name))
+                    for f in fields(self.__class__)
+                    if f.init and f.name != 'structure'
+                }
                 self.images.append(type(self)(**params))
 
         # Directory settings take precedence.
