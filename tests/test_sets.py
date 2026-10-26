@@ -21,6 +21,7 @@ from IMDgroup.pymatgen.io.vasp.sets import (
     IMDNEBVaspInputSet,
     IMDStandardVaspInputSet,
     IMDVaspInputSet,
+    POTCAR_RECOMMENDED,
     write_selective_dynamics_summary_maybe,
 )
 from IMDgroup.pymatgen.io.vasp.vaspdir import IMDGVaspDir
@@ -825,3 +826,192 @@ def test_fix_atoms_maybe_no_cutoff_noop() -> None:
     assert neb._fix_atoms_maybe(images) is None
     assert all("selective_dynamics" not in site.properties
                for image in images for site in image)
+
+
+def test_fix_atoms_maybe_preserves_existing_sd() -> None:
+    """A moving atom that already has selective dynamics keeps them."""
+    lattice = Lattice.cubic(10.0)
+    beg = Structure(lattice, ["Li", "Na"], [[0, 0, 0], [0.5, 0, 0]])
+    end = Structure(lattice, ["Li", "Na"], [[0.1, 0, 0], [0.5, 0, 0]])
+    beg[0].properties["selective_dynamics"] = [True, True, True]
+    end[0].properties["selective_dynamics"] = [True, True, True]
+
+    neb = object.__new__(IMDNEBVaspInputSet)
+    neb.fix_cutoff = 2.0
+    neb._fix_atoms_maybe([beg, end])
+
+    assert beg[0].properties["selective_dynamics"] == [True, True, True]
+    assert beg[1].properties["selective_dynamics"] == [False, False, False]
+
+
+def test_neb_update_images_explicit_endpoints(monkeypatch, tmp_path) -> None:
+    """Explicit beg/end are used instead of self.structure/target_structure."""
+    monkeypatch.chdir(tmp_path)  # idpp_interpolate writes idpp.log to CWD
+    beg, end = _neb_endpoints()
+
+    neb = object.__new__(IMDNEBVaspInputSet)
+    neb.method = "IDPP"
+    neb.fix_cutoff = None
+    neb.frac_tol = 0.5
+    monkeypatch.setattr(
+        IMDDerivedInputSet,
+        "incar",
+        property(lambda self: Incar({"IMAGES": 3, "IBRION": 1})),
+    )
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        neb.update_images(beg, end)
+
+    assert neb.target_structure == end
+    assert len(neb.images) == 5
+
+
+def test_write_input_neb_no_incar_skips_image_dirs(tmp_path) -> None:
+    """Without IMAGES in the INCAR, image subdirs are skipped with a warning."""
+    structure = Structure(
+        lattice=Lattice.cubic(4.1),
+        species=["Cs", "Cl"],
+        coords=[[0.0, 0.0, 0.0], [0.5, 0.5, 0.5]],
+    )
+    inset = IMDStandardVaspInputSet(
+        structure=structure, no_potcar=True, no_incar=True)
+    inset.images = [_neb_image(0.0), _neb_image(0.1)]
+
+    with pytest.warns(BadInputSetWarning, match="IMAGES"):
+        inset.write_input(tmp_path)
+
+    assert (tmp_path / "NEB_trajectory.cif").exists()
+    assert not (tmp_path / "00").exists()
+
+
+def test_incar_preserves_user_system_name(cscl) -> None:
+    """A user-supplied SYSTEM tag is not overwritten by the auto name."""
+    inset = IMDStandardVaspInputSet(
+        structure=cscl, no_potcar=True,
+        user_incar_settings={"SYSTEM": "my_system"},
+    )
+    assert inset.incar["SYSTEM"] == "my_system"
+
+
+def test_kpoints_grid_density_fallthrough_none(cscl) -> None:
+    """An input set with no KPOINTS recipe reports None density."""
+    inset = IMDVaspInputSet(structure=cscl, no_potcar=True)
+    assert inset._kpoints_grid_density() is None
+
+
+def test_potcar_generation_when_not_suppressed(monkeypatch, cscl) -> None:
+    """no_potcar=False delegates POTCAR generation to the parent class."""
+    fake = object()
+    monkeypatch.setattr(
+        "pymatgen.io.vasp.sets.VaspInputSet.potcar",
+        property(lambda self: fake),
+    )
+    inset = IMDStandardVaspInputSet(structure=cscl)
+    assert inset.potcar is fake
+
+
+def test_derived_neb_parent_populates_images(tmp_path) -> None:
+    """A NEB parent dir (IMAGES in INCAR) yields one derived set per image."""
+    parent = tmp_path / "neb"
+    parent.mkdir()
+    (parent / "INCAR").write_text("IMAGES = 1\nENCUT = 500\n")
+    for name in ("00", "01", "02"):
+        _write_poscar(parent / name)
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        inset = IMDDerivedInputSet(directory=parent, no_potcar=True)
+
+    assert len(inset.images) == 3
+    assert all(isinstance(img, IMDDerivedInputSet) for img in inset.images)
+    assert all(img.structure.reduced_formula == "CsCl"
+               for img in inset.images)
+
+
+def test_derived_potcar_inheritance(monkeypatch, tmp_path) -> None:
+    """A POTCAR* file overrides the resolved POTCAR mapping.
+
+    The fake POTCAR uses arbitrary symbols (not the ASE-recommended
+    ones) so the assertion depends only on the inheritance mechanism,
+    not on the recommended defaults staying constant.
+    """
+    _write_poscar(tmp_path)
+    (tmp_path / "INCAR").write_text("ENCUT = 500\n")
+    (tmp_path / "POTCAR").write_text("placeholder")
+
+    class _FakePotcar:
+        symbols = ["Cs_fake", "Cl_fake"]
+
+    monkeypatch.setattr(
+        "pymatgen.io.vasp.inputs.Potcar.from_file",
+        lambda path: _FakePotcar(),
+    )
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        inset = IMDDerivedInputSet(directory=tmp_path, no_potcar=True)
+
+    assert inset._config_dict["POTCAR"] == {"Cs": "Cs_fake", "Cl": "Cl_fake"}
+
+
+def test_derived_kpoints_updates_falls_back_when_no_prev_kpoints(
+        monkeypatch, tmp_path) -> None:
+    """Without an inherited KPOINTS file, kpoints_updates delegates to super().
+    """
+    _write_poscar(tmp_path)
+    (tmp_path / "INCAR").write_text("ENCUT = 500\n")
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        inset = IMDDerivedInputSet(directory=tmp_path, no_potcar=True)
+
+    sentinel = {"grid_density": 4242}
+    monkeypatch.setattr(
+        "pymatgen.io.vasp.sets.VaspInputSet.kpoints_updates",
+        property(lambda self: sentinel),
+    )
+    assert inset.kpoints_updates is sentinel
+
+
+def test_incar_isif_relaxation_adequate_encut_no_warning(cscl) -> None:
+    """ISIF relaxation with ENCUT >= 550 does not emit the ENCUT warning."""
+    inset = IMDStandardVaspInputSet(
+        structure=cscl, no_potcar=True,
+        user_incar_settings={"ENCUT": 550.0, "ISIF": 3, "NSW": 10},
+    )
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", BadInputSetWarning)
+        incar = inset.incar
+    assert incar["ISIF"] == 3
+
+
+def test_potcar_symbols_initialises_missing_potcar_config(cscl) -> None:
+    """A set without a POTCAR config still resolves recommended symbols."""
+    inset = IMDVaspInputSet(structure=cscl, no_potcar=True)
+    assert inset.potcar_symbols == [
+        POTCAR_RECOMMENDED.get("Cs", "Cs"),
+        POTCAR_RECOMMENDED.get("Cl", "Cl"),
+    ]
+
+
+def test_write_input_records_metadata_when_not_suppressed(
+        monkeypatch, cscl, tmp_path) -> None:
+    """write_input with no_potcar=False records INCAR.toml metadata."""
+    monkeypatch.setattr(
+        "pymatgen.io.vasp.sets.VaspInputSet.write_input",
+        lambda self, *a, **k: None,
+    )
+    inset = IMDStandardVaspInputSet(structure=cscl, functional="vdw-df")
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        inset.write_input(tmp_path)
+    assert (tmp_path / "IMDVaspInputSet.log").exists()
+    assert "functional" in (tmp_path / "INCAR.toml").read_text()
+
+
+def test_write_incar_toml_metadata_all_defaults(cscl, tmp_path) -> None:
+    """All-default metadata produces no INCAR.toml (nothing non-default)."""
+    inset = IMDVaspInputSet(structure=cscl, no_potcar=True)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        inset._write_incar_toml_metadata(tmp_path)
+    assert not (tmp_path / "INCAR.toml").exists()
