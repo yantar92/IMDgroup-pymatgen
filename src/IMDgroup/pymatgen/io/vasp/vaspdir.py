@@ -117,7 +117,12 @@ class IMDGVaspDir(Mapping, MSONable):
     Call ``refresh()`` to re-read the directory after files change.
 
     Cached parsing results are stored in LMDB to speed up repeated
-    access in HPC workflows.
+    access in HPC workflows.  Each directory caches two kinds of
+    records: individual parsed files (raw parse results, keyed by file
+    name) and a summary of memoized derived values (final_energy,
+    converged_* flags, warnings, and similar).  The two are kept
+    separate because their invalidation needs differ; see the "Cache
+    namespaces" comment near ``_index_key``.
 
     Properties that require parsing multiple files:
 
@@ -137,7 +142,7 @@ class IMDGVaspDir(Mapping, MSONable):
     # Version of the cache record schema.  Bump when the structure of
     # cached records changes so that entries written by older package
     # versions are discarded on load instead of being misread.
-    CACHE_VERSION: typing.ClassVar[int] = 2
+    CACHE_VERSION: typing.ClassVar[int] = 3
 
     # LMDB map size in bytes.  Exposed as a class attribute so tests can
     # shrink it to exercise the eviction path without allocating the full
@@ -195,6 +200,62 @@ class IMDGVaspDir(Mapping, MSONable):
             for pattern in self._exclude_patterns
         )
 
+    # -- LMDB metadata ("meta") for eviction ----------------------------------
+    #
+    # LMDB uses a fixed-size mmap.  When the map fills, we need to
+    # free space by evicting the oldest cache entries.
+    #
+    # Architecture: two named databases within the same environment:
+    #
+    #   b"vaspdir_data"  -- large pickled VaspDir cache entries
+    #   b"vaspdir_meta"  -- tiny {size, ctime} metadata dicts, keyed
+    #                        identically to the data DB.
+    #
+    # The split is critical for HPC filesystems (LUSTRE): scanning the
+    # meta DB only touches small in-leaf values with no overflow pages,
+    # avoiding mmap faults on the 32GB+ of data entries.  Without the
+    # split, a full cursor scan for eviction can take minutes and block
+    # all LMDB access inside a write transaction.
+    #
+    # _lmdb_get_meta_all scans only the meta DB.
+    # _lmdb_evict uses ctime to sort oldest-first, deleting the
+    # corresponding key from both the data and meta DBs.
+
+
+    # -- Cache namespaces -----------------------------------------------------
+    #
+    # Each directory owns three kinds of cache records, addressed by the
+    # keys returned below:
+    #
+    #   <md5(path)>:index       small validity record {version, hash}.
+    #                           Loaded eagerly by refresh().  The hash is
+    #                           the combined mtime of all files, so it is
+    #                           cheap to compute and stable while the
+    #                           directory does not change.
+    #
+    #   <md5(path)>:summary     memoized derived values computed from one
+    #                           or more parsed files (final_energy,
+    #                           converged_* flags, warnings, run_stats,
+    #                           and similar).  Loaded lazily by
+    #                           _ensure_summary_loaded().
+    #
+    #   <md5(path)>:file:<name> the raw parse result of a single file
+    #                           (INCAR, POSCAR, OUTCAR, vasprun.xml, ...).
+    #                           Loaded lazily by __getitem__().
+    #
+    # The split between summary and per-file records matters because the
+    # two have different invalidation needs:
+    #
+    #   * A parsed file depends only on that file's content, so the
+    #     directory hash in the index is enough to decide whether a
+    #     cached parse is still valid.
+    #
+    #   * The summary depends on the code that derives the values, not
+    #     just on file content.  A change to the derivation logic (for
+    #     example, how warnings are collected from vasprun.xml) can make
+    #     a cached summary stale even when the files and their hash are
+    #     unchanged.
+
     def reset(self):
         """Reset all loaded files and re-scan the directory.
 
@@ -221,26 +282,6 @@ class IMDGVaspDir(Mapping, MSONable):
     _lmdb_env: typing.ClassVar[typing.Any] = None
     _lmdb_db: typing.ClassVar[typing.Any] = None
     _lmdb_meta_db: typing.ClassVar[typing.Any] = None
-    # -- LMDB metadata ("meta") for eviction ----------------------------------
-    #
-    # LMDB uses a fixed-size mmap (1TB sparse).  When the map fills,
-    # we need to free space by evicting the oldest cache entries.
-    #
-    # Architecture: two named databases within the same environment:
-    #
-    #   b"vaspdir_data"  -- large pickled VaspDir cache entries
-    #   b"vaspdir_meta"  -- tiny {size, ctime} metadata dicts, keyed
-    #                        identically to the data DB.
-    #
-    # The split is critical for HPC filesystems (LUSTRE): scanning the
-    # meta DB only touches small in-leaf values with no overflow pages,
-    # avoiding mmap faults on the 32GB+ of data entries.  Without the
-    # split, a full cursor scan for eviction can take minutes and block
-    # all LMDB access inside a write transaction.
-    #
-    # _lmdb_get_meta_all scans only the meta DB.
-    # _lmdb_evict uses ctime to sort oldest-first, deleting the
-    # corresponding key from both the data and meta DBs.
 
     @classmethod
     def _init_lmdb(cls) -> None:
