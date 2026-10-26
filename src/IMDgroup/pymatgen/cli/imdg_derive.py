@@ -1009,7 +1009,7 @@ def delete(args):
     inputset.structure.remove_species(args.what)
     if len(inputset.structure) == len_before:
         warnings.warn("Nothing was deleted")
-    output_dir_suffix = ",".join(args.what)
+    output_dir_suffix = "del." + ",".join(args.what)
     inputset.name = output_dir_suffix
     return {'inputsets': [inputset]}
 
