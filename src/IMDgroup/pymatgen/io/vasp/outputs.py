@@ -240,6 +240,9 @@ class VasplogMixin:
         },
         # Additional message to clarify a warning
         "__extra_message": {
+            'subspacematrix': [
+                "Might happen when NCORE/NPAR is too large"
+            ],
             'slurm_error': [
                 "VASP crashed.  Possible causes: time limit exceeded, not enough memory, VASP bug, cluster problem"
             ],
