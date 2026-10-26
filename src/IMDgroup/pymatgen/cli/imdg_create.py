@@ -166,7 +166,7 @@ def create(args):
             [float(match[2]), float(match[3]), float(match[4])])
         inputset = IMDStandardVaspInputSet(
             structure=structure,
-            user_incar_settings={'SYSTEM': f'{match[1]}.boxed'},
+            user_incar_settings={'SYSTEM': f'{match[1]}.boxed', 'NCORE': 1},
             # Single k-point
             user_kpoints_settings={'length': 1})
     else:
