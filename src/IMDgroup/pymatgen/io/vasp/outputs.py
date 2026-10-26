@@ -117,10 +117,11 @@ class Vasprun(pmgVasprun):
 
     PRESSURE_CONVERGENCE_THRESHOLD = 3
 
-    # Minimum energy increase (eV) above the best intermediate ionic
-    # step that triggers an energy-increase warning.  Kept modest so
-    # genuine backtracks are flagged while electronic noise (EDIFF ~
-    # 1 meV) is ignored.
+    # Minimum energy increase per atom (eV/atom) above the best
+    # intermediate ionic step that triggers an energy-increase warning.
+    # Normalizing per atom keeps the threshold from scaling with system
+    # size.  Kept modest so genuine backtracks are flagged while
+    # electronic SCF noise (EDIFF) is ignored.
     ENERGY_INCREASE_TOLERANCE = 1e-3
 
     def check_stress(self) -> bool:
@@ -205,11 +206,12 @@ class Vasprun(pmgVasprun):
         A proper ionic relaxation should end at (or below) the lowest
         energy reached in earlier ionic steps.  When the final energy
         is higher than the best intermediate energy by more than
-        *tolerance*, records an ``energy_increase`` warning.
+        *tolerance* per atom, records an ``energy_increase`` warning.
 
         Args:
-            tolerance: Energy increase (eV) that triggers a warning.
-                Defaults to :attr:`ENERGY_INCREASE_TOLERANCE`.
+            tolerance: Energy increase per atom (eV/atom) that triggers
+                a warning.  Defaults to
+                :attr:`ENERGY_INCREASE_TOLERANCE`.
 
         Returns:
             bool: True when the energy is monotonic (or cannot be
@@ -226,14 +228,17 @@ class Vasprun(pmgVasprun):
         final_energy = float(energies[-1])
         min_intermediate = float(energies[:-1].min())
         increase = final_energy - min_intermediate
-        if increase > tolerance:
+        n_atoms = len(self.initial_structure)
+        increase_per_atom = increase / n_atoms
+        if increase_per_atom > tolerance:
             self._record(VaspWarningRecord(
                 name="energy_increase",
                 message=(
                     f"{os.path.relpath(self.filename)}: "
                     f"Final ionic energy ({final_energy:.6f} eV) is "
-                    f"{increase:.6f} eV above the minimum intermediate "
-                    f"energy ({min_intermediate:.6f} eV)"
+                    f"{increase:.6f} eV ({increase_per_atom:.6f} eV/atom) "
+                    f"above the minimum intermediate energy "
+                    f"({min_intermediate:.6f} eV)"
                 ),
                 tips=[
                     "Inspect the ionic relaxation trajectory: the energy "
@@ -244,6 +249,8 @@ class Vasprun(pmgVasprun):
                     "final_energy": final_energy,
                     "min_intermediate_energy": min_intermediate,
                     "energy_increase": increase,
+                    "energy_increase_per_atom": increase_per_atom,
+                    "n_atoms": n_atoms,
                 },
             ))
             return False
