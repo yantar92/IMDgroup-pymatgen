@@ -492,7 +492,12 @@ class IMDVaspInputSet(VaspInputSet):
                 image_dirs = incar.image_dir_names()
             else:
                 image_dirs = None
-            if image_dirs is None:
+            if not image_dirs:
+                warnings.warn(
+                    "NEB images were provided but IMAGES is not set in the "
+                    "INCAR, so no image subdirectories will be written.",
+                    BadInputSetWarning,
+                )
                 image_dirs = []
             for d, image in zip(image_dirs, self.images):
                 image.write_input(output_dir / d, *args, **kwargs)
