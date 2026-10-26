@@ -54,6 +54,10 @@ docs = [
     "myst-parser>=2.0",
     "sphinxcontrib-mermaid>=0.7",
 ]
+mace = [
+    "mace-torch",
+    "torch",
+]
 
 [project.scripts]
 imdg = "IMDgroup.pymatgen.cli.imdg:main"
