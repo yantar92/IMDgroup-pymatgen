@@ -1019,6 +1019,55 @@ def test_derived_potcar_inheritance(monkeypatch, tmp_path) -> None:
     assert inset._config_dict["POTCAR"] == {"Cs": "Cs_fake", "Cl": "Cl_fake"}
 
 
+def test_derived_potcar_from_incar_toml_fallback(tmp_path) -> None:
+    """Without a POTCAR file, INCAR.toml [POTCAR] supplies the mapping."""
+    _write_poscar(tmp_path)
+    (tmp_path / "INCAR").write_text("ENCUT = 500\n")
+    (tmp_path / "INCAR.toml").write_text('[POTCAR]\nCs = "Cs_custom"\n')
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        inset = IMDDerivedInputSet(directory=tmp_path, no_potcar=True)
+
+    assert inset._config_dict["POTCAR"] == {"Cs": "Cs_custom"}
+
+
+def test_derived_potcar_file_precedence_over_incar_toml(
+        monkeypatch, tmp_path) -> None:
+    """A POTCAR file wins over INCAR.toml [POTCAR] when both are present."""
+    _write_poscar(tmp_path)
+    (tmp_path / "INCAR").write_text("ENCUT = 500\n")
+    (tmp_path / "INCAR.toml").write_text('[POTCAR]\nCs = "Cs_from_toml"\n')
+    (tmp_path / "POTCAR").write_text("placeholder")
+
+    class _FakePotcar:
+        symbols = ["Cs_from_file", "Cl_from_file"]
+
+    monkeypatch.setattr(
+        "pymatgen.io.vasp.inputs.Potcar.from_file",
+        lambda path: _FakePotcar(),
+    )
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        inset = IMDDerivedInputSet(directory=tmp_path, no_potcar=True)
+
+    assert inset._config_dict["POTCAR"] == {
+        "Cs": "Cs_from_file", "Cl": "Cl_from_file"}
+
+
+def test_derived_potcar_spec_not_parsed_as_potcar(tmp_path) -> None:
+    """POTCAR.spec (a symbol list) is not mistaken for POTCAR content."""
+    _write_poscar(tmp_path)
+    (tmp_path / "INCAR").write_text("ENCUT = 500\n")
+    (tmp_path / "POTCAR.spec").write_text("Cs_sv\nCl\n")
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        inset = IMDDerivedInputSet(directory=tmp_path, no_potcar=True)
+
+    assert inset.potcar_symbols == ["Cs_sv", "Cl"]
+
+
 def test_derived_kpoints_updates_falls_back_when_no_prev_kpoints(
         monkeypatch, tmp_path) -> None:
     """Without an inherited KPOINTS file, kpoints_updates delegates to super().
