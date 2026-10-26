@@ -41,7 +41,13 @@ from dataclasses import dataclass, fields, field
 import numpy as np
 from pymatgen.core import Species, DummySpecies, Structure
 from pymatgen.io.vasp.sets import VaspInputSet, BadInputSetWarning
-from pymatgen.io.vasp.inputs import Potcar, Kpoints, Poscar, BadPoscarWarning
+from pymatgen.io.vasp.inputs import (
+    BadPoscarWarning,
+    Kpoints,
+    PmgVaspPspDirError,
+    Poscar,
+    Potcar,
+)
 from pymatgen.io.vasp.outputs import Vasprun
 from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
 from pymatgen.io.ase import AseAtomsAdaptor
@@ -490,7 +496,25 @@ class IMDVaspInputSet(VaspInputSet):
         Any extra positional and keyword arguments are forwarded to
         ``VaspInputSet.write_input``.
         """
-        super().write_input(output_dir, *args, **kwargs)
+        try:
+            super().write_input(output_dir, *args, **kwargs)
+        except PmgVaspPspDirError as exc:
+            raise PmgVaspPspDirError(
+                "Pseudopotential directory not configured. "
+                "Set it with: pmg config --add PMG_VASP_PSP_DIR "
+                "/path/to/potentials"
+            ) from exc
+        except FileNotFoundError as exc:
+            # pymatgen reports a configured-but-missing PSP dir as
+            # "PMG_VASP_PSP_DIR='...' does not exist."  A missing POTCAR file
+            # inside a valid dir says "You do not have the right POTCAR..."
+            # instead; that one is already actionable as-is.
+            if "PMG_VASP_PSP_DIR" in str(exc) and "does not exist" in str(exc):
+                raise FileNotFoundError(
+                    f"{exc} Update it with: "
+                    "pmg config --add PMG_VASP_PSP_DIR /path/to/potentials"
+                ) from exc
+            raise
         output_dir = Path(output_dir)
         # Write inputset info
         log_file = output_dir / "IMDVaspInputSet.log"

@@ -30,7 +30,6 @@ import os
 import re
 import logging
 import pymatgen.core as pmg
-from pymatgen.io.vasp.inputs import PmgVaspPspDirError
 from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
 from IMDgroup.pymatgen.io.vasp.sets import IMDStandardVaspInputSet
 
@@ -181,23 +180,6 @@ def create(args):
     if args.output == "":
         raise ValueError("--output cannot be empty")
     output_dir = args.output if args.output else inputset.incar['SYSTEM']
-    try:
-        inputset.write_input(output_dir=output_dir)
-    except PmgVaspPspDirError as exc:
-        raise ValueError(
-            "Pseudopotential directory not configured. "
-            "Set it with: pmg config --add PMG_VASP_PSP_DIR /path/to/potentials"
-        ) from exc
-    except FileNotFoundError as exc:
-        # pymatgen reports a configured-but-missing PSP dir as
-        # "PMG_VASP_PSP_DIR='...' does not exist."  A missing POTCAR file
-        # inside a valid dir says "You do not have the right POTCAR..."
-        # instead; that one is already actionable as-is.
-        if "PMG_VASP_PSP_DIR" in str(exc) and "does not exist" in str(exc):
-            raise ValueError(
-                f"{exc} Update it with: "
-                "pmg config --add PMG_VASP_PSP_DIR /path/to/potentials"
-            ) from exc
-        raise
+    inputset.write_input(output_dir=output_dir)
 
     return 0

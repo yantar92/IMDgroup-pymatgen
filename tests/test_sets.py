@@ -12,7 +12,7 @@ from types import SimpleNamespace
 
 import pytest
 from pymatgen.core import Lattice, Structure
-from pymatgen.io.vasp.inputs import Kpoints, Poscar
+from pymatgen.io.vasp.inputs import Kpoints, PmgVaspPspDirError, Poscar
 from pymatgen.io.vasp.sets import BadInputSetWarning
 from pymatgen.util.testing import MatSciTest
 
@@ -323,6 +323,49 @@ def test_incar_system_name_includes_mpid(cscl) -> None:
 def test_potcar_no_potcar_returns_none(cscl) -> None:
     """no_potcar=True returns None for the potcar property."""
     assert _standard_set(cscl).potcar is None
+
+
+def test_write_input_psp_dir_not_configured_raises_friendly_error(
+        monkeypatch, cscl, tmp_path) -> None:
+    """A missing PMG_VASP_PSP_DIR setting keeps the type and adds a hint."""
+    def _raise(self, *args, **kwargs):
+        raise PmgVaspPspDirError("Set PMG_VASP_PSP_DIR=<directory-path> ...")
+
+    monkeypatch.setattr(
+        "pymatgen.io.vasp.sets.VaspInputSet.write_input", _raise)
+    inset = IMDStandardVaspInputSet(structure=cscl)
+    with pytest.raises(
+            PmgVaspPspDirError, match="Pseudopotential directory not configured"):
+        inset.write_input(tmp_path)
+
+
+def test_write_input_psp_dir_missing_raises_friendly_error(
+        monkeypatch, cscl, tmp_path) -> None:
+    """A configured-but-missing PSP dir keeps FileNotFoundError with a hint."""
+    def _raise(self, *args, **kwargs):
+        raise FileNotFoundError("PMG_VASP_PSP_DIR='/nonexistent' does not exist.")
+
+    monkeypatch.setattr(
+        "pymatgen.io.vasp.sets.VaspInputSet.write_input", _raise)
+    inset = IMDStandardVaspInputSet(structure=cscl)
+    with pytest.raises(FileNotFoundError, match="does not exist"):
+        inset.write_input(tmp_path)
+
+
+def test_write_input_wrong_potcar_reraises_file_not_found(
+        monkeypatch, cscl, tmp_path) -> None:
+    """A missing POTCAR inside a valid dir is left as FileNotFoundError."""
+    def _raise(self, *args, **kwargs):
+        raise FileNotFoundError(
+            "You do not have the right POTCAR with functional='PBE' ... "
+            "in your PMG_VASP_PSP_DIR='/valid'."
+        )
+
+    monkeypatch.setattr(
+        "pymatgen.io.vasp.sets.VaspInputSet.write_input", _raise)
+    inset = IMDStandardVaspInputSet(structure=cscl)
+    with pytest.raises(FileNotFoundError):
+        inset.write_input(tmp_path)
 
 
 # ---------------------------------------------------------------------------
