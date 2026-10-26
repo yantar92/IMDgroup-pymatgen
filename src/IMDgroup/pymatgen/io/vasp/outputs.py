@@ -117,6 +117,12 @@ class Vasprun(pmgVasprun):
 
     PRESSURE_CONVERGENCE_THRESHOLD = 3
 
+    # Minimum energy increase (eV) above the best intermediate ionic
+    # step that triggers an energy-increase warning.  Kept modest so
+    # genuine backtracks are flagged while electronic noise (EDIFF ~
+    # 1e-4 eV) is ignored.
+    ENERGY_INCREASE_TOLERANCE = 1e-4
+
     def check_stress(self) -> bool:
         """Check whether the residual hydrostatic stress is acceptable.
 
@@ -193,20 +199,71 @@ class Vasprun(pmgVasprun):
             return False
         return True
 
+    def check_energy_increase(self, tolerance: float | None = None) -> bool:
+        """Check whether the final ionic energy is above an intermediate one.
+
+        A proper ionic relaxation should end at (or below) the lowest
+        energy reached in earlier ionic steps.  When the final energy
+        is higher than the best intermediate energy by more than
+        *tolerance*, records an ``energy_increase`` warning.
+
+        Args:
+            tolerance: Energy increase (eV) that triggers a warning.
+                Defaults to :attr:`ENERGY_INCREASE_TOLERANCE`.
+
+        Returns:
+            bool: True when the energy is monotonic (or cannot be
+            checked), False when a warning was recorded.
+        """
+        if tolerance is None:
+            tolerance = self.ENERGY_INCREASE_TOLERANCE
+        try:
+            energies = np.array([step['e_0_energy'] for step in self.ionic_steps])
+        except (KeyError, TypeError, ValueError):
+            return True
+        if len(energies) < 2:
+            return True
+        final_energy = float(energies[-1])
+        min_intermediate = float(energies[:-1].min())
+        increase = final_energy - min_intermediate
+        if increase > tolerance:
+            self._record(VaspWarningRecord(
+                name="energy_increase",
+                message=(
+                    f"{os.path.relpath(self.filename)}: "
+                    f"Final ionic energy ({final_energy:.6f} eV) is "
+                    f"{increase:.6f} eV above the minimum intermediate "
+                    f"energy ({min_intermediate:.6f} eV)"
+                ),
+                tips=[
+                    "Inspect the ionic relaxation trajectory: the energy "
+                    "increased instead of decreasing toward the minimum."
+                ],
+                source=getattr(self, 'filename', None),
+                metadata={
+                    "final_energy": final_energy,
+                    "min_intermediate_energy": min_intermediate,
+                    "energy_increase": increase,
+                },
+            ))
+            return False
+        return True
+
     @property
     def converged_ionic(self) -> bool:
         """Whether ionic convergence was reached.
 
         Wraps pymatgen's version but additionally checks stress and
-        forces when ISIF is non-trivial.
+        forces when ISIF is non-trivial, and warns when the final
+        energy is higher than an intermediate step's energy.
         """
         converged_ionic = super().converged_ionic
-        if converged_ionic\
-           and (self.incar.get('IBRION') in Incar.IBRION_IONIC_RELAX_values)\
-           and (self.incar.get('ISIF') not in [0, 1]):
-            if self.incar.get('ISIF') != Incar.ISIF_RELAX_POS:
-                self.check_stress()
-            self.check_forces()
+        if self.incar.get('IBRION') in Incar.IBRION_IONIC_RELAX_values:
+            self.check_energy_increase()
+            if converged_ionic and (self.incar.get('ISIF') not in [0, 1]):
+                if self.incar.get('ISIF') != Incar.ISIF_RELAX_POS:
+                    self.check_stress()
+                self.check_forces()
 
         return converged_ionic
 

@@ -158,6 +158,51 @@ def test_read_outcar_timing_stats_synthetic(tmp_path) -> None:
     assert stats.scf.mean == pytest.approx(3.0)
 
 
+# --- Vasprun.check_energy_increase (synthetic) ------------------------------
+
+
+def test_check_energy_increase_warns_when_final_higher() -> None:
+    """A final energy above the best intermediate step is flagged."""
+    run = Vasprun.__new__(Vasprun)
+    run.filename = "vasprun.xml"
+    run.ionic_steps = [
+        {"e_0_energy": -10.0},
+        {"e_0_energy": -11.0},
+        {"e_0_energy": -10.5},
+    ]
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        assert run.check_energy_increase() is False
+    assert run._warnings.has("energy_increase")
+    assert any(issubclass(w.category, VaspWarning) for w in caught)
+
+
+def test_check_energy_increase_passes_when_monotonic() -> None:
+    """A monotonically decreasing trajectory produces no warning."""
+    run = Vasprun.__new__(Vasprun)
+    run.filename = "vasprun.xml"
+    run.ionic_steps = [
+        {"e_0_energy": -10.0},
+        {"e_0_energy": -11.0},
+        {"e_0_energy": -11.5},
+    ]
+    assert run.check_energy_increase() is True
+    assert getattr(run, "_warnings", None) is None
+
+
+def test_check_energy_increase_tolerates_noise() -> None:
+    """Small increases within the tolerance are not flagged."""
+    run = Vasprun.__new__(Vasprun)
+    run.filename = "vasprun.xml"
+    run.ionic_steps = [
+        {"e_0_energy": -10.0},
+        {"e_0_energy": -11.0},
+        {"e_0_energy": -10.9999},
+    ]
+    assert run.check_energy_increase(tolerance=1e-3) is True
+    assert getattr(run, "_warnings", None) is None
+
+
 # --- fixture-gated tests ----------------------------------------------------
 
 
