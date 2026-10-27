@@ -74,6 +74,7 @@ from pathlib import Path
 import pandas as pd
 from ase.calculators.singlepoint import SinglePointCalculator
 from ase.io import read, write
+from ase import Atoms
 from sklearn.model_selection import train_test_split
 from termcolor import colored
 
@@ -89,7 +90,7 @@ from IMDgroup.gorun.core.incar import (
 # Data reading helpers
 # ---------------------------------------------------------------------------
 
-def _read_structures(filepath: str) -> list:
+def _read_structures(filepath: str) -> list[Atoms]:
     """Read ASE Atoms from *filepath*, auto-detecting format.
 
     Supports ``.xyz`` (extxyz) and ``.pkl`` (pandas DataFrame with a
@@ -100,7 +101,11 @@ def _read_structures(filepath: str) -> list:
         df = pd.read_pickle(filepath)
         return list(df.structure)
     if suffix == ".xyz":
-        return read(filepath, index=":")
+        data = read(filepath, index=":")
+        if isinstance(data, Atoms):
+            return [data]
+        else:
+            return data
     raise ValueError(
         f"Unsupported file format '{suffix}' for {filepath}.  "
         "Expected .xyz or .pkl."
@@ -317,10 +322,14 @@ class MaceMultiheadFinetuneAdapter(GpuAdapter):
         super().__init__()
 
         # --- Extract section defaults from DEFAULTS ---
-        select_defaults: dict[str, object] = dict(
-            self.DEFAULTS.get("fine_tuning_select", {}))
-        train_defaults: dict[str, object] = dict(
-            self.DEFAULTS.get("run_train", {}))
+        select_raw = self.DEFAULTS.get("fine_tuning_select", {})
+        if not isinstance(select_raw, dict):
+            raise TypeError("DEFAULTS['fine_tuning_select'] must be a dict")
+        select_defaults: dict[str, object] = dict(select_raw)
+        train_raw = self.DEFAULTS.get("run_train", {})
+        if not isinstance(train_raw, dict):
+            raise TypeError("DEFAULTS['run_train'] must be a dict")
+        train_defaults: dict[str, object] = dict(train_raw)
 
         # Build sets of known keys for auto-routing.
         known_select_keys: set[str] = set(select_defaults.keys())
