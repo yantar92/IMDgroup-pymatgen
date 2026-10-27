@@ -29,7 +29,7 @@
 
 from __future__ import annotations
 
-from types import SimpleNamespace
+import argparse
 
 import pymatgen.core as pmg
 import pytest
@@ -150,7 +150,7 @@ def test_create_dispatch_file(monkeypatch, tmp_path) -> None:
     monkeypatch.setattr(
         imdg_create, 'create_from_file', lambda p: 'FROM_FILE')
 
-    args = SimpleNamespace(what=str(path), output=None)
+    args = argparse.Namespace(what=str(path), output=None)
     assert imdg_create.create(args) == 0
 
     assert len(records) == 1
@@ -168,7 +168,7 @@ def test_create_dispatch_atom_name(monkeypatch) -> None:
         lambda name, size: calls.append((name, size)) or 'FROM_ATOM',
     )
 
-    args = SimpleNamespace(what='Li 2x3x4', output=None)
+    args = argparse.Namespace(what='Li 2x3x4', output=None)
     assert imdg_create.create(args) == 0
 
     assert calls == [('Li', [2.0, 3.0, 4.0])]
@@ -189,7 +189,7 @@ def test_create_dispatch_mpid(monkeypatch) -> None:
         lambda mpid: calls.append(mpid) or 'FROM_MPID',
     )
 
-    args = SimpleNamespace(what='mp-1234', output=None)
+    args = argparse.Namespace(what='mp-1234', output=None)
     assert imdg_create.create(args) == 0
 
     assert calls == ['mp-1234']
@@ -203,6 +203,6 @@ def test_create_empty_output_raises(monkeypatch) -> None:
     monkeypatch.setattr(
         imdg_create, 'create_from_mpid', lambda mpid: 'FROM_MPID')
 
-    args = SimpleNamespace(what='mp-1234', output='')
+    args = argparse.Namespace(what='mp-1234', output='')
     with pytest.raises(ValueError, match='--output cannot be empty'):
         imdg_create.create(args)

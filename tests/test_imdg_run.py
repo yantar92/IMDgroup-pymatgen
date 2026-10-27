@@ -30,7 +30,6 @@
 from __future__ import annotations
 
 import argparse
-from types import SimpleNamespace
 
 import IMDgroup.pymatgen.cli.imdg_run as imdg_run
 
@@ -66,7 +65,8 @@ def test_run_forwards_argv_and_prog(monkeypatch) -> None:
         return 3
 
     monkeypatch.setattr(imdg_run, 'gorun_main', fake_main)
-    assert imdg_run.run(SimpleNamespace(argv=['vasp', '--dir', 'x'])) == 3
+    assert imdg_run.run(
+        argparse.Namespace(argv=['vasp', '--dir', 'x'])) == 3
     assert calls == {'argv': ['vasp', '--dir', 'x'], 'prog': 'imdg run'}
 
 
@@ -80,5 +80,5 @@ def test_run_defaults_to_empty_argv(monkeypatch) -> None:
         return 0
 
     monkeypatch.setattr(imdg_run, 'gorun_main', fake_main)
-    imdg_run.run(SimpleNamespace())
+    imdg_run.run(argparse.Namespace())
     assert calls == {'argv': [], 'prog': 'imdg run'}

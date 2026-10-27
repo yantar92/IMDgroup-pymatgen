@@ -29,8 +29,8 @@
 
 from __future__ import annotations
 
+import argparse
 from pathlib import Path
-from types import SimpleNamespace
 
 import pytest
 from rich.console import Console
@@ -114,9 +114,16 @@ def test_read_structures_force_vasprun_skips(tmp_path: Path) -> None:
 ## _copy_structures_to
 
 
-def _struct_with_source(source_dir: str) -> SimpleNamespace:
-    """A minimal structure stand-in carrying a source_dir property."""
-    return SimpleNamespace(properties={"source_dir": source_dir})
+class _StructureStub:
+    """Minimal structure stand-in carrying a source_dir property."""
+
+    def __init__(self, source_dir: str) -> None:
+        self.properties = {"source_dir": source_dir}
+
+
+def _struct_with_source(source_dir: str) -> _StructureStub:
+    """Build a :class:`_StructureStub` for the given source directory."""
+    return _StructureStub(source_dir)
 
 
 def test_copy_structures_to_relative(monkeypatch, tmp_path: Path) -> None:
@@ -240,7 +247,7 @@ def test_diff_incar_reads_and_groups(tmp_path: Path, capsys) -> None:
     (a / "INCAR").write_text("ENCUT = 500\n")
     (b / "INCAR").write_text("ENCUT = 600\n")
 
-    args = SimpleNamespace(dirs=[str(a), str(b)])
+    args = argparse.Namespace(dirs=[str(a), str(b)])
     assert diff_incar(args) == 0
     out = capsys.readouterr().out
     assert "ENCUT:500.0" in out
@@ -255,7 +262,7 @@ def test_diff_incar_missing_incar_warns(tmp_path: Path, capsys) -> None:
     missing.mkdir()
     (good / "INCAR").write_text("ENCUT = 500\n")
 
-    args = SimpleNamespace(dirs=[str(good), str(missing)])
+    args = argparse.Namespace(dirs=[str(good), str(missing)])
     with pytest.warns(UserWarning, match="No INCAR found"):
         assert diff_incar(args) == 0
     assert "ENCUT:500.0" in capsys.readouterr().out

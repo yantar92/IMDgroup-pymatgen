@@ -29,11 +29,11 @@
 
 from __future__ import annotations
 
+import argparse
 import importlib
 import io
 import logging
 import sys
-from types import SimpleNamespace
 
 import pytest
 
@@ -86,9 +86,9 @@ def test_setup_logger_verbosity_levels(monkeypatch) -> None:
     monkeypatch.setattr(logging, 'FileHandler', lambda *a, **k: object())
     monkeypatch.setattr(logging, 'StreamHandler', lambda *a, **k: object())
 
-    imdg.setup_logger(SimpleNamespace(verbosity=0))
-    imdg.setup_logger(SimpleNamespace(verbosity=1))
-    imdg.setup_logger(SimpleNamespace(verbosity=2))
+    imdg.setup_logger(argparse.Namespace(verbosity=0))
+    imdg.setup_logger(argparse.Namespace(verbosity=1))
+    imdg.setup_logger(argparse.Namespace(verbosity=2))
 
     assert calls[0]['level'] == logging.INFO
     assert len(calls[0]['handlers']) == 1  # file only
