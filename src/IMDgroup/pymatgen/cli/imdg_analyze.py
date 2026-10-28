@@ -284,7 +284,7 @@ def _render_table(df, console=None):
     for col in df.columns:
         label = ALL_FIELDS.get(col, col)
         if col == 'dir':
-            table.add_column(label, overflow="ellipsis", max_width=40)
+            table.add_column(label, max_width=40)
         elif col == 'incar_group':
             table.add_column(label, justify="right", no_wrap=True)
         else:
