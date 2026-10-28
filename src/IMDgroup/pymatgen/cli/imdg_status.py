@@ -521,9 +521,9 @@ def status(args):
             console.print(Text.assemble(("  ", ""), (str(wdir), "")))
 
     incars = []
-    # warning name -> category (running/converged/unconverged) -> dirs
-    dirs_with_warnings: dict[str, dict[str, list[str]]] = {}
-    warning_meta: dict[str, tuple[str, list[str]]] = {}
+    # warning name -> category (running/converged/unconverged) -> list of
+    # (dir, message, tips) triples.
+    dirs_with_warnings: dict[str, dict[str, list[tuple[str, str, list[str]]]]] = {}
     rows: list[_RunRow] = []
 
     dir_max = max(30, min(48, console.width - 70))
@@ -611,8 +611,6 @@ def status(args):
                         nowarn_list += args.nowarn
                     warn_names, meta = _collect_warnings(
                         vaspdir.warnings, nowarn_list)
-                    for name, pair in meta.items():
-                        warning_meta.setdefault(name, pair)
                     dir_norm = wdir.replace("./", "")
                     if running:
                         category = "running"
@@ -621,13 +619,15 @@ def status(args):
                     else:
                         category = "unconverged"
                     for warn_name in warn_names:
+                        msg, tips = meta[warn_name]
                         dirs_with_warnings.setdefault(
                             warn_name, {}).setdefault(
-                                category, []).append(dir_norm)
+                                category, []).append(
+                                    (dir_norm, msg, tips))
                     if not warn_names and category == "unconverged":
                         dirs_with_warnings.setdefault(
                             'UNCONVERGED', {}).setdefault(
-                                category, []).append(dir_norm)
+                                category, []).append((dir_norm, "", []))
                 else:
                     if not nebp:
                         logger.debug("Slurm log file not found in %s", wdir)
@@ -742,23 +742,26 @@ def status(args):
         console.print()
         console.print("[bold yellow]Warnings:[/bold yellow]")
         for warn_name, by_category in dirs_with_warnings.items():
-            msg, tips = warning_meta.get(warn_name, ("", []))
             for category in category_order:
-                dir_list = by_category.get(category)
-                if not dir_list:
+                entries = by_category.get(category)
+                if not entries:
                     continue
                 tag = "" if warn_name == "UNCONVERGED" else f" [{category}]"
                 console.print(Text.assemble(
                     ("  ", ""),
                     (warn_name, "yellow"),
-                    (f"{tag} ({len(dir_list)}):\n", ""),
+                    (f"{tag} ({len(entries)}):\n", ""),
                     ("      ", ""),
-                    (" ".join(dir_list), "")))
-            if msg:
-                console.print(Text.assemble(("      ", ""), (str(msg), "")))
-            for tip in tips:
-                console.print(Text.assemble(
-                    ("      TIP: ", "magenta bold"), (str(tip), "")))
+                    (" ".join(dir_norm for dir_norm, _, _ in entries), "")))
+                for dir_norm, msg, tips in entries:
+                    if msg:
+                        console.print(Text.assemble(
+                            ("      ", ""),
+                            (f"{dir_norm}: ", ""),
+                            (str(msg), "")))
+                    for tip in tips:
+                        console.print(Text.assemble(
+                            ("      TIP: ", "magenta bold"), (str(tip), "")))
 
     # Full details are only useful for runs still in flight or that
     # failed; converged runs would only repeat the CPU time already
