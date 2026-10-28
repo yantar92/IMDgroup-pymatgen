@@ -279,10 +279,6 @@ class IMDVaspInputSet(VaspInputSet):
         incar = super().incar
         # Use IMDG version of Incar class
         incar = Incar(incar)
-        # FIXME: This is never reached as Incar always returns non-None.
-        # Empty incar.  Do nothing.
-        if incar is None or not list(incar):
-            return incar
 
         assert self.structure is not None
         formula = self.structure.reduced_formula
@@ -364,14 +360,12 @@ class IMDVaspInputSet(VaspInputSet):
         return super().poscar
 
     @property
-    def potcar_symbols(self) -> list[str] | None:  # pyright: ignore[reportIncompatibleMethodOverride]
+    def potcar_symbols(self) -> list[str]:  # pyright: ignore[reportIncompatibleMethodOverride]
         """List of POTCAR symbols.
 
         Auto-fills missing element potentials using ASE-recommended
         defaults.
         """
-        if self.poscar is None:
-            return None
         # Setup default POTCAR.  If an element is missing from
         # POTCAR_RECOMMENED, assume that the potential name is the
         # same with element name.
@@ -403,9 +397,6 @@ class IMDVaspInputSet(VaspInputSet):
         name as the value.
         """
         potcar_symbols = self.potcar_symbols
-        if potcar_symbols is None:
-            return {}
-        assert self.poscar is not None
         return dict(zip(self.poscar.site_symbols, potcar_symbols))
 
     def _kpoints_grid_density(self) -> float | None:
