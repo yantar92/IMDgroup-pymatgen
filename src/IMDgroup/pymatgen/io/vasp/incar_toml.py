@@ -43,12 +43,8 @@ from __future__ import annotations
 
 import logging
 import shutil
+import tomllib
 from pathlib import Path
-
-try:
-    import tomllib
-except ModuleNotFoundError:  # Python 3.10
-    import tomli as tomllib  # pyright: ignore[reportMissingImports]
 
 logger = logging.getLogger(__name__)
 
