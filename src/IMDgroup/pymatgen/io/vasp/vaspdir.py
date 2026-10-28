@@ -1151,7 +1151,7 @@ class IMDGVaspDir(Mapping, MSONable):
 
     def check_framework_symmetry(
             self, framework_elements=None,
-            symprec=0.1, max_rms_threshold=0.5) -> bool:
+            symprec=0.1, max_threshold=0.5) -> bool:
         """Check whether the framework symmetry is preserved.
 
         Reduces false positives from mobile atoms breaking symmetry.
@@ -1160,8 +1160,7 @@ class IMDGVaspDir(Mapping, MSONable):
             framework_elements: List of element symbols for the
                 framework.  Defaults to the most common element.
             symprec: Symmetry tolerance for space group detection.
-            max_rms_threshold: Maximum RMS displacement threshold in
-                Angstrom.
+            max_threshold: Maximum displacement threshold in Angstrom.
 
         Returns:
             bool: True if framework symmetry is preserved.
@@ -1172,17 +1171,17 @@ class IMDGVaspDir(Mapping, MSONable):
             framework_elements = get_framework_elements(self.initial_structure)
 
         # The result depends only on the framework element set, the
-        # symmetry tolerance, and the RMS threshold.  The summary is
-        # persisted across runs, so a warm load skips the spglib calls
-        # below.
-        key = ('symmetry', tuple(framework_elements), symprec, max_rms_threshold)
+        # symmetry tolerance, and the displacement threshold.  The
+        # summary is persisted across runs, so a warm load skips the
+        # spglib calls below.
+        key = ('symmetry', tuple(framework_elements), symprec, max_threshold)
         return self._memoized(
             key,
             lambda: self._compute_framework_symmetry(
-                framework_elements, symprec, max_rms_threshold))
+                framework_elements, symprec, max_threshold))
 
     def _compute_framework_symmetry(
-            self, framework_elements, symprec, max_rms_threshold) -> bool:
+            self, framework_elements, symprec, max_threshold) -> bool:
         # Create framework-only structures
         init_framework = filter_framework(
             self.initial_structure, framework_elements)
@@ -1195,23 +1194,24 @@ class IMDGVaspDir(Mapping, MSONable):
 
         result = True
         if init_sg[0] != final_sg[0]:
-            # Calculate RMS displacement of framework atoms
+            # Calculate displacement of framework atoms
             try:
-                rms = structure_distance(
+                dist = structure_distance(
                     init_framework, final_framework,
-                    norm=True, match_first=False)
+                    norm=False, match_first=False,
+                    max_dist=max_threshold)
             except Exception:
-                rms = float('inf')
-            if rms > max_rms_threshold or np.isclose(rms, 0):
+                dist = float('inf')
+            if dist > max_threshold or np.isclose(dist, 0):
                 self._record(VaspWarningRecord(
                     name="framework_symmetry",
                     message=(
                         f"{os.path.relpath(self.path)}: "
                         f"Framework symmetry changed ({init_sg[0]} to {final_sg[0]}) "
-                        f"with displacement (RMS={rms:.3f}Å)"
+                        f"with displacement (DIST={dist:.3f}Å)"
                     ),
                     source=self.path,
-                    metadata={"rms_displacement": float(rms)},
+                    metadata={"displacement": float(dist)},
                 ))
                 result = False
         return result

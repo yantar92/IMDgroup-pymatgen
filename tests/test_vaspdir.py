@@ -577,6 +577,40 @@ def test_check_framework_symmetry_false_warns(tmp_path) -> None:
         assert d.check_framework_symmetry() is False
 
 
+@pytest.fixture
+def graphite_li_dir(tmp_path: Path) -> Path:
+    """An intercalated graphite framework with a Li-induced distortion.
+
+    ``POSCAR`` holds ideal AB-stacked graphite plus one Li intercalant;
+    ``CONTCAR`` holds the relaxed framework in which every C atom moved
+    ~0.68 A.  Both are distilled from the real VASP run
+    ``graphite_vdw.relax.2x2x1.ins.Li.3``.
+    """
+    src = Path(__file__).parent / "fixtures" / "graphite_li_intercalation"
+    for entry in src.iterdir():
+        shutil.copy(entry, tmp_path / entry.name)
+    return tmp_path
+
+
+def test_check_framework_symmetry_flags_distorted_graphite(
+        graphite_li_dir) -> None:
+    """A uniform framework distortion lowers the space group and warns.
+
+    Regression: ``check_framework_symmetry`` used
+    ``structure_distance(..., norm=True)``, which divides the total
+    displacement by the number of displaced sites.  For a 16-atom
+    carbon framework uniformly shifted by ~0.68 A this reported
+    ~0.17 A, below the 0.5 A threshold, so the P6_3/mmc -> C2/m change
+    was missed.  The un-normalized distance flags it.
+    """
+    d = IMDGVaspDir(str(graphite_li_dir))
+    with pytest.warns(VaspWarning, match="Framework symmetry changed"):
+        assert d.check_framework_symmetry() is False
+    assert d.warnings.has("framework_symmetry")
+    record = d.warnings["framework_symmetry"]
+    assert record.metadata["displacement"] > 0.5
+
+
 # --- NEB ------------------------------------------------------------
 
 

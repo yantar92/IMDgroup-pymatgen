@@ -1,4 +1,4 @@
-# Quickstart: graphite (mp-48)
+# Quickstart
 
 Example calculation of Li insertion into graphite.
 It retrieves graphite (AB) structure from Materials Project,
