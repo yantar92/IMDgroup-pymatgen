@@ -660,7 +660,9 @@ def structure_matches(
             multiprocessing.cpu_count()))
         # experimental: leave some buffer to avoid process being stuck
         cpus = max(1, cpus - 1)
-        if isinstance(multithread, int):
+        # ``True`` means "use cpu_count - 1 workers", so it must not be
+        # treated as the integer 1 (bool is a subclass of int).
+        if isinstance(multithread, int) and not isinstance(multithread, bool):
             cpus = min(multithread, cpus)
         with Pool(processes=cpus) as pool:
             tasks = [(struct, known) for known in known_structs]
