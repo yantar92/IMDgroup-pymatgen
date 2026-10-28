@@ -146,7 +146,7 @@ class IMDGVaspDir(Mapping, MSONable):
     # Version of the cache record schema.  Bump when the structure of
     # cached records changes so that entries written by older package
     # versions are discarded on load instead of being misread.
-    CACHE_VERSION: typing.ClassVar[int] = 6
+    CACHE_VERSION: typing.ClassVar[int] = 7
 
     # LMDB map size in bytes.  Exposed as a class attribute so tests can
     # shrink it to exercise the eviction path without allocating the full
