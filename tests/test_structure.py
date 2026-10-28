@@ -94,7 +94,7 @@ def test_get_framework_elements_most_common() -> None:
 def test_filter_framework_removes_mobile_species() -> None:
     """Filtering keeps only the framework elements."""
     framework = filter_framework(_carbon_lithium(), ['C'])
-    assert framework.species.num_atoms == 2
+    assert len(framework.species) == 2
     assert set(str(s.specie) for s in framework) == {'C'}
 
 
