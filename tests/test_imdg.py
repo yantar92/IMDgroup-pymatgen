@@ -154,6 +154,23 @@ def test_main_value_error_is_reported(monkeypatch, capsys) -> None:
     assert 'nope' in capsys.readouterr().err
 
 
+def test_main_value_error_reraised_with_verbose(monkeypatch) -> None:
+    """With -vv, a user error re-raises so the full traceback is shown."""
+    monkeypatch.setattr(sys, 'argv', ['imdg', '-vv', 'create'])
+    monkeypatch.setattr(imdg, 'setup_logger', lambda args: None)
+
+    class _FakeModule:
+        def add_args(self, parser) -> None:
+            pass
+
+        def create(self, args) -> int:
+            raise ValueError('nope')
+
+    _patch_create_module(monkeypatch, _FakeModule())
+    with pytest.raises(ValueError, match='nope'):
+        imdg.main()
+
+
 def test_main_no_subcommand_exits(monkeypatch) -> None:
     """Running with no subcommand exits via argparse."""
     monkeypatch.setattr(sys, 'argv', ['imdg'])

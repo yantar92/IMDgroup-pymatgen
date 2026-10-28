@@ -642,6 +642,42 @@ def test_derived_concar_fallback_reads_structure(tmp_path) -> None:
     assert inset.structure.reduced_formula == "CsCl"
 
 
+def test_derived_poscar_without_elements_falls_back_to_potcar(
+        monkeypatch, tmp_path) -> None:
+    """A POSCAR lacking element symbols is resolved from a POTCAR file.
+
+    A VASP4-style POSCAR (no symbols on the species line) cannot be
+    parsed element-wise with ``check_for_potcar=False``, so the code
+    retries with ``check_for_potcar=True`` to read them from POTCAR.
+    """
+    (tmp_path / "POSCAR").write_text(
+        "CsCl\n"
+        "1.0\n"
+        "   4.21 0.0 0.0\n"
+        "   0.0 4.21 0.0\n"
+        "   0.0 0.0 4.21\n"
+        "   1 1\n"
+        "direct\n"
+        "   0.0 0.0 0.0\n"
+        "   0.5 0.5 0.5\n"
+    )
+    (tmp_path / "POTCAR").write_text("placeholder")
+
+    class _FakePotcar:
+        symbols = ["Cs_sv", "Cl"]
+
+    monkeypatch.setattr(
+        "pymatgen.io.vasp.inputs.Potcar.from_file",
+        lambda path: _FakePotcar(),
+    )
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        inset = IMDDerivedInputSet(directory=tmp_path, no_potcar=True)
+
+    assert inset.structure.reduced_formula == "CsCl"
+    assert [site.specie.symbol for site in inset.structure] == ["Cs", "Cl"]
+
+
 def test_derived_transfers_incar_variants(tmp_path) -> None:
     """INCAR.[0-9]* and INCAR.toml are always transferred; INCAR.py only
     when inherit_prev_incarpy is set."""

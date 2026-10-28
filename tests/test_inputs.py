@@ -149,6 +149,31 @@ def test_group_incars_common_incar() -> None:
     assert dict(common) == {"ENCUT": 400, "EDIFF": 1e-5}
 
 
+def test_group_incars_explicit_ignore_fields() -> None:
+    """A caller-provided ignore_fields list is used instead of the default."""
+    incars = [
+        Incar({"SYSTEM": "a", "ENCUT": 400, "ISIF": 2}),
+        Incar({"SYSTEM": "b", "ENCUT": 400, "ISIF": 3}),
+    ]
+    # Ignoring ISIF too collapses the two INCARs into one group.
+    _, groups = Incar.group_incars(incars, ignore_fields=["SYSTEM", "ISIF"])
+    assert len(groups) == 1
+    assert [incar["SYSTEM"] for incar in groups[0]] == ["a", "b"]
+
+
+def test_group_incars_drops_field_missing_from_later_group() -> None:
+    """A field present in only one group is removed from common_incar."""
+    incars = [
+        Incar({"SYSTEM": "a", "ENCUT": 400, "ISIF": 2, "MAGMOM": [1, 2, 3]}),
+        Incar({"SYSTEM": "b", "ENCUT": 400, "ISIF": 2}),
+    ]
+    common, groups = Incar.group_incars(incars)
+    assert len(groups) == 2
+    # MAGMOM appears only in the first group, so it cannot be common.
+    assert "MAGMOM" not in common
+    assert dict(common) == {"ENCUT": 400, "ISIF": 2}
+
+
 # --- _load_yaml_config ------------------------------------------------------
 
 

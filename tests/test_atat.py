@@ -112,3 +112,24 @@ def test_fit_sublattice_to_structure_reassigns_species() -> None:
     assert np.allclose(fitted[0].frac_coords, [0, 0, 0])
     assert fitted[1].species_string == "Li"
     assert np.allclose(fitted[1].frac_coords, [0.5, 0, 0])
+
+
+def test_fit_sublattice_fills_missing_sites_with_dummy() -> None:
+    """A relaxed structure with a vacancy gets the empty site filled with X."""
+    sublattice = Structure(
+        Lattice.cubic(4.0),
+        ["Li", DummySpecies("X"), DummySpecies("X")],
+        [[0, 0, 0], [0.5, 0, 0], [0, 0.5, 0]])
+    # Relaxed structure is missing the (0, 0.5, 0) site entirely.
+    structure = Structure(
+        Lattice.cubic(4.0), ["Li", DummySpecies("X")],
+        [[0, 0, 0], [0.5, 0, 0]])
+
+    fitted = fit_sublattice_to_structure(sublattice, structure)
+
+    assert len(fitted) == 3
+    assert fitted[0].species_string == "Li"
+    assert np.allclose(fitted[0].frac_coords, [0, 0, 0])
+    # The missing site is restored as an X dummy species.
+    assert isinstance(fitted[2].specie, DummySpecies)
+    assert np.allclose(fitted[2].frac_coords, [0, 0.5, 0])

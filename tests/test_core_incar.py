@@ -224,6 +224,51 @@ def test_write_incar_toml_update_backs_up_existing(tmp_path: Path) -> None:
     assert backup.read_text() == "a = 1\n"
 
 
+def test_write_incar_toml_update_skips_unseen_default(tmp_path: Path) -> None:
+    """A key equal to its default and absent from the file is omitted."""
+    path = tmp_path / "INCAR.toml"
+    path.write_text("a = 1\n")
+    write_incar_toml(
+        {"b": 2},
+        raw_existing={"a": 1},
+        defaults={"b": 2},
+        path=path,
+    )
+    # ``b`` equals its default and was not already present, so it is
+    # skipped; the user-owned ``a`` survives.
+    assert path.read_text() == "a = 1\n"
+
+
+def test_write_incar_toml_update_writes_key_without_default(tmp_path: Path) -> None:
+    """A key with no default is written verbatim in update mode."""
+    path = tmp_path / "INCAR.toml"
+    path.write_text("keep = 1\n")
+    write_incar_toml(
+        {"x": 5},
+        raw_existing={"keep": 1},
+        defaults={"a": 1},
+        path=path,
+    )
+    # ``x`` has no default, so it is written; ``keep`` is user-owned and
+    # survives because it is absent from defaults.
+    assert path.read_text() == "keep = 1\nx = 5\n"
+
+
+def test_write_incar_toml_replaces_stale_backup(tmp_path: Path) -> None:
+    """An existing .old backup is overwritten by the new backup."""
+    path = tmp_path / "INCAR.toml"
+    path.write_text("a = 1\n")
+    stale = tmp_path / "INCAR.toml.old"
+    stale.write_text("stale\n")
+    write_incar_toml(
+        {"a": 2},
+        raw_existing={"a": 1},
+        defaults={"a": 1},
+        path=path,
+    )
+    assert stale.read_text() == "a = 1\n"
+
+
 # --- write_incar_toml_sections ---------------------------------------------
 
 
@@ -280,3 +325,60 @@ def test_write_incar_toml_sections_backs_up_existing(tmp_path: Path) -> None:
     backup = tmp_path / "INCAR.toml.old"
     assert backup.exists()
     assert backup.read_text() == "old = 1\n"
+
+
+def test_write_incar_toml_sections_bootstrap_skips_none(tmp_path: Path) -> None:
+    """Bootstrap skips None values (TOML has no None literal)."""
+    path = tmp_path / "INCAR.toml"
+    write_incar_toml_sections(
+        {"a": None, "b": 2},
+        key_section={"a": "sec", "b": None},
+        path=path,
+    )
+    assert path.read_text() == "b = 2\n"
+
+
+def test_write_incar_toml_sections_update_skips_unseen_default(
+        tmp_path: Path) -> None:
+    """A key equal to its default and absent from the file is omitted."""
+    path = tmp_path / "INCAR.toml"
+    path.write_text("keep = 1\n")
+    write_incar_toml_sections(
+        {"a": 1},
+        key_section={"a": "sec"},
+        raw_existing={"keep": 1},
+        defaults={"sec": {"a": 1}},
+        path=path,
+    )
+    assert path.read_text() == "keep = 1\n"
+
+
+def test_write_incar_toml_sections_replaces_stale_backup(
+        tmp_path: Path) -> None:
+    """An existing .old backup is overwritten by the new backup."""
+    path = tmp_path / "INCAR.toml"
+    path.write_text("a = 1\n")
+    stale = tmp_path / "INCAR.toml.old"
+    stale.write_text("stale\n")
+    write_incar_toml_sections(
+        {"a": 2},
+        key_section={"a": None},
+        raw_existing={"a": 1},
+        path=path,
+    )
+    assert stale.read_text() == "a = 1\n"
+
+
+def test_write_incar_toml_sections_drops_adapter_owned_raw_key(
+        tmp_path: Path) -> None:
+    """A raw key with a default is not preserved; the new value wins."""
+    path = tmp_path / "INCAR.toml"
+    path.write_text("[sec]\na = 5\n")
+    write_incar_toml_sections(
+        {"a": 2},
+        key_section={"a": "sec"},
+        raw_existing={"sec": {"a": 5}},
+        defaults={"sec": {"a": 1}},
+        path=path,
+    )
+    assert path.read_text() == "[sec]\na = 2\n"

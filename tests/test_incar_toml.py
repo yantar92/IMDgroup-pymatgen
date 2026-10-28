@@ -168,6 +168,21 @@ def test_write_incar_toml_update_noop_when_unchanged(tmp_path: Path) -> None:
     assert path.read_text() == "b = 3\n"
 
 
+def test_write_incar_toml_update_drops_removed_owned_key(tmp_path: Path) -> None:
+    """Removing an owned key from values reverts it to the default."""
+    path = tmp_path / "INCAR.toml"
+    path.write_text("a = 1\nb = 1\n")
+    write_incar_toml(
+        {"b": 3},
+        raw_existing={"a": 1, "b": 1},
+        defaults={"a": 1, "b": 2},
+        path=path,
+    )
+    # ``a`` is owned and was removed from values, so it is omitted (the
+    # default is used).  ``b`` changed and is written.
+    assert path.read_text() == "b = 3\n"
+
+
 def test_write_incar_toml_update_backs_up_existing(tmp_path: Path) -> None:
     """A real write backs up the previous file to INCAR.toml.old."""
     path = tmp_path / "INCAR.toml"
@@ -181,3 +196,18 @@ def test_write_incar_toml_update_backs_up_existing(tmp_path: Path) -> None:
     backup = tmp_path / "INCAR.toml.old"
     assert backup.exists()
     assert backup.read_text() == "a = 1\n"
+
+
+def test_write_incar_toml_replaces_stale_backup(tmp_path: Path) -> None:
+    """An existing .old backup is replaced by the new backup."""
+    path = tmp_path / "INCAR.toml"
+    path.write_text("a = 1\n")
+    stale = tmp_path / "INCAR.toml.old"
+    stale.write_text("stale\n")
+    write_incar_toml(
+        {"a": 2},
+        raw_existing={"a": 1},
+        defaults={"a": 1},
+        path=path,
+    )
+    assert stale.read_text() == "a = 1\n"

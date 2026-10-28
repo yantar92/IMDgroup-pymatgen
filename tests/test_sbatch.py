@@ -91,6 +91,45 @@ def test_read_example_config_returns_bundled_toml() -> None:
     assert "[cluster.names]" in content
 
 
+# --- _candidate_config_paths / missing_config_message ------------------------
+
+
+def test_candidate_config_paths_with_imdgroup(monkeypatch) -> None:
+    """An IMDGroup checkout path takes precedence over the XDG location."""
+    monkeypatch.setenv("IMDGroup", "/opt/imdgroup")
+    monkeypatch.setenv("XDG_CONFIG_HOME", "/xdg")
+    paths = sbatch_mod._candidate_config_paths()
+    assert paths[0] == "/opt/imdgroup/dist/etc/gorun.toml"
+    assert paths[1] == "/xdg/gorun/gorun.toml"
+
+
+def test_candidate_config_paths_with_xdg(monkeypatch) -> None:
+    """XDG_CONFIG_HOME overrides the ~/.config default."""
+    monkeypatch.delenv("IMDGroup", raising=False)
+    monkeypatch.setenv("XDG_CONFIG_HOME", "/xdg")
+    paths = sbatch_mod._candidate_config_paths()
+    assert paths == ["/xdg/gorun/gorun.toml"]
+
+
+def test_candidate_config_paths_defaults_to_home(monkeypatch) -> None:
+    """Without IMDGroup or XDG_CONFIG_HOME, ~/.config is used."""
+    monkeypatch.delenv("IMDGroup", raising=False)
+    monkeypatch.delenv("XDG_CONFIG_HOME", raising=False)
+    paths = sbatch_mod._candidate_config_paths()
+    assert paths == [os.path.join(os.path.expanduser("~"), ".config",
+                                  "gorun", "gorun.toml")]
+
+
+def test_missing_config_message_includes_guidance(monkeypatch) -> None:
+    """The public message lists searched paths and setup guidance."""
+    monkeypatch.setattr(
+        sbatch_mod, "_candidate_config_paths", lambda: ["/a", "/b"])
+    msg = sbatch_mod.missing_config_message()
+    assert "No gorun configuration found" in msg
+    assert "/a" in msg and "/b" in msg
+    assert "gorun --example-config" in msg
+
+
 # --- resolve_server ---------------------------------------------------------
 
 

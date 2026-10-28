@@ -56,6 +56,18 @@ def _write_poscar(path) -> None:
     path.write_text(POSCAR)
 
 
+## add_args
+
+
+def test_add_args_registers_positional_and_output() -> None:
+    """The subparser registers the positional ``what`` and ``--output``."""
+    parser = argparse.ArgumentParser()
+    imdg_create.add_args(parser)
+    args = parser.parse_args(["mp-1234", "--output", "out"])
+    assert args.what == "mp-1234"
+    assert args.output == "out"
+
+
 ## create_from_file
 
 
@@ -102,6 +114,33 @@ def test_create_from_mpid_401_maps_to_value_error(monkeypatch) -> None:
     monkeypatch.setattr(pmg.Structure, 'from_id', fake_from_id)
     with pytest.raises(ValueError, match='API key was rejected'):
         imdg_create.create_from_mpid('mp-1234')
+
+
+def test_create_from_mpid_non_401_reraised(monkeypatch) -> None:
+    """A non-401 MPRestError is re-raised unchanged."""
+    monkeypatch.setattr(pmg, 'SETTINGS', {'PMG_MAPI_KEY': 'x' * 32})
+
+    def fake_from_id(mpid):
+        raise MPRestError('some other API failure')
+
+    monkeypatch.setattr(pmg.Structure, 'from_id', fake_from_id)
+    with pytest.raises(MPRestError, match='some other API failure'):
+        imdg_create.create_from_mpid('mp-1234')
+
+
+def test_create_from_mpid_standardises_non_primitive(monkeypatch) -> None:
+    """A non-primitive fetched structure is reduced to its standard cell."""
+    monkeypatch.setattr(pmg, 'SETTINGS', {'PMG_MAPI_KEY': 'x' * 32})
+    primitive = MatSciTest().get_structure('CsCl')
+
+    def fake_from_id(mpid):
+        # A supercell is non-primitive, so standardisation changes the lattice.
+        return primitive * (2, 1, 1)
+
+    monkeypatch.setattr(pmg.Structure, 'from_id', fake_from_id)
+    structure = imdg_create.create_from_mpid('mp-1234')
+    assert structure.properties['mpid'] == 'mp-1234'
+    assert len(structure) == len(primitive)
 
 
 def test_create_from_mpid_happy_path(monkeypatch) -> None:
