@@ -318,16 +318,3 @@ The structure comparison groups directories that converged to the same
 structure (symmetry-aware) and sorts groups by energy.
 
 [screenshot: imdg diff structure]
-
-## Visualize
-
-Visualization is independent of the loop above and usually runs on a
-finished set of results:
-
-```bash
-imdg visualize . hull --ion Li
-```
-
-See [cli](cli.md) for NEB, ATAT, hull, and voltage options.
-
-[screenshot: imdg visualize voltage]
