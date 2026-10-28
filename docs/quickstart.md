@@ -306,7 +306,7 @@ are masked (shown as `unreliable` / `unconverged`) to avoid accidental use.
 
 [screenshot: imdg analyze]
 
-## 9. Diff (compare results)
+## 10. Diff (compare results)
 
 ```bash
 imdg diff incar inserts/*
