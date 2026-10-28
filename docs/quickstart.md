@@ -200,13 +200,6 @@ Candidate time (plgrid): 2026-11-01 09:21:00
 Best finish time: 2026-11-01 09:21:00
 Submitted batch job 25323794
 Job submitted to SLURM scheduler.
-Running gorun in inserts/graphite_vdw.relax.ins.Li.1
-Regenerating POTCAR
-...graphite_vdw.relax.ins.Li.1: Copied vdw_kernel.bindat from ...
-Candidate time (plgrid): 2026-11-01 09:21:00
-Best finish time: 2026-11-01 09:21:00
-Submitted batch job 25323797
-Job submitted to SLURM scheduler.
 ...
 ```
 
