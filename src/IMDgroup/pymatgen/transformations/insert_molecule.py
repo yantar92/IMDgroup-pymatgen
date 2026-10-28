@@ -117,19 +117,14 @@ class InsertMoleculeTransformation(AbstractTransformation):
             try:
                 molecule = Molecule([get_el_sp(molecule)], [[0, 0, 0]])
             except ValueError as e:
-                if isinstance(molecule, str):
-                    # Try to parse as filename
-                    # FIXME: Molecule.from_file is annotated as
-                    # returning IMolecule | Molecule, but it always
-                    # returns a Molecule when called on Molecule.
-                    # Report upstream to narrow the annotation to
-                    # Molecule/Self.
-                    molecule = cast(Molecule, Molecule.from_file(molecule))
-                else:
-                    raise\
-                        ValueError(
-                            f"Can't parse Molecule or SpeciesLike\
-                            or filename from {molecule!r}") from e
+                assert isinstance(molecule, str)
+                # Try to parse as filename
+                # FIXME: Molecule.from_file is annotated as
+                # returning IMolecule | Molecule, but it always
+                # returns a Molecule when called on Molecule.
+                # Report upstream to narrow the annotation to
+                # Molecule/Self.
+                molecule = cast(Molecule, Molecule.from_file(molecule))
         if anglestep is not None:
             assert isinstance(molecule, Molecule) and len(molecule) > 1, \
                 "Cannot rotate non-molecule or molecule with a single atom."
