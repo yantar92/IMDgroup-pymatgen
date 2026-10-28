@@ -86,6 +86,15 @@ def _single_atom_structure() -> Structure:
     )
 
 
+def _carbon_lithium_structure() -> Structure:
+    """A carbon framework with one intercalated Li atom."""
+    return Structure(
+        lattice=Lattice.cubic(4.0),
+        species=['C', 'C', 'Li'],
+        coords=[[0.0, 0.0, 0.0], [0.5, 0.5, 0.5], [0.25, 0.25, 0.25]],
+    )
+
+
 def test_require_structure_none_raises() -> None:
     """A missing structure raises TypeError (caught by read_field)."""
     with pytest.raises(TypeError):
@@ -118,6 +127,21 @@ def test_read_field_missing_attribute_is_n_a() -> None:
 def test_read_field_missing_structure_is_n_a() -> None:
     """A field needing a structure reports N/A when the structure is None."""
     assert read_field('space_group', _VaspdirStub()) == 'N/A'
+
+
+def test_read_field_framework_space_group() -> None:
+    """Framework space group ignores the intercalated species."""
+    structure = _carbon_lithium_structure()
+    framework = Structure(
+        lattice=Lattice.cubic(4.0),
+        species=['C', 'C'],
+        coords=[[0.0, 0.0, 0.0], [0.5, 0.5, 0.5]],
+    )
+    expected = framework.get_space_group_info()[0]
+    assert _read_field_1(
+        'framework_space_group',
+        _VaspdirStub(final_structure=structure),
+    ) == expected
 
 
 ## _read_field_1

@@ -39,7 +39,11 @@ from rich.console import Console
 from rich.table import Table
 from pymatgen.core import Structure
 from IMDgroup.pymatgen.io.vasp.inputs import Incar
-from IMDgroup.pymatgen.core.structure import structure_distance
+from IMDgroup.pymatgen.core.structure import (
+    filter_framework,
+    get_framework_elements,
+    structure_distance,
+)
 from IMDgroup.pymatgen.io.vasp.vaspdir import IMDGVaspDir
 
 logger = logging.getLogger(__name__)
@@ -52,6 +56,7 @@ ALL_FIELDS = {
     'max_force': 'Max force',
     '%vol': '%vol', 'displ': 'displacement',
     'space_group': 'Space group',
+    'framework_space_group': 'Framework space group',
     'a': 'a', 'b': 'b', 'c': 'c',
     '%a': '%a', '%b': '%b', '%c': '%c',
     'alpha': 'α', 'beta': 'β', 'gamma': 'γ',
@@ -62,6 +67,7 @@ ALL_FIELDS = {
 # (csv/json/orgtbl) default to every field for full fidelity.
 DEFAULT_FIELDS = [
     'energy', 'e_per_atom', 'max_force', '%vol', 'displ', 'space_group',
+    'framework_space_group',
 ]
 
 
@@ -96,7 +102,10 @@ e_per_atom: Final energy per atom
 max_force: Maximum atomic force in the final step (eV/Å)
 %%vol: Volume change before/after the run
 displ: Total atom displacement / number of displaced atoms
-space_group, a, b, c, alpha, beta, gamma: Lattice parameters
+space_group: Space group of the final structure
+framework_space_group: Space group of the host framework (most common
+    element only, mobile species removed)
+a, b, c, alpha, beta, gamma: Lattice parameters
 %%a, %%b, %%c, %%alpha, %%beta, %%gamma: Change before/after the run
 """,
         nargs="+",
@@ -229,6 +238,11 @@ def _read_field_1(field: str, vaspdir: IMDGVaspDir):
     elif field == 'space_group':
         structure = _require_structure(vaspdir.final_structure)
         val = structure.get_space_group_info()[0]
+    elif field == 'framework_space_group':
+        structure = _require_structure(vaspdir.final_structure)
+        framework = filter_framework(
+            structure, get_framework_elements(structure))
+        val = framework.get_space_group_info()[0]
     elif field == 'a':
         val = _require_structure(vaspdir.final_structure).lattice.a
     elif field == '%a':

@@ -95,8 +95,8 @@ imdg analyze --format json
 ```
 
 Fields: `energy`, `e_per_atom`, `max_force`, `%vol`, `displ`,
-`space_group`, `a`, `b`, `c`, `alpha`, `beta`, `gamma`, and the
-`%`-changes of each. The table view shows a smaller set by
+`space_group`, `framework_space_group`, `a`, `b`, `c`, `alpha`, `beta`,
+`gamma`, and the `%`-changes of each. The table view shows a smaller set by
 default. Pass `--fields ALL` to show every field.  Energies judged
 unreliable (for example, from a volume/shape relaxation that shifted
 the k-point grid) or unconverged are shown as `unreliable` /

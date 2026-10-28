@@ -43,6 +43,8 @@ import IMDgroup.pymatgen.core.structure as structure_module
 from IMDgroup.pymatgen.core.structure import (
     IMDStructure,
     StructureDuplicateWarning,
+    filter_framework,
+    get_framework_elements,
     get_matched_structure,
     get_supercell_size,
     merge_structures,
@@ -70,6 +72,30 @@ def _scale_lattice(
     matrix = structure.lattice.matrix.copy()
     matrix[axis, axis] *= factor
     return Structure(Lattice(matrix), structure.species, structure.frac_coords)
+
+
+# --- framework helpers ------------------------------------------------------
+
+
+def _carbon_lithium() -> Structure:
+    """A carbon framework with one intercalated Li atom."""
+    return Structure(
+        lattice=Lattice.cubic(4.0),
+        species=['C', 'C', 'Li'],
+        coords=[[0.0, 0.0, 0.0], [0.5, 0.5, 0.5], [0.25, 0.25, 0.25]],
+    )
+
+
+def test_get_framework_elements_most_common() -> None:
+    """The framework element is the most common species."""
+    assert get_framework_elements(_carbon_lithium()) == ['C']
+
+
+def test_filter_framework_removes_mobile_species() -> None:
+    """Filtering keeps only the framework elements."""
+    framework = filter_framework(_carbon_lithium(), ['C'])
+    assert framework.species.num_atoms == 2
+    assert set(str(s.specie) for s in framework) == {'C'}
 
 
 # --- structure_strain -------------------------------------------------------

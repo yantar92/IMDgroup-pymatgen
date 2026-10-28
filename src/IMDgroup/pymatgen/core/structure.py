@@ -32,6 +32,8 @@ import os
 from pathlib import Path
 import multiprocessing
 from multiprocessing import Pool
+from collections import Counter
+from collections.abc import Collection
 import numpy as np
 from monty.io import zopen
 from pymatgen.core import PeriodicSite, Structure
@@ -791,3 +793,39 @@ def structure_strain(structure1: Structure, structure2: Structure):
     transform = np.dot(np.linalg.inv(lat_before), lat_after) - np.eye(3)
     strain = (transform + transform.transpose()) / 2.0
     return strain
+
+
+def get_framework_elements(structure: Structure) -> list[str]:
+    """Return the host-framework element symbols for *structure*.
+
+    The framework is the most common element, matching the default
+    behaviour of
+    :meth:`IMDGVaspDir.check_framework_symmetry`.  Mobile species
+    (intercalants, adsorbates) are assumed to be minority species.
+
+    Args:
+        structure: Structure to inspect.
+
+    Returns:
+        list[str]: Single-element list containing the framework symbol.
+    """
+    elements = Counter(str(site.specie) for site in structure)
+    return [elements.most_common(1)[0][0]]
+
+
+def filter_framework(
+        structure: Structure,
+        framework_elements: Collection[str]) -> Structure:
+    """Return a copy of *structure* containing only framework sites.
+
+    Args:
+        structure: Structure to filter.
+        framework_elements: Element symbols kept as the framework.
+
+    Returns:
+        Structure: A copy containing only sites of the framework elements.
+    """
+    indices = [i for i, site in enumerate(structure)
+               if str(site.specie) in framework_elements]
+    return structure.copy().remove_sites(
+        [i for i in range(len(structure)) if i not in indices])

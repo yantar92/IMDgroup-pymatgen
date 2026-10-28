@@ -69,7 +69,11 @@ from IMDgroup.pymatgen.io.vasp.diagnostics import (
     VaspWarningRecord,
     VaspWarnings,
 )
-from IMDgroup.pymatgen.core.structure import structure_distance
+from IMDgroup.pymatgen.core.structure import (
+    filter_framework,
+    get_framework_elements,
+    structure_distance,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -1165,9 +1169,7 @@ class IMDGVaspDir(Mapping, MSONable):
         assert self.initial_structure is not None
         assert self.final_structure is not None
         if framework_elements is None:
-            from collections import Counter
-            elements = Counter([str(site.specie) for site in self.initial_structure])
-            framework_elements = [elements.most_common(1)[0][0]]
+            framework_elements = get_framework_elements(self.initial_structure)
 
         # The result depends only on the framework element set, the
         # symmetry tolerance, and the RMS threshold.  The summary is
@@ -1182,15 +1184,10 @@ class IMDGVaspDir(Mapping, MSONable):
     def _compute_framework_symmetry(
             self, framework_elements, symprec, max_rms_threshold) -> bool:
         # Create framework-only structures
-        def filter_framework(structure):
-            indices = [i for i, site in enumerate(structure)
-                       if str(site.specie) in framework_elements]
-            return structure.copy().remove_sites(
-                [i for i in range(len(structure)) if i not in indices]
-            )
-
-        init_framework = filter_framework(self.initial_structure)
-        final_framework = filter_framework(self.final_structure)
+        init_framework = filter_framework(
+            self.initial_structure, framework_elements)
+        final_framework = filter_framework(
+            self.final_structure, framework_elements)
 
         # Check if framework symmetry changed
         init_sg = init_framework.get_space_group_info(symprec=symprec)
