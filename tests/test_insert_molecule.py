@@ -400,6 +400,25 @@ def test_insert_molecule_adds_free_flags_to_host_without_sd() -> None:
         [True, True, True]
 
 
+def test_insert_molecule_partial_flags_on_host_with_sd() -> None:
+    """A partial constraint on a host with SD keeps the host's flags."""
+    host = Structure(
+        Lattice.cubic(8.0), ["C"], [[0, 0, 0]], coords_are_cartesian=True)
+    host.add_site_property("selective_dynamics", [[False, False, False]])
+    transformer = InsertMoleculeTransformation(
+        "Na", step=1.0, selective_dynamics=[True, True, False])
+    result = transformer._insert_molecule(host.copy(), [0.5, 0.5, 0.5])
+    assert result is not None
+    na_site = [site for site in result if site.specie.symbol == "Na"][0]
+    assert list(na_site.properties["selective_dynamics"]) == \
+        [True, True, False]
+    # The host already has flags, so its [F, F, F] is left untouched
+    # rather than overwritten with free flags.
+    c_site = [site for site in result if site.specie.symbol == "C"][0]
+    assert list(c_site.properties["selective_dynamics"]) == \
+        [False, False, False]
+
+
 def test_insert_molecule_all_free_flags_on_host_without_sd_is_noop() -> None:
     """An all-free flag on a constraint-free host writes no constraints."""
     host = Structure(
