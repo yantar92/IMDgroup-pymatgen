@@ -70,6 +70,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Any
 
 import pandas as pd
 from ase.calculators.singlepoint import SinglePointCalculator
@@ -142,7 +143,7 @@ def _strip_constraints(structures: list) -> int:
 # Command formatting
 # ---------------------------------------------------------------------------
 
-def _format_cli_args(args: dict[str, object]) -> str:
+def _format_cli_args(args: dict[str, Any]) -> str:
     """Format a dict as ``--key value \\`` lines.
 
     Boolean ``True`` values produce ``--key`` (flag without value).
@@ -194,7 +195,7 @@ class MaceMultiheadFinetuneAdapter(GpuAdapter):
     #: stages.  Dict-valued keys represent TOML ``[section]`` tables:
     #: their sub-keys are forwarded directly to the corresponding
     #: MACE CLI stage.
-    DEFAULTS: dict[str, object] = {
+    DEFAULTS: dict[str, Any] = {
         # Top-level — gorun-specific (data sources, output, workflow)
         "model_path": "",
         "replay_xyz": "",
@@ -325,11 +326,11 @@ class MaceMultiheadFinetuneAdapter(GpuAdapter):
         select_raw = self.DEFAULTS.get("fine_tuning_select", {})
         if not isinstance(select_raw, dict):
             raise TypeError("DEFAULTS['fine_tuning_select'] must be a dict")
-        select_defaults: dict[str, object] = dict(select_raw)
+        select_defaults: dict[str, Any] = dict(select_raw)
         train_raw = self.DEFAULTS.get("run_train", {})
         if not isinstance(train_raw, dict):
             raise TypeError("DEFAULTS['run_train'] must be a dict")
-        train_defaults: dict[str, object] = dict(train_raw)
+        train_defaults: dict[str, Any] = dict(train_raw)
 
         # Build sets of known keys for auto-routing.
         known_select_keys: set[str] = set(select_defaults.keys())
@@ -339,8 +340,8 @@ class MaceMultiheadFinetuneAdapter(GpuAdapter):
         }
 
         # --- Merge sections: DEFAULTS < TOML section < incar_overrides section ---
-        merged_select: dict[str, object] = dict(select_defaults)
-        merged_train: dict[str, object] = dict(train_defaults)
+        merged_select: dict[str, Any] = dict(select_defaults)
+        merged_train: dict[str, Any] = dict(train_defaults)
 
         for key, val in raw_toml.items():
             if isinstance(val, dict):
@@ -357,7 +358,7 @@ class MaceMultiheadFinetuneAdapter(GpuAdapter):
             merged_train.update(section_overrides)
 
         # --- Merge top-level: DEFAULTS < TOML scalars < auto-routed incar ---
-        merged_top: dict[str, object] = {
+        merged_top: dict[str, Any] = {
             k: v for k, v in self.DEFAULTS.items()
             if not isinstance(v, dict)
         }
@@ -382,7 +383,7 @@ class MaceMultiheadFinetuneAdapter(GpuAdapter):
                 merged_train[key] = val
 
         # --- CLI kwargs override top-level ---
-        cli_kwargs: dict[str, object] = {}
+        cli_kwargs: dict[str, Any] = {}
         if model_path is not None:
             cli_kwargs["model_path"] = model_path
         if replay_xyz is not None:
@@ -430,17 +431,17 @@ class MaceMultiheadFinetuneAdapter(GpuAdapter):
         self.masked_loss: bool = merged_top.get("masked_loss", False)
 
         #: Extra CLI flags forwarded to ``fine_tuning_select``.
-        self._select_args: dict[str, object] = merged_select
+        self._select_args: dict[str, Any] = merged_select
 
         #: Extra CLI flags forwarded to ``run_train``.
-        self._train_args: dict[str, object] = merged_train
+        self._train_args: dict[str, Any] = merged_train
 
         #: Raw INCAR.toml content, stored for write-back in
         #: ``prepare_inputs``.
-        self._raw_toml: dict[str, object] = raw_toml
+        self._raw_toml: dict[str, Any] = raw_toml
 
         #: Flat merged parameter dict for INCAR.toml write-back.
-        self._merged_kwargs: dict[str, object] = {}
+        self._merged_kwargs: dict[str, Any] = {}
         self._merged_kwargs.update(merged_top)
         self._merged_kwargs.update(merged_select)
         self._merged_kwargs.update(merged_train)
@@ -535,6 +536,7 @@ class MaceMultiheadFinetuneAdapter(GpuAdapter):
 
     def is_valid_input(self, path: Path) -> bool:
         """Return True when at least one data source file exists."""
+        _ = path  # ignored
         sources = [
             p for p in (self.data_path, self.train_data_path, self.val_data_path)
             if p
@@ -572,6 +574,8 @@ class MaceMultiheadFinetuneAdapter(GpuAdapter):
     ) -> None:
         if keep is None:
             keep = set()
+
+        _ = kwargs  # ignored
 
         # Write back merged INCAR.toml.  Deferred here (rather than
         # in the constructor) so that the file is not touched when
@@ -701,6 +705,7 @@ class MaceMultiheadFinetuneAdapter(GpuAdapter):
         Without a RUNFILE, the standard two-stage fine-tuning
         workflow is generated.
         """
+        _ = server_config  # ignored
         runfile_sh = path / "RUNFILE.sh"
         runfile_py = path / "RUNFILE.py"
 
