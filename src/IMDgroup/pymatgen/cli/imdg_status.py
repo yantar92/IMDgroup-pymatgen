@@ -543,6 +543,7 @@ def status(args):
     # (dir, message, tips, source) tuples.
     dirs_with_warnings: dict[str, dict[str, list[tuple[str, str, list[str], str | None]]]] = {}
     rows: list[_RunRow] = []
+    n_skipped = 0
 
     dir_max = max(30, min(48, console.width - 70))
 
@@ -610,10 +611,12 @@ def status(args):
 
                 if args.skip_running and running:
                     logger.debug('skipping running run')
+                    n_skipped += 1
                     continue
 
                 if args.skip_converged and converged:
                     logger.debug('skipping converged run')
+                    n_skipped += 1
                     continue
 
                 progress = ""
@@ -660,6 +663,7 @@ def status(args):
 
                 if args.problematic and not warn_names\
                         and (converged or running):
+                    n_skipped += 1
                     continue
 
                 final_energy_str = ""
@@ -735,6 +739,8 @@ def status(args):
             (f"{n_running} running, ", "yellow"),
             (f"{n_converged} converged, ", "green"),
             (f"{n_other} unconverged", "red"))
+        if n_skipped:
+            summary.append(f", {n_skipped} skipped", style="dim")
 
         # Final frame: swap the progress line for the summary and render
         # the complete table so the terminal ends with every row visible.
@@ -761,6 +767,16 @@ def status(args):
         console.print()
         console.print("[bold yellow]Warnings:[/bold yellow]")
         for warn_name, by_category in dirs_with_warnings.items():
+            # Tips are shared across every directory carrying the same
+            # warning name, so print them once per name.
+            tips: list[str] = []
+            for category in category_order:
+                for _, _, entry_tips, _ in by_category.get(category, []):
+                    if entry_tips:
+                        tips = entry_tips
+                        break
+                if tips:
+                    break
             for category in category_order:
                 entries = by_category.get(category)
                 if not entries:
@@ -769,19 +785,31 @@ def status(args):
                 console.print(Text.assemble(
                     ("  ", ""),
                     (warn_name, "yellow"),
-                    (f"{tag} ({len(entries)}):\n", ""),
-                    ("      ", ""),
-                    (" ".join(dir_norm for dir_norm, _, _, _ in entries), "")))
-                for dir_norm, msg, tips, source in entries:
-                    if msg:
+                    (f"{tag} ({len(entries)}):", "")))
+                # Directory list stays on a single line so it can be
+                # copied straight into a command line.
+                dir_list = Text("      ")
+                for idx, (dir_norm, _, _, _) in enumerate(entries):
+                    if idx:
+                        dir_list.append(" ")
+                    dir_list.append(dir_norm, style="cyan")
+                console.print(dir_list, soft_wrap=True)
+                # Warning messages are separated from the directory list.
+                if any(msg for _, msg, _, _ in entries):
+                    console.print()
+                    for dir_norm, msg, _, source in entries:
+                        if not msg:
+                            continue
                         label = _source_label(source) or dir_norm
                         console.print(Text.assemble(
                             ("      ", ""),
-                            (f"{label}: ", ""),
+                            (label, "cyan"),
+                            (": ", ""),
                             (str(msg), "")))
-                    for tip in tips:
-                        console.print(Text.assemble(
-                            ("      TIP: ", "magenta bold"), (str(tip), "")))
+            if tips:
+                for tip in tips:
+                    console.print(Text.assemble(
+                        ("      TIP: ", "magenta bold"), (str(tip), "")))
 
     # Full details are only useful for runs still in flight or that
     # failed; converged runs would only repeat the CPU time already
