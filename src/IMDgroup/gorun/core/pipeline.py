@@ -184,6 +184,7 @@ def dispatch_run(args, adapter: SoftwareAdapter) -> int:
         else:
             print(colored("Running on unknown server.  Adjust the config.", "red"))
             return 1
+    assert config is not None
 
     # ---- 2. Validate environment ----
     adapter.validate_environment()
@@ -267,6 +268,8 @@ def dispatch_run(args, adapter: SoftwareAdapter) -> int:
         shebang = server_config.get("shebang", "#!/usr/bin/env bash")
         script = f"{shebang}\n{script_body}"
     else:
+        # Should not happen with the logic above
+        assert server is not None
         adapter_cfg = server_config.get(adapter.name, {})
         queues = (
             [args.queue]
