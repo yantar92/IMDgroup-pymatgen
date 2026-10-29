@@ -42,7 +42,7 @@ the [API dashboard](https://next-gen.materialsproject.org/api):
 
 ### POTCAR references (optional)
 
-Writing POTCAR needs a pseudopotential directory, written to the same
+Writing POTCAR needs a pseudopotential directory
 file:
 
 ```bash
@@ -80,7 +80,7 @@ partition = 'plgrid'
 
 Save it as `~/.config/gorun/gorun.toml` (see [gorun](gorun.md) for the
 search path). `gorun --example-config` prints a more complete example
-with more clusters and the GPU / MACE / ATAT sections.
+with more clusters and the GPU / MACE sections.
 
 `VASP_PATH` is the top-level VASP install directory (not the binary,
 not `bin/`); gorun runs `$VASP_PATH/bin/vasp_std`, `vasp_ncl`, or
@@ -120,6 +120,9 @@ Every derived directory also gets an `IMDVaspInputSet.log`. It records
 the structure, the source directory it was derived from (`directory:`),
 the inherited INCAR/KPOINTS, and the mutation applied (`name:` /
 `functional:`), so you can trace any result back to its inputs.
+
+If the source directory contains VASP output, `imdg derive` will use
+the final structure.
 
 ## 3. Set up relax calculation (ISIF=2)
 
@@ -189,7 +192,7 @@ Alternatively, submit right away
 
 ```bash
 # on login node, as slurm submissions are usually disabled from compute nodes
-gorun vasp --time 2:00:00 --dir inserts/*
+gorun vasp --time 12:00:00 --dir inserts/*
 ```
 
 ```
@@ -272,7 +275,7 @@ concentration that tends to create tricky electronic densities.
 Fix this via
 
 ```bash
-gorun --time 2:00:00 --incar NCORE:2 ALGO:All --dir inserts/graphite_vdw.relax.ins.Li.*
+gorun --time 12:00:00 --incar NCORE:2 ALGO:All --dir inserts/graphite_vdw.relax.ins.Li.*
 # You can also copy-paste the problematic folder list right from the imdg status output
 ```
 
