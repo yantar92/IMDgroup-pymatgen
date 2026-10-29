@@ -70,3 +70,15 @@ load the module and re-run `pip install .`.
 -   [Command-line reference](https://yantar92.github.io/IMDgroup-pymatgen/cli.html) and [job submission](https://yantar92.github.io/IMDgroup-pymatgen/gorun.html)
 -   [Python API](https://yantar92.github.io/IMDgroup-pymatgen/python_api.html)
 
+
+## Contributing
+
+Contributions are welcome.
+
+-   Report bugs and propose features by opening an [issue](https://github.com/yantar92/IMDgroup-pymatgen/issues).
+-   Ask questions and discuss design in [GitHub Discussions](https://github.com/yantar92/IMDgroup-pymatgen/discussions).
+-   Submit changes as [pull requests](https://github.com/yantar92/IMDgroup-pymatgen/pulls).
+
+You can also contact the maintainer directly by email
+(`yantar92@posteo.net`) or on GitHub.
+

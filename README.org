@@ -120,3 +120,14 @@ load the module and re-run ~pip install .~.
 - [[https://yantar92.github.io/IMDgroup-pymatgen/concepts.html][Why this exists]]: semi-automated workflow development
 - [[https://yantar92.github.io/IMDgroup-pymatgen/cli.html][Command-line reference]] and [[https://yantar92.github.io/IMDgroup-pymatgen/gorun.html][job submission]]
 - [[https://yantar92.github.io/IMDgroup-pymatgen/python_api.html][Python API]]
+
+** Contributing
+
+Contributions are welcome.
+
+- Report bugs and propose features by opening an [[https://github.com/yantar92/IMDgroup-pymatgen/issues][issue]].
+- Ask questions and discuss design in [[https://github.com/yantar92/IMDgroup-pymatgen/discussions][GitHub Discussions]].
+- Submit changes as [[https://github.com/yantar92/IMDgroup-pymatgen/pulls][pull requests]].
+
+You can also contact the maintainer directly by email
+(~yantar92@posteo.net~) or on GitHub.
