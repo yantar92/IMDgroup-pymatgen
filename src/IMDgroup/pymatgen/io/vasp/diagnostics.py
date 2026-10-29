@@ -43,6 +43,7 @@ The container is what downstream code should inspect; ``warnings.warn``
 remains as a side channel so existing notification timing is preserved.
 """
 
+import os
 import warnings
 from dataclasses import dataclass, field
 from typing import Iterator
@@ -125,6 +126,11 @@ class VaspWarnings(MSONable):
     ``add`` accumulates (for repeating log warnings, where the same
     pattern appears many times); ``overwrite`` replaces (for single-shot
     derived checks, so re-running a check is idempotent).
+
+    Both methods emit the record through :mod:`warnings`.  Pass
+    ``emit=False`` when merging already-emitted records (e.g. when
+    :class:`IMDGVaspDir` aggregates child containers).  Deserialization
+    (:meth:`from_dict` and pickle) re-emits all records.
     """
 
     def __init__(self, records: list[VaspWarningRecord] | None = None) -> None:
@@ -133,16 +139,41 @@ class VaspWarnings(MSONable):
             for record in records:
                 self.add(record)
 
-    def add(self, record: VaspWarningRecord) -> None:
-        """Insert a record, merging with an existing one of the same name."""
+    def add(self, record: VaspWarningRecord, *, emit: bool = True) -> None:
+        """Insert a record, merging with an existing one of the same name.
+
+        Emits through ``warnings.warn`` unless ``emit`` is False.
+        """
         if record.name in self._records:
             self._records[record.name] = self._records[record.name].merge(record)
         else:
             self._records[record.name] = record
+        if emit:
+            self._emit_record(record)
 
-    def overwrite(self, record: VaspWarningRecord) -> None:
-        """Insert or replace a record (idempotent for derived checks)."""
+    def overwrite(
+            self, record: VaspWarningRecord, *, emit: bool = True) -> None:
+        """Insert or replace a record (idempotent for derived checks).
+
+        Emits through ``warnings.warn`` unless ``emit`` is False.
+        """
         self._records[record.name] = record
+        if emit:
+            self._emit_record(record)
+
+    @staticmethod
+    def _format_message(record: VaspWarningRecord) -> str:
+        """Prepend the record source (directory/file) to the message."""
+        message = record.message
+        if record.source:
+            message = f"{os.path.relpath(str(record.source))}: {message}"
+        return message
+
+    def _emit_record(
+            self, record: VaspWarningRecord,
+            category: type[Warning] = VaspWarning) -> None:
+        """Emit one record through ``warnings.warn``."""
+        warnings.warn(self._format_message(record), category)
 
     def __getitem__(self, name: str) -> VaspWarningRecord:
         return self._records[name]
@@ -168,7 +199,16 @@ class VaspWarnings(MSONable):
     def emit(self, category: type[Warning] = VaspWarning) -> None:
         """Emit each record through ``warnings.warn``."""
         for record in self._records.values():
-            warnings.warn(record.message, category)
+            self._emit_record(record, category)
+
+    def __reduce__(self):
+        """Reconstruct through ``__init__`` on unpickle.
+
+        Routes pickle through the same path as :meth:`from_dict`
+        (``__init__`` -> ``add``), so both deserialization channels
+        re-emit the restored records.
+        """
+        return (type(self), (list(self._records.values()),))
 
     def as_dict(self) -> dict:
         return {

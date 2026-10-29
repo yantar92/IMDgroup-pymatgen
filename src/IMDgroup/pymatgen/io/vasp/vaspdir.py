@@ -65,7 +65,6 @@ from IMDgroup.pymatgen.io.vasp.outputs import (
     Vasplog,
 )
 from IMDgroup.pymatgen.io.vasp.diagnostics import (
-    VaspWarning,
     VaspWarningRecord,
     VaspWarnings,
 )
@@ -845,13 +844,12 @@ class IMDGVaspDir(Mapping, MSONable):
         """Record a directory-level warning and emit it.
 
         Records are overwritten by name, so re-running a check is
-        idempotent.
+        idempotent.  ``overwrite`` emits through ``warnings.warn``.
         """
         summary = self._ensure_summary_loaded()
         container = summary['warnings']
         assert isinstance(container, VaspWarnings)
         container.overwrite(record)
-        warnings.warn(record.message, VaspWarning)
 
     @property
     def warnings(self) -> VaspWarnings:
@@ -871,10 +869,10 @@ class IMDGVaspDir(Mapping, MSONable):
         if not summary['warnings_collected']:
             for log in self.logs():
                 for record in log.warnings.values():
-                    container.add(record)
+                    container.add(record, emit=False)
             if run := self['vasprun.xml']:
                 for record in run.warnings.values():
-                    container.add(record)
+                    container.add(record, emit=False)
             # Records energy reliability and, transitively, runs the
             # displacement/framework-symmetry checks via converged_*.
             self.final_energy

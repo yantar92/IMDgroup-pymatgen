@@ -42,7 +42,6 @@ from pymatgen.io.vasp.outputs import Vasprun as pmgVasprun
 from pymatgen.io.vasp.outputs import Outcar as pmgOutcar
 from IMDgroup.pymatgen.io.vasp.inputs import Incar
 from IMDgroup.pymatgen.io.vasp.diagnostics import (
-    VaspWarning,
     VaspWarningRecord,
     VaspWarnings,
 )
@@ -61,12 +60,11 @@ class Vasprun(pmgVasprun):
         """Record a structured warning and emit it.
 
         Records are overwritten by name, so re-running a check is
-        idempotent.
+        idempotent.  ``overwrite`` emits through ``warnings.warn``.
         """
         if getattr(self, '_warnings', None) is None:
             self._warnings = VaspWarnings()
         self._warnings.overwrite(record)
-        warnings.warn(record.message, VaspWarning)
 
     @property
     def warnings(self) -> VaspWarnings:
