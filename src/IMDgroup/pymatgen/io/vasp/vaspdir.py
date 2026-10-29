@@ -935,10 +935,7 @@ class IMDGVaspDir(Mapping, MSONable):
         def warn_unconverged():
             self._record(VaspWarningRecord(
                 name="unconverged_energy",
-                message=(
-                    "Reading final energy from unconverged run: "
-                    f"{os.path.relpath(self.path)}"
-                ),
+                message="Reading final energy from unconverged run",
                 source=self.path,
             ))
         if run := self['vasprun.xml']:
@@ -954,8 +951,8 @@ class IMDGVaspDir(Mapping, MSONable):
                 self._record(VaspWarningRecord(
                     name="unparseable_energy",
                     message=(
-                        f"Problems reading final energy (={final_energy}) from"
-                        f" {os.path.relpath(self.path)}/OUTCAR."
+                        f"Problems reading final energy (={final_energy})"
+                        f" from OUTCAR."
                     ),
                     source=self.path,
                 ))
@@ -1140,7 +1137,6 @@ class IMDGVaspDir(Mapping, MSONable):
             self._record(VaspWarningRecord(
                 name="large_displacement",
                 message=(
-                    f"{os.path.relpath(self.path)}: "
                     f"Large atomic displacement {max_displacement}"
                 ),
                 source=self.path,
@@ -1206,7 +1202,6 @@ class IMDGVaspDir(Mapping, MSONable):
                 self._record(VaspWarningRecord(
                     name="framework_symmetry",
                     message=(
-                        f"{os.path.relpath(self.path)}: "
                         f"Framework symmetry changed ({init_sg[0]} to {final_sg[0]}) "
                         f"with displacement (DIST={dist:.3f}Å)"
                     ),

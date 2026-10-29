@@ -306,8 +306,8 @@ def vasp_output_time(path):
 def _collect_warnings(
         warnings: VaspWarnings,
         ignore_list: None | list[str] = None
-        ) -> tuple[set[str], dict[str, tuple[str, list[str]]]]:
-    """Collect warning names and their message/tips metadata.
+        ) -> tuple[set[str], dict[str, tuple[str, list[str], str | None]]]:
+    """Collect warning names and their message/tips/source metadata.
 
     Args:
         warnings: Structured warning container for one run.
@@ -316,16 +316,19 @@ def _collect_warnings(
     Returns:
         A tuple ``(names, meta)`` where ``names`` is the set of warning
         names present (after ignoring) and ``meta`` maps each name to a
-        ``(message, tips)`` pair for the summary block.
+        ``(message, tips, source)`` triple for the summary block.  The
+        source is the record's ``source`` field; callers use it to print
+        the directory/file instead of relying on the message text.
     """
     names: set[str] = set()
-    meta: dict[str, tuple[str, list[str]]] = {}
+    meta: dict[str, tuple[str, list[str], str | None]] = {}
     for warn_name, record in warnings.items():
         if ignore_list is not None and warn_name in ignore_list:
             continue
         names.add(warn_name)
         if warn_name not in meta:
-            meta[warn_name] = (record.message, list(record.tips))
+            meta[warn_name] = (
+                record.message, list(record.tips), record.source)
     return names, meta
 
 
@@ -394,6 +397,21 @@ _RICH_TAG_RE = re.compile(r"\[/?[a-z]+?\]")
 def _strip_markup(text: str) -> str:
     """Remove simple rich color tags (e.g. ``[red]``) from TEXT."""
     return _RICH_TAG_RE.sub("", text)
+
+
+def _source_label(source: str | None) -> str:
+    """Render a warning record source as a relative path for display.
+
+    Args:
+        source: ``VaspWarningRecord.source`` value.
+
+    Returns:
+        str: The source path relative to the current directory, or an
+        empty string when ``source`` is falsy.
+    """
+    if not source:
+        return ""
+    return os.path.relpath(str(source))
 
 
 def _details_text(row: _RunRow) -> str:
@@ -522,8 +540,8 @@ def status(args):
 
     incars = []
     # warning name -> category (running/converged/unconverged) -> list of
-    # (dir, message, tips) triples.
-    dirs_with_warnings: dict[str, dict[str, list[tuple[str, str, list[str]]]]] = {}
+    # (dir, message, tips, source) tuples.
+    dirs_with_warnings: dict[str, dict[str, list[tuple[str, str, list[str], str | None]]]] = {}
     rows: list[_RunRow] = []
 
     dir_max = max(30, min(48, console.width - 70))
@@ -619,15 +637,16 @@ def status(args):
                     else:
                         category = "unconverged"
                     for warn_name in warn_names:
-                        msg, tips = meta[warn_name]
+                        msg, tips, source = meta[warn_name]
                         dirs_with_warnings.setdefault(
                             warn_name, {}).setdefault(
                                 category, []).append(
-                                    (dir_norm, msg, tips))
+                                    (dir_norm, msg, tips, source))
                     if not warn_names and category == "unconverged":
                         dirs_with_warnings.setdefault(
                             'UNCONVERGED', {}).setdefault(
-                                category, []).append((dir_norm, "", []))
+                                category, []).append(
+                                    (dir_norm, "", [], None))
                 else:
                     if not nebp:
                         logger.debug("Slurm log file not found in %s", wdir)
@@ -752,12 +771,13 @@ def status(args):
                     (warn_name, "yellow"),
                     (f"{tag} ({len(entries)}):\n", ""),
                     ("      ", ""),
-                    (" ".join(dir_norm for dir_norm, _, _ in entries), "")))
-                for dir_norm, msg, tips in entries:
+                    (" ".join(dir_norm for dir_norm, _, _, _ in entries), "")))
+                for dir_norm, msg, tips, source in entries:
                     if msg:
+                        label = _source_label(source) or dir_norm
                         console.print(Text.assemble(
                             ("      ", ""),
-                            (f"{dir_norm}: ", ""),
+                            (f"{label}: ", ""),
                             (str(msg), "")))
                     for tip in tips:
                         console.print(Text.assemble(

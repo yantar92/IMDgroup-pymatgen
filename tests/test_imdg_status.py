@@ -42,6 +42,7 @@ from IMDgroup.pymatgen.cli.imdg_status import (
     _collect_warnings,
     _details_text,
     _get_neb_summary,
+    _source_label,
     _strip_markup,
     format_duration,
     format_timing_stats,
@@ -161,17 +162,18 @@ def test_format_timing_stats_single_sample_omits_std() -> None:
 
 def _warnings() -> VaspWarnings:
     return VaspWarnings([
-        VaspWarningRecord('alpha', 'msg A', tips=['tip1', 'tip2']),
+        VaspWarningRecord(
+            'alpha', 'msg A', tips=['tip1', 'tip2'], source='/a/b'),
         VaspWarningRecord('beta', 'msg B'),
     ])
 
 
 def test_collect_warnings_returns_names_and_meta() -> None:
-    """Names and (message, tips) metadata are collected per record."""
+    """Names and (message, tips, source) metadata are collected per record."""
     names, meta = _collect_warnings(_warnings())
     assert names == {'alpha', 'beta'}
-    assert meta['alpha'] == ('msg A', ['tip1', 'tip2'])
-    assert meta['beta'] == ('msg B', [])
+    assert meta['alpha'] == ('msg A', ['tip1', 'tip2'], '/a/b')
+    assert meta['beta'] == ('msg B', [], None)
 
 
 def test_collect_warnings_honours_ignore_list() -> None:
@@ -187,6 +189,13 @@ def test_collect_warnings_honours_ignore_list() -> None:
 def test_strip_markup_removes_colour_tags() -> None:
     """Simple rich colour tags are removed, plain text preserved."""
     assert _strip_markup('[red]foo[/red] bar') == 'foo bar'
+
+
+def test_source_label_renders_relative_path() -> None:
+    """A record source is shown relative to the current directory."""
+    assert _source_label(None) == ""
+    assert _source_label("") == ""
+    assert _source_label("/a/b/c") == os.path.relpath("/a/b/c")
 
 
 def _row(**overrides) -> _RunRow:

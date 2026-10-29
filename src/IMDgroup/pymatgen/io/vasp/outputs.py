@@ -142,7 +142,6 @@ class Vasprun(pmgVasprun):
             self._record(VaspWarningRecord(
                 name="stress_convergence",
                 message=(
-                    f"{os.path.relpath(self.filename)}: "
                     f"Hydrostatic stress is {external_pressure}"
                     f" > {self.PRESSURE_CONVERGENCE_THRESHOLD}"
                 ),
@@ -191,7 +190,6 @@ class Vasprun(pmgVasprun):
             self._record(VaspWarningRecord(
                 name="force_convergence",
                 message=(
-                    f"{os.path.relpath(self.filename)}: "
                     f"Large force found {max_force:.3f} > {threshold}eV/Å"
                 ),
                 source=getattr(self, 'filename', None),
@@ -234,7 +232,6 @@ class Vasprun(pmgVasprun):
             self._record(VaspWarningRecord(
                 name="energy_increase",
                 message=(
-                    f"{os.path.relpath(self.filename)}: "
                     f"Final ionic energy ({final_energy:.6f} eV) is "
                     f"{increase:.6f} eV ({increase_per_atom:.6f} eV/atom) "
                     f"above the minimum intermediate energy "
