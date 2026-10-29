@@ -70,7 +70,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import pandas as pd
 from ase.calculators.singlepoint import SinglePointCalculator
@@ -632,10 +632,14 @@ class MaceMultiheadFinetuneAdapter(GpuAdapter):
             val = self._read_and_clean(self.val_data_path)
         elif self.data_path:
             structures = self._read_and_clean(self.data_path)
-            train, val = train_test_split(
-                structures, test_size=self.split_ratio,
-                random_state=self.seed,
-            )
+            train: list[Atoms]
+            val: list[Atoms]
+            train, val = cast(
+                tuple[list[Atoms], list[Atoms]],
+                train_test_split(
+                    structures, test_size=self.split_ratio,
+                    random_state=self.seed,
+            ))
         else:
             print(
                 "No data source specified "

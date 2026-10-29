@@ -42,6 +42,7 @@ from __future__ import annotations
 import shutil
 import tomllib
 from pathlib import Path
+from typing import AbstractSet
 
 from termcolor import colored
 
@@ -225,7 +226,7 @@ def write_incar_toml_sections(
     key_section: dict[str, str | None],
     raw_existing: dict[str, object] | None = None,
     defaults: dict[str, object] | None = None,
-    always_include: set[str] | None = None,
+    always_include: AbstractSet[str] | None = None,
     path: Path = _INCAR_PATH,
 ) -> None:
     """Write ``INCAR.toml`` (at *path*) with ``[section]`` grouping.
