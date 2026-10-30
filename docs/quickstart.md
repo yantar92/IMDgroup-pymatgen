@@ -295,34 +295,87 @@ Job submitted to SLURM scheduler.
 ```
 
 Now, everything should converge numerically.
+However, despite numerical convergence, there are anomalies - carbon
+framework symmetry is not preserved. The original AB graphite stacking
+is altered.
 
 ```bash
 imdg status --exclude gorun
 ```
 
+```
+...
+8 runs: 0 running, 8 converged, 0 unconverged
+           WHEN  STATUS     DIR                                ENERGY (eV)  FMAX (eV/Å)  PER-STEP                   WARN                DETAILS
+  1d 19h 6m ago  converged  inserts/graphite_vdw.relax.2x2x1.    -129.2873       0.0054  SCF: 1s±0s relax: 6s±2s    framework_symmetry  CPU 0:02:47 (96 cor…
+                            ins.Li.0
+ 1d 18h 59m ago  converged  inserts/graphite_vdw.relax.2x2x1.    -129.2876       0.0094  SCF: 1s±0s relax: 6s±2s    framework_symmetry  CPU 0:04:57 (96 cor…
+                            ins.Li.1
+ 1d 18h 28m ago  converged  inserts/graphite_vdw.relax.2x2x1.    -129.4237       0.0071  SCF: 4s±0s relax: 27s±9s   -                   CPU 0:33:53 (96 cor…
+                            ins.Li.2
+ 1d 17h 40m ago  converged  inserts/graphite_vdw.relax.2x2x1.    -129.5115       0.0076  SCF: 4s±2s relax: 27s±11s  framework_symmetry  CPU 0:13:59 (96 cor…
+                            ins.Li.3
+ 1d 18h 52m ago  converged  inserts/graphite_vdw.relax.ins.Li     -32.2422       0.0007  SCF: 4s±2s relax: 31s±9s   framework_symmetry  CPU 0:05:59 (96 cor…
+                            .0
+ 1d 18h 33m ago  converged  inserts/graphite_vdw.relax.ins.Li     -32.2422       0.0084  SCF: 4s±1s relax: 42s±29s  -                   CPU 0:24:52 (96 cor…
+                            .1
+     16h 1m ago  converged  inserts/graphite_vdw.relax.ins.Li     -32.2341       0.0095  SCF: 17s±3s relax: 2m±35s  framework_symmetry  CPU 8:48:34 (96 cor…
+                            .2
+    19h 33m ago  converged  inserts/graphite_vdw.relax.ins.Li     -32.4947       0.0097  SCF: 19s±3s relax: 2m±35s  framework_symmetry  CPU 5:10:15 (96 cor…
+                            .3
 
+Warnings:
+  framework_symmetry [converged] (6):
+  ...
+      inserts/graphite_vdw.relax.2x2x1.ins.Li.0: Framework symmetry changed (P6_3/mmc to P-3m1) with displacement (DIST=0.500Å)
+      inserts/graphite_vdw.relax.2x2x1.ins.Li.1: Framework symmetry changed (P6_3/mmc to P-3m1) with displacement (DIST=0.506Å)
+      inserts/graphite_vdw.relax.2x2x1.ins.Li.3: Framework symmetry changed (P6_3/mmc to C2/m) with displacement (DIST=0.678Å)
+      inserts/graphite_vdw.relax.ins.Li.0: Framework symmetry changed (P6_3/mmc to P-3m1) with displacement (DIST=0.000Å)
+      inserts/graphite_vdw.relax.ins.Li.2: Framework symmetry changed (P6_3/mmc to P6/mmm) with displacement (DIST=0.980Å)
+      inserts/graphite_vdw.relax.ins.Li.3: Framework symmetry changed (P6_3/mmc to P6/mmm) with displacement (DIST=0.811Å)
+```
 
 ## 9. Analyze
 
 ```bash
-imdg analyze
+imdg analyze inserts/* --exclude gorun
 ```
 
-Tabular summary of energy, %vol, displacement, lattice changes, max
-force, grouped by identical INCAR settings. Energies judged unreliable
-are masked (shown as `unreliable` / `unconverged`) to avoid accidental use.
+This summarized the converged calculations in a table form.
+Note that the anomalies are still reported as warnings; the same will
+happen with any other CLI command or Python API use.
 
-[screenshot: imdg analyze]
+```
+on 0: VaspWarning: inserts/graphite_vdw.relax.2x2x1.ins.Li.0: Framework symmetry changed (P6_3/mmc to P-3m1)
+on 1: VaspWarning: inserts/graphite_vdw.relax.2x2x1.ins.Li.1: Framework symmetry changed (P6_3/mmc to P-3m1)
+...
+ Directory                                  INCAR type      Energy    E/Atom  Max force  %vol  displacement  Space group  Framework space group
+ inserts/graphite_vdw.relax.2x2x1.ins.Li.0           0  -129.28734  -7.60514     0.0054  0.00          0.04        P-3m1                  P-3m1
+ inserts/graphite_vdw.relax.2x2x1.ins.Li.1           0  -129.28758  -7.60515     0.0094  0.00          0.06        P-3m1                  P-3m1
+ inserts/graphite_vdw.relax.2x2x1.ins.Li.2           0  -129.42373  -7.61316     0.0071  0.00          0.15           Cm                   C2/m
+ inserts/graphite_vdw.relax.2x2x1.ins.Li.3           0  -129.51152  -7.61832     0.0076  0.00          0.16       P6/mmm                   C2/m
+ inserts/graphite_vdw.relax.ins.Li.0                 0   -32.24221  -6.44844     0.0007  0.00          0.00        P-3m1                  P-3m1
+ inserts/graphite_vdw.relax.ins.Li.1                 0   -32.24221  -6.44844     0.0084  0.00          0.18        P-3m1                  P-3m1
+ inserts/graphite_vdw.relax.ins.Li.2                 0   -32.23414  -6.44683     0.0095  0.00          0.51         P6mm                 P6/mmm
+ inserts/graphite_vdw.relax.ins.Li.3                 0   -32.49471  -6.49894     0.0097  0.00          0.34       P6/mmm                 P6/mmm
+```
 
 ## 10. Diff (compare results)
 
 ```bash
-imdg diff incar inserts/*
 imdg diff structure inserts/*
 ```
 
-The INCAR comparison shows common settings and per-group differences.
 The structure comparison groups directories that converged to the same
 structure (symmetry-aware) and sorts groups by energy.
 
-[screenshot: imdg diff structure]
+```
+List of structures grouped by similarity
+Group 1: Energy=-129.512eV (+0.000) inserts/graphite_vdw.relax.2x2x1.ins.Li.3
+Group 2: Energy=-129.424eV (+0.088) inserts/graphite_vdw.relax.2x2x1.ins.Li.2
+Group 3: Energy=-129.287eV (+0.137) inserts/graphite_vdw.relax.2x2x1.ins.Li.0  inserts/graphite_vdw.relax.2x2x1.ins.Li.1
+Group 4: Energy=-32.495eV (+96.792) inserts/graphite_vdw.relax.ins.Li.3
+Group 5: Energy=-32.242eV (+0.253) inserts/graphite_vdw.relax.ins.Li.0  inserts/graphite_vdw.relax.ins.Li.1
+Group 6: Energy=-32.234eV (+0.008) inserts/graphite_vdw.relax.ins.Li.2
+```
+
