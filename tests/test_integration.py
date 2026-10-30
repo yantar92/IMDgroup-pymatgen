@@ -41,9 +41,11 @@ binaries on =PATH=, so they are kept opt-in behind
 from __future__ import annotations
 
 import os
+import signal
 import sys
 import shutil
 import subprocess
+import time
 from pathlib import Path
 
 import pytest
@@ -160,6 +162,52 @@ def test_vasp_local_failure_propagates_status(
 
     assert rc == 1
     assert "vasp failing" in fake_cluster.log.read_text()
+
+
+def test_vasp_local_usr1_signal_cleans_running(
+    fake_cluster, tmp_path: Path, monkeypatch
+) -> None:
+    """A USR1 signal mid-run removes RUNNING before the job dies."""
+    monkeypatch.chdir(tmp_path)
+    _copy_vasp_inputs(tmp_path)
+
+    # Overwrite the fake VASP binary to block long enough to signal it.
+    vasp = fake_cluster.vasp_path / "bin" / "vasp_ncl"
+    vasp.write_text(
+        "#!/bin/sh\n"
+        'echo "vasp ncl" >> "$GORUN_FAKE_LOG"\n'
+        "touch vasp_started\n"
+        "sleep 60\n"
+    )
+    vasp.chmod(0o755)
+
+    # Generate (but do not execute) the run script via --mark.  The sbatch
+    # path already requests USR1 via `#SBATCH --signal=B:USR1@300`; running
+    # the script directly lets us emulate that signal deterministically.
+    rc = gorun_main(
+        ["vasp", "--mark", "--keep", "POTCAR", "--config", CONFIG]
+    )
+    assert rc == 0
+
+    proc = subprocess.Popen(["bash", "sub"], cwd=tmp_path)
+
+    # Wait until the computation body is actually running.  This also
+    # guarantees the USR1 trap has been installed (it is set before the
+    # body is launched), so the signal is not delivered too early.
+    started = tmp_path / "vasp_started"
+    for _ in range(200):
+        if started.exists():
+            break
+        time.sleep(0.05)
+    assert started.exists(), "fake VASP never started"
+    assert (tmp_path / "RUNNING").exists(), "RUNNING was not created"
+
+    proc.send_signal(signal.SIGUSR1)
+    rc = proc.wait(timeout=10)
+
+    # 138 = 128 + SIGUSR1(10), propagated by the script's trap handler.
+    assert rc == 138
+    assert not (tmp_path / "RUNNING").exists()
 
 
 def test_vasp_incar_py_mark_uses_subclass(

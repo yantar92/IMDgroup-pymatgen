@@ -60,6 +60,14 @@ touch "RUNNING"
 # start a background monitor that will delete the flag when the parent dies
 { while ps -o pid= -p $$ >/dev/null 2>&1; do sleep 30; done; cleanup; } &
 monitor_pid=$!
+# We set up SLURM to send USR1 (and scancel sends TERM by default) so
+# the job can clean up before it is killed.  Bash only runs traps
+# while it is waiting on a command via `wait`, not while a foreground
+# command is running, so the computation body below is launched in the
+# background and awaited.
+_signal_exit(){ cleanup; kill $monitor_pid 2>/dev/null; exit $1; }
+trap '_signal_exit 138' USR1
+trap '_signal_exit 143' TERM
 """
 
 _RUNNING_CLEANUP = """\
@@ -257,9 +265,14 @@ def dispatch_run(args, adapter: SoftwareAdapter) -> int:
     body = adapter.generate_run_commands(cwd, server_config)
 
     # Capture the computation's exit status before the cleanup step (which
-    # must run regardless) and re-exit with it.
+    # must run regardless) and re-exit with it.  The body runs in the
+    # background so the USR1/TERM traps above fire immediately while the
+    # computation is still running (see _RUNNING_SETUP).
     script_body = (
-        f"{setup}\n{_RUNNING_SETUP}\n{body}\n"
+        f"{setup}\n{_RUNNING_SETUP}\n"
+        f"{{\n{body}\n}} &\n"
+        "_gorun_pid=$!\n"
+        "wait $_gorun_pid\n"
         f"_gorun_status=$?\n{_RUNNING_CLEANUP}\nexit $_gorun_status"
     )
 

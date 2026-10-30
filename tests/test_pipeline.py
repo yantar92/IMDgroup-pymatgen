@@ -353,3 +353,17 @@ def test_dispatch_run_local_script_propagates_status(
     sub = (tmp_path / "sub").read_text()
     assert "_gorun_status=$?" in sub
     assert "exit $_gorun_status" in sub
+
+
+def test_dispatch_run_local_script_traps_signals(
+    monkeypatch, tmp_path: Path, stub_adapter
+) -> None:
+    """The run script traps USR1/TERM and awaits a backgrounded body."""
+    monkeypatch.chdir(tmp_path)
+    _setup_pipeline(monkeypatch)
+    assert dispatch_run(_args(local=True, mark=True), stub_adapter) == 0
+    sub = (tmp_path / "sub").read_text()
+    assert "trap '_signal_exit 138' USR1" in sub
+    assert "trap '_signal_exit 143' TERM" in sub
+    assert "} &" in sub
+    assert "wait $_gorun_pid" in sub
