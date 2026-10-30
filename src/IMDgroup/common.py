@@ -27,8 +27,22 @@
 
 """Common routines used across the sub-libraries."""
 import logging
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
+
+
+def short_path(path) -> str:
+    """Return the final path component for compact log messages.
+
+    gorun working directories live under long cluster mount points
+    (e.g. ``/net/storage/.../generations.Li/.../relax.2``).  Repeating
+    the full path on every line drowns out the useful information, so
+    per-step messages only show the final component.  The working
+    directory is announced once at the start of a run.
+    """
+    name = Path(path).name
+    return name if name else str(path)
 
 
 def configure_progress_output():

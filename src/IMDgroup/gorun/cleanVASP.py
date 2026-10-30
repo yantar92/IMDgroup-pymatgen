@@ -39,6 +39,7 @@ from IMDgroup.pymatgen.io.vasp.sets import (
     POTCAR_RECOMMENDED,
 )
 from IMDgroup.pymatgen.io.vasp.vaspdir import IMDGVaspDir
+from IMDgroup.common import short_path
 from IMDgroup.gorun.core.incar import read_incar_toml
 from xml.etree.ElementTree import ParseError
 
@@ -121,7 +122,7 @@ def contcar_to_poscar(path) -> None:
     poscar_path = os.path.join(path, 'POSCAR')
     if os.path.exists(contcar_path) and os.path.getsize(contcar_path) > 0:
         shutil.copy2(contcar_path, poscar_path)
-        print(f"{path}: Found CONTCAR file.  Copying over to POSCAR.")
+        print(f"{short_path(path)}: Found CONTCAR file.  Copying over to POSCAR.")
 
 
 def put_vdw_kernel(path) -> None:
@@ -139,7 +140,7 @@ def put_vdw_kernel(path) -> None:
     for vdw_path in [vdw_path_1, vdw_path_2]:
         if os.path.exists(vdw_path) and os.path.getsize(vdw_path) > 0:
             shutil.copy2(vdw_path, vdw_target)
-            print(f"{path}: Copied vdw_kernel.bindat from {vdw_path}")
+            print(f"{short_path(path)}: Copied vdw_kernel.bindat")
             return
     warnings.warn(
         "Cannot find vdw_kernel.bindat.  "
@@ -166,7 +167,7 @@ def clean_vasp_input(file_path: str) -> None:
         file.write(clean_content)
 
     if clean_content != content:
-        print(f'Cleaned file: {file_path}')
+        print(f'Cleaned file: {short_path(file_path)}')
 
 
 def clean_vasp_inputs(path='.') -> None:
@@ -251,7 +252,7 @@ def generate_potcar(path='.', keep_existing=False) -> None:
         return
     potcar_path = os.path.join(path, 'POTCAR')
     if os.path.isfile(potcar_path) and keep_existing:
-        print(f'{path}: Not updating existing POTCAR.')
+        print(f'{short_path(path)}: Keeping existing POTCAR.')
         return
 
     poscar = Poscar.from_file(poscar_path, check_for_potcar=False)
@@ -269,9 +270,9 @@ def generate_potcar(path='.', keep_existing=False) -> None:
     potcar.write_file(potcar_path)
     size_after = os.path.getsize(potcar_path)
     if size_before == 0:
-        print(f'{path}: Generated POTCAR.')
+        print(f'{short_path(path)}: Generated POTCAR.')
     elif size_after != size_before:
-        print(f'{path}: Updated POTCAR.  (old POTCAR saved to POTCAR.old)')
+        print(f'{short_path(path)}: Updated POTCAR.  (old POTCAR saved to POTCAR.old)')
         new_potcar = Potcar.from_file(potcar_path)
         assert prev_potcar is not None
         if prev_potcar.symbols != new_potcar.symbols:

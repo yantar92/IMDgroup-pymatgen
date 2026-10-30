@@ -40,6 +40,8 @@ from pathlib import Path
 
 from termcolor import colored
 
+from IMDgroup.common import short_path
+
 logger = logging.getLogger(__name__)
 
 
@@ -94,7 +96,7 @@ def clear_slurm_logs(path='.', extra_logs=None):
     for slurm_file in glob.glob(os.path.join(path, "slurm-*.out")) + extra_files:
         try:
             os.remove(slurm_file)
-            print(f"Deleted old SLURM file: {slurm_file}")
+            print(f"Deleted old SLURM file: {short_path(slurm_file)}")
         except OSError as e:
             print(f"Error deleting SLURM file {slurm_file}: {e}")
 
@@ -215,7 +217,8 @@ def get_best_script(
             max_cpus/cpus *\
             dateutil.relativedelta.relativedelta(
                 hours=int(hours), minutes=int(minutes), seconds=int(seconds))
-        print(f'Candidate time ({script_args["partition"]}): {finish_time}')
+        if len(alt_args) > 1:
+            print(f'Candidate time ({script_args["partition"]}): {finish_time}')
         if finish_time < best_finish_time:
             best_finish_time = finish_time
             best_script = script_

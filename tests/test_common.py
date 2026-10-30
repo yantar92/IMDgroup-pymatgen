@@ -29,7 +29,7 @@
 
 from __future__ import annotations
 
-from IMDgroup.common import groupby_cmp
+from IMDgroup.common import groupby_cmp, short_path
 
 
 def test_groupby_cmp_groups_equivalent() -> None:
@@ -59,3 +59,13 @@ def test_groupby_cmp_title_function() -> None:
     calls: list = []
     groupby_cmp([1, 2], lambda a, b: a == b, title_function=calls.append)
     assert calls == [1, 2]
+
+
+def test_short_path_returns_basename() -> None:
+    """The final path component is returned for compact logging."""
+    assert short_path("/net/storage/.../relax.2") == "relax.2"
+
+
+def test_short_path_empty_name_falls_back() -> None:
+    """A path whose final component is empty returns the full path."""
+    assert short_path(".") == "."

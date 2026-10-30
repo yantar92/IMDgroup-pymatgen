@@ -117,13 +117,13 @@ def _backup_current_dir(path: Path, excludes: list[str]) -> None:
     Previous backup (except *gorun_1*) is compressed to a tarball.
     """
     barf_if_no_cmd("rsync")
-    print(f"Backing up {path}")
+    print("Backing up current directory")
 
     previous_num = _last_run_number(path)
     if previous_num is not None:
         previous_dir = path / f"{_BACKUP_PREFIX}_{previous_num}"
         if previous_num != 1 and previous_dir.is_dir():
-            print(f"Compressing previous run: {previous_dir}")
+            print(f"Compressing previous run: {previous_dir.name}")
             tar_path = path / f"{previous_dir.name}.tar.gz"
             with tarfile.open(tar_path, mode="w:gz") as tar:
                 tar.add(str(previous_dir), arcname=previous_dir.name)
