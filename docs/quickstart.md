@@ -206,6 +206,9 @@ Job submitted to SLURM scheduler.
 ...
 ```
 
+*Note*: This example calculation does not account for magnetization,
+which is faster, but not physically accurate.
+
 ## 7. Monitor
 
 ```bash
@@ -247,7 +250,8 @@ Directories containing VASP input but not output:
 Warnings:
   subspacematrix [unconverged] (4):
       inserts/graphite_vdw.relax.ins.Li.0 inserts/graphite_vdw.relax.ins.Li.1 inserts/graphite_vdw.relax.ins.Li.2 inserts/graphite_vdw.relax.ins.Li.3
-      WARNING: Sub-Space-Matrix is not hermitian in DAV           12
+
+      inserts/graphite_vdw.relax.ins.Li.0: WARNING: Sub-Space-Matrix is not hermitian in DAV           12
       TIP: Might happen when NCORE/NPAR is too large or atoms are too close. As long as converged, should not affect final energy
 ...
 Details:
@@ -261,7 +265,8 @@ At the previous steps, all the non-supercell structures failed with common issue
 ```
   subspacematrix [unconverged] (4):
       inserts/graphite_vdw.relax.ins.Li.0 inserts/graphite_vdw.relax.ins.Li.1 inserts/graphite_vdw.relax.ins.Li.2 inserts/graphite_vdw.relax.ins.Li.3
-      WARNING: Sub-Space-Matrix is not hermitian in DAV           12
+
+      inserts/graphite_vdw.relax.ins.Li.0: WARNING: Sub-Space-Matrix is not hermitian in DAV           12
       TIP: Might happen when NCORE/NPAR is too large or atoms are too close. As long as converged, should not affect final energy
 ```
 
