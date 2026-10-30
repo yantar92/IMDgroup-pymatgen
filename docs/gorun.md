@@ -71,8 +71,8 @@ Submit a VASP job from the current directory. Plain `gorun` is shorthand
 for `gorun vasp`.
 
 ```bash
-gorun vasp --nodes 2 --time-limit 24:00:00
-gorun --vasp gam --nodes 1 --time-limit 1:00:00
+gorun vasp --nodes 2 --time 1d
+gorun --vasp gam --nodes 1 --time 1h
 gorun --incar ISIF:3 NSW:100
 gorun --local
 ```

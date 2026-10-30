@@ -27,12 +27,15 @@
 """Slurm job submission for VASP, MACE, and other backends.
 
 Usage:
-    gorun vasp [OPTS] [--nodes N] [--time-limit HH:MM:SS]
-    gorun mace [OPTS] [--time-limit HH:MM:SS]
-    gorun gpu [OPTS] [--time-limit HH:MM:SS]
+    gorun vasp [OPTS] [--nodes N] [--time-limit TIME]
+    gorun mace [OPTS] [--time-limit TIME]
+    gorun gpu [OPTS] [--time-limit TIME]
 
-Plain ``gorun [OPTS] [--nodes N] [--time-limit HH:MM:SS]``
+Plain ``gorun [OPTS] [--nodes N] [--time-limit TIME]``
 is treated as ``gorun vasp``.
+
+``TIME`` accepts Slurm ``HH:MM:SS`` or human-readable durations such
+as ``1h``, ``1d``, ``30m``, ``1h30m``.
 
 All subcommands accept ``--dir DIR...`` (one or more) to run the in
 each listed directory instead of the current directory.
@@ -50,7 +53,7 @@ from termcolor import colored
 
 from IMDgroup.common import configure_progress_output
 from IMDgroup.gorun.core.pipeline import dispatch_run
-from IMDgroup.gorun.sbatch import read_example_config
+from IMDgroup.gorun.sbatch import parse_time_limit, read_example_config
 from IMDgroup.gorun.adapters.vasp import VaspAdapter
 from IMDgroup.gorun.adapters.mace import MaceMultiheadFinetuneAdapter
 from IMDgroup.gorun.adapters.gpu import GpuAdapter
@@ -81,6 +84,19 @@ _SUBCOMMANDS = {"vasp", "mace-finetune", "maps", "atat-local", "gpu"}
 
 def _is_subcommand(name: str) -> bool:
     return name in _SUBCOMMANDS
+
+
+def _time_limit_type(value: str) -> str:
+    """argparse ``type`` for ``--time-limit``.
+
+    Wraps :func:`IMDgroup.gorun.sbatch.parse_time_limit` and re-raises
+    :class:`ValueError` as :class:`argparse.ArgumentTypeError` so
+    argparse prints a clean one-line error message.
+    """
+    try:
+        return parse_time_limit(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError(str(exc)) from exc
 
 
 # Argument parsing
@@ -169,9 +185,10 @@ def _build_parser(prog: str | None = None) -> argparse.ArgumentParser:
         help="Number of nodes to request (optional; defaults come from config).",
     )
     vasp_parser.add_argument(
-        "--time-limit", dest="time_limit", default=None,
-        metavar="HH:MM:SS",
-        help="Time limit in HH:MM:SS (optional; defaults come from config).",
+        "--time-limit", "--time", dest="time_limit", default=None,
+        type=_time_limit_type, metavar="TIME",
+        help="Time limit in HH:MM:SS or human-readable (e.g. 1h, 1d, 30m) "
+             "(optional; defaults come from config).",
     )
     vasp_parser.add_argument(
         "--vasp", choices=["ncl", "gam", "std"], default="ncl",
@@ -228,9 +245,10 @@ def _build_parser(prog: str | None = None) -> argparse.ArgumentParser:
         ),
     )
     mace_parser.add_argument(
-        "--time-limit", dest="time_limit", default=None,
-        metavar="HH:MM:SS",
-        help="Time limit in HH:MM:SS (optional; defaults come from config).",
+        "--time-limit", "--time", dest="time_limit", default=None,
+        type=_time_limit_type, metavar="TIME",
+        help="Time limit in HH:MM:SS or human-readable (e.g. 1h, 1d, 30m) "
+             "(optional; defaults come from config).",
     )
     ## Required
     mace_parser.add_argument(
@@ -312,9 +330,10 @@ def _build_parser(prog: str | None = None) -> argparse.ArgumentParser:
         help="Number of nodes (default: 1).",
     )
     maps_parser.add_argument(
-        "--time-limit", dest="time_limit", default=None,
-        metavar="HH:MM:SS",
-        help="Time limit in HH:MM:SS (optional).",
+        "--time-limit", "--time", dest="time_limit", default=None,
+        type=_time_limit_type, metavar="TIME",
+        help="Time limit in HH:MM:SS or human-readable (e.g. 1h, 1d, 30m) "
+             "(optional).",
     )
     maps_parser.add_argument(
         "--kpoints", required=True,
@@ -385,9 +404,10 @@ def _build_parser(prog: str | None = None) -> argparse.ArgumentParser:
         ),
     )
     gpu_parser.add_argument(
-        "--time-limit", dest="time_limit", default=None,
-        metavar="HH:MM:SS",
-        help="Time limit in HH:MM:SS (optional; defaults come from config).",
+        "--time-limit", "--time", dest="time_limit", default=None,
+        type=_time_limit_type, metavar="TIME",
+        help="Time limit in HH:MM:SS or human-readable (e.g. 1h, 1d, 30m) "
+             "(optional; defaults come from config).",
     )
     gpu_parser.add_argument(
         "--script-name", default=None,

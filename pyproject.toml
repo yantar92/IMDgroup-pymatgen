@@ -32,6 +32,7 @@ dependencies = [
 "rich",
 "pandas",
 "python-dateutil",
+"pytimeparse",
 "scikit-learn",
 "networkx",
 "cachetools",

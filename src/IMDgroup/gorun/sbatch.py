@@ -32,7 +32,10 @@ import os
 import subprocess
 import tomllib
 from importlib import resources
+
+from pytimeparse import parse as _timeparse
 from pymatgen.io.vasp.inputs import Incar
+
 from IMDgroup.gorun.slurm import barf_if_no_cmd
 
 
@@ -171,6 +174,33 @@ def current_server(config: dict) -> str:
     return uname
 
 
+def parse_time_limit(value: str) -> str:
+    """Normalize a time limit to Slurm ``HH:MM:SS``.
+
+    Accepts Slurm's native formats (``HH:MM:SS``, ``MM:SS``, bare
+    minutes, and ``days-hours`` variants) or a human-readable duration
+    such as ``1h``, ``1d``, ``30m``, ``1h30m``, or ``1.5h``.  Anything
+    :func:`pytimeparse.parse` recognizes is converted to canonical
+    ``HH:MM:SS`` (days folded into hours); the rest is returned
+    unchanged so Slurm applies its own validation (e.g. bare minutes).
+
+    A value that carries a duration unit letter but does not parse
+    (e.g. the typo ``1h30``) raises :class:`ValueError` instead of
+    being silently forwarded to Slurm.
+    """
+    seconds = _timeparse(value)
+    if seconds is None:
+        if any(unit in value.lower() for unit in "dhms"):
+            raise ValueError(
+                f"invalid time limit {value!r}: expected HH:MM:SS or a "
+                "duration like 1h, 1d, 30m, 1h30m"
+            )
+        return value
+    hours, remainder = divmod(int(round(seconds)), 3600)
+    minutes, secs = divmod(remainder, 60)
+    return f"{hours:02d}:{minutes:02d}:{secs:02d}"
+
+
 def get_user_sbatch_args(script_args: argparse.Namespace) -> dict[str, str]:
     """Extract explicit sbtach arguments from SCRIPT_ARGS.
     """
@@ -178,7 +208,7 @@ def get_user_sbatch_args(script_args: argparse.Namespace) -> dict[str, str]:
     if script_args.number_of_nodes is not None:
         sbatch_args['nodes'] = str(script_args.number_of_nodes)
     if script_args.time_limit is not None:
-        sbatch_args['time'] = str(script_args.time_limit)
+        sbatch_args['time'] = parse_time_limit(str(script_args.time_limit))
     return sbatch_args
 
 

@@ -43,6 +43,7 @@ from IMDgroup.gorun.sbatch import (
     get_sbatch_args,
     get_user_sbatch_args,
     load_config,
+    parse_time_limit,
     resolve_server,
 )
 
@@ -157,6 +158,31 @@ def test_resolve_server_missing_section(monkeypatch) -> None:
     assert resolve_server(cfg) is None
 
 
+# --- parse_time_limit -------------------------------------------------------
+
+
+def test_parse_time_limit_human_readable() -> None:
+    """Human-readable durations normalize to canonical HH:MM:SS."""
+    assert parse_time_limit("1h") == "01:00:00"
+    assert parse_time_limit("1d") == "24:00:00"
+    assert parse_time_limit("30m") == "00:30:00"
+    assert parse_time_limit("1h30m") == "01:30:00"
+    assert parse_time_limit("1.5h") == "01:30:00"
+
+
+def test_parse_time_limit_slurm_formats_pass_through() -> None:
+    """Slurm colon formats normalize; bare minutes and days-hours pass through."""
+    assert parse_time_limit("48:00:00") == "48:00:00"
+    assert parse_time_limit("120") == "120"
+    assert parse_time_limit("2-12") == "2-12"
+
+
+def test_parse_time_limit_invalid_duration_raises() -> None:
+    """A duration-like value that fails to parse raises ValueError."""
+    with pytest.raises(ValueError, match="1h30"):
+        parse_time_limit("1h30")
+
+
 # --- get_user_sbatch_args ---------------------------------------------------
 
 
@@ -173,6 +199,11 @@ def test_get_user_sbatch_args_nodes_only() -> None:
 def test_get_user_sbatch_args_time_only() -> None:
     """An explicit time limit maps to a string ``time`` key."""
     assert get_user_sbatch_args(_args(time="02:00:00")) == {"time": "02:00:00"}
+
+
+def test_get_user_sbatch_args_normalizes_human_time() -> None:
+    """A human-readable time limit is normalized in the programmatic path."""
+    assert get_user_sbatch_args(_args(time="1h")) == {"time": "01:00:00"}
 
 
 def test_get_user_sbatch_args_both() -> None:

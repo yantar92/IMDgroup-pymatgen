@@ -85,6 +85,31 @@ def test_parse_args_vasp_nodes_time_flags() -> None:
     assert ns.time_limit == "48:00:00"
 
 
+def test_parse_args_time_limit_human_readable() -> None:
+    """--time-limit accepts 1h/1d/30m/1h30m and normalizes to HH:MM:SS."""
+    assert gorun._parse_args(["vasp", "--time-limit", "1h"]).time_limit == "01:00:00"
+    assert gorun._parse_args(["vasp", "--time-limit", "1d"]).time_limit == "24:00:00"
+    assert gorun._parse_args(["vasp", "--time-limit", "30m"]).time_limit == "00:30:00"
+    assert gorun._parse_args(["vasp", "--time-limit", "1h30m"]).time_limit == "01:30:00"
+
+
+def test_parse_args_time_limit_human_readable_fractional() -> None:
+    """Fractional units accumulate and round to whole seconds."""
+    assert gorun._parse_args(["vasp", "--time-limit", "1.5h"]).time_limit == "01:30:00"
+
+
+def test_parse_args_time_alias() -> None:
+    """--time is an alias for --time-limit."""
+    assert gorun._parse_args(["vasp", "--time", "2h"]).time_limit == "02:00:00"
+
+
+def test_parse_args_time_limit_invalid_human_readable() -> None:
+    """A malformed duration containing unit letters is rejected at parse time."""
+    with pytest.raises(SystemExit) as exc:
+        gorun._parse_args(["vasp", "--time-limit", "1h30"])
+    assert exc.value.code == 2
+
+
 def test_parse_args_help_without_subcommand_shows_top_level() -> None:
     """``--help`` without a subcommand exits 0 instead of vasp help."""
     with pytest.raises(SystemExit) as exc:
