@@ -287,7 +287,7 @@ gorun --time 12:00:00 --incar NCORE:2 ALGO:All --dir inserts/graphite_vdw.relax.
 ```
 Running gorun in inserts/graphite_vdw.relax.ins.Li.0
 Backing up ...inserts/graphite_vdw.relax.ins.Li.0
-Changed INCAR: {'NCORE': {'INCAR1': 16, 'INCAR2': 1}, 'ALGO': {'INCAR1': 'Normal', 'INCAR2': 'All'}}
+Changed INCAR: {'NCORE': {'INCAR1': 16, 'INCAR2': 2}, 'ALGO': {'INCAR1': 'Normal', 'INCAR2': 'All'}}
 Regenerating POTCAR
 ...
 Job submitted to SLURM scheduler.
@@ -341,7 +341,7 @@ Warnings:
 imdg analyze inserts/* --exclude gorun
 ```
 
-This summarized the converged calculations in a table form.
+This summarizes the converged calculations in a table form.
 Note that the anomalies are still reported as warnings; the same will
 happen with any other CLI command or Python API use.
 
@@ -360,6 +360,13 @@ on 1: VaspWarning: inserts/graphite_vdw.relax.2x2x1.ins.Li.1: Framework symmetry
  inserts/graphite_vdw.relax.ins.Li.3                 0   -32.49471  -6.49894     0.0097  0.00          0.34       P6/mmm                 P6/mmm
 ```
 
+You can also make `imdg analyze` produce the output in machine-readable form
+
+```bash
+imdg analyze --format csv inserts/* --exclude gorun
+imdg analyze --format json inserts/* --exclude gorun
+```
+
 ## 10. Diff (compare results)
 
 ```bash
@@ -368,6 +375,7 @@ imdg diff structure inserts/*
 
 The structure comparison groups directories that converged to the same
 structure (symmetry-aware) and sorts groups by energy.
+Useful to find duplicate structures after relaxation or identify outliers.
 
 ```
 List of structures grouped by similarity
