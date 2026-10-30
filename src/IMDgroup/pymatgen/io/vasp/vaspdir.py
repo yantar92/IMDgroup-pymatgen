@@ -1176,6 +1176,8 @@ class IMDGVaspDir(Mapping, MSONable):
 
     def _compute_framework_symmetry(
             self, framework_elements, symprec, max_threshold) -> bool:
+        assert self.initial_structure is not None
+        assert self.final_structure is not None
         # Create framework-only structures
         init_framework = filter_framework(
             self.initial_structure, framework_elements)
