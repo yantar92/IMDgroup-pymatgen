@@ -70,10 +70,8 @@ from IMDgroup.pymatgen.io.vasp.diagnostics import (
 )
 from IMDgroup.pymatgen.core.structure import (
     FRAMEWORK_SYMPREC,
-    filter_framework,
     get_framework_elements,
     get_framework_space_group,
-    structure_distance,
 )
 
 logger = logging.getLogger(__name__)
@@ -147,7 +145,7 @@ class IMDGVaspDir(Mapping, MSONable):
     # Version of the cache record schema.  Bump when the structure of
     # cached records changes so that entries written by older package
     # versions are discarded on load instead of being misread.
-    CACHE_VERSION: typing.ClassVar[int] = 8
+    CACHE_VERSION: typing.ClassVar[int] = 9
 
     # LMDB map size in bytes.  Exposed as a class attribute so tests can
     # shrink it to exercise the eviction path without allocating the full
@@ -1147,7 +1145,7 @@ class IMDGVaspDir(Mapping, MSONable):
 
     def check_framework_symmetry(
             self, framework_elements=None,
-            symprec=FRAMEWORK_SYMPREC, max_threshold=0.5) -> bool:
+            symprec=FRAMEWORK_SYMPREC) -> bool:
         """Check whether the framework symmetry is preserved.
 
         Reduces false positives from mobile atoms breaking symmetry.
@@ -1156,7 +1154,6 @@ class IMDGVaspDir(Mapping, MSONable):
             framework_elements: List of element symbols for the
                 framework.  Defaults to the most common element.
             symprec: Symmetry tolerance for space group detection.
-            max_threshold: Maximum displacement threshold in Angstrom.
 
         Returns:
             bool: True if framework symmetry is preserved.
@@ -1166,54 +1163,34 @@ class IMDGVaspDir(Mapping, MSONable):
         if framework_elements is None:
             framework_elements = get_framework_elements(self.initial_structure)
 
-        # The result depends only on the framework element set, the
-        # symmetry tolerance, and the displacement threshold.  The
-        # summary is persisted across runs, so a warm load skips the
-        # spglib calls below.
-        key = ('symmetry', tuple(framework_elements), symprec, max_threshold)
+        # The result depends only on the framework element set and the
+        # symmetry tolerance.  The summary is persisted across runs, so
+        # a warm load skips the spglib calls below.
+        key = ('symmetry', tuple(framework_elements), symprec)
         return self._memoized(
             key,
             lambda: self._compute_framework_symmetry(
-                framework_elements, symprec, max_threshold))
+                framework_elements, symprec))
 
     def _compute_framework_symmetry(
-            self, framework_elements, symprec, max_threshold) -> bool:
+            self, framework_elements, symprec) -> bool:
         assert self.initial_structure is not None
         assert self.final_structure is not None
-        # Create framework-only structures
-        init_framework = filter_framework(
-            self.initial_structure, framework_elements)
-        final_framework = filter_framework(
-            self.final_structure, framework_elements)
-
-        # Check if framework symmetry changed
         init_sg = get_framework_space_group(
             self.initial_structure, framework_elements, symprec)
         final_sg = get_framework_space_group(
             self.final_structure, framework_elements, symprec)
 
-        result = True
-        if init_sg != final_sg:
-            # Calculate displacement of framework atoms
-            try:
-                dist = structure_distance(
-                    init_framework, final_framework,
-                    norm=False, match_first=False,
-                    max_dist=max_threshold)
-            except Exception:
-                dist = float('inf')
-            if dist > max_threshold or np.isclose(dist, 0):
-                self._record(VaspWarningRecord(
-                    name="framework_symmetry",
-                    message=(
-                        f"Framework symmetry changed ({init_sg} to {final_sg}) "
-                        f"with displacement (DIST={dist:.3f}Å)"
-                    ),
-                    source=self.path,
-                    metadata={"displacement": float(dist)},
-                ))
-                result = False
-        return result
+        if init_sg == final_sg:
+            return True
+        self._record(VaspWarningRecord(
+            name="framework_symmetry",
+            message=(
+                f"Framework symmetry changed ({init_sg} to {final_sg})"
+            ),
+            source=self.path,
+        ))
+        return False
 
     @property
     def converged_ionic(self) -> bool:

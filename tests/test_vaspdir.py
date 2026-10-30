@@ -44,7 +44,7 @@ from pathlib import Path
 
 import numpy as np
 import pytest
-from pymatgen.core import Structure
+from pymatgen.core import Lattice, Structure
 from pymatgen.io.vasp.inputs import Poscar
 
 from IMDgroup.pymatgen.io.vasp.diagnostics import VaspWarning
@@ -594,21 +594,28 @@ def graphite_li_dir(tmp_path: Path) -> Path:
 
 def test_check_framework_symmetry_flags_distorted_graphite(
         graphite_li_dir) -> None:
-    """A uniform framework distortion lowers the space group and warns.
-
-    Regression: ``check_framework_symmetry`` used
-    ``structure_distance(..., norm=True)``, which divides the total
-    displacement by the number of displaced sites.  For a 16-atom
-    carbon framework uniformly shifted by ~0.68 A this reported
-    ~0.17 A, below the 0.5 A threshold, so the P6_3/mmc -> C2/m change
-    was missed.  The un-normalized distance flags it.
-    """
+    """A framework distortion that lowers the space group warns."""
     d = IMDGVaspDir(str(graphite_li_dir))
     with pytest.warns(VaspWarning, match="Framework symmetry changed"):
         assert d.check_framework_symmetry() is False
     assert d.warnings.has("framework_symmetry")
-    record = d.warnings["framework_symmetry"]
-    assert record.metadata["displacement"] > 0.5
+
+
+def test_check_framework_symmetry_small_displacement_warns(tmp_path) -> None:
+    """A space-group change warns.
+
+    Regression: the displacement gate (``max_threshold``) suppressed
+    warnings for small-but-real symmetry lowering.  A 0.3 A shift of a
+    BCC carbon site changes Im-3m to P4/nmm and must still warn.
+    """
+    lat = Lattice.cubic(10.0)
+    init = Structure(lat, ["C", "C"], [[0, 0, 0], [0.5, 0.5, 0.5]])
+    final = Structure(lat, ["C", "C"], [[0, 0, 0], [0.5, 0.5, 0.53]])
+    Poscar(init).write_file(tmp_path / "POSCAR")
+    Poscar(final).write_file(tmp_path / "CONTCAR")
+    d = IMDGVaspDir(str(tmp_path))
+    with pytest.warns(VaspWarning, match="Framework symmetry changed"):
+        assert d.check_framework_symmetry() is False
 
 
 # --- NEB ------------------------------------------------------------
