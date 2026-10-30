@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # MIT License
 #
-# Copyright (c) 2024-2025 Inverse Materials Design Group
+# Copyright (c) 2024-2026 Inverse Materials Design Group
 #
 # Author: Ihor Radchenko <yantar92@posteo.net>
 #

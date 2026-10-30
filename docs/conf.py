@@ -14,7 +14,7 @@ sys.path.insert(0, os.path.abspath("../src"))
 
 # -- Project information -----------------------------------------------------
 project = "IMDgroup-pymatgen"
-copyright = "2024-2025, Inverse Materials Design Group"
+copyright = "2024-2026, Inverse Materials Design Group"
 author = "Ihor Radchenko"
 release = get_version("IMDgroup-pymatgen")
 version = ".".join(release.split(".")[:2])
