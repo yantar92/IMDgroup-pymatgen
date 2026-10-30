@@ -14,7 +14,7 @@ how jobs must be executed.
 Also includes `gorun`, a cluster-agnostic job-submission script for VASP,
 MACE fine-tuning, ATAT, and generic GPU jobs on Slurm clusters.
 
-API documentation: <https://yantar92.github.io/IMDgroup-pymatgen/>
+Documentation: <https://yantar92.github.io/IMDgroup-pymatgen/>
 
 ![img](docs/img/workflow-development.svg)
 
