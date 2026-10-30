@@ -42,6 +42,7 @@ from IMDgroup.pymatgen.io.vasp.inputs import Incar
 from IMDgroup.pymatgen.core.structure import (
     get_framework_space_group,
     structure_distance,
+    FRAMEWORK_SYMPREC
 )
 from IMDgroup.pymatgen.io.vasp.vaspdir import IMDGVaspDir
 
@@ -236,7 +237,7 @@ def _read_field_1(field: str, vaspdir: IMDGVaspDir):
         val = f"{displ:.2f}"
     elif field == 'space_group':
         structure = _require_structure(vaspdir.final_structure)
-        val = structure.get_space_group_info()[0]
+        val = structure.get_space_group_info(symprec=FRAMEWORK_SYMPREC)[0]
     elif field == 'framework_space_group':
         structure = _require_structure(vaspdir.final_structure)
         val = get_framework_space_group(structure)
