@@ -50,6 +50,7 @@ from IMDgroup.pymatgen.cli.imdg_analyze import (
     analyze,
     read_field,
 )
+from IMDgroup.pymatgen.core.structure import FRAMEWORK_SYMPREC
 from IMDgroup.pymatgen.io.vasp.inputs import Incar
 
 
@@ -218,11 +219,29 @@ def test_read_field_framework_space_group() -> None:
         species=['C', 'C'],
         coords=[[0.0, 0.0, 0.0], [0.5, 0.5, 0.5]],
     )
-    expected = framework.get_space_group_info()[0]
+    expected = framework.get_space_group_info(symprec=FRAMEWORK_SYMPREC)[0]
     assert _read_field_1(
         'framework_space_group',
         _VaspdirStub(final_structure=structure),
     ) == expected
+
+
+def test_read_field_framework_space_group_uses_shared_symprec() -> None:
+    """framework_space_group uses FRAMEWORK_SYMPREC, not pymatgen's 0.01.
+
+    The relaxed graphite framework in this fixture is only approximately
+    symmetric.  At pymatgen's default symprec (0.01 A) it collapses to
+    P-1; at the shared FRAMEWORK_SYMPREC (0.1 A) it is C2/m.  This must
+    agree with ``IMDGVaspDir.check_framework_symmetry``, which flags the
+    P6_3/mmc -> C2/m change for the same structure (see
+    ``tests/test_vaspdir.py``).
+    """
+    contcar = Structure.from_file(
+        Path(__file__).parent / "fixtures" / "graphite_li_intercalation" / "CONTCAR")
+    assert _read_field_1(
+        'framework_space_group',
+        _VaspdirStub(final_structure=contcar),
+    ) == 'C2/m'
 
 
 ## _read_field_1

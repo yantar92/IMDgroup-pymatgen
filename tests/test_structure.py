@@ -41,10 +41,12 @@ from pymatgen.util.testing import MatSciTest
 
 import IMDgroup.pymatgen.core.structure as structure_module
 from IMDgroup.pymatgen.core.structure import (
+    FRAMEWORK_SYMPREC,
     IMDStructure,
     StructureDuplicateWarning,
     filter_framework,
     get_framework_elements,
+    get_framework_space_group,
     get_matched_structure,
     get_supercell_size,
     merge_structures,
@@ -96,6 +98,26 @@ def test_filter_framework_removes_mobile_species() -> None:
     framework = filter_framework(_carbon_lithium(), ['C'])
     assert len(framework.species) == 2
     assert set(str(s.specie) for s in framework) == {'C'}
+
+
+def test_get_framework_space_group_ignores_mobile_species() -> None:
+    """The framework space group excludes the intercalated species.
+
+    The C2 framework is body-centred cubic (Im-3m); the Li intercalant
+    lowers the full structure to R-3m.
+    """
+    assert get_framework_space_group(_carbon_lithium()) == 'Im-3m'
+
+
+def test_get_framework_space_group_explicit_elements() -> None:
+    """An explicit element list overrides the most-common-element default."""
+    assert get_framework_space_group(
+        _carbon_lithium(), framework_elements=['Li']) == 'Pm-3m'
+
+
+def test_framework_symprec_shared_default() -> None:
+    """FRAMEWORK_SYMPREC is the loose tolerance shared by framework checks."""
+    assert FRAMEWORK_SYMPREC == 0.1
 
 
 # --- structure_strain -------------------------------------------------------

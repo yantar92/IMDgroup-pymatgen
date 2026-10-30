@@ -40,8 +40,7 @@ from rich.table import Table
 from pymatgen.core import Structure
 from IMDgroup.pymatgen.io.vasp.inputs import Incar
 from IMDgroup.pymatgen.core.structure import (
-    filter_framework,
-    get_framework_elements,
+    get_framework_space_group,
     structure_distance,
 )
 from IMDgroup.pymatgen.io.vasp.vaspdir import IMDGVaspDir
@@ -240,9 +239,7 @@ def _read_field_1(field: str, vaspdir: IMDGVaspDir):
         val = structure.get_space_group_info()[0]
     elif field == 'framework_space_group':
         structure = _require_structure(vaspdir.final_structure)
-        framework = filter_framework(
-            structure, get_framework_elements(structure))
-        val = framework.get_space_group_info()[0]
+        val = get_framework_space_group(structure)
     elif field == 'a':
         val = _require_structure(vaspdir.final_structure).lattice.a
     elif field == '%a':

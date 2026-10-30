@@ -69,8 +69,10 @@ from IMDgroup.pymatgen.io.vasp.diagnostics import (
     VaspWarnings,
 )
 from IMDgroup.pymatgen.core.structure import (
+    FRAMEWORK_SYMPREC,
     filter_framework,
     get_framework_elements,
+    get_framework_space_group,
     structure_distance,
 )
 
@@ -1145,7 +1147,7 @@ class IMDGVaspDir(Mapping, MSONable):
 
     def check_framework_symmetry(
             self, framework_elements=None,
-            symprec=0.1, max_threshold=0.5) -> bool:
+            symprec=FRAMEWORK_SYMPREC, max_threshold=0.5) -> bool:
         """Check whether the framework symmetry is preserved.
 
         Reduces false positives from mobile atoms breaking symmetry.
@@ -1185,11 +1187,13 @@ class IMDGVaspDir(Mapping, MSONable):
             self.final_structure, framework_elements)
 
         # Check if framework symmetry changed
-        init_sg = init_framework.get_space_group_info(symprec=symprec)
-        final_sg = final_framework.get_space_group_info(symprec=symprec)
+        init_sg = get_framework_space_group(
+            self.initial_structure, framework_elements, symprec)
+        final_sg = get_framework_space_group(
+            self.final_structure, framework_elements, symprec)
 
         result = True
-        if init_sg[0] != final_sg[0]:
+        if init_sg != final_sg:
             # Calculate displacement of framework atoms
             try:
                 dist = structure_distance(
@@ -1202,7 +1206,7 @@ class IMDGVaspDir(Mapping, MSONable):
                 self._record(VaspWarningRecord(
                     name="framework_symmetry",
                     message=(
-                        f"Framework symmetry changed ({init_sg[0]} to {final_sg[0]}) "
+                        f"Framework symmetry changed ({init_sg} to {final_sg}) "
                         f"with displacement (DIST={dist:.3f}Å)"
                     ),
                     source=self.path,

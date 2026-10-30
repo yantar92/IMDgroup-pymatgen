@@ -829,3 +829,36 @@ def filter_framework(
                if str(site.specie) in framework_elements]
     return structure.copy().remove_sites(
         [i for i in range(len(structure)) if i not in indices])
+
+
+# Symmetry tolerance (Angstrom) for framework space-group detection.
+#
+# Relaxed frameworks carry numerical noise beyond pymatgen's default
+# symprec (0.01 A).
+FRAMEWORK_SYMPREC = 0.1
+
+
+def get_framework_space_group(
+        structure: Structure,
+        framework_elements: Collection[str] | None = None,
+        symprec: float = FRAMEWORK_SYMPREC) -> str:
+    """Return the space group of the host framework of *structure*.
+
+    Mobile species (intercalants, adsorbates) are removed before the
+    space group is detected, so they cannot mask the framework symmetry.
+
+    Args:
+        structure: Structure to inspect.
+        framework_elements: Element symbols kept as the framework.  When
+            ``None``, defaults to the most common element of *structure*
+            (see :func:`get_framework_elements`).
+        symprec: Symmetry tolerance (Angstrom).  Defaults to
+            :data:`FRAMEWORK_SYMPREC`.
+
+    Returns:
+        str: International space group symbol of the framework.
+    """
+    if framework_elements is None:
+        framework_elements = get_framework_elements(structure)
+    framework = filter_framework(structure, framework_elements)
+    return framework.get_space_group_info(symprec=symprec)[0]
