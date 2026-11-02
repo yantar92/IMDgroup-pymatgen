@@ -34,6 +34,7 @@ than fabricating POTCAR files (see tests/conftest.py).
 
 from __future__ import annotations
 
+import gzip
 import warnings
 from types import SimpleNamespace
 
@@ -810,6 +811,23 @@ def test_neb_post_init_from_vaspruns(converged_relax_vasp_dir) -> None:
         )
     assert neb.target_structure.reduced_formula == "Na"
     # Consistent INCARs do not trigger image regeneration.
+    assert neb.images is None
+
+
+def test_neb_post_init_compressed_vasprun(converged_relax_vasp_dir) -> None:
+    """A gzipped vasprun.xml.gz is read for both NEB endpoints."""
+    xml = converged_relax_vasp_dir / "vasprun.xml"
+    with gzip.open(converged_relax_vasp_dir / "vasprun.xml.gz", "wb") as f_out:
+        f_out.write(xml.read_bytes())
+    xml.unlink()
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", BadInputSetWarning)
+        neb = IMDNEBVaspInputSet(
+            directory=converged_relax_vasp_dir,
+            target_directory=converged_relax_vasp_dir,
+            no_potcar=True,
+        )
+    assert neb.target_structure.reduced_formula == "Na"
     assert neb.images is None
 
 

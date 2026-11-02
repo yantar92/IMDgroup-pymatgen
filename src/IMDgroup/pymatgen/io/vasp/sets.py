@@ -702,16 +702,30 @@ class IMDDerivedInputSet(IMDVaspInputSet):
             if incartoml.is_file():
                 logger.info("Copying additional INCAR.toml")
                 self.files_to_transfer[str(incartoml.name)] = incartoml
+            # pymatgen's override_from_prev_calc -> _set_previous ->
+            # get_vasprun_outcar globs ``vasprun.xml*`` and ``OUTCAR*``
+            # and reads through monty.io.zopen, so ``.gz`` variants work.
+            # FIXME: it (a) hardcodes the OUTCAR preference to
+            # ``OUTCAR.gz`` and otherwise picks ``max(...)`` (arbitrary
+            # for non-.gz extensions), and (b) requires BOTH vasprun.xml
+            # and OUTCAR to be present -- a directory with only
+            # ``vasprun.xml.gz`` and no OUTCAR falls through to the
+            # CONTCAR/POSCAR branch below.  If either becomes a problem,
+            # override _set_previous to read through self._vaspdir.
             self.override_from_prev_calc(prev_calc_dir=self.directory)
         except (ValueError, ParseError) as exc:
-            if os.path.isfile(os.path.join(self.directory, "CONTCAR")):
-                structure_file = os.path.join(self.directory, "CONTCAR")
+            # No VASP output found.  Try to ingest VASP input.
+            # Resolve CONTCAR/POSCAR through _vaspdir so compressed
+            # variants (CONTCAR.gz, POSCAR.gz) are found too.
+            structure_file = self._vaspdir._resolve_filename("CONTCAR")
+            if structure_file is not None:
+                structure_file = os.path.join(self.directory, structure_file)
             else:
                 logger.debug("No VASP output found.  Reading input instead")
-                structure_file = os.path.join(self.directory, "POSCAR")
-            # No VASP output found.  Try to ingest VASP input.
-            if os.path.isfile(structure_file) and\
-               self.images is None:
+                resolved = self._vaspdir._resolve_filename("POSCAR")
+                if resolved is not None:
+                    structure_file = os.path.join(self.directory, resolved)
+            if structure_file is not None and self.images is None:
                 with warnings.catch_warnings():
                     warnings.simplefilter("error", BadPoscarWarning)
                     try:
@@ -916,12 +930,13 @@ class IMDNEBVaspInputSet(IMDDerivedInputSet):
 
         super().__post_init__()
 
-        beg_run = Vasprun(os.path.join(self.directory, 'vasprun.xml'))
-        try:
-            end_run = Vasprun(os.path.join(
-                self.target_directory, 'vasprun.xml'))
-        except FileNotFoundError:
-            end_run = None
+        beg_run = self._vaspdir['vasprun.xml']
+        if beg_run is None:
+            raise FileNotFoundError(
+                f"No readable vasprun.xml in {self.directory}")
+        end_vaspdir = IMDGVaspDir(self.target_directory)
+        end_run = end_vaspdir['vasprun.xml']
+        if end_run is None:
             warnings.warn(
                 f"Failed to read Vasprun from {os.path.relpath(self.target_directory)}.  "
                 "Falling back to reading POSCAR."
@@ -930,8 +945,10 @@ class IMDNEBVaspInputSet(IMDDerivedInputSet):
             assert beg_run.converged and end_run.converged
 
         if end_run is None:
-            poscar = Poscar.from_file(
-                os.path.join(self.target_directory, "POSCAR"))
+            poscar = end_vaspdir['POSCAR']
+            if poscar is None:
+                raise FileNotFoundError(
+                    f"No readable POSCAR in {self.target_directory}")
             self.target_structure = poscar.structure
         else:
             self.target_structure = end_run.final_structure
