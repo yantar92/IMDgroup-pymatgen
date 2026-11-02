@@ -32,6 +32,7 @@ import re
 import warnings
 import itertools
 from pathlib import Path
+from typing import Any, cast
 from termcolor import colored
 from alive_progress import alive_it
 import pandas as pd
@@ -161,9 +162,11 @@ def neb(args):
             continue
         neb_dirs = vaspdir.neb_dirs()
         assert neb_dirs is not None
-        neb_structures = [
-            (imagedir.final_structure or imagedir.initial_structure)
-            for imagedir in neb_dirs]
+        neb_structures = []
+        for imagedir in neb_dirs:
+            structure = imagedir.final_structure or imagedir.initial_structure
+            assert structure is not None
+            neb_structures.append(structure)
         trajectory = merge_structures(neb_structures)
         cif_name = 'NEB_trajectory_converged.cif'
         output_cif = os.path.join(wdir, cif_name)
@@ -736,32 +739,37 @@ def _atat_1(
         sublattice = Structure.from_file(f"{idx}/str.out")
         if not vaspdir.converged:
             displ = np.nan
-        elif not IMDatat.check_volume_distortion(
-                vaspdir.initial_structure, vaspdir.final_structure):
-            displ = np.nan
-            print(colored(f"{vaspdir.path}: large volume distortion (this must not happen)", "red"))
-        elif (not Path(f"{idx}/str.out.old").is_file()
-              and not IMDatat.check_sublattice_flip(
-                  vaspdir.initial_structure, vaspdir.final_structure, sublattice)):
-            displ = np.nan
-            print(colored(f"{vaspdir.path}: sublattice flip (this must not happen)", "red"))
-        elif Path(f"{idx}/sublattice_deviation").is_file():
-            logger.debug(
-                "Reading sublattice deviation from %s",
-                f"{idx}/sublattice_deviation")
-            with open(f"{idx}/sublattice_deviation", 'r', encoding='utf-8') as f:
-                displ = float(f.read().strip())
         else:
-            logger.debug(
-                "Calculating sublattice deviation from %s",
-                f"{idx}/ATAT")
-            str_after_normalized = vaspdir.final_structure.copy()
-            str_after_normalized.lattice = sublattice.lattice
-            displ = structure_distance(
-                str_after_normalized, sublattice,
-                # Compare specie-insensitively
-                match_first=True,
-                match_species=False)
+            initial_structure = vaspdir.initial_structure
+            final_structure = vaspdir.final_structure
+            assert initial_structure is not None
+            assert final_structure is not None
+            if not IMDatat.check_volume_distortion(
+                    initial_structure, final_structure):
+                displ = np.nan
+                print(colored(f"{vaspdir.path}: large volume distortion (this must not happen)", "red"))
+            elif (not Path(f"{idx}/str.out.old").is_file()
+                  and not IMDatat.check_sublattice_flip(
+                      initial_structure, final_structure, sublattice)):
+                displ = np.nan
+                print(colored(f"{vaspdir.path}: sublattice flip (this must not happen)", "red"))
+            elif Path(f"{idx}/sublattice_deviation").is_file():
+                logger.debug(
+                    "Reading sublattice deviation from %s",
+                    f"{idx}/sublattice_deviation")
+                with open(f"{idx}/sublattice_deviation", 'r', encoding='utf-8') as f:
+                    displ = float(f.read().strip())
+            else:
+                logger.debug(
+                    "Calculating sublattice deviation from %s",
+                    f"{idx}/ATAT")
+                str_after_normalized = final_structure.copy()
+                str_after_normalized.lattice = sublattice.lattice
+                displ = structure_distance(
+                    str_after_normalized, sublattice,
+                    # Compare specie-insensitively
+                    match_first=True,
+                    match_species=False)
         fit.loc[fit['index'] == idx, 'sublattice deviation'] = displ
         gs.loc[gs['index'] == idx, 'sublattice deviation'] = displ
 
@@ -1032,10 +1040,12 @@ def _hull_get_entries_recursively(
                 print(f"Skipping {vasp_path}: unconverged")
                 n_skipped += 1
                 continue
+            final_structure = vaspdir.final_structure
+            assert final_structure is not None
             entry = ComputedStructureEntry(
-                vaspdir.final_structure, vaspdir.final_energy)
-            entry.data["volume"] = vaspdir.final_structure.volume
-            entry.data["formula"] = vaspdir.final_structure.composition.formula
+                final_structure, vaspdir.final_energy)
+            entry.data["volume"] = final_structure.volume
+            entry.data["formula"] = final_structure.composition.formula
             entry.data["ID"] = vasp_path
             entries.append(entry)
         except Exception as e:
@@ -1337,7 +1347,10 @@ def _hull_get_entries_from_pickle(
         total_energy = row[energy_column]
         assert isinstance(total_energy, float)
 
-        structure = AseAtomsAdaptor.get_structure(atoms)
+        # pymatgen annotates get_structure()'s argument as the fallback
+        # ``pymatgen.io.ase.Atoms`` stub, which pyright treats as distinct
+        # from ``ase.atoms.Atoms``.  The value is an ASE Atoms object.
+        structure = AseAtomsAdaptor.get_structure(cast(Any, atoms))
 
         entry = ComputedStructureEntry(structure, total_energy)
         entry.data["volume"] = structure.volume
@@ -1396,10 +1409,12 @@ def hull(args):
                 if not extra_vaspdir.converged:
                     print(f"Skipping {extra_path}: unconverged")
                     continue
+                final_structure = extra_vaspdir.final_structure
+                assert final_structure is not None
                 extra_entry = ComputedStructureEntry(
-                    extra_vaspdir.final_structure, extra_vaspdir.final_energy)
-                extra_entry.data["volume"] = extra_vaspdir.final_structure.volume
-                extra_entry.data["formula"] = extra_vaspdir.final_structure.composition.formula
+                    final_structure, extra_vaspdir.final_energy)
+                extra_entry.data["volume"] = final_structure.volume
+                extra_entry.data["formula"] = final_structure.composition.formula
                 extra_entry.data["ID"] = extra_path
                 entries.append(extra_entry)
                 print(f"Added {extra_path}: {extra_entry.energy_per_atom} eV/atom")
@@ -1672,10 +1687,12 @@ def voltage(args):
                 if not extra_vaspdir.converged:
                     print(f"Skipping {extra_path}: unconverged")
                     continue
+                final_structure = extra_vaspdir.final_structure
+                assert final_structure is not None
                 extra_entry = ComputedStructureEntry(
-                    extra_vaspdir.final_structure, extra_vaspdir.final_energy)
-                extra_entry.data["volume"] = extra_vaspdir.final_structure.volume
-                extra_entry.data["formula"] = extra_vaspdir.final_structure.composition.formula
+                    final_structure, extra_vaspdir.final_energy)
+                extra_entry.data["volume"] = final_structure.volume
+                extra_entry.data["formula"] = final_structure.composition.formula
                 extra_entry.data["ID"] = extra_path
                 entries.append(extra_entry)
                 print(f"Added {extra_path}: {extra_entry.energy_per_atom} eV/atom")

@@ -295,6 +295,7 @@ def _render_table(df, console=None):
                   padding=(0, 1))
     for col in df.columns:
         label = ALL_FIELDS.get(col, col)
+        assert label is not None
         if col == 'dir':
             table.add_column(label, no_wrap=False)
         elif col == 'incar_group':
@@ -378,7 +379,9 @@ def analyze(args):
         elif args.format == 'csv':
             df.to_csv(sys.stdout, index=False)
         elif args.format == 'json':
-            sys.stdout.write(df.to_json(orient='records', indent=2) + '\n')
+            json = df.to_json(orient='records', indent=2)
+            assert json is not None
+            sys.stdout.write(json + "\n")
         else:  # orgtbl
             print(tabulate(
                 df, headers=df.columns.to_list(),
