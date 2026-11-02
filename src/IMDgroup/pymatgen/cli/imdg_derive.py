@@ -37,7 +37,6 @@ from typing import cast
 import numpy as np
 import pymatgen.core as pmg
 from pathlib import Path
-from pymatgen.io.vasp.outputs import Vasprun
 from pymatgen.io.vasp.inputs import Kpoints
 from pymatgen.core import Structure, PeriodicSite
 from IMDgroup.pymatgen.core.structure import\
@@ -47,6 +46,7 @@ from IMDgroup.pymatgen.diffusion.neb import get_neb_pairs
 from IMDgroup.pymatgen.io.vasp.sets\
     import (IMDDerivedInputSet, IMDNEBVaspInputSet)
 from IMDgroup.pymatgen.io.vasp.inputs import Incar
+from IMDgroup.pymatgen.io.vasp.vaspdir import IMDGVaspDir
 from IMDgroup.pymatgen.transformations.insert_molecule\
     import InsertMoleculeTransformation
 from IMDgroup.pymatgen.transformations.symmetry_clone\
@@ -54,6 +54,21 @@ from IMDgroup.pymatgen.transformations.symmetry_clone\
 
 
 logger = logging.getLogger(__name__)
+
+
+def _read_vasprun(directory):
+    """Read ``vasprun.xml`` from DIRECTORY, compression-aware.
+
+    Uses :class:`IMDGVaspDir` so ``vasprun.xml.gz`` and friends are
+    resolved transparently.  Raises ``FileNotFoundError`` when no
+    readable ``vasprun.xml`` exists, matching the previous
+    ``Vasprun(path)`` behaviour for the missing-file case.
+    """
+    run = IMDGVaspDir(directory)['vasprun.xml']
+    if run is None:
+        raise FileNotFoundError(
+            f"No readable vasprun.xml in {directory}")
+    return run
 
 
 def add_args(parser):
@@ -1060,8 +1075,7 @@ def fill(args):
     """
     logger.info("Reading prototype from %s", args.input_directory)
     if os.path.isdir(args.input_directory):
-        prototype_run = Vasprun(os.path.join(
-            args.input_directory, 'vasprun.xml'))
+        prototype_run = _read_vasprun(args.input_directory)
         prototype = prototype_run.final_structure
     else:
         # Try to load structure from file
@@ -1071,7 +1085,7 @@ def fill(args):
     structures = []
     for struct_path in args.uniq_sites:
         logger.info("Reading structure from %s", struct_path)
-        structure_run = Vasprun(os.path.join(struct_path, 'vasprun.xml'))
+        structure_run = _read_vasprun(struct_path)
         assert structure_run.converged
         structure = structure_run.final_structure
         structure = get_matched_structure(prototype, structure)
@@ -1471,8 +1485,7 @@ def neb_diffusion(args):
 
     logger.info("Reading prototype from %s", args.input_directory)
     if os.path.isdir(args.input_directory):
-        prototype_run = Vasprun(os.path.join(
-            args.input_directory, 'vasprun.xml'))
+        prototype_run = _read_vasprun(args.input_directory)
         prototype = prototype_run.final_structure
     else:
         # Try to load structure from file
@@ -1481,7 +1494,7 @@ def neb_diffusion(args):
     structures = []
     for struct_path in args.diffusion_points:
         logger.info("Reading structure from %s", struct_path)
-        structure_run = Vasprun(os.path.join(struct_path, 'vasprun.xml'))
+        structure_run = _read_vasprun(struct_path)
         assert structure_run.converged
         structure = structure_run.final_structure
         structure.properties['origin_path'] = struct_path

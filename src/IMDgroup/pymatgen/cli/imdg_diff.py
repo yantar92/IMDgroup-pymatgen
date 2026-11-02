@@ -38,8 +38,8 @@ from rich.text import Text
 from xml.etree.ElementTree import ParseError
 from pymatgen.io.vasp.inputs import Poscar
 from pymatgen.analysis.structure_matcher import StructureMatcher
-from IMDgroup.pymatgen.io.vasp.outputs import Vasprun
 from IMDgroup.pymatgen.io.vasp.inputs import Incar, INCAR_GROUP_IGNORE_FIELDS
+from IMDgroup.pymatgen.io.vasp.vaspdir import IMDGVaspDir
 from IMDgroup.common import groupby_cmp
 
 logger = logging.getLogger(__name__)
@@ -106,7 +106,9 @@ def _read_structures(dir_list, force_poscar=False, force_vasprun=False):
     """
     def read_vasprun(vaspdir):
         logger.info("Reading vasprun.xml from %s", vaspdir)
-        run = Vasprun(os.path.join(vaspdir, "vasprun.xml"))
+        run = IMDGVaspDir(vaspdir)['vasprun.xml']
+        if run is None:
+            raise ParseError(f"No readable vasprun.xml in {vaspdir}")
         res_structure = run.final_structure
         res_structure.properties['source_dir'] = vaspdir
         res_structure.properties['final_energy'] = run.final_energy
@@ -120,7 +122,7 @@ def _read_structures(dir_list, force_poscar=False, force_vasprun=False):
         return res_structure
 
     has_vasprun = [
-        os.path.isfile(os.path.join(d, "vasprun.xml")) for d in dir_list
+        'vasprun.xml' in IMDGVaspDir(d) for d in dir_list
     ]
 
     if force_poscar:

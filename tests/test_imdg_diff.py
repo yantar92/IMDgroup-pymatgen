@@ -30,6 +30,7 @@
 from __future__ import annotations
 
 import argparse
+import gzip
 from pathlib import Path
 
 import pytest
@@ -85,6 +86,18 @@ def test_read_structures_mixed_raises(tmp_path: Path) -> None:
     ]
     with pytest.raises(ValueError, match="Mixed directories"):
         _read_structures([str(d) for d in dirs])
+
+
+def test_read_structures_compressed_vasprun_detected(tmp_path: Path) -> None:
+    """A gzipped vasprun.xml.gz counts as having VASP output."""
+    a = _make_dir(tmp_path / "a", with_vasprun=False)
+    b = tmp_path / "b"
+    b.mkdir()
+    (b / "POSCAR").write_text(POSCAR)
+    with gzip.open(b / "vasprun.xml.gz", "wb") as f_out:
+        f_out.write(b"<modeling/>")
+    with pytest.raises(ValueError, match="Mixed directories"):
+        _read_structures([str(a), str(b)])
 
 
 def test_read_structures_force_poscar_mixed(tmp_path: Path) -> None:
