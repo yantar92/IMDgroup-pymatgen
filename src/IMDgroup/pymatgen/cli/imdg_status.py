@@ -278,6 +278,8 @@ def format_timing_stats(stats: RunTimingStats) -> str:
 def vasp_output_time(path):
     """Return last VASP output modification time.
 
+    Deprecated: use :meth:`IMDGVaspDir.output_mtime` instead.
+
     Args:
         path: VASP directory path.
 
@@ -286,21 +288,13 @@ def vasp_output_time(path):
         output file is found.  For NEB calculations, the maximum
         timestamp across all image directories is returned.
     """
-    vaspdir = IMDGVaspDir(path)
-    if vaspdir.nebp:
-        neb_dirs = vaspdir.neb_dirs()
-        assert neb_dirs is not None
-        times = [vasp_output_time(d.path) for d in neb_dirs]
-        times = [x for x in times if x is not None]
-        return None if len(times) == 0 else max(times)
-    outcar = os.path.join(path, 'OUTCAR')
-    if os.path.isfile(outcar):
-        return os.path.getmtime(outcar)
-    # ATAT moves away OUTCAR and other files but not vasprun.xml
-    vasprun = os.path.join(path, 'vasprun.xml')
-    if os.path.isfile(vasprun):
-        return os.path.getmtime(vasprun)
-    return None
+    warnings.warn(
+        "vasp_output_time is deprecated; "
+        "use IMDGVaspDir.output_mtime() instead",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return IMDGVaspDir(path).output_mtime()
 
 
 def _collect_warnings(
@@ -518,7 +512,7 @@ def status(args):
             args.dir, path_filter=include_dirp)
 
     paths_no_output = []
-    for wdir in vaspdirs:
+    for wdir, vaspdir in vaspdirs.items():
         has_slurm = False
         # Assume that vaspdir is valid as long as it has slurm logs
         # Examples: ATAT input dir, top-level NEB input.
@@ -526,7 +520,8 @@ def status(args):
             if re.match('slurm-[0-9]+.out', f.name):
                 has_slurm = True
                 break
-        has_outcar = (Path(wdir) / 'OUTCAR').is_file()
+        # Presence check: OUTCAR.gz still counts.
+        has_outcar = 'OUTCAR' in vaspdir
         if not (has_slurm or has_outcar):
             if not slurm_runningp(wdir):
                 paths_no_output.append(wdir)
@@ -656,6 +651,8 @@ def status(args):
 
                 per_step = ""
                 if running and not nebp and not args.fast:
+                    # A running VASP writes OUTCAR uncompressed; the
+                    # compressed variants appear only after cleanup.
                     outcar_path = Path(wdir) / 'OUTCAR'
                     if outcar_path.is_file():
                         per_step = format_timing_stats(
@@ -671,8 +668,10 @@ def status(args):
                 cpu_time = ""
                 n_cores = ""
                 if not running:
+                    # ``vasprun.xml`` present on disk but unparseable
+                    # (``__getitem__`` returned None): incomplete.
                     if vaspdir['vasprun.xml'] is None and\
-                       (Path(wdir) / 'vasprun.xml').is_file():
+                       'vasprun.xml' in vaspdir:
                         status_label = "incomplete vasprun.xml"
                         status_color = "red"
                     final_energy = vaspdir.final_energy
@@ -699,7 +698,7 @@ def status(args):
                             if timing_stats is not None:
                                 per_step = format_timing_stats(timing_stats)
 
-                mtime = vasp_output_time(wdir)
+                mtime = vaspdir.output_mtime()
                 if mtime is None:
                     continue
                 delta = mtime - datetime.datetime.now().timestamp()

@@ -1401,6 +1401,37 @@ class IMDGVaspDir(Mapping, MSONable):
                 else self._neb_vaspdirs[1:-1]
         return None
 
+    def output_mtime(self) -> float | None:
+        """Modification time of the newest VASP output file, or None.
+
+        Reports the OUTCAR mtime when present, otherwise the
+        vasprun.xml mtime; both resolve through compression variants.
+        For NEB directories, returns the maximum across image
+        directories.  Returns ``None`` when no VASP output file exists,
+        distinguishing "no output yet" from a zero/old timestamp.
+        """
+        if self.nebp:
+            neb_dirs = self.neb_dirs()
+            assert neb_dirs is not None
+            times = [d.output_mtime() for d in neb_dirs]
+            times = [t for t in times if t is not None]
+            return None if not times else max(times)
+        return self._output_file_mtime()
+
+    def _output_file_mtime(self) -> float | None:
+        """mtime of OUTCAR or vasprun.xml for a non-NEB directory.
+
+        ATAT and cleanup move OUTCAR away but leave vasprun.xml, so
+        vasprun.xml is the fallback.  Returns ``None`` when neither
+        output file exists.
+        """
+        path = Path(self.path)
+        for name in ("OUTCAR", "vasprun.xml"):
+            filename = self._resolve_filename(name)
+            if filename is not None:
+                return (path / filename).stat().st_mtime
+        return None
+
     def _mtime_1(self) -> float:
         """Return modification time of self.
         Ignore previous runs.  Use NEB dirs if any.
@@ -1410,14 +1441,10 @@ class IMDGVaspDir(Mapping, MSONable):
             assert neb_dirs is not None
             times = [d.mtime() for d in neb_dirs]
             return max(times)
+        mtime = self._output_file_mtime()
+        if mtime is not None:
+            return mtime
         path = Path(self.path)
-        outcar = path / "OUTCAR"
-        if outcar.is_file():
-            return outcar.stat().st_mtime
-        # ATAT moves away OUTCAR and other files but not vasprun.xml
-        vasprun = path / "vasprun.xml"
-        if vasprun.is_file():
-            return vasprun.stat().st_mtime
         incar = path / "INCAR"
         if incar.is_file():
             return incar.stat().st_mtime

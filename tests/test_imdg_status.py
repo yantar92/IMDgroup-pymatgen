@@ -58,7 +58,6 @@ from IMDgroup.pymatgen.cli.imdg_status import (
     print_seconds,
     slurm_runningp,
     status,
-    vasp_output_time,
 )
 from IMDgroup.pymatgen.io.vasp.diagnostics import VaspWarnings, VaspWarningRecord
 from IMDgroup.pymatgen.io.vasp.inputs import Incar
@@ -252,44 +251,6 @@ def test_details_text_cpu_without_cores() -> None:
     assert _details_text(_row(cpu_time='1h')) == 'CPU 1h'
 
 
-## vasp_output_time
-
-
-def test_vasp_output_time_outcar(tmp_path) -> None:
-    """OUTCAR mtime wins over any other file."""
-    outcar = tmp_path / 'OUTCAR'
-    outcar.write_text('x')
-    assert vasp_output_time(str(tmp_path)) == pytest.approx(
-        os.path.getmtime(str(outcar)))
-
-
-def test_vasp_output_time_vasprun_fallback(tmp_path) -> None:
-    """Without OUTCAR, the vasprun.xml mtime is reported."""
-    vasprun = tmp_path / 'vasprun.xml'
-    vasprun.write_text('<modeling/>')
-    assert vasp_output_time(str(tmp_path)) == pytest.approx(
-        os.path.getmtime(str(vasprun)))
-
-
-def test_vasp_output_time_none(tmp_path) -> None:
-    """No VASP output file yields None."""
-    assert vasp_output_time(str(tmp_path)) is None
-
-
-def test_vasp_output_time_neb_max(tmp_path) -> None:
-    """A NEB directory reports the latest image mtime."""
-    (tmp_path / 'INCAR').write_text('IMAGES = 1\n')
-    for name in ('00', '01', '02'):
-        image = tmp_path / name
-        image.mkdir()
-        (image / 'OUTCAR').write_text('x')
-    times = [
-        os.path.getmtime(str(tmp_path / name / 'OUTCAR'))
-        for name in ('00', '01', '02')
-    ]
-    assert vasp_output_time(str(tmp_path)) == pytest.approx(max(times))
-
-
 ## slurm_runningp
 
 
@@ -473,7 +434,7 @@ class _FakeVaspdir:
                  converged_manual=True, converged_sequence=True,
                  logs=None, warnings=None, final_energy=-1.0,
                  run_stats=None, max_force=None, timing_stats=None,
-                 vasprun=None, neb_dirs=None) -> None:
+                 vasprun=None, neb_dirs=None, files=None) -> None:
         self._incar = incar
         self.nebp = nebp
         self.converged_electronic = converged_electronic
@@ -488,9 +449,16 @@ class _FakeVaspdir:
         self.timing_stats = timing_stats
         self._vasprun = vasprun
         self._neb_dirs = neb_dirs
+        self._files = set(files or ())
 
     def __getitem__(self, item):
         return {'INCAR': self._incar, 'vasprun.xml': self._vasprun}[item]
+
+    def __contains__(self, item):
+        return item in self._files
+
+    def output_mtime(self):
+        return time.time()
 
     def logs(self):
         return self._logs
@@ -507,6 +475,7 @@ def _status_dir(tmp_path, name, fake, *, marker='OUTCAR'):
     d = tmp_path / name
     d.mkdir()
     (d / marker).write_text('')
+    fake._files.add(marker)
     return str(d), fake
 
 
@@ -521,8 +490,6 @@ def _status(monkeypatch, dirs, *, slurm_paths=(), **ns) -> tuple[str, int]:
         staticmethod(lambda rootpath=None, path_filter=None: dict(dirs)))
     monkeypatch.setattr(
         imdg_status, 'slurm_runningp', lambda path: path in slurm_paths)
-    monkeypatch.setattr(
-        imdg_status, 'vasp_output_time', lambda path: time.time())
     console = Console(record=True, width=100)
     console._force_terminal = False
     monkeypatch.setattr(imdg_status, 'console', console)
@@ -668,7 +635,8 @@ def test_status_incomplete_vasprun(tmp_path, monkeypatch) -> None:
     (d / 'vasprun.xml').write_text('<modeling/>')
     fake = _FakeVaspdir(
         vasprun=None, final_energy=None,
-        converged_electronic=False, converged_ionic=False)
+        converged_electronic=False, converged_ionic=False,
+        files={'OUTCAR', 'vasprun.xml'})
     text, code = _status(monkeypatch, {str(d): fake})
     assert code == 0
     assert 'incomplete vasprun.xml' in text
@@ -844,8 +812,6 @@ def test_status_live_terminal(tmp_path, monkeypatch) -> None:
         imdg_status.IMDGVaspDir, 'read_vaspdirs',
         staticmethod(lambda rootpath=None, path_filter=None: {path: fake}))
     monkeypatch.setattr(imdg_status, 'slurm_runningp', lambda p: False)
-    monkeypatch.setattr(
-        imdg_status, 'vasp_output_time', lambda p: time.time())
     console = Console(record=True, width=100)
     console._force_terminal = True  # force the Live render path
     monkeypatch.setattr(imdg_status, 'console', console)

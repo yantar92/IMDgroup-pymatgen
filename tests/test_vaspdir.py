@@ -698,6 +698,84 @@ def test_mtime_detects_file_change(tmp_path) -> None:
     assert d.mtime() > before
 
 
+def test_mtime_compressed_vasprun(tmp_path) -> None:
+    """mtime() prefers vasprun.xml.gz over the INCAR fallback."""
+    (tmp_path / "INCAR").write_text("ENCUT = 500\n")
+    vasprun = tmp_path / "vasprun.xml.gz"
+    with gzip.open(vasprun, "wb") as f_out:
+        f_out.write(b"<modeling/>")
+    future = time.time() + 10000.0
+    os.utime(vasprun, (future, future))
+    d = IMDGVaspDir(str(tmp_path))
+    assert d.mtime() == pytest.approx(future)
+
+
+def test_output_mtime_compressed_vasprun(tmp_path) -> None:
+    """output_mtime() resolves a compressed vasprun.xml."""
+    vasprun = tmp_path / "vasprun.xml.gz"
+    with gzip.open(vasprun, "wb") as f_out:
+        f_out.write(b"<modeling/>")
+    future = time.time() + 10000.0
+    os.utime(vasprun, (future, future))
+    d = IMDGVaspDir(str(tmp_path))
+    assert d.output_mtime() == pytest.approx(future)
+
+
+def test_output_mtime_none_without_output(tmp_path) -> None:
+    """output_mtime() is None without OUTCAR/vasprun, unlike mtime()."""
+    (tmp_path / "INCAR").write_text("ENCUT = 500\n")
+    d = IMDGVaspDir(str(tmp_path))
+    assert d.output_mtime() is None
+    assert d.mtime() is not None  # mtime() falls back to INCAR
+
+
+def test_output_mtime_outcar_wins(tmp_path) -> None:
+    """output_mtime() prefers OUTCAR over a newer vasprun.xml."""
+    outcar = tmp_path / "OUTCAR"
+    outcar.write_text("x")
+    (tmp_path / "vasprun.xml").write_text("<modeling/>")
+    future = time.time() + 10000.0
+    os.utime(tmp_path / "vasprun.xml", (future, future))
+    d = IMDGVaspDir(str(tmp_path))
+    assert d.output_mtime() == pytest.approx(os.path.getmtime(str(outcar)))
+
+
+def test_output_mtime_vasprun_fallback(tmp_path) -> None:
+    """output_mtime() uses vasprun.xml when OUTCAR is absent."""
+    vasprun = tmp_path / "vasprun.xml"
+    vasprun.write_text("<modeling/>")
+    future = time.time() + 10000.0
+    os.utime(vasprun, (future, future))
+    d = IMDGVaspDir(str(tmp_path))
+    assert d.output_mtime() == pytest.approx(future)
+
+
+def test_output_mtime_compressed_outcar(tmp_path) -> None:
+    """output_mtime() resolves a gzipped OUTCAR."""
+    outcar = tmp_path / "OUTCAR.gz"
+    with gzip.open(outcar, "wb") as f_out:
+        f_out.write(b"x")
+    future = time.time() + 10000.0
+    os.utime(outcar, (future, future))
+    d = IMDGVaspDir(str(tmp_path))
+    assert d.output_mtime() == pytest.approx(future)
+
+
+def test_output_mtime_neb_max(tmp_path) -> None:
+    """output_mtime() reports the latest image mtime for NEB."""
+    (tmp_path / "INCAR").write_text("IMAGES = 1\n")
+    for name in ("00", "01", "02"):
+        image = tmp_path / name
+        image.mkdir()
+        (image / "OUTCAR").write_text("x")
+    times = [
+        os.path.getmtime(str(tmp_path / name / "OUTCAR"))
+        for name in ("00", "01", "02")
+    ]
+    d = IMDGVaspDir(str(tmp_path))
+    assert d.output_mtime() == pytest.approx(max(times))
+
+
 def test_converged_neb_all_images_converged(
         converged_vasp_dir, tmp_path_factory) -> None:
     """converged is True when all interior NEB images are converged."""
