@@ -34,6 +34,7 @@ VASP fixtures and marked ``integration``.
 
 from __future__ import annotations
 
+import gzip
 import warnings
 
 import numpy as np
@@ -168,6 +169,24 @@ def test_vasp_log_files_outcar_only(tmp_path) -> None:
     (tmp_path / "OUTCAR").write_text("b")
     names = [f.name for f in Vasplog.vasp_log_files(str(tmp_path))]
     assert names == ["OUTCAR"]
+
+
+def test_vasp_log_files_prefers_non_compressed_outcar(tmp_path) -> None:
+    """A compressed OUTCAR is excluded when another log is present."""
+    (tmp_path / "slurm-1.out").write_text("a")
+    with gzip.open(tmp_path / "OUTCAR.gz", "wb") as f_out:
+        f_out.write(b"b")
+    names = [f.name for f in Vasplog.vasp_log_files(str(tmp_path))]
+    assert "slurm-1.out" in names
+    assert "OUTCAR.gz" not in names
+
+
+def test_vasp_log_files_compressed_outcar_only(tmp_path) -> None:
+    """A compressed OUTCAR is used when it is the only log file."""
+    with gzip.open(tmp_path / "OUTCAR.gz", "wb") as f_out:
+        f_out.write(b"b")
+    names = [f.name for f in Vasplog.vasp_log_files(str(tmp_path))]
+    assert names == ["OUTCAR.gz"]
 
 
 # --- read_outcar_timing_stats (synthetic) ------------------------------------

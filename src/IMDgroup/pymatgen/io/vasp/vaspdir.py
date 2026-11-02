@@ -117,6 +117,11 @@ class IMDGVaspDir(Mapping, MSONable):
         print(d["INCAR"]["NELM"])
         print(d["vasprun.xml"].parameters)
 
+    When file is absent but a compressed variant exists (``.gz``,
+    ``.bz2``, ``.xz``, or ``.lzma``), it is resolved and parsed:
+    ``d["vasprun.xml"]`` reads ``vasprun.xml.gz``.
+    ``d["vasprun.xml.gz"]`` matches only that exact file.
+
     Call ``refresh()`` to re-read the directory after files change.
 
     Cached parsing results are stored in LMDB to speed up repeated
@@ -145,7 +150,7 @@ class IMDGVaspDir(Mapping, MSONable):
     # Version of the cache record schema.  Bump when the structure of
     # cached records changes so that entries written by older package
     # versions are discarded on load instead of being misread.
-    CACHE_VERSION: typing.ClassVar[int] = 9
+    CACHE_VERSION: typing.ClassVar[int] = 10
 
     # LMDB map size in bytes.  Exposed as a class attribute so tests can
     # shrink it to exercise the eviction path without allocating the full
@@ -158,8 +163,23 @@ class IMDGVaspDir(Mapping, MSONable):
     # VASP results belong here.  Individual instances can extend this
     # set via the *exclude_patterns* init parameter.
     EXCLUDE_PATTERNS: typing.ClassVar[frozenset[str]] = frozenset([
-        "imdg.log",
+        "imdg.log*",
     ])
+
+    # Every parser referenced by FILE_MAPPINGS must read through
+    # ``monty.io.zopen`` (or otherwise tolerate gzip/bz2/xz/lzma input):
+    # ``__getitem__`` hands them compressed files transparently.  All
+    # pymatgen VASP parsers already satisfy this; keep the invariant when
+    # adding new FILE_MAPPINGS entries.
+
+    # Compression extensions recognised by ``monty.io.zopen``, which
+    # pymatgen's VASP parsers use internally.  Used to auto-resolve a
+    # requested name like ``vasprun.xml`` to ``vasprun.xml.gz`` when the
+    # uncompressed file is absent.  ``.z`` is intentionally omitted: it
+    # is deprecated in monty and gzip cannot decompress LZW data.
+    COMPRESSION_EXTENSIONS: typing.ClassVar[tuple[str, ...]] = (
+        '.gz', '.bz2', '.xz', '.lzma',
+    )
 
     # Regex patterns matched with re.fullmatch against file names to
     # select the parser class.  Patterns (rather than fixed names) are
@@ -170,7 +190,7 @@ class IMDGVaspDir(Mapping, MSONable):
         r'CONTCAR': pmgPoscar,
         r'KPOINTS': pmgKpoints,
         r'POTCAR': pmgPotcar,
-        r'vasprun\.xml(\.gz)?': Vasprun,
+        r'vasprun\.xml': Vasprun,
         r'OUTCAR': Outcar,
         # VASP log files (slurm output, stdout, vasp.out).  OUTCAR
         # serves as a log via the Outcar class when it is the only
@@ -191,6 +211,13 @@ class IMDGVaspDir(Mapping, MSONable):
         # "DYNMAT": pmgDynmat,
         r'WSWQ': pmgWSWQ,
     }
+
+    # Filenames that identify a directory as a VASP calculation during
+    # recursive scanning (see read_vaspdirs).  Compressed variants are
+    # recognised via COMPRESSION_EXTENSIONS.
+    VASP_INDICATOR_FILES: typing.ClassVar[tuple[str, ...]] = (
+        'OUTCAR', 'vasprun.xml', 'POSCAR', 'OSZICAR',
+    )
 
     def _should_exclude(self, filename: str) -> bool:
         """Return True if *filename* matches any exclude pattern.
@@ -744,19 +771,63 @@ class IMDGVaspDir(Mapping, MSONable):
                 title=f"Scanning {list(map(str, paths))} for VASP directories",
                 refresh_secs=1,
         ):
-            for vaspfile in ['OUTCAR', 'vasprun.xml', 'POSCAR', 'OSZICAR']:
-                if vaspfile in files and (
-                        path_filter is None or path_filter(parent)):
-                    valid_paths[str(parent)] = IMDGVaspDir(parent)
-                    break
+            if path_filter is not None and not path_filter(parent):
+                continue
+            if any(
+                IMDGVaspDir._name_in_files(vaspfile, files)
+                for vaspfile in IMDGVaspDir.VASP_INDICATOR_FILES
+            ):
+                valid_paths[str(parent)] = IMDGVaspDir(parent)
         IMDGVaspDir.flush_cache()
         return valid_paths
 
     def __fspath__(self) -> str:
         return self.path
 
+    @classmethod
+    def _strip_compression_ext(cls, filename: str) -> str:
+        """Return *filename* with a known compression suffix removed."""
+        for ext in cls.COMPRESSION_EXTENSIONS:
+            if filename.endswith(ext):
+                return filename[:-len(ext)]
+        return filename
+
+    def _resolve_filename(self, item: str) -> str | None:
+        """Return the on-disk filename for *item*, or None.
+
+        Prefers the exact name; otherwise falls back to the same name
+        with a compression extension appended (``vasprun.xml.gz`` and
+        friends).  Resolution checks the live filesystem, so a file
+        created after construction is still found.
+
+        An explicitly compressed request only matches that exact file:
+        ``d["vasprun.xml.gz"]`` never resolves to ``vasprun.xml`` or a
+        double-compressed variant.
+        """
+        path = Path(self.path)
+        if (path / item).exists():
+            return item
+        if self._strip_compression_ext(item) != item:
+            return None
+        for ext in self.COMPRESSION_EXTENSIONS:
+            candidate = item + ext
+            if (path / candidate).exists():
+                return candidate
+        return None
+
+    @classmethod
+    def _name_in_files(cls, name: str, files: Collection[str]) -> bool:
+        """Return True if *name* or a compressed variant is in *files*.
+
+        Used by ``read_vaspdirs`` to recognise VASP directories whose
+        indicator files exist only in compressed form.
+        """
+        if name in files:
+            return True
+        return any(name + ext in files for ext in cls.COMPRESSION_EXTENSIONS)
+
     def __contains__(self, item):
-        return any(f.name == item for f in self.files)
+        return self._resolve_filename(item) is not None
 
     def __len__(self):
         return len(self.files)
@@ -771,17 +842,20 @@ class IMDGVaspDir(Mapping, MSONable):
         if item in self._parsed_files:
             return self._parsed_files[item]
         path = Path(self.path)
-        exists = (path / item).exists()
+        filename = self._resolve_filename(item)
+        if filename is None:
+            return None
         # Try the per-file cache before parsing from disk.  Only valid
         # when the directory hash matched on refresh(); otherwise the
         # entry may be stale.
-        if exists and self._index_valid:
+        if self._index_valid:
             cached = self._lmdb_get(self._file_key(item))
             if cached is not _MISSING:
                 self._parsed_files[item] = cached
                 return cached
+        base_item = self._strip_compression_ext(item)
         for pattern, cls_ in self.FILE_MAPPINGS.items():
-            if re.fullmatch(pattern, item) and exists:
+            if re.fullmatch(pattern, base_item):
                 # Avoid being stuck in IO
                 # It can happen with Outcar
                 # See https://github.com/materialsproject/pymatgen/issues/4550
@@ -792,9 +866,9 @@ class IMDGVaspDir(Mapping, MSONable):
                 try:
                     # Standard parsing for all files
                     try:
-                        obj = cls_.from_file(path / item)
+                        obj = cls_.from_file(path / filename)
                     except AttributeError:
-                        obj = cls_(path / item)
+                        obj = cls_(path / filename)
                     if HAS_SIGALRM:
                         signal.alarm(0)
                     self._parsed_files[item] = obj
@@ -804,15 +878,13 @@ class IMDGVaspDir(Mapping, MSONable):
                 except Exception as e:
                     if HAS_SIGALRM:
                         signal.alarm(0)
-                    logger.debug("Failed to read %s: %s", path / item, e)
+                    logger.debug("Failed to read %s: %s", path / filename, e)
                     self._parsed_files[item] = None
                     self._dump_file_to_cache(item)
                     return None
-        if exists:
-            raise RuntimeError(
-                f"Unable to parse {item}. "
-                f"Supported file patterns are {list(self.FILE_MAPPINGS.keys())}.")
-        return None
+        raise RuntimeError(
+            f"Unable to parse {item}. "
+            f"Supported file patterns are {list(self.FILE_MAPPINGS.keys())}.")
 
     def logs(self) -> list[Vasplog | Outcar]:
         """Parse VASP log files in this directory through the file cache.

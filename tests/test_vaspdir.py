@@ -35,6 +35,7 @@ fixtures and marked ``integration``.
 
 from __future__ import annotations
 
+import gzip
 import os
 import shutil
 import signal
@@ -302,6 +303,40 @@ def test_getitem_returns_parsed_file(tmp_path) -> None:
     poscar = d["POSCAR"]
     assert isinstance(poscar, Poscar)
     assert poscar.structure.lattice.a == pytest.approx(5.0)
+
+
+def test_getitem_auto_resolves_compressed(tmp_path) -> None:
+    """__getitem__ falls back to a compressed variant when absent."""
+    _write_poscar(tmp_path, a=5.0)
+    poscar_path = tmp_path / "POSCAR"
+    with gzip.open(tmp_path / "POSCAR.gz", "wb") as f_out:
+        f_out.write(poscar_path.read_bytes())
+    poscar_path.unlink()
+    d = IMDGVaspDir(str(tmp_path))
+    assert "POSCAR" in d
+    poscar = d["POSCAR"]
+    assert isinstance(poscar, Poscar)
+    assert poscar.structure.lattice.a == pytest.approx(5.0)
+
+
+def test_getitem_exact_name_preferred(tmp_path) -> None:
+    """Exact name wins when both compressed and uncompressed exist."""
+    _write_poscar(tmp_path, a=5.0)
+    _write_poscar(tmp_path, a=6.0, filename="POSCAR.tmp")
+    with gzip.open(tmp_path / "POSCAR.gz", "wb") as f_out:
+        f_out.write((tmp_path / "POSCAR.tmp").read_bytes())
+    (tmp_path / "POSCAR.tmp").unlink()
+    d = IMDGVaspDir(str(tmp_path))
+    assert d["POSCAR"].structure.lattice.a == pytest.approx(5.0)
+    assert d["POSCAR.gz"].structure.lattice.a == pytest.approx(6.0)
+
+
+def test_getitem_explicit_compressed_no_fallback(tmp_path) -> None:
+    """An explicit .gz request does not resolve to the uncompressed file."""
+    _write_poscar(tmp_path, a=5.0)
+    d = IMDGVaspDir(str(tmp_path))
+    assert "POSCAR.gz" not in d
+    assert d["POSCAR.gz"] is None
 
 
 def test_getitem_missing_file_returns_none(tmp_path) -> None:

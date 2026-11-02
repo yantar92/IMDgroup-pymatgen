@@ -542,8 +542,10 @@ class VasplogMixin:
                    for regexp in cls.VASP_LOG_FILES):
                 matching.append(f)
         if len(matching) > 1:
-            # Ignore OUTCAR (huge) unless we have no choice
-            matching = [f for f in matching if 'OUTCAR' != f.name]
+            # Ignore OUTCAR (huge) unless we have no choice.  The
+            # ``re.match`` above is a prefix match, so this must also
+            # drop compressed variants (OUTCAR.gz and friends).
+            matching = [f for f in matching if not f.name.startswith('OUTCAR')]
         return sorted(matching, key=lambda f: f.stat().st_mtime)
 
     def parse(self, log_matchers):
