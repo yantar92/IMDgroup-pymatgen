@@ -44,12 +44,28 @@ from IMDgroup.gorun.core.incar import read_incar_toml
 from xml.etree.ElementTree import ParseError
 
 
+def _output_file_nonempty(path, name):
+    """Return True when ``name`` or a compressed variant is non-empty.
+
+    VASP cleanup may compress OUTCAR/vasprun.xml after a run, so the
+    compressed variants are considered equivalent.
+    """
+    for suffix in ('', *IMDGVaspDir.COMPRESSION_EXTENSIONS):
+        f = os.path.join(path, name + suffix)
+        if os.path.isfile(f) and os.path.getsize(f) > 0:
+            return True
+    return False
+
+
 def directory_contains_vasp_outputp(path):
     """Return True when PATH contains VASP outputs.
+
+    Checks OUTCAR and vasprun.xml (and their compressed variants),
+    since cleanup may compress or move the canonical output files.
     """
-    outcar_path = os.path.join(path, 'OUTCAR')
-    if os.path.exists(outcar_path) and os.path.getsize(outcar_path) > 0:
-        return True
+    for name in ("OUTCAR", "vasprun.xml"):
+        if _output_file_nonempty(path, name):
+            return True
     if nebp(path):
         for dirname in os.listdir(path):
             dirpath = os.path.join(path, dirname)
@@ -104,15 +120,19 @@ def clear_useless_vasp_files(path='.'):
 
 def clear_vasp_outputs(path='.'):
     """Clear all the VASP output files.
+
+    Also removes compressed variants (``OUTCAR.gz``, ``vasprun.xml.gz``,
+    ...) so a cleared directory does not leave stale archives behind.
     """
-    files = [Path(path) / file for file in
-             ["CHG", "CHGCAR", "REPORT", "WAVECAR",
-              "CONTCAR", "DOSCAR", "EIGENVAL",
-              "IBZKPT", "OSZICAR", "OUTCAR",
-              "PCDAT", "vasprun.xml", "XDATCAR"]]
-    for f in files:
-        if f.is_file():
-            f.unlink()
+    names = ["CHG", "CHGCAR", "REPORT", "WAVECAR",
+             "CONTCAR", "DOSCAR", "EIGENVAL",
+             "IBZKPT", "OSZICAR", "OUTCAR",
+             "PCDAT", "vasprun.xml", "XDATCAR"]
+    for name in names:
+        for suffix in ('', *IMDGVaspDir.COMPRESSION_EXTENSIONS):
+            f = Path(path) / (name + suffix)
+            if f.is_file():
+                f.unlink()
 
 
 def contcar_to_poscar(path) -> None:

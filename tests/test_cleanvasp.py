@@ -29,6 +29,7 @@
 
 from __future__ import annotations
 
+import gzip
 from pathlib import Path
 
 import pytest
@@ -73,6 +74,20 @@ def test_directory_contains_vasp_outputp_neb_recursion(
     sub = tmp_path / "00"
     sub.mkdir()
     (sub / "OUTCAR").write_text("data")
+    assert directory_contains_vasp_outputp(str(tmp_path)) is True
+
+
+def test_directory_contains_vasp_outputp_compressed_outcar(tmp_path: Path) -> None:
+    """A non-empty gzipped OUTCAR is treated as output."""
+    with gzip.open(tmp_path / "OUTCAR.gz", "wb") as f_out:
+        f_out.write(b"data")
+    assert directory_contains_vasp_outputp(str(tmp_path)) is True
+
+
+def test_directory_contains_vasp_outputp_compressed_vasprun(tmp_path: Path) -> None:
+    """A gzipped vasprun.xml counts even without an OUTCAR."""
+    with gzip.open(tmp_path / "vasprun.xml.gz", "wb") as f_out:
+        f_out.write(b"<modeling/>")
     assert directory_contains_vasp_outputp(str(tmp_path)) is True
 
 
@@ -128,6 +143,19 @@ def test_clear_vasp_outputs_removes_known_outputs(tmp_path: Path) -> None:
     clear_vasp_outputs(str(tmp_path))
     for name in ("CHG", "OUTCAR", "vasprun.xml", "XDATCAR"):
         assert not (tmp_path / name).exists()
+    assert (tmp_path / "POSCAR").exists()
+
+
+def test_clear_vasp_outputs_removes_compressed_variants(tmp_path: Path) -> None:
+    """Compressed OUTCAR/vasprun.xml are removed too; POSCAR stays."""
+    with gzip.open(tmp_path / "OUTCAR.gz", "wb") as f_out:
+        f_out.write(b"data")
+    with gzip.open(tmp_path / "vasprun.xml.gz", "wb") as f_out:
+        f_out.write(b"<modeling/>")
+    (tmp_path / "POSCAR").touch()
+    clear_vasp_outputs(str(tmp_path))
+    assert not (tmp_path / "OUTCAR.gz").exists()
+    assert not (tmp_path / "vasprun.xml.gz").exists()
     assert (tmp_path / "POSCAR").exists()
 
 
