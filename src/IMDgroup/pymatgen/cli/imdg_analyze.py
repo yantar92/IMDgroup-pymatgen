@@ -32,7 +32,6 @@ import re
 import sys
 from pathlib import Path
 from tabulate import tabulate
-import numpy as np
 import pandas as pd
 from alive_progress import alive_it
 from rich.console import Console
@@ -212,16 +211,11 @@ def _read_field_1(field: str, vaspdir: IMDGVaspDir):
         if val is None:
             val = "None"
     elif field == 'max_force':
-        run = vaspdir['vasprun.xml']
-        if run is None:
+        val = vaspdir.max_force()
+        if val is None:
             val = "None"
         else:
-            forces = run.ionic_steps[-1].get('forces')
-            if forces is None:
-                val = "None"
-            else:
-                val = max(np.linalg.norm(force) for force in forces)
-                val = f"{val:.4f}"
+            val = f"{val:.4f}"
     elif field == '%vol':
         vol0 = _require_structure(vaspdir.initial_structure).volume
         val = _require_structure(vaspdir.final_structure).volume / vol0 - 1

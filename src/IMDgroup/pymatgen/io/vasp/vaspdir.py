@@ -150,7 +150,7 @@ class IMDGVaspDir(Mapping, MSONable):
     # Version of the cache record schema.  Bump when the structure of
     # cached records changes so that entries written by older package
     # versions are discarded on load instead of being misread.
-    CACHE_VERSION: typing.ClassVar[int] = 11
+    CACHE_VERSION: typing.ClassVar[int] = 12
 
     # LMDB map size in bytes.  Exposed as a class attribute so tests can
     # shrink it to exercise the eviction path without allocating the full
@@ -1114,7 +1114,7 @@ class IMDGVaspDir(Mapping, MSONable):
         return None
 
     def max_force(self, include_constrained: bool = False) -> float | None:
-        """Maximum residual force magnitude from the OUTCAR.
+        """Maximum residual force magnitude from vasprun.xml or OUTCAR.
 
         When ``include_constrained`` is False (default), force
         components in directions constrained by selective dynamics are
@@ -1128,18 +1128,37 @@ class IMDGVaspDir(Mapping, MSONable):
 
         Returns:
             float | None: Maximum force in eV/Angstrom, or ``None``
-            when the OUTCAR forces are unavailable or no unconstrained
-            force components remain.
+            when the forces are unavailable or no unconstrained force
+            components remain.
         """
         return self._memoized(
             ('max_force', include_constrained),
             lambda: self._compute_max_force(include_constrained))
 
     def _compute_max_force(self, include_constrained: bool) -> float | None:
-        outcar = self['OUTCAR']
-        if outcar is None:
+        forces = self._vasprun_final_forces()
+        if forces is None:
+            outcar = self['OUTCAR']
+            forces = outcar.final_forces if outcar is not None else None
+        return self._max_force_from_forces(forces, include_constrained)
+
+    def _vasprun_final_forces(self) -> np.ndarray | None:
+        """Final ionic forces from vasprun.xml, or None if unavailable."""
+        run = self['vasprun.xml']
+        if run is None:
             return None
-        forces = outcar.final_forces
+        steps = getattr(run, 'ionic_steps', None)
+        if not steps:
+            return None
+        forces = steps[-1].get('forces')
+        if forces is None:
+            return None
+        return np.asarray(forces, dtype=float)
+
+    def _max_force_from_forces(
+            self, forces: np.ndarray | None, include_constrained: bool,
+    ) -> float | None:
+        """Maximum force magnitude from *forces*, honouring constraints."""
         if forces is None or len(forces) == 0:
             return None
         if include_constrained:

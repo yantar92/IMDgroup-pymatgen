@@ -76,26 +76,17 @@ class _VaspdirStub:
             final_structure: Structure | None = None,
             initial_structure: Structure | None = None,
             total_magnetization: float | None = None,
-            vasprun: object | None = None) -> None:
+            max_force: float | None = None) -> None:
         self.path = path
         self.final_energy = final_energy
         self.final_energy_reliable = final_energy_reliable
         self.final_structure = final_structure
         self.initial_structure = initial_structure
         self.total_magnetization = total_magnetization
-        self._vasprun = vasprun
+        self._max_force = max_force
 
-    def __getitem__(self, item):
-        if item == 'vasprun.xml':
-            return self._vasprun
-        return None
-
-
-class _FakeVasprun:
-    """Stand-in for a parsed vasprun.xml with one ionic step."""
-
-    def __init__(self, forces) -> None:
-        self.ionic_steps = [{'forces': forces}]
+    def max_force(self, include_constrained: bool = False) -> float | None:
+        return self._max_force
 
 
 class _AnalyzeVaspdir:
@@ -384,21 +375,14 @@ def test_read_field_total_mag_value() -> None:
         'total_mag', _VaspdirStub(total_magnetization=3.0)) == 3.0
 
 
-def test_read_field_max_force_no_vasprun() -> None:
-    """Without vasprun.xml the max force is reported as None."""
+def test_read_field_max_force_none() -> None:
+    """When vaspdir.max_force() is None the field is reported as None."""
     assert _read_field_1('max_force', _VaspdirStub()) == 'None'
 
 
-def test_read_field_max_force_no_forces() -> None:
-    """A vasprun without forces in the last step is reported as None."""
-    vd = _VaspdirStub(vasprun=_FakeVasprun(None))
-    assert _read_field_1('max_force', vd) == 'None'
-
-
 def test_read_field_max_force() -> None:
-    """Max force is the largest force-vector norm in the last step."""
-    forces = [[3.0, 0.0, 0.0], [0.0, 4.0, 0.0]]
-    vd = _VaspdirStub(vasprun=_FakeVasprun(forces))
+    """Max force is formatted from vaspdir.max_force()."""
+    vd = _VaspdirStub(max_force=4.0)
     assert _read_field_1('max_force', vd) == '4.0000'
 
 

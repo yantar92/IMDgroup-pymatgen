@@ -138,6 +138,13 @@ class _FakeOutcar:
         self.final_energy = final_energy
 
 
+class _FakeVasprun:
+    """Minimal stand-in for pymatgen's Vasprun with one ionic step."""
+
+    def __init__(self, forces: list[list[float]] | None = None) -> None:
+        self.ionic_steps = [{'forces': forces}]
+
+
 def _write_neb_tree(dirpath: Path, nimages: int = 1) -> None:
     """Write an INCAR with ``IMAGES`` and empty ``00``..``NN`` image dirs.
 
@@ -246,6 +253,28 @@ def test_max_force_no_outcar(tmp_path) -> None:
     (tmp_path / "INCAR").write_text("ENCUT = 500\n")
     d = IMDGVaspDir(str(tmp_path))
     assert d.max_force() is None
+
+
+def test_max_force_prefers_vasprun(tmp_path) -> None:
+    """max_force reads vasprun.xml when present, before OUTCAR."""
+    d = IMDGVaspDir(str(tmp_path))
+    d.refresh()
+    d._parsed_files = {
+        "vasprun.xml": _FakeVasprun([[2.0, 0.0, 0.0], [0.0, 3.0, 0.0]]),
+        "OUTCAR": _FakeOutcar([[10.0, 0.0, 0.0], [0.0, 10.0, 0.0]]),
+    }
+    assert d.max_force() == pytest.approx(3.0)
+
+
+def test_max_force_outcar_fallback_when_vasprun_forces_missing(tmp_path) -> None:
+    """max_force falls back to OUTCAR when vasprun has no final forces."""
+    d = IMDGVaspDir(str(tmp_path))
+    d.refresh()
+    d._parsed_files = {
+        "vasprun.xml": _FakeVasprun(None),
+        "OUTCAR": _FakeOutcar([[10.0, 0.0, 0.0], [0.0, 10.0, 0.0]]),
+    }
+    assert d.max_force() == pytest.approx(10.0)
 
 
 def test_energy_accuracy_warning(converged_relax_vasp_dir) -> None:
