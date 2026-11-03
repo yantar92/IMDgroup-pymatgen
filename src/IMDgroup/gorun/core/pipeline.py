@@ -333,7 +333,7 @@ def dispatch_run(args, adapter: SoftwareAdapter) -> int:
     else:
         with open("sub", "w", encoding="utf-8") as f:
             f.write(script)
-        status = os.WEXITSTATUS(os.system("sbatch sub"))
+        status = subprocess.run(["sbatch", "sub"]).returncode
         if status == 0:
             print(colored("Job submitted to SLURM scheduler.", "green"))
         else:
