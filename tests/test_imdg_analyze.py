@@ -518,6 +518,10 @@ def test_analyze_nogroup(monkeypatch, tmp_path, capsys) -> None:
 def test_analyze_default_fields_table(monkeypatch, tmp_path, capsys) -> None:
     """A table with no --fields reports the short DEFAULT_FIELDS set."""
     monkeypatch.chdir(tmp_path)
+    # rich defaults to 80 columns when stdout is not a TTY, which
+    # truncates the DEFAULT_FIELDS headers ("Energy, eV" -> "Energ...").
+    # Widen the detected width so the full headers are asserted.
+    monkeypatch.setenv("COLUMNS", "300")
     dirs = [_AnalyzeVaspdir(tmp_path / 'a', energy=-1.0)]
     _patch_read_vaspdirs(monkeypatch, dirs)
     args = _make_args(format='table')

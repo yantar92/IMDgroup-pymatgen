@@ -51,9 +51,9 @@ logger = logging.getLogger(__name__)
 
 ALL_FIELDS = {
     'dir': 'Directory', 'incar_group': 'INCAR type',
-    'energy': 'Energy', 'e_per_atom': 'E/Atom',
+    'energy': 'Energy, eV', 'e_per_atom': 'E/Atom, eV',
     'total_mag': 'Magnetization',
-    'max_force': 'Max force',
+    'max_force': 'Max force, eV/Å',
     '%vol': '%vol', 'displ': 'displacement',
     'space_group': 'Space group',
     'framework_space_group': 'Framework space group',
