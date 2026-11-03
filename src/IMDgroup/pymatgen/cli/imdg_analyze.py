@@ -191,14 +191,22 @@ def _read_field_1(field: str, vaspdir: IMDGVaspDir):
         val = Path(vaspdir.path).relative_to(Path.cwd())
         val = str(val).replace("./", "")
     elif field == 'energy':
-        val = vaspdir.final_energy_reliable
-        if isinstance(val, float):
-            val = f"{vaspdir.final_energy_reliable:.5f}"
+        val_reliable = vaspdir.final_energy_reliable
+        val = vaspdir.final_energy
+        if isinstance(val_reliable, float):
+            val = f"{val_reliable:.5f}"
+        else:
+            # unreliable energy. Output anyway, but indicate
+            val = f"{val:.5f} ({val_reliable})"
     elif field == 'e_per_atom':
-        val = vaspdir.final_energy_reliable
-        if not isinstance(val, str):
-            val = val / len(_require_structure(vaspdir.final_structure))
-            val = f"{val:.5f}"
+        val_reliable = vaspdir.final_energy_reliable
+        val = vaspdir.final_energy
+        n_atoms = len(_require_structure(vaspdir.final_structure))
+        if not isinstance(val_reliable, str):
+            val = f"{val / n_atoms:.5f}"
+        else:
+            # unreliable energy
+            val = f"{val / n_atoms:.5f} ({val_reliable})"
     elif field == 'total_mag':
         val = vaspdir.total_magnetization
         if val is None:

@@ -150,7 +150,7 @@ class IMDGVaspDir(Mapping, MSONable):
     # Version of the cache record schema.  Bump when the structure of
     # cached records changes so that entries written by older package
     # versions are discarded on load instead of being misread.
-    CACHE_VERSION: typing.ClassVar[int] = 10
+    CACHE_VERSION: typing.ClassVar[int] = 11
 
     # LMDB map size in bytes.  Exposed as a class attribute so tests can
     # shrink it to exercise the eviction path without allocating the full
@@ -1012,9 +1012,6 @@ class IMDGVaspDir(Mapping, MSONable):
             if not self.converged:
                 warn_unconverged()
             return run.final_energy
-        if 'vasprun.xml' in self:
-            # incomplete  vasprun.xml
-            return np.nan
         if outcar := self['OUTCAR']:
             final_energy = outcar.final_energy
             if not isinstance(final_energy, float):

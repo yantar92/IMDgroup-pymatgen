@@ -124,10 +124,18 @@ def _write_sd_poscar(dirpath: Path, a: float = 10.0) -> None:
 
 
 class _FakeOutcar:
-    """Minimal stand-in for pymatgen's Outcar exposing ``final_forces``."""
+    """Minimal stand-in for pymatgen's Outcar.
 
-    def __init__(self, forces: list[list[float]]) -> None:
-        self.final_forces = np.asarray(forces)
+    Exposes ``final_forces`` for the force tests and, optionally,
+    ``final_energy`` for the energy-fallback tests.
+    """
+
+    def __init__(
+            self,
+            forces: list[list[float]] | None = None,
+            final_energy: float | None = None) -> None:
+        self.final_forces = np.asarray(forces) if forces is not None else None
+        self.final_energy = final_energy
 
 
 def _write_neb_tree(dirpath: Path, nimages: int = 1) -> None:
@@ -199,6 +207,24 @@ def test_final_energy(converged_vasp_dir) -> None:
     """final_energy is a float for a converged run."""
     d = IMDGVaspDir(str(converged_vasp_dir))
     assert isinstance(d.final_energy, float)
+
+
+def test_final_energy_outcar_fallback_incomplete_vasprun(tmp_path) -> None:
+    """final_energy falls back to OUTCAR when vasprun.xml is unparseable.
+
+    Regression: an incomplete vasprun.xml used to short-circuit the
+    energy to NaN even when a parseable OUTCAR was present.  The
+    directory is intentionally unconverged, so the read emits the
+    ``unconverged_energy`` warning.
+    """
+    (tmp_path / "vasprun.xml").write_text("garbage\n")
+    d = IMDGVaspDir(str(tmp_path))
+    d._parsed_files = {
+        "vasprun.xml": None,  # unparseable -> cached None
+        "OUTCAR": _FakeOutcar(final_energy=-1.23),
+    }
+    with pytest.warns(VaspWarning, match="Reading final energy"):
+        assert d.final_energy == pytest.approx(-1.23)
 
 
 def test_max_force_below_ediffg(converged_relax_vasp_dir) -> None:

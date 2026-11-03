@@ -71,12 +71,14 @@ class _VaspdirStub:
             self,
             *,
             path: str = '.',
+            final_energy: float | None = None,
             final_energy_reliable: float | str | None = None,
             final_structure: Structure | None = None,
             initial_structure: Structure | None = None,
             total_magnetization: float | None = None,
             vasprun: object | None = None) -> None:
         self.path = path
+        self.final_energy = final_energy
         self.final_energy_reliable = final_energy_reliable
         self.final_structure = final_structure
         self.initial_structure = initial_structure
@@ -100,9 +102,9 @@ class _AnalyzeVaspdir:
     """Fake IMDGVaspDir for exercising :func:`analyze` control flow.
 
     Supports just enough of the IMDGVaspDir surface for the fields
-    ``analyze`` reads: ``path``, ``__getitem__('INCAR')``, and a
-    ``final_energy_reliable`` property.  Every other field degrades to
-    ``N/A`` through :func:`read_field`.
+    ``analyze`` reads: ``path``, ``__getitem__('INCAR')``, and the
+    ``final_energy`` / ``final_energy_reliable`` properties.  Every
+    other field degrades to ``N/A`` through :func:`read_field`.
     """
 
     def __init__(self, path, *, energy=None, incar=None) -> None:
@@ -114,6 +116,10 @@ class _AnalyzeVaspdir:
         if item == 'INCAR':
             return self._incar
         return None
+
+    @property
+    def final_energy(self):
+        return self._energy
 
     @property
     def final_energy_reliable(self):
@@ -256,16 +262,25 @@ def test_read_field_dir_is_relative(monkeypatch, tmp_path: Path) -> None:
 
 
 def test_read_field_energy_formats_float() -> None:
-    """A float energy is formatted to five decimals."""
+    """A reliable (float) energy is formatted to five decimals."""
     assert _read_field_1(
-        'energy', _VaspdirStub(final_energy_reliable=-123.456789)
+        'energy',
+        _VaspdirStub(final_energy=-123.456789,
+                     final_energy_reliable=-123.456789),
     ) == '-123.45679'
 
 
-def test_read_field_energy_string_passthrough() -> None:
-    """A non-float energy (N/A marker) is returned verbatim."""
+def test_read_field_energy_unreliable_shows_marker() -> None:
+    """An unreliable energy is shown with its reliability marker.
+
+    The raw value is still printed for human inspection, but the marker
+    flags it as unreliable for programmatic consumers.
+    """
     assert _read_field_1(
-        'energy', _VaspdirStub(final_energy_reliable='N/A')) == 'N/A'
+        'energy',
+        _VaspdirStub(final_energy=-123.456789,
+                     final_energy_reliable='unconverged'),
+    ) == '-123.45679 (unconverged)'
 
 
 ## _render_table
@@ -340,14 +355,22 @@ def test_read_field_e_per_atom() -> None:
     """Energy per atom divides by the final structure atom count."""
     structure = _carbon_lithium_structure()  # 3 atoms
     vd = _VaspdirStub(
-        final_energy_reliable=-12.3, final_structure=structure)
+        final_energy=-12.3,
+        final_energy_reliable=-12.3,
+        final_structure=structure,
+    )
     assert _read_field_1('e_per_atom', vd) == f"{-12.3 / 3:.5f}"
 
 
-def test_read_field_e_per_atom_string_passthrough() -> None:
-    """A string energy (N/A marker) is returned verbatim."""
-    assert _read_field_1(
-        'e_per_atom', _VaspdirStub(final_energy_reliable='N/A')) == 'N/A'
+def test_read_field_e_per_atom_unreliable_shows_marker() -> None:
+    """An unreliable per-atom energy keeps the raw value plus marker."""
+    structure = _carbon_lithium_structure()  # 3 atoms
+    vd = _VaspdirStub(
+        final_energy=-12.3,
+        final_energy_reliable='unreliable',
+        final_structure=structure,
+    )
+    assert _read_field_1('e_per_atom', vd) == f"{-12.3 / 3:.5f} (unreliable)"
 
 
 def test_read_field_total_mag_none() -> None:
