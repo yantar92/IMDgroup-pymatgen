@@ -33,7 +33,6 @@ import os
 import math
 import warnings
 import logging
-import copy
 from xml.etree.ElementTree import ParseError
 from pathlib import Path
 from dataclasses import dataclass, fields, field
@@ -47,7 +46,6 @@ from pymatgen.io.vasp.inputs import (
     Poscar,
     Potcar,
 )
-from pymatgen.io.vasp.outputs import Vasprun
 from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
 from pymatgen.io.ase import AseAtomsAdaptor
 from ase.calculators.vasp.setups \
@@ -934,7 +932,10 @@ class IMDNEBVaspInputSet(IMDDerivedInputSet):
         if beg_run is None:
             raise FileNotFoundError(
                 f"No readable vasprun.xml in {self.directory}")
-        end_vaspdir = IMDGVaspDir(self.target_directory)
+        if isinstance(self.target_directory, IMDGVaspDir):
+            end_vaspdir = self.target_directory
+        else:
+            end_vaspdir = IMDGVaspDir(self.target_directory)
         end_run = end_vaspdir['vasprun.xml']
         if end_run is None:
             warnings.warn(
