@@ -33,7 +33,7 @@ import subprocess
 import tomllib
 from importlib import resources
 
-from pytimeparse import parse as _timeparse
+from pytimeparse.timeparse import timeparse as _timeparse
 from pymatgen.io.vasp.inputs import Incar
 
 from IMDgroup.gorun.slurm import barf_if_no_cmd
