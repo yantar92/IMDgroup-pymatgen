@@ -4,7 +4,7 @@
 #
 # Author: Ihor Radchenko <yantar92@posteo.net>
 #
-# This file is a part of IMDgroup-pymatgen package
+# This file is a part of MatRiFFlow package
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -25,7 +25,7 @@
 # SOFTWARE.
 
 
-"""Tests for IMDgroup.gorun.adapters.maps_adapter."""
+"""Tests for matrifflow.gorun.adapters.maps_adapter."""
 
 from __future__ import annotations
 
@@ -34,10 +34,10 @@ from pathlib import Path
 
 import pytest
 
-import IMDgroup.gorun.adapters.maps_adapter as maps_mod
-import IMDgroup.pymatgen.io.vasp.sets as sets_mod
+import matrifflow.gorun.adapters.maps_adapter as maps_mod
+import matrifflow.pymatgen.io.vasp.sets as sets_mod
 
-from IMDgroup.gorun.adapters.maps_adapter import MapsAdapter
+from matrifflow.gorun.adapters.maps_adapter import MapsAdapter
 
 
 def _adapter(**kwargs) -> MapsAdapter:
@@ -133,7 +133,7 @@ def test_is_valid_input_bad_prototype(monkeypatch, tmp_path: Path) -> None:
         def __init__(self, directory=None) -> None:
             raise RuntimeError("boom")
 
-    monkeypatch.setattr(sets_mod, "IMDDerivedInputSet", _BadInputSet)
+    monkeypatch.setattr(sets_mod, "MRFDerivedInputSet", _BadInputSet)
     assert _adapter().is_valid_input(tmp_path) is False
 
 
@@ -149,7 +149,7 @@ def test_is_valid_input_ok(monkeypatch, tmp_path: Path) -> None:
         def write_input(self, test_dir: Path) -> None:
             test_dir.mkdir()
 
-    monkeypatch.setattr(sets_mod, "IMDDerivedInputSet", _OkInputSet)
+    monkeypatch.setattr(sets_mod, "MRFDerivedInputSet", _OkInputSet)
     assert _adapter().is_valid_input(tmp_path) is True
     assert not (tmp_path / ".__test").exists()
 

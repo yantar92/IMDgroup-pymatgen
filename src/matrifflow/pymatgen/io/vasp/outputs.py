@@ -1,0 +1,803 @@
+# MIT License
+#
+# Copyright (c) 2024-2026 Inverse Materials Design Group
+#
+# Author: Ihor Radchenko <yantar92@posteo.net>
+#
+# This file is a part of MatRiFFlow package
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
+
+"""This module implements extensions to pymatgen.io.vasp.outputs module."""
+
+import warnings
+import logging
+import re
+import os
+from collections.abc import Iterable
+from dataclasses import dataclass
+from pathlib import Path
+from monty.json import MSONable
+from monty.io import zopen
+import numpy as np
+from pymatgen.util.typing import PathLike
+from pymatgen.io.vasp.outputs import Vasprun as pmgVasprun
+from pymatgen.io.vasp.outputs import Outcar as pmgOutcar
+from matrifflow.pymatgen.io.vasp.inputs import Incar
+from matrifflow.pymatgen.io.vasp.diagnostics import (
+    VaspWarningRecord,
+    VaspWarnings,
+)
+
+logger = logging.getLogger(__name__)
+
+
+class Vasprun(pmgVasprun):
+    """Modified version of pymatgen's Vasprun class.
+
+    Adds checks for stress, forces, and energy accuracy when
+    non-trivial ISIF values are used.
+    """
+
+    def _record(self, record: VaspWarningRecord) -> None:
+        """Record a structured warning and emit it.
+
+        Records are overwritten by name, so re-running a check is
+        idempotent.  ``overwrite`` emits through ``warnings.warn``.
+        """
+        if getattr(self, '_warnings', None) is None:
+            self._warnings = VaspWarnings()
+        self._warnings.overwrite(record)
+
+    @property
+    def warnings(self) -> VaspWarnings:
+        """Structured warnings collected for this run.
+
+        On first access, runs the derived accuracy checks (energy,
+        stress, forces) and returns their records.  Accessing
+        ``final_energy``, ``check_stress``, or ``check_forces``
+        directly also populates the container.
+        """
+        if getattr(self, '_warnings', None) is None:
+            self._warnings = VaspWarnings()
+        if not getattr(self, '_warnings_checked', False):
+            self.final_energy
+            self.converged_ionic
+            self._warnings_checked = True
+        return self._warnings
+
+    @property
+    def final_energy(self) -> float:
+        """Final energy from the VASP run.
+
+        Records an energy-accuracy warning when the energy may be
+        inaccurate due to relaxation with ISIF values that change cell
+        shape or volume.
+        """
+        energy = super().final_energy
+        n_steps = len(self.ionic_steps)
+
+        if self.incar.get('IBRION') in Incar.IBRION_IONIC_RELAX_values and\
+           self.incar.get('ISIF') not in [
+               Incar.ISIF_FIX_SHAPE_VOL,
+               Incar.ISIF_FIX_SHAPE_VOL_TRACE,
+               Incar.ISIF_FIX_SHAPE_VOL_FAST] and n_steps > 1:
+            self._record(VaspWarningRecord(
+                name="energy_accuracy",
+                message=(
+                    "Energy may not be accurate when using "
+                    f"ISIF({self.incar.get('ISIF')})!={Incar.ISIF_FIX_SHAPE_VOL}"
+                ),
+                tips=[
+                    "Relax with ISIF=2, 3, or 4, or verify the energy separately."
+                ],
+                source=getattr(self, 'filename', None),
+            ))
+
+        return energy
+
+    PRESSURE_CONVERGENCE_THRESHOLD = 3
+
+    # Minimum energy increase per atom (eV/atom) above the best
+    # intermediate ionic step that triggers an energy-increase warning.
+    # Normalizing per atom keeps the threshold from scaling with system
+    # size.  Kept modest so genuine backtracks are flagged while
+    # electronic SCF noise (EDIFF) is ignored.
+    ENERGY_INCREASE_TOLERANCE = 1e-3
+
+    def check_stress(self) -> bool:
+        """Check whether the residual hydrostatic stress is acceptable.
+
+        Returns:
+            bool: True if the hydrostatic stress is below
+            ``PRESSURE_CONVERGENCE_THRESHOLD``.  Records a
+            ``stress_convergence`` warning and emits ``VaspWarning``
+            otherwise.
+        """
+        stress_tensor = np.array(self.ionic_steps[-1]['stress'])
+        external_pressure = np.trace(stress_tensor) / 3
+        # if not np.allclose(stress_tensor, stress_tensor.T):
+        #     stress_tensor = (stress_tensor + stress_tensor.T) / 2
+        # principal_stresses = np.linalg.eigvals(stress_tensor)
+        if external_pressure > self.PRESSURE_CONVERGENCE_THRESHOLD:
+            self._record(VaspWarningRecord(
+                name="stress_convergence",
+                message=(
+                    f"Hydrostatic stress is {external_pressure}"
+                    f" > {self.PRESSURE_CONVERGENCE_THRESHOLD}"
+                ),
+                source=getattr(self, 'filename', None),
+                metadata={"hydrostatic_pressure": float(external_pressure)},
+            ))
+            return False
+        return True
+
+    def check_forces(self, threshold=0.05) -> bool:
+        """Check residual forces, respecting selective dynamics.
+
+        Only force components in unconstrained directions are
+        considered when selective dynamics information is available.
+
+        Args:
+            threshold: Force threshold in eV/Angstrom.
+
+        Returns:
+            bool: True if all forces are below threshold.
+        """
+        final_forces = np.array(self.ionic_steps[-1]['forces'])
+
+        # Get selective dynamics info if available
+        selective_dynamics = None
+        if hasattr(self.final_structure, 'site_properties')\
+           and 'selective_dynamics' in self.final_structure.site_properties:
+            selective_dynamics = self.final_structure.site_properties['selective_dynamics']
+
+        max_force = 0
+        for i, force in enumerate(final_forces):
+            if selective_dynamics and i < len(selective_dynamics):
+                # Only check force components in unconstrained directions
+                sd = selective_dynamics[i]  # [free_x, free_y, free_z]
+                constrained_force = 0
+                for j, free in enumerate(sd):
+                    if free:
+                        constrained_force += force[j]**2
+                force_mag = np.sqrt(constrained_force) if constrained_force > 0 else 0
+            else:
+                force_mag = np.linalg.norm(force)
+
+            max_force = max(max_force, force_mag)
+
+        if max_force > threshold:
+            self._record(VaspWarningRecord(
+                name="force_convergence",
+                message=(
+                    f"Large force found {max_force:.3f} > {threshold}eV/Å"
+                ),
+                source=getattr(self, 'filename', None),
+                metadata={"max_force": float(max_force), "threshold": threshold},
+            ))
+            return False
+        return True
+
+    def check_energy_increase(self, tolerance: float | None = None) -> bool:
+        """Check whether the final ionic energy is above an intermediate one.
+
+        A proper ionic relaxation should end at (or below) the lowest
+        energy reached in earlier ionic steps.  When the final energy
+        is higher than the best intermediate energy by more than
+        *tolerance* per atom, records an ``energy_increase`` warning.
+
+        Args:
+            tolerance: Energy increase per atom (eV/atom) that triggers
+                a warning.  Defaults to
+                :attr:`ENERGY_INCREASE_TOLERANCE`.
+
+        Returns:
+            bool: True when the energy is monotonic (or cannot be
+            checked), False when a warning was recorded.
+        """
+        if tolerance is None:
+            tolerance = self.ENERGY_INCREASE_TOLERANCE
+        try:
+            energies = np.array([step['e_0_energy'] for step in self.ionic_steps])
+        except (KeyError, TypeError, ValueError):
+            return True
+        if len(energies) < 2:
+            return True
+        final_energy = float(energies[-1])
+        min_intermediate = float(energies[:-1].min())
+        increase = final_energy - min_intermediate
+        n_atoms = len(self.initial_structure)
+        increase_per_atom = increase / n_atoms
+        if increase_per_atom > tolerance:
+            self._record(VaspWarningRecord(
+                name="energy_increase",
+                message=(
+                    f"Final ionic energy ({final_energy:.6f} eV) is "
+                    f"{increase:.6f} eV ({increase_per_atom:.6f} eV/atom) "
+                    f"above the minimum intermediate energy "
+                    f"({min_intermediate:.6f} eV)"
+                ),
+                tips=[
+                    "Inspect the ionic relaxation trajectory: the energy "
+                    "increased instead of decreasing toward the minimum."
+                ],
+                source=getattr(self, 'filename', None),
+                metadata={
+                    "final_energy": final_energy,
+                    "min_intermediate_energy": min_intermediate,
+                    "energy_increase": increase,
+                    "energy_increase_per_atom": increase_per_atom,
+                    "n_atoms": n_atoms,
+                },
+            ))
+            return False
+        return True
+
+    @property
+    def converged_ionic(self) -> bool:
+        """Whether ionic convergence was reached.
+
+        Wraps pymatgen's version but additionally checks stress and
+        forces when ISIF is non-trivial, and warns when the final
+        energy is higher than an intermediate step's energy.
+        """
+        converged_ionic = super().converged_ionic
+        if self.incar.get('IBRION') in Incar.IBRION_IONIC_RELAX_values:
+            self.check_energy_increase()
+            if converged_ionic and (self.incar.get('ISIF') not in [0, 1]):
+                if self.incar.get('ISIF') != Incar.ISIF_RELAX_POS:
+                    self.check_stress()
+                self.check_forces()
+
+        return converged_ionic
+
+
+class VasplogMixin:
+    """Shared log-parsing logic for VASP log files and OUTCAR.
+
+    Builds a deduplicated line index (``self.lines`` and
+    ``self.line_counts``) and exposes regex-driven warning/progress
+    extraction.  Subclasses supply the raw log lines via
+    :meth:`_raw_log_lines`: ``Vasplog`` reads them from a file,
+    ``Outcar`` reuses the text already slurped by pymatgen.
+    """
+
+    # Maximum log file size to be read
+    # Larger files are read partially (first MAX_SIZE bytes)
+    MAX_SIZE = 10 * 1000 * 1000
+
+    # Adapted (and modified) from custodian/src/custodian/vasp/handlers.py
+    VASP_WARNINGS = {
+        "__exclude": [
+            # false positives to be filtered out
+            " *kinetic energy error for atom=.+",
+        ],
+        # Additional context lines to include in the match
+        "__context": {
+            "kpoints_parser": 3,
+            "vasp_runtime_error": 2,
+            "mag_init": 1,
+            "zbrent": 2,
+        },
+        # Additional message to clarify a warning
+        "__extra_message": {
+            'slurm_error': [
+                "VASP crashed.  Possible causes: time limit exceeded, not enough memory, VASP bug, cluster problem"
+            ],
+            'brmix': [
+                "This is expected to happen once in charged systems"
+            ],
+            # Test data in 2025.graphite.Li.CE/03.CE.fix_lattice.KPOINTS.10k/AA/strain.c.0.00/18111/ATAT.SCF.FIXSUBSPACEMATRIX
+            'subspacematrix': [
+                "Might happen when NCORE/NPAR is too large or atoms are very close. " +
+                "As long as converged, should not affect final energy"
+            ],
+            'brions': [
+                "The system may be oscilating. Consider smaller POTIM or changing to IBRION=2 or 3"
+            ],
+            'dentet': [
+                "This error can occur in metallic systems where band occupancy cannot be uniquely solved.  "
+                + "Or when KPOINTS are pointing to the same band (e.g. in 1D structures)."
+            ],
+        },
+        "time_limit": [
+            r"JOB [0-9]+ ON [0-9a-z]+ CANCELLED AT [^ ]+ DUE TO TIME LIMIT",
+        ],
+        "canceled": [
+            r"JOB [0-9]+ ON [0-9a-z]+ CANCELLED AT",
+        ],
+        "slurm_error": [
+            "slurmstepd: error",
+            "prterun noticed",
+            "srun: error",
+        ],
+        # "mag_init": [
+        #     r"You use a magnetic or noncollinear calculation"
+        # ],
+        "kpoints_parser": [
+            "Error reading KPOINTS file"
+        ],
+        "vasp_bug": [
+            "Please submit a bug report.",
+        ],
+        "fortran_runtime_error": [
+            "Fortran runtime error"
+        ],
+        "vasp_runtime_error": [
+            "Error termination"
+        ],
+        "fexcf": [
+            "ERROR FEXCF: supplied exchange-correlation table"
+        ],
+        "electron_convergance": [
+            "The electronic self-consistency was not achieved in the given"
+        ],
+        "tet": [
+            "Tetrahedron method fails",
+            "tetrahedron method fails",
+            "Routine TETIRR needs special values",
+            "Tetrahedron method fails (number of k-points < 4)",
+            # "BZINTS",
+        ],
+        "ksymm": [
+            "Fatal error detecting k-mesh",
+            "Fatal error: unable to match k-point",
+        ],
+        "ibzkpt": [
+            "IBZKPT: unable to construct a generating k-lattice suitable for use",
+        ],
+        "inv_rot_mat": ["rotation matrix was not found (increase SYMPREC)"],
+        "brmix": ["BRMIX: very serious problems"],
+        "subspacematrix": ["WARNING: Sub-Space-Matrix is not hermitian in DAV"],
+        "tetirr": ["Routine TETIRR needs special values"],
+        "incorrect_shift": ["Could not get correct shifts"],
+        "real_optlay": ["REAL_OPTLAY: internal error", "REAL_OPT: internal ERROR"],
+        "rspher": ["ERROR RSPHER"],
+        "dentet": ["DENTET"],  # reason for this warning is
+        # that the Fermi level cannot be determined accurately
+        # enough by the tetrahedron method
+        # https://vasp.at/forum/viewtopic.php?f=3&t=416&p=4047&hilit=dentet#p4047
+        "too_few_bands": ["TOO FEW BANDS"],
+        "triple_product": ["ERROR: the triple product of the basis vectors"],
+        "rot_matrix": [
+            "Found some non-integer element in rotation matrix", "SGRCON"],
+        "brions": ["BRIONS problems: POTIM should be increased"],
+        "pricel": ["internal error in subroutine PRICEL"],
+        "zpotrf": ["LAPACK: Routine ZPOTRF failed", "Routine ZPOTRF ZTRTRI"],
+        "amin": ["One of the lattice vectors is very long (>50 A), but AMIN"],
+        "zbrent": [
+            "ZBRENT: fatal internal in",
+            "ZBRENT: fatal error in bracketing",
+            "ZBRENT:  can not reach accuracy",
+            # "ZBRENT: can't locate minimum, use default step"
+        ],
+        # Note that PSSYEVX and PDSYEVX errors are identical up to LAPACK routine:
+        # P<prec>SYEVX uses <prec> = S(ingle) or D(ouble) precision
+        "pssyevx": ["ERROR in subspace rotation PSSYEVX"],
+        "pdsyevx": ["ERROR in subspace rotation PDSYEVX"],
+        "eddrmm": ["WARNING in EDDRMM: call to ZHEGV failed"],
+        "edddav": ["Error EDDDAV: Call to ZHEGV failed"],
+        "algo_tet": ["ALGO=A and IALGO=5X tend to fail"],
+        "grad_not_orth": ["EDWAV: internal error, the gradient is not orthogonal"],
+        "nicht_konv": ["ERROR: SBESSELITER : nicht konvergent"],
+        "zheev": ["ERROR EDDIAG: Call to routine ZHEEV failed!"],
+        "eddiag": ["ERROR in EDDIAG: call to ZHEEV/ZHEEVX/DSYEV/DSYEVX failed"],
+        "elf_kpar": ["ELF: KPAR>1 not implemented"],
+        "elf_ncl": ["WARNING: ELF not implemented for non collinear case"],
+        "rhosyg": ["RHOSYG"],
+        "posmap": ["POSMAP"],
+        "point_group": ["group operation missing"],
+        "pricelv": [
+            "PRICELV: current lattice and primitive lattice are incommensurate"],
+        "symprec_noise": [
+            "determination of the symmetry of your systems shows a strong"],
+        "dfpt_ncore": [
+            "PEAD routines do not work for NCORE",
+            "remove the tag NPAR from the INCAR file"],
+        "bravais": ["Inconsistent Bravais lattice"],
+        "nbands_not_sufficient": ["number of bands is not sufficient"],
+        "hnform": ["HNFORM: k-point generating"],
+        "coef": ["while reading plane", "while reading WAVECAR"],
+        "set_core_wf": ["internal error in SET_CORE_WF"],
+        "read_error": ["Error reading item", "Error code was IERR= 5"],
+        "auto_nbands": ["The number of bands has been changed"],
+        "unclassified": ["error"],
+    }
+
+    VASP_PROGRESS = {
+        "00SCF": [
+            r"DAV:.+",
+        ],
+        "01relax": [
+            r"step:.+harm=.+dis=.+next Energy=.+dE=.+",
+            r"opt step +=.+harmonic.+distance.+",
+            r"next E +=.+d E +=.+",
+            r"BRION:.+",
+            r"g.Force. *= .+g.Stress.=.+",
+        ],
+    }
+
+    VASP_LOG_FILES = [r'slurm.+', r'stdout', r'OUTCAR', r'vasp.out']
+
+    @staticmethod
+    def _dedup_lines(raw_lines):
+        """Strip and deduplicate raw log lines into an index.
+
+        Args:
+            raw_lines: Unstripped log lines.
+
+        Returns:
+            tuple[list[str], dict[str, int]]: A pair ``(lines,
+            line_counts)`` where ``lines`` holds each unique stripped
+            line in first-seen order and ``line_counts`` maps each
+            line to its total number of occurrences.
+        """
+        lines = []
+        line_counts = {}
+        for line in raw_lines:
+            line = line.strip()
+            if line in line_counts:
+                line_counts[line] += 1
+            else:
+                lines.append(line)
+                line_counts[line] = 1
+        return lines, line_counts
+
+    def _raw_log_lines(self) -> list[str]:
+        """Return the raw (unstripped) log lines to index.
+
+        Subclasses must implement this.
+        """
+        raise NotImplementedError
+
+    def _ensure_log_index(self) -> None:
+        """Populate ``self.lines`` and ``self.line_counts`` if needed."""
+        if getattr(self, 'line_counts', None) is None:
+            self.lines, self.line_counts = self._dedup_lines(
+                self._raw_log_lines())
+
+    @property
+    def warnings(self) -> VaspWarnings:
+        """Parsed warning records.
+
+        Returns:
+            VaspWarnings: Name-keyed warning records.  See
+            ``VASP_WARNINGS`` for the full list of recognised warning
+            types.
+        """
+        self._ensure_log_index()
+        if getattr(self, '_warnings', None) is None:
+            self._warnings = self.parse(self.VASP_WARNINGS)
+        return self._warnings
+
+    @property
+    def progress(self) -> VaspWarnings:
+        """Parsed progress messages.
+
+        Returns:
+            VaspWarnings: Name-keyed progress records.  See
+            ``VASP_PROGRESS`` for the full list of recognised progress
+            types.
+        """
+        self._ensure_log_index()
+        if getattr(self, '_progress', None) is None:
+            self._progress = self.parse(self.VASP_PROGRESS)
+        return self._progress
+
+    @classmethod
+    def from_dir(cls, dirname: PathLike) -> list['Vasplog']:
+        """Parse all log files found in a directory.
+
+        Args:
+            dirname: Directory to search for VASP log files.
+
+        Returns:
+            list[Vasplog]: One Vasplog instance per log file found.
+        """
+        files = cls.vasp_log_files(dirname)
+        if files is None:
+            return []
+        return [Vasplog(f) for f in files]
+
+    @classmethod
+    def vasp_log_files(cls, path: PathLike) -> list[Path] | None:
+        """Find VASP log files in a directory.
+
+        Files are sorted by modification time.  OUTCAR is excluded
+        unless no other log file is found (to avoid reading large files).
+
+        Args:
+            path: Directory to search.
+
+        Returns:
+            list[str]: Sorted list of matching file paths.  Empty list
+            if no log files are found or path is not a directory.
+        """
+        path = Path(path)
+        if not path.is_dir():
+            return None
+        files = [f for f in path.iterdir() if f.is_file()]
+        # logger.debug("Searching slurm logs in %s across %s", path, files)
+        matching: list[Path] = []
+        for f in files:
+            if any(re.match(regexp, f.name)
+                   for regexp in cls.VASP_LOG_FILES):
+                matching.append(f)
+        if len(matching) > 1:
+            # Ignore OUTCAR (huge) unless we have no choice.  The
+            # ``re.match`` above is a prefix match, so this must also
+            # drop compressed variants (OUTCAR.gz and friends).
+            matching = [f for f in matching if not f.name.startswith('OUTCAR')]
+        return sorted(matching, key=lambda f: f.stat().st_mtime)
+
+    def parse(self, log_matchers):
+        """Parse log lines against the given matcher dictionary.
+
+        Args:
+            log_matchers: Dictionary of ``{name: [regexp, ...]}``
+                defining patterns to search for.  May also contain
+                special keys:
+
+                - ``__exclude``: list of regexps to exclude (false positives).
+                - ``__context``: ``{name: n_lines}`` of extra context lines.
+                - ``__extra_message``: ``{name: [tip_line, ...]}`` of
+                  explanatory messages.
+
+        Returns:
+            VaspWarnings: ``{name: VaspWarningRecord}`` where ``name``
+            is the log type and the record carries ``message``, ``tips``
+            and ``count``.
+        """
+        # Pre-compile all patterns
+        exclude_re = [re.compile(p) for p in log_matchers.get('__exclude', [])]
+        context_rules = log_matchers.get('__context', {})
+        extra_msgs = log_matchers.get('__extra_message', {})
+
+        # Build matcher dictionary {compiled_pattern: warn_name}
+        warn_patterns = {}
+        for warn_name, matchers in log_matchers.items():
+            if warn_name.startswith('__'):
+                continue
+            warn_patterns[warn_name] = {
+                'patterns': [re.compile(m) for m in matchers],
+                'context': context_rules.get(warn_name, 0)
+            }
+
+        result = VaspWarnings()
+        # Process text line by line for memory efficiency
+        i = 0
+        n_lines = len(self.lines)
+        while i < n_lines:
+            line = self.lines[i]
+            i += 1
+            # Check exclusions first
+            if any(re.search(p, line) for p in exclude_re):
+                continue
+            # Check warning patterns
+            for warn_name, config in warn_patterns.items():
+                patterns = config['patterns']
+                context = config['context']
+                if any(p.search(line) for p in patterns):
+                    # Collect context
+                    end_idx = min(i - 1 + context + 1, n_lines)
+                    context_block = '\n'.join(self.lines[i - 1:end_idx])
+
+                    result.add(VaspWarningRecord(
+                        name=warn_name,
+                        message=context_block,
+                        tips=extra_msgs.get(warn_name) or [],
+                        count=self.line_counts[line],
+                        source=str(getattr(self, 'file', None)),
+                    ))
+                    break  # only count one match per line
+
+        logger.debug("Found %d log patterns", len(result))
+        return result
+
+
+_IONIC_STEP_RE = re.compile(r'Ionic step\s+(\d+)')
+_ITERATION_RE = re.compile(r'Iteration\s+(\d+)\(\s*(\d+)\)')
+_LOOP_RE = re.compile(
+    r'LOOP:\s+cpu time\s+([0-9.]+):\s+real time\s+([0-9.]+)'
+)
+
+
+@dataclass(frozen=True)
+class MeanStd:
+    """Sample mean and standard deviation of a timing series."""
+    n: int
+    mean: float
+    std: float
+
+
+@dataclass(frozen=True)
+class RunTimingStats:
+    """Wall-clock timing statistics for a VASP run."""
+    scf: MeanStd       # seconds per electronic SCF cycle
+    ionic: MeanStd     # seconds per ionic (relaxation) step
+
+
+def _mean_std(values: list[float]) -> MeanStd:
+    """Sample mean and std (ddof=1); std is NaN for fewer than 2 values."""
+    arr = np.asarray(values, dtype=float)
+    if arr.size == 0:
+        return MeanStd(0, float('nan'), float('nan'))
+    if arr.size == 1:
+        return MeanStd(1, float(arr[0]), float('nan'))
+    return MeanStd(arr.size, float(arr.mean()), float(arr.std(ddof=1)))
+
+
+def _compute_timing_stats(lines: Iterable[str]) -> RunTimingStats:
+    """Aggregate timing from an iterable of OUTCAR lines.
+
+    A SCF cycle is one ``LOOP: ... real time`` record.  An ionic step
+    time is the sum of ``LOOP`` records within one ``Ionic step``
+    block.  Both are wall-clock time in seconds.
+    """
+    scf_times: list[float] = []
+    ionic_step_times: dict[int, float] = {}
+    ionic_step = 0
+    for line in lines:
+        if m := _IONIC_STEP_RE.search(line):
+            ionic_step = int(m.group(1))
+        elif m := _ITERATION_RE.search(line):
+            if ionic_step == 0:  # NSW=0: no "Ionic step" marker printed
+                ionic_step = int(m.group(1))
+        elif m := _LOOP_RE.search(line):
+            real_time = float(m.group(2))
+            scf_times.append(real_time)
+            ionic_step_times[ionic_step] = ionic_step_times.get(ionic_step, 0.0) + real_time
+    return RunTimingStats(
+        scf=_mean_std(scf_times),
+        ionic=_mean_std(list(ionic_step_times.values())),
+    )
+
+
+def read_outcar_timing_stats(filename: PathLike) -> RunTimingStats:
+    """Stream OUTCAR and compute SCF / ionic step timing statistics.
+
+    Reads only timing markers, so it is cheap enough for ongoing runs
+    where a full pymatgen :class:`Outcar` parse is not desirable.
+
+    Args:
+        filename: Path to the OUTCAR file.
+
+    Returns:
+        RunTimingStats: Mean and sample std of wall-clock time per SCF
+        cycle and per ionic step, in seconds.
+    """
+    with zopen(filename, mode='rt', encoding='UTF-8') as f:
+        return _compute_timing_stats(f)
+
+
+class Outcar(VasplogMixin, pmgOutcar):
+    """Modified version of pymatgen's Outcar that stores all fields."""
+
+    def _raw_log_lines(self) -> list[str]:
+        """Return OUTCAR lines, limited to ``MAX_SIZE`` bytes.
+
+        Reads the first ``MAX_SIZE`` bytes from the OUTCAR file,
+        mirroring :meth:`Vasplog._raw_log_lines`.  We read from disk
+        instead of reusing pymatgen's in-memory text cache because its
+        attribute name is not stable across pymatgen versions (``_text``
+        was replaced by ``_lines``).
+        """
+        with zopen(self.filename, mode="rt", encoding="UTF-8") as f:
+            return f.readlines(self.MAX_SIZE)
+
+    @property
+    def file(self) -> Path:
+        """Path to the OUTCAR file (uniform with :class:`Vasplog`)."""
+        return Path(self.filename)
+
+    def as_dict(self) -> dict:
+        """MSONable dict."""
+        dct = super().as_dict()
+        for key, value in vars(self).items():
+            if key not in dct:
+                dct[key] = value
+        return dct
+
+    @property
+    def final_forces(self) -> np.ndarray | None:
+        """Force vectors from the final ionic step.
+
+        Parses the last ``TOTAL-FORCE`` table from the OUTCAR and
+        returns one force vector per atom.
+
+        Returns:
+            np.ndarray | None: Array of shape ``(n_atoms, 3)`` with
+            forces in eV/Angstrom, or ``None`` when the table is
+            missing or cannot be parsed.
+        """
+        try:
+            forces = self.read_table_pattern(
+                header_pattern=r"POSITION\s+TOTAL-FORCE \(eV/Angst\)\s+-+",
+                row_pattern=(
+                    r"[-+]?\d+\.\d+\s+[-+]?\d+\.\d+\s+[-+]?\d+\.\d+\s+"
+                    r"([-+]?\d+\.\d+)\s+([-+]?\d+\.\d+)\s+([-+]?\d+\.\d+)"
+                ),
+                footer_pattern=r"-+",
+                postprocess=float,
+                last_one_only=True,
+            )
+        except (IndexError, OSError, ValueError):
+            return None
+        if not forces:
+            return None
+        return np.array(forces)
+
+    def _in_memory_lines(self) -> list[str] | None:
+        """Return pymatgen's cached OUTCAR lines, if available."""
+        lines = getattr(self, '_lines', None)
+        if lines is not None:
+            return lines
+        text = getattr(self, '_text', None)
+        if text is not None:
+            return text.splitlines()
+        return None
+
+    @property
+    def timing_stats(self) -> RunTimingStats:
+        """Mean +/- std of SCF cycle and ionic step wall-clock time.
+
+        Parses pymatgen's in-memory OUTCAR lines, so it reuses the
+        ``Outcar`` object cached by :class:`MRFVaspDir` without
+        re-reading the file from disk.
+        """
+        lines = self._in_memory_lines()
+        if lines is None:
+            # Older pymatgen without an in-memory text cache.
+            return read_outcar_timing_stats(self.filename)
+        return _compute_timing_stats(lines)
+
+
+class Vasplog(VasplogMixin, MSONable):
+    """Parser for VASP log files (slurm output, stdout, OUTCAR).
+
+    Extracts warnings and progress messages from VASP output using
+    configurable regex patterns.  The parsed log file path is stored
+    in ``file``.
+    """
+
+    def __init__(self, filename: PathLike) -> None:
+        """Initialize parser from a log file.
+
+        Args:
+            filename: Path to the log file to parse.
+        """
+        self.file = Path(filename)
+        self._warnings = None
+        self._progress = None
+        logger.debug("Reading VASP log file: %s", self.file)
+        file_size = self.file.stat().st_size
+        if file_size > self.MAX_SIZE:
+            warnings.warn(
+                f"{os.path.relpath(filename)} is too large: {file_size} > {self.MAX_SIZE}."
+                " Reading partially",
+                ResourceWarning
+            )
+        self.lines, self.line_counts = self._dedup_lines(self._raw_log_lines())
+
+    def _raw_log_lines(self) -> list[str]:
+        """Return the raw (unstripped) log lines from the file."""
+        with zopen(self.file, mode="rt", encoding="UTF-8") as f:
+            return f.readlines(self.MAX_SIZE)

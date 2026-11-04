@@ -4,7 +4,7 @@
 #
 # Author: Ihor Radchenko <yantar92@posteo.net>
 #
-# This file is a part of IMDgroup-pymatgen package
+# This file is a part of MatRiFFlow package
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -25,7 +25,7 @@
 # SOFTWARE.
 
 
-"""Tests for IMDgroup.pymatgen.io.vasp.outputs.
+"""Tests for matrifflow.pymatgen.io.vasp.outputs.
 
 Pure parsing/statistics helpers are tested with synthetic text; the
 real ``Outcar``/``Vasprun`` parsers are tested against the generated
@@ -40,8 +40,8 @@ import warnings
 import numpy as np
 import pytest
 
-from IMDgroup.pymatgen.io.vasp.diagnostics import VaspWarning
-from IMDgroup.pymatgen.io.vasp.outputs import (
+from matrifflow.pymatgen.io.vasp.diagnostics import VaspWarning
+from matrifflow.pymatgen.io.vasp.outputs import (
     Outcar,
     Vasplog,
     VasplogMixin,

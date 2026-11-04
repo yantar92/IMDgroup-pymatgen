@@ -4,7 +4,7 @@
 #
 # Author: Ihor Radchenko <yantar92@posteo.net>
 #
-# This file is a part of IMDgroup-pymatgen package
+# This file is a part of MatRiFFlow package
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -25,7 +25,7 @@
 # SOFTWARE.
 
 
-"""Tests for IMDgroup.pymatgen.core.structure.
+"""Tests for matrifflow.pymatgen.core.structure.
 
 These helpers extend pymatgen's Structure, so the tests focus on the
 values we compute and the decisions we make around the pymatgen calls
@@ -39,10 +39,10 @@ import pytest
 from pymatgen.core import DummySpecies, Lattice, Structure
 from pymatgen.util.testing import MatSciTest
 
-import IMDgroup.pymatgen.core.structure as structure_module
-from IMDgroup.pymatgen.core.structure import (
+import matrifflow.pymatgen.core.structure as structure_module
+from matrifflow.pymatgen.core.structure import (
     FRAMEWORK_SYMPREC,
-    IMDStructure,
+    MRFStructure,
     StructureDuplicateWarning,
     filter_framework,
     get_framework_elements,
@@ -255,7 +255,7 @@ def test_get_matched_structure_reorders_sites(cscl: Structure) -> None:
         [cscl[1].frac_coords, cscl[0].frac_coords],
     )
     matched = get_matched_structure(cscl, reversed_struct)
-    assert isinstance(matched, IMDStructure)
+    assert isinstance(matched, MRFStructure)
     assert matched.species == cscl.species
     assert np.allclose(matched.frac_coords, cscl.frac_coords)
 
@@ -325,9 +325,9 @@ def test_get_matched_structure_unable_to_match_raises(cscl: Structure) -> None:
 
 def test_get_matched_structure_already_matched_fast_path(
         cscl: Structure) -> None:
-    """An already-ordered target returns an IMDStructure copy unchanged."""
+    """An already-ordered target returns an MRFStructure copy unchanged."""
     matched = get_matched_structure(cscl, cscl.copy())
-    assert isinstance(matched, IMDStructure)
+    assert isinstance(matched, MRFStructure)
     assert matched.species == cscl.species
 
 
@@ -473,12 +473,12 @@ def test_structure_perturb_gives_up_after_100_attempts(
     assert len(calls) == 102  # 1 assert + 101 loop iterations
 
 
-# --- IMDStructure -----------------------------------------------------------
+# --- MRFStructure -----------------------------------------------------------
 
 
-def test_imdstructure_to_writes_vac(tmp_path) -> None:
+def test_mrfstructure_to_writes_vac(tmp_path) -> None:
     """The X dummy species is written as Vac in str.out."""
-    struct = IMDStructure.from_structure(
+    struct = MRFStructure.from_structure(
         Structure(Lattice.cubic(4.0), ["Li", DummySpecies("X")],
                   [[0, 0, 0], [0.5, 0, 0]]))
     text = struct.to_file(str(tmp_path / "str.out"), fmt="atat")
@@ -486,9 +486,9 @@ def test_imdstructure_to_writes_vac(tmp_path) -> None:
     assert "X0+" not in text
 
 
-def test_imdstructure_to_atat_without_filename() -> None:
+def test_mrfstructure_to_atat_without_filename() -> None:
     """fmt="atat" with no filename returns the string without writing."""
-    struct = IMDStructure.from_structure(
+    struct = MRFStructure.from_structure(
         Structure(Lattice.cubic(4.0), ["Li", DummySpecies("X")],
                   [[0, 0, 0], [0.5, 0, 0]]))
     text = struct.to(fmt="atat")
@@ -496,62 +496,62 @@ def test_imdstructure_to_atat_without_filename() -> None:
     assert "X0+" not in text
 
 
-def test_imdstructure_from_file_reads_vac(tmp_path) -> None:
-    """A str.out with Vac is read back as an IMDStructure with X species."""
-    struct = IMDStructure.from_structure(
+def test_mrfstructure_from_file_reads_vac(tmp_path) -> None:
+    """A str.out with Vac is read back as an MRFStructure with X species."""
+    struct = MRFStructure.from_structure(
         Structure(Lattice.cubic(4.0), ["Li", DummySpecies("X")],
                   [[0, 0, 0], [0.5, 0, 0]]))
     path = tmp_path / "str.out"
     struct.to_file(str(path), fmt="atat")
-    parsed = IMDStructure.from_file(str(path))
-    assert isinstance(parsed, IMDStructure)
+    parsed = MRFStructure.from_file(str(path))
+    assert isinstance(parsed, MRFStructure)
     assert len(parsed) == 2
     assert parsed[0].species_string == "Li"
     assert isinstance(parsed[1].specie, DummySpecies)
     assert np.allclose(parsed[1].frac_coords, [0.5, 0, 0])
 
 
-def test_imdstructure_from_structure_preserves_sites(cscl: Structure) -> None:
-    """from_structure copies an existing structure into an IMDStructure."""
-    converted = IMDStructure.from_structure(cscl)
-    assert isinstance(converted, IMDStructure)
+def test_mrfstructure_from_structure_preserves_sites(cscl: Structure) -> None:
+    """from_structure copies an existing structure into an MRFStructure."""
+    converted = MRFStructure.from_structure(cscl)
+    assert isinstance(converted, MRFStructure)
     assert converted.species == cscl.species
     assert np.allclose(converted.frac_coords, cscl.frac_coords)
 
 
-def test_imdstructure_from_file_non_atat(cscl: Structure, tmp_path) -> None:
+def test_mrfstructure_from_file_non_atat(cscl: Structure, tmp_path) -> None:
     """Reading a non-str.out file delegates to pymatgen's reader.
 
-    The parsed result is still cast to IMDStructure (the subclass), not
+    The parsed result is still cast to MRFStructure (the subclass), not
     returned as a plain Structure.
     """
-    struct = IMDStructure.from_structure(cscl)
+    struct = MRFStructure.from_structure(cscl)
     path = tmp_path / "POSCAR"
     struct.to_file(str(path), fmt="poscar")
-    parsed = IMDStructure.from_file(str(path))
-    assert isinstance(parsed, IMDStructure)
+    parsed = MRFStructure.from_file(str(path))
+    assert isinstance(parsed, MRFStructure)
     assert parsed.composition == cscl.composition
 
 
-def test_imdstructure_to_non_atat(cscl: Structure) -> None:
+def test_mrfstructure_to_non_atat(cscl: Structure) -> None:
     """A non-atat format is written by pymatgen's POSCAR writer.
 
     The output is parsed back as POSCAR, which the atat writer would not
     produce, so this also distinguishes the two writer branches.
     """
-    struct = IMDStructure.from_structure(cscl)
+    struct = MRFStructure.from_structure(cscl)
     out = struct.to(fmt="poscar")
     assert Structure.from_str(out, fmt="poscar").composition == cscl.composition
 
 
-def test_imdstructure_from_file_sort_and_merge(tmp_path) -> None:
+def test_mrfstructure_from_file_sort_and_merge(tmp_path) -> None:
     """The .out reader honours sort and merge_tol."""
-    struct = IMDStructure.from_structure(
+    struct = MRFStructure.from_structure(
         Structure(Lattice.cubic(4.0), ["Li", "Na"], [[0, 0, 0], [0.4, 0, 0]]))
     path = tmp_path / "str.out"
     struct.to_file(str(path), fmt="atat")
-    parsed = IMDStructure.from_file(str(path), sort=True, merge_tol=0.01)
-    assert isinstance(parsed, IMDStructure)
+    parsed = MRFStructure.from_file(str(path), sort=True, merge_tol=0.01)
+    assert isinstance(parsed, MRFStructure)
     assert len(parsed) == 2
 
 

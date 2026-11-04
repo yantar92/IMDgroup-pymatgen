@@ -4,7 +4,7 @@
 #
 # Author: Ihor Radchenko <yantar92@posteo.net>
 #
-# This file is a part of IMDgroup-pymatgen package
+# This file is a part of MatRiFFlow package
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -25,7 +25,7 @@
 # SOFTWARE.
 
 
-"""Tests for IMDgroup.gorun.cleanVASP."""
+"""Tests for matrifflow.gorun.cleanVASP."""
 
 from __future__ import annotations
 
@@ -36,9 +36,9 @@ from pathlib import Path
 import pytest
 from pymatgen.io.vasp.inputs import BadIncarWarning
 
-import IMDgroup.gorun.cleanVASP as clean_mod
+import matrifflow.gorun.cleanVASP as clean_mod
 
-from IMDgroup.gorun.cleanVASP import (
+from matrifflow.gorun.cleanVASP import (
     check_incar,
     clean_vasp_input,
     clean_vasp_inputs,
@@ -337,7 +337,7 @@ def test_directory_converged_p_flags(
             self.converged_ionic = ionic
             self.converged_manual = manual
 
-    monkeypatch.setattr(clean_mod, "IMDGVaspDir", _FakeVaspDir)
+    monkeypatch.setattr(clean_mod, "MRFVaspDir", _FakeVaspDir)
     assert directory_converged_p(str(tmp_path)) is expected
 
 

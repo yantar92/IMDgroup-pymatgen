@@ -4,7 +4,7 @@
 #
 # Author: Ihor Radchenko <yantar92@posteo.net>
 #
-# This file is a part of IMDgroup-pymatgen package
+# This file is a part of MatRiFFlow package
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -25,14 +25,14 @@
 # SOFTWARE.
 
 
-"""Tests for IMDgroup.pymatgen.io.vasp.inputs."""
+"""Tests for matrifflow.pymatgen.io.vasp.inputs."""
 
 from __future__ import annotations
 
 import pytest
 
-from IMDgroup.pymatgen.io.vasp.inputs import Incar
-import IMDgroup.pymatgen.io.vasp.inputs as inputs
+from matrifflow.pymatgen.io.vasp.inputs import Incar
+import matrifflow.pymatgen.io.vasp.inputs as inputs
 
 
 # --- Incar.image_dir_names --------------------------------------------------

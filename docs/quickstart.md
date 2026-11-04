@@ -6,31 +6,31 @@ and calculates possible stable Li positions inside the structure.
 
 Note that each command is independent: you can point any of them at an
 existing VASP directory tree and it works, regardless whether that
-tree came from `imdg`, your own scripts, or a workflow manager.
+tree came from `mrf`, your own scripts, or a workflow manager.
 
 ## Installation
 
-The `imdg` and `gorun` commands come from the `IMDgroup-pymatgen`
+The `mrf` and `gorun` commands come from the `MatRiFFlow`
 package, which also pulls in `pymatgen` (and with it the `pmg` command
 used below):
 
 ```bash
-    git clone https://github.com/yantar92/IMDgroup-pymatgen
-    cd IMDgroup-pymatgen
+    git clone https://github.com/yantar92/MatRiFFlow
+    cd MatRiFFlow
     pip install .
 ```
 
 Check it worked:
 
 ```bash
-    imdg --help
+    mrf --help
 ```
 
 ## Configuration
 
 ### Materials Project API setup (optional)
 
-`imdg create mp-48` fetches the structure from Materials Project, which
+`mrf create mp-48` fetches the structure from Materials Project, which
 needs a Materials Project API key. Create a free account at
 [Materials Project](https://materialsproject.org) and copy your key from
 the [API dashboard](https://next-gen.materialsproject.org/api):
@@ -52,12 +52,12 @@ file:
 If pseudopotential directory is missing, POTCAR files will be omitted
 and you will need to provide them yourself.
 
-You can also configure pseudopotentials later.  `imdg run` will
+You can also configure pseudopotentials later.  `mrf run` will
 generate POTCAR files automatically.
 
 ### Cluster setup (optional)
 
-`imdg run` (= `gorun`) needs a config file and a VASP installation
+`mrf run` (= `gorun`) needs a config file and a VASP installation
 before it can submit slurm jobs. A shortened real config for the Ares
 CPU cluster, single queue:
 
@@ -91,55 +91,55 @@ export VASP_PATH=/path/to/vasp   # the directory containing bin/vasp_std
 ```
 
 Alternatively, you can use your own way to run VASP.
-Just skip the `imdg run` step and run everything yourself.
+Just skip the `mrf run` step and run everything yourself.
 
 ## 1. Create the starting directory
 
 ```bash
-imdg create mp-48
+mrf create mp-48
 # if you do not have API key, download POSCAR from https://legacy.materialsproject.org/materials/mp-48/
 # and save it as POSCAR.mp-48_C
-imdg create --output C.mp-48.hexagonal.194 ./POSCAR.mp-48_C
+mrf create --output C.mp-48.hexagonal.194 ./POSCAR.mp-48_C
 ```
 
 Writes a ready VASP directory (INCAR, POTCAR, KPOINTS, POSCAR) with
 defaults. The directory is auto-named from the system, for example
 `C.mp-48.hexagonal.194` (formula, Materials Project ID, spacegroup).
 
-Every `imdg` command writes an `imdg.log` in the directory you run it
+Every `mrf` command writes an `mrf.log` in the directory you run it
 from. It records what the command did and any warnings. Add `-v` to also
 see the log on the terminal, or `-vv` for debug detail.
 
 ## 2. Switch functional to account for van der Waals correction
 
 ```bash
-imdg derive C.mp-48.hexagonal.194 --output graphite_vdw functional optB88-vdW
+mrf derive C.mp-48.hexagonal.194 --output graphite_vdw functional optB88-vdW
 ```
 
-Every derived directory also gets an `IMDVaspInputSet.log`. It records
+Every derived directory also gets an `MRFVaspInputSet.log`. It records
 the structure, the source directory it was derived from (`directory:`),
 the inherited INCAR/KPOINTS, and the mutation applied (`name:` /
 `functional:`), so you can trace any result back to its inputs.
 
-If the source directory contains VASP output, `imdg derive` will use
+If the source directory contains VASP output, `mrf derive` will use
 the final structure.
 
 ## 3. Set up relax calculation (ISIF=2)
 
 ```bash
-imdg derive graphite_vdw --output graphite_vdw.relax relax RELAX_POS
+mrf derive graphite_vdw --output graphite_vdw.relax relax RELAX_POS
 ```
 
 `relax RELAX_POS` sets ISIF=2: ionic positions relax while the cell
 shape and volume stay fixed. It also sets ISTART=0, NSW=500, IBRION=2
 (CG), EDIFF=1e-6, EDIFFG=-0.01.
 
-See all available options via `imdg derive . relax --help`.
+See all available options via `mrf derive . relax --help`.
 
 ## 4. Create graphite supercell
 
 ```bash
-imdg derive graphite_vdw.relax supercell 2x2x1
+mrf derive graphite_vdw.relax supercell 2x2x1
 ```
 
 This will create a VASP input with identical setup, but POSCAR altered
@@ -148,8 +148,8 @@ to create supercell in `graphite_vdw.relax.2x2x1`.
 ## 5. Insert Li (one-to-many)
 
 ```bash
-imdg derive graphite_vdw.relax.2x2x1 --output inserts ins Li --step 0.1 --threshold 0.5
-imdg derive graphite_vdw.relax --output inserts ins Li --step 0.1 --threshold 0.5 --multithread
+mrf derive graphite_vdw.relax.2x2x1 --output inserts ins Li --step 0.1 --threshold 0.5
+mrf derive graphite_vdw.relax --output inserts ins Li --step 0.1 --threshold 0.5 --multithread
 ```
 
 Writes one directory per symmetry-inequivalent insertion site.  The
@@ -159,7 +159,7 @@ positions closer to the carbon framework and yields the distinct sites.
 
 ## 6. Run
 
-`imdg run` (= `gorun`) picks the earliest-finishing queue by default,
+`mrf run` (= `gorun`) picks the earliest-finishing queue by default,
 backs up any previous run to subfolders named `gorun_<N>`, checks
 convergence, and auto-generates POTCAR/vdw kernel.
 
@@ -168,7 +168,7 @@ To run a single directory, do it from inside that directory:
 ```bash
 (
 cd inserts/graphite_vdw.relax.2x2x1.ins.Li.0;
-imdg run vasp --time-limit 12:00:00
+mrf run vasp --time-limit 12:00:00
 )
 ```
 
@@ -212,9 +212,9 @@ which is faster, but not physically accurate.
 ## 7. Monitor
 
 ```bash
-imdg status
+mrf status
 # or just runs with issues
-imdg status --problematic
+mrf status --problematic
 ```
 
 Collapses running, converged, and warning states across the tree and
@@ -281,7 +281,7 @@ Fix this via
 
 ```bash
 gorun --time 12:00:00 --incar NCORE:2 ALGO:All --dir inserts/graphite_vdw.relax.ins.Li.*
-# You can also copy-paste the problematic folder list right from the imdg status output
+# You can also copy-paste the problematic folder list right from the mrf status output
 ```
 
 ```
@@ -300,7 +300,7 @@ framework symmetry is not preserved. The original AB graphite stacking
 is altered.
 
 ```bash
-imdg status --exclude gorun
+mrf status --exclude gorun
 ```
 
 ```
@@ -338,7 +338,7 @@ Warnings:
 ## 9. Analyze
 
 ```bash
-imdg analyze inserts/* --exclude gorun
+mrf analyze inserts/* --exclude gorun
 ```
 
 This summarizes the converged calculations in a table form.
@@ -360,17 +360,17 @@ on 1: VaspWarning: inserts/graphite_vdw.relax.2x2x1.ins.Li.1: Framework symmetry
  inserts/graphite_vdw.relax.ins.Li.3                 0   -32.49471  -6.49894     0.0097  0.00          0.34       P6/mmm                 P6/mmm
 ```
 
-You can also make `imdg analyze` produce the output in machine-readable form
+You can also make `mrf analyze` produce the output in machine-readable form
 
 ```bash
-imdg analyze --format csv inserts/* --exclude gorun
-imdg analyze --format json inserts/* --exclude gorun
+mrf analyze --format csv inserts/* --exclude gorun
+mrf analyze --format json inserts/* --exclude gorun
 ```
 
 ## 10. Diff (compare results)
 
 ```bash
-imdg diff structure inserts/*
+mrf diff structure inserts/*
 ```
 
 The structure comparison groups directories that converged to the same

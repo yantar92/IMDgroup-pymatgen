@@ -4,7 +4,7 @@
 #
 # Author: Ihor Radchenko <yantar92@posteo.net>
 #
-# This file is a part of IMDgroup-pymatgen package
+# This file is a part of MatRiFFlow package
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -25,7 +25,7 @@
 # SOFTWARE.
 
 
-"""Tests for IMDgroup.pymatgen.transformations.insert_molecule.
+"""Tests for matrifflow.pymatgen.transformations.insert_molecule.
 
 These exercise :class:`InsertMoleculeTransformation` and its helpers,
 focusing on the values we compute and the decisions we make around the
@@ -46,8 +46,8 @@ import pytest
 from pymatgen.analysis.structure_matcher import StructureMatcher
 from pymatgen.core import Lattice, Molecule, Structure
 
-from IMDgroup.pymatgen.core.structure import structure_is_valid2
-from IMDgroup.pymatgen.transformations.insert_molecule import (
+from matrifflow.pymatgen.core.structure import structure_is_valid2
+from matrifflow.pymatgen.transformations.insert_molecule import (
     InsertMoleculeTransformation,
     get_all_molecule_inserts,
 )

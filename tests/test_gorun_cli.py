@@ -4,7 +4,7 @@
 #
 # Author: Ihor Radchenko <yantar92@posteo.net>
 #
-# This file is a part of IMDgroup-pymatgen package
+# This file is a part of MatRiFFlow package
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -25,7 +25,7 @@
 # SOFTWARE.
 
 
-"""Tests for IMDgroup.gorun.gorun (CLI argument handling)."""
+"""Tests for matrifflow.gorun.gorun (CLI argument handling)."""
 
 from __future__ import annotations
 
@@ -34,7 +34,7 @@ from pathlib import Path
 
 import pytest
 
-import IMDgroup.gorun.gorun as gorun
+import matrifflow.gorun.gorun as gorun
 
 
 # --- _parse_args ------------------------------------------------------------

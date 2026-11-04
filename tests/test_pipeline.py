@@ -4,7 +4,7 @@
 #
 # Author: Ihor Radchenko <yantar92@posteo.net>
 #
-# This file is a part of IMDgroup-pymatgen package
+# This file is a part of MatRiFFlow package
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -25,16 +25,16 @@
 # SOFTWARE.
 
 
-"""Tests for IMDgroup.gorun.core.pipeline."""
+"""Tests for matrifflow.gorun.core.pipeline."""
 
 from __future__ import annotations
 
 import argparse
 from pathlib import Path
 
-import IMDgroup.gorun.core.pipeline as pipeline_mod
+import matrifflow.gorun.core.pipeline as pipeline_mod
 
-from IMDgroup.gorun.core.pipeline import (
+from matrifflow.gorun.core.pipeline import (
     _backup_current_dir,
     _last_run_number,
     _next_run_folder,

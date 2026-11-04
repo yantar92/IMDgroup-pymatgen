@@ -4,7 +4,7 @@
 #
 # Author: Ihor Radchenko <yantar92@posteo.net>
 #
-# This file is a part of IMDgroup-pymatgen package
+# This file is a part of MatRiFFlow package
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -25,7 +25,7 @@
 # SOFTWARE.
 
 
-"""Tests for IMDgroup.pymatgen.io.vasp.vaspdir.
+"""Tests for matrifflow.pymatgen.io.vasp.vaspdir.
 
 Directory-level behaviour (convergence, energy, forces, caching) is
 exercised against a real converged VASP run, so these tests are gated
@@ -48,10 +48,10 @@ import pytest
 from pymatgen.core import Lattice, Structure
 from pymatgen.io.vasp.inputs import Poscar
 
-from IMDgroup.pymatgen.io.vasp.diagnostics import VaspWarning
-from IMDgroup.pymatgen.io.vasp.vaspdir import (
+from matrifflow.pymatgen.io.vasp.diagnostics import VaspWarning
+from matrifflow.pymatgen.io.vasp.vaspdir import (
     _MISSING,
-    IMDGVaspDir,
+    MRFVaspDir,
     TimeoutException,
     timeout_handler,
 )
@@ -63,7 +63,7 @@ def _write_poscar(dirpath: Path, a: float, filename: str = "POSCAR") -> None:
     """Write a single-atom Li VASP structure file with cubic lattice ``a``.
 
     Helper to build minimal VASP directories without the heavy
-    generated fixtures; ``IMDGVaspDir`` only needs a POSCAR (or
+    generated fixtures; ``MRFVaspDir`` only needs a POSCAR (or
     CONTCAR) to resolve structure accessors and ``prev_dirs``.
     """
     dirpath.mkdir(parents=True, exist_ok=True)
@@ -161,22 +161,22 @@ def _write_neb_tree(dirpath: Path, nimages: int = 1) -> None:
 def isolated_lmdb_cache(tmp_path, monkeypatch):
     """Redirect the LMDB cache to a per-test dir and reset class state."""
     monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "cache"))
-    IMDGVaspDir._lmdb_env = None
-    IMDGVaspDir._lmdb_db = None
-    IMDGVaspDir._lmdb_meta_db = None
-    with IMDGVaspDir._pending_lock:
-        IMDGVaspDir._pending_writes.clear()
+    MRFVaspDir._lmdb_env = None
+    MRFVaspDir._lmdb_db = None
+    MRFVaspDir._lmdb_meta_db = None
+    with MRFVaspDir._pending_lock:
+        MRFVaspDir._pending_writes.clear()
     yield
-    if IMDGVaspDir._lmdb_env is not None:
-        IMDGVaspDir._lmdb_env.close()
-        IMDGVaspDir._lmdb_env = None
-        IMDGVaspDir._lmdb_db = None
-        IMDGVaspDir._lmdb_meta_db = None
+    if MRFVaspDir._lmdb_env is not None:
+        MRFVaspDir._lmdb_env.close()
+        MRFVaspDir._lmdb_env = None
+        MRFVaspDir._lmdb_db = None
+        MRFVaspDir._lmdb_meta_db = None
 
 
 def test_contains_by_filename(converged_vasp_dir) -> None:
     """``in`` checks file names, not Path objects."""
-    d = IMDGVaspDir(str(converged_vasp_dir))
+    d = MRFVaspDir(str(converged_vasp_dir))
     assert "INCAR" in d
     assert "vasprun.xml" in d
     assert "nonexistent" not in d
@@ -184,7 +184,7 @@ def test_contains_by_filename(converged_vasp_dir) -> None:
 
 def test_converged_scf(converged_vasp_dir) -> None:
     """A converged SCF run is fully converged."""
-    d = IMDGVaspDir(str(converged_vasp_dir))
+    d = MRFVaspDir(str(converged_vasp_dir))
     assert d.converged is True
     assert d.converged_electronic is True
     assert d.converged_ionic is True
@@ -192,27 +192,27 @@ def test_converged_scf(converged_vasp_dir) -> None:
 
 def test_converged_ionic_is_bool(converged_vasp_dir) -> None:
     """converged_ionic returns a bool, not a raw OUTCAR pattern list."""
-    d = IMDGVaspDir(str(converged_vasp_dir))
+    d = MRFVaspDir(str(converged_vasp_dir))
     assert isinstance(d.converged_ionic, bool)
 
 
 def test_converged_relax(converged_relax_vasp_dir) -> None:
     """A converged relaxation run is fully converged."""
-    d = IMDGVaspDir(str(converged_relax_vasp_dir))
+    d = MRFVaspDir(str(converged_relax_vasp_dir))
     assert d.converged is True
 
 
 def test_converged_ionic_outcar_fallback(converged_relax_vasp_dir) -> None:
     """converged_ionic is read from OUTCAR when vasprun.xml is absent."""
     (converged_relax_vasp_dir / "vasprun.xml").unlink()
-    d = IMDGVaspDir(str(converged_relax_vasp_dir))
+    d = MRFVaspDir(str(converged_relax_vasp_dir))
     assert d.converged_ionic is True
     assert isinstance(d.converged_ionic, bool)
 
 
 def test_final_energy(converged_vasp_dir) -> None:
     """final_energy is a float for a converged run."""
-    d = IMDGVaspDir(str(converged_vasp_dir))
+    d = MRFVaspDir(str(converged_vasp_dir))
     assert isinstance(d.final_energy, float)
 
 
@@ -225,7 +225,7 @@ def test_final_energy_outcar_fallback_incomplete_vasprun(tmp_path) -> None:
     ``unconverged_energy`` warning.
     """
     (tmp_path / "vasprun.xml").write_text("garbage\n")
-    d = IMDGVaspDir(str(tmp_path))
+    d = MRFVaspDir(str(tmp_path))
     d._parsed_files = {
         "vasprun.xml": None,  # unparseable -> cached None
         "OUTCAR": _FakeOutcar(final_energy=-1.23),
@@ -242,7 +242,7 @@ def test_max_force_below_ediffg(converged_relax_vasp_dir) -> None:
     to exactly zero force, but the general contract is the threshold
     bound, so the test asserts that instead.
     """
-    d = IMDGVaspDir(str(converged_relax_vasp_dir))
+    d = MRFVaspDir(str(converged_relax_vasp_dir))
     ediffg = d["INCAR"]["EDIFFG"]
     assert ediffg < 0
     assert 0.0 <= d.max_force() < abs(ediffg)
@@ -251,13 +251,13 @@ def test_max_force_below_ediffg(converged_relax_vasp_dir) -> None:
 def test_max_force_no_outcar(tmp_path) -> None:
     """max_force is None when there is no OUTCAR."""
     (tmp_path / "INCAR").write_text("ENCUT = 500\n")
-    d = IMDGVaspDir(str(tmp_path))
+    d = MRFVaspDir(str(tmp_path))
     assert d.max_force() is None
 
 
 def test_max_force_prefers_vasprun(tmp_path) -> None:
     """max_force reads vasprun.xml when present, before OUTCAR."""
-    d = IMDGVaspDir(str(tmp_path))
+    d = MRFVaspDir(str(tmp_path))
     d.refresh()
     d._parsed_files = {
         "vasprun.xml": _FakeVasprun([[2.0, 0.0, 0.0], [0.0, 3.0, 0.0]]),
@@ -268,7 +268,7 @@ def test_max_force_prefers_vasprun(tmp_path) -> None:
 
 def test_max_force_outcar_fallback_when_vasprun_forces_missing(tmp_path) -> None:
     """max_force falls back to OUTCAR when vasprun has no final forces."""
-    d = IMDGVaspDir(str(tmp_path))
+    d = MRFVaspDir(str(tmp_path))
     d.refresh()
     d._parsed_files = {
         "vasprun.xml": _FakeVasprun(None),
@@ -279,7 +279,7 @@ def test_max_force_outcar_fallback_when_vasprun_forces_missing(tmp_path) -> None
 
 def test_energy_accuracy_warning(converged_relax_vasp_dir) -> None:
     """An ISIF=3 relaxation records the energy-accuracy warning."""
-    d = IMDGVaspDir(str(converged_relax_vasp_dir))
+    d = MRFVaspDir(str(converged_relax_vasp_dir))
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         names = d.warnings.names()
@@ -288,29 +288,29 @@ def test_energy_accuracy_warning(converged_relax_vasp_dir) -> None:
 
 def test_lmdb_cache_round_trip(converged_vasp_dir, isolated_lmdb_cache) -> None:
     """Parsed files are cached per-file and reused on a second load."""
-    first = IMDGVaspDir(str(converged_vasp_dir))
+    first = MRFVaspDir(str(converged_vasp_dir))
     assert first["INCAR"] is not None
-    IMDGVaspDir.flush_cache()
+    MRFVaspDir.flush_cache()
 
-    cached = IMDGVaspDir._lmdb_get(first._index_key())
+    cached = MRFVaspDir._lmdb_get(first._index_key())
     assert cached is not None
-    assert cached["version"] == IMDGVaspDir.CACHE_VERSION
+    assert cached["version"] == MRFVaspDir.CACHE_VERSION
     assert "hash" in cached
 
-    second = IMDGVaspDir(str(converged_vasp_dir))
+    second = MRFVaspDir(str(converged_vasp_dir))
     assert second["INCAR"] is not None
 
 
 def test_initial_structure_from_poscar(tmp_path) -> None:
     """initial_structure reads POSCAR when no previous run exists."""
     _write_poscar(tmp_path, a=5.0)
-    d = IMDGVaspDir(str(tmp_path))
+    d = MRFVaspDir(str(tmp_path))
     assert d.initial_structure.lattice.a == pytest.approx(5.0)
 
 
 def test_initial_structure_none_without_structure(tmp_path) -> None:
     """initial_structure is None when no POSCAR/vasprun is present."""
-    d = IMDGVaspDir(str(tmp_path))
+    d = MRFVaspDir(str(tmp_path))
     assert d.initial_structure is None
 
 
@@ -320,7 +320,7 @@ def test_initial_structure_follows_prev_dirs(tmp_path) -> None:
     _write_poscar(tmp_path / "gorun_1", a=4.0)  # previous run
     _write_poscar(tmp_path / "gorun_1" / "gorun_0", a=3.0)  # earliest
 
-    d = IMDGVaspDir(str(tmp_path))
+    d = MRFVaspDir(str(tmp_path))
     assert d.initial_structure.lattice.a == pytest.approx(3.0)
 
 
@@ -329,7 +329,7 @@ def test_initial_structure_ignores_prev_dir_without_poscar(tmp_path) -> None:
     _write_poscar(tmp_path, a=5.0)
     (tmp_path / "gorun_1").mkdir()  # no POSCAR -> excluded
 
-    d = IMDGVaspDir(str(tmp_path))
+    d = MRFVaspDir(str(tmp_path))
     assert d.initial_structure.lattice.a == pytest.approx(5.0)
 
 
@@ -339,7 +339,7 @@ def test_prev_dirs_requires_poscar_and_sorts(tmp_path) -> None:
     (tmp_path / "gorun_2").mkdir()  # no POSCAR -> excluded
     _write_poscar(tmp_path / "gorun_0", a=3.0)
 
-    d = IMDGVaspDir(str(tmp_path))
+    d = MRFVaspDir(str(tmp_path))
     prevs = d.prev_dirs()
     assert [Path(p.path).name for p in prevs] == ["gorun_0", "gorun_1"]
 
@@ -347,14 +347,14 @@ def test_prev_dirs_requires_poscar_and_sorts(tmp_path) -> None:
 def test_prev_dirs_returns_empty_list(tmp_path) -> None:
     """prev_dirs always returns a list, empty when no gorun_* dirs exist."""
     _write_poscar(tmp_path, a=5.0)
-    d = IMDGVaspDir(str(tmp_path))
+    d = MRFVaspDir(str(tmp_path))
     assert d.prev_dirs() == []
 
 
 def test_getitem_returns_parsed_file(tmp_path) -> None:
     """__getitem__ parses a known file name into its parser object."""
     _write_poscar(tmp_path, a=5.0)
-    d = IMDGVaspDir(str(tmp_path))
+    d = MRFVaspDir(str(tmp_path))
     poscar = d["POSCAR"]
     assert isinstance(poscar, Poscar)
     assert poscar.structure.lattice.a == pytest.approx(5.0)
@@ -367,7 +367,7 @@ def test_getitem_auto_resolves_compressed(tmp_path) -> None:
     with gzip.open(tmp_path / "POSCAR.gz", "wb") as f_out:
         f_out.write(poscar_path.read_bytes())
     poscar_path.unlink()
-    d = IMDGVaspDir(str(tmp_path))
+    d = MRFVaspDir(str(tmp_path))
     assert "POSCAR" in d
     poscar = d["POSCAR"]
     assert isinstance(poscar, Poscar)
@@ -381,7 +381,7 @@ def test_getitem_exact_name_preferred(tmp_path) -> None:
     with gzip.open(tmp_path / "POSCAR.gz", "wb") as f_out:
         f_out.write((tmp_path / "POSCAR.tmp").read_bytes())
     (tmp_path / "POSCAR.tmp").unlink()
-    d = IMDGVaspDir(str(tmp_path))
+    d = MRFVaspDir(str(tmp_path))
     assert d["POSCAR"].structure.lattice.a == pytest.approx(5.0)
     assert d["POSCAR.gz"].structure.lattice.a == pytest.approx(6.0)
 
@@ -389,7 +389,7 @@ def test_getitem_exact_name_preferred(tmp_path) -> None:
 def test_getitem_explicit_compressed_no_fallback(tmp_path) -> None:
     """An explicit .gz request does not resolve to the uncompressed file."""
     _write_poscar(tmp_path, a=5.0)
-    d = IMDGVaspDir(str(tmp_path))
+    d = MRFVaspDir(str(tmp_path))
     assert "POSCAR.gz" not in d
     assert d["POSCAR.gz"] is None
 
@@ -397,7 +397,7 @@ def test_getitem_explicit_compressed_no_fallback(tmp_path) -> None:
 def test_getitem_missing_file_returns_none(tmp_path) -> None:
     """__getitem__ returns None for a file name that does not exist."""
     _write_poscar(tmp_path, a=5.0)
-    d = IMDGVaspDir(str(tmp_path))
+    d = MRFVaspDir(str(tmp_path))
     assert d["does_not_exist"] is None
 
 
@@ -405,7 +405,7 @@ def test_getitem_unknown_present_file_raises(tmp_path) -> None:
     """__getitem__ raises RuntimeError for a present, unmapped file."""
     _write_poscar(tmp_path, a=5.0)
     (tmp_path / "README.txt").write_text("not a VASP file\n")
-    d = IMDGVaspDir(str(tmp_path))
+    d = MRFVaspDir(str(tmp_path))
     with pytest.raises(RuntimeError):
         d["README.txt"]
 
@@ -413,7 +413,7 @@ def test_getitem_unknown_present_file_raises(tmp_path) -> None:
 def test_getitem_unparseable_file_returns_none(tmp_path) -> None:
     """__getitem__ returns None (and caches None) for a broken file."""
     (tmp_path / "POSCAR").write_text("garbage\nnot a POSCAR\n")
-    d = IMDGVaspDir(str(tmp_path))
+    d = MRFVaspDir(str(tmp_path))
     assert d["POSCAR"] is None
     assert d["POSCAR"] is None  # cached, not re-raised
 
@@ -427,7 +427,7 @@ def test_getitem_unparseable_disarms_alarm(tmp_path) -> None:
     ``TimeoutException``.
     """
     (tmp_path / "POSCAR").write_text("garbage\n")
-    d = IMDGVaspDir(str(tmp_path))
+    d = MRFVaspDir(str(tmp_path))
     assert d["POSCAR"] is None
     assert signal.alarm(0) == 0  # no alarm left armed
 
@@ -436,8 +436,8 @@ def test_len_and_iter_exclude_default(tmp_path) -> None:
     """len/iter expose file names and skip the default EXCLUDE_PATTERNS."""
     _write_poscar(tmp_path, a=5.0)
     (tmp_path / "INCAR").write_text("ENCUT = 500\n")
-    (tmp_path / "imdg.log").write_text("log\n")  # class default exclusion
-    d = IMDGVaspDir(str(tmp_path))
+    (tmp_path / "mrf.log").write_text("log\n")  # class default exclusion
+    d = MRFVaspDir(str(tmp_path))
     assert set(d) == {"POSCAR", "INCAR"}
     assert len(d) == 2
 
@@ -446,7 +446,7 @@ def test_len_and_iter_extra_exclude(tmp_path) -> None:
     """Constructor exclude_patterns extend the default exclusions."""
     _write_poscar(tmp_path, a=5.0)
     (tmp_path / "custom.log").write_text("log\n")
-    d = IMDGVaspDir(str(tmp_path), exclude_patterns=["*.log"])
+    d = MRFVaspDir(str(tmp_path), exclude_patterns=["*.log"])
     assert set(d) == {"POSCAR"}
     assert len(d) == 1
 
@@ -454,7 +454,7 @@ def test_len_and_iter_extra_exclude(tmp_path) -> None:
 def test_logs_empty(tmp_path) -> None:
     """logs() is empty when no VASP log files are present."""
     _write_poscar(tmp_path, a=5.0)
-    d = IMDGVaspDir(str(tmp_path))
+    d = MRFVaspDir(str(tmp_path))
     assert d.logs() == []
 
 
@@ -462,7 +462,7 @@ def test_logs_discovers_slurm(tmp_path) -> None:
     """logs() parses slurm output into a Vasplog."""
     _write_poscar(tmp_path, a=5.0)
     (tmp_path / "slurm.out").write_text("some slurm output\n")
-    d = IMDGVaspDir(str(tmp_path))
+    d = MRFVaspDir(str(tmp_path))
     logs = d.logs()
     assert [log.file.name for log in logs] == ["slurm.out"]
 
@@ -474,14 +474,14 @@ def test_final_structure_prefers_contcar(tmp_path) -> None:
     """final_structure returns CONTCAR when present, over POSCAR/vasprun."""
     _write_poscar(tmp_path, a=5.0)
     _write_poscar(tmp_path, a=6.0, filename="CONTCAR")
-    d = IMDGVaspDir(str(tmp_path))
+    d = MRFVaspDir(str(tmp_path))
     assert d.final_structure.lattice.a == pytest.approx(6.0)
 
 
 def test_final_structure_vasprun_fallback(converged_vasp_dir) -> None:
     """final_structure falls back to vasprun final structure without CONTCAR."""
     (converged_vasp_dir / "CONTCAR").unlink()
-    d = IMDGVaspDir(str(converged_vasp_dir))
+    d = MRFVaspDir(str(converged_vasp_dir))
     structure = d.final_structure
     assert isinstance(structure, Structure)
     assert len(structure) == 1
@@ -490,7 +490,7 @@ def test_final_structure_vasprun_fallback(converged_vasp_dir) -> None:
 def test_final_structure_none_without_contcar_or_vasprun(tmp_path) -> None:
     """final_structure is None when neither CONTCAR nor vasprun is present."""
     _write_poscar(tmp_path, a=5.0)
-    d = IMDGVaspDir(str(tmp_path))
+    d = MRFVaspDir(str(tmp_path))
     assert d.final_structure is None
 
 
@@ -498,7 +498,7 @@ def test_structure_is_deprecated_alias(tmp_path) -> None:
     """structure warns and delegates to final_structure."""
     _write_poscar(tmp_path, a=5.0)
     _write_poscar(tmp_path, a=6.0, filename="CONTCAR")
-    d = IMDGVaspDir(str(tmp_path))
+    d = MRFVaspDir(str(tmp_path))
     with pytest.warns(DeprecationWarning):
         structure = d.structure
     assert structure is d.final_structure
@@ -506,33 +506,33 @@ def test_structure_is_deprecated_alias(tmp_path) -> None:
 
 def test_final_energy_reliable_scf_float(converged_vasp_dir) -> None:
     """final_energy_reliable is a float for a converged SCF run (NSW=0)."""
-    d = IMDGVaspDir(str(converged_vasp_dir))
+    d = MRFVaspDir(str(converged_vasp_dir))
     assert isinstance(d.final_energy_reliable, float)
 
 
 def test_final_energy_reliable_relax_unreliable(converged_relax_vasp_dir) -> None:
     """final_energy_reliable flags ISIF=3 ionic relaxation as unreliable."""
-    d = IMDGVaspDir(str(converged_relax_vasp_dir))
+    d = MRFVaspDir(str(converged_relax_vasp_dir))
     assert d.final_energy_reliable == "unreliable"
 
 
 def test_final_energy_reliable_unconverged(converged_vasp_dir) -> None:
     """final_energy_reliable returns 'unconverged' when not converged."""
     (converged_vasp_dir / "UNCONVERGED").write_text("")
-    d = IMDGVaspDir(str(converged_vasp_dir))
+    d = MRFVaspDir(str(converged_vasp_dir))
     assert d.final_energy_reliable == "unconverged"
 
 
 def test_total_magnetization(converged_vasp_dir) -> None:
     """total_magnetization reads the last OSZICAR step's mag."""
-    d = IMDGVaspDir(str(converged_vasp_dir))
+    d = MRFVaspDir(str(converged_vasp_dir))
     assert isinstance(d.total_magnetization, float)
 
 
 def test_total_magnetization_none_without_oszicar(tmp_path) -> None:
     """total_magnetization is None without an OSZICAR."""
     _write_poscar(tmp_path, a=5.0)
-    d = IMDGVaspDir(str(tmp_path))
+    d = MRFVaspDir(str(tmp_path))
     assert d.total_magnetization is None
 
 
@@ -542,7 +542,7 @@ def test_total_magnetization_none_without_oszicar(tmp_path) -> None:
 def test_converged_electronic_outcar_fallback(converged_vasp_dir) -> None:
     """converged_electronic reads OUTCAR when vasprun.xml is absent."""
     (converged_vasp_dir / "vasprun.xml").unlink()
-    d = IMDGVaspDir(str(converged_vasp_dir))
+    d = MRFVaspDir(str(converged_vasp_dir))
     assert d.converged_electronic is True
 
 
@@ -550,14 +550,14 @@ def test_converged_sequence_false_with_pending_incar(tmp_path) -> None:
     """converged_sequence is False when INCAR.[0-9]+ files remain."""
     _write_poscar(tmp_path, a=5.0)
     (tmp_path / "INCAR.1").write_text("ENCUT = 500\n")
-    d = IMDGVaspDir(str(tmp_path))
+    d = MRFVaspDir(str(tmp_path))
     assert d.converged_sequence is False
 
 
 def test_converged_sequence_true(tmp_path) -> None:
     """converged_sequence is True when no INCAR.[0-9]+ files remain."""
     _write_poscar(tmp_path, a=5.0)
-    d = IMDGVaspDir(str(tmp_path))
+    d = MRFVaspDir(str(tmp_path))
     assert d.converged_sequence is True
 
 
@@ -565,14 +565,14 @@ def test_converged_manual_false_with_marker(tmp_path) -> None:
     """converged_manual is False when an UNCONVERGED marker is present."""
     _write_poscar(tmp_path, a=5.0)
     (tmp_path / "UNCONVERGED").write_text("")
-    d = IMDGVaspDir(str(tmp_path))
+    d = MRFVaspDir(str(tmp_path))
     assert d.converged_manual is False
 
 
 def test_converged_manual_true(tmp_path) -> None:
     """converged_manual is True without an UNCONVERGED marker."""
     _write_poscar(tmp_path, a=5.0)
-    d = IMDGVaspDir(str(tmp_path))
+    d = MRFVaspDir(str(tmp_path))
     assert d.converged_manual is True
 
 
@@ -582,14 +582,14 @@ def test_converged_manual_true(tmp_path) -> None:
 def test_check_displacements_true(tmp_path) -> None:
     """check_displacements passes for an unchanged structure."""
     _write_grid_poscars(tmp_path)
-    d = IMDGVaspDir(str(tmp_path))
+    d = MRFVaspDir(str(tmp_path))
     assert d.check_displacements() is True
 
 
 def test_check_displacements_false_warns(tmp_path) -> None:
     """check_displacements warns and fails for a large displacement."""
     _write_grid_poscars(tmp_path, displace=(0, (0.5, 0.5, 0.5)))
-    d = IMDGVaspDir(str(tmp_path))
+    d = MRFVaspDir(str(tmp_path))
     with pytest.warns(VaspWarning):
         assert d.check_displacements() is False
 
@@ -597,14 +597,14 @@ def test_check_displacements_false_warns(tmp_path) -> None:
 def test_selective_dynamics_none(tmp_path) -> None:
     """_selective_dynamics is None without selective dynamics."""
     _write_poscar(tmp_path, a=5.0)
-    d = IMDGVaspDir(str(tmp_path))
+    d = MRFVaspDir(str(tmp_path))
     assert d._selective_dynamics() is None
 
 
 def test_selective_dynamics_from_poscar(tmp_path) -> None:
     """_selective_dynamics reads flags from a POSCAR with constraints."""
     _write_sd_poscar(tmp_path)
-    d = IMDGVaspDir(str(tmp_path))
+    d = MRFVaspDir(str(tmp_path))
     sd = d._selective_dynamics()
     assert sd is not None
     assert np.array_equal(sd, [[True, True, True], [False, False, False]])
@@ -613,7 +613,7 @@ def test_selective_dynamics_from_poscar(tmp_path) -> None:
 def test_max_force_constrained(tmp_path) -> None:
     """max_force ignores fixed atoms unless include_constrained=True."""
     _write_sd_poscar(tmp_path)
-    d = IMDGVaspDir(str(tmp_path))
+    d = MRFVaspDir(str(tmp_path))
     d.refresh()
     d._parsed_files["OUTCAR"] = _FakeOutcar([[1.0, 0.0, 0.0],
                                              [5.0, 0.0, 0.0]])
@@ -632,7 +632,7 @@ def test_max_force_all_constrained_returns_none(tmp_path) -> None:
         },
     )
     Poscar(structure).write_file(tmp_path / "POSCAR")
-    d = IMDGVaspDir(str(tmp_path))
+    d = MRFVaspDir(str(tmp_path))
     d.refresh()
     d._parsed_files["OUTCAR"] = _FakeOutcar([[5.0, 0.0, 0.0],
                                              [5.0, 0.0, 0.0]])
@@ -643,7 +643,7 @@ def test_check_framework_symmetry_true(tmp_path) -> None:
     """check_framework_symmetry passes for an unchanged framework."""
     _write_poscar(tmp_path, a=10.0)
     _write_poscar(tmp_path, a=10.0, filename="CONTCAR")
-    d = IMDGVaspDir(str(tmp_path))
+    d = MRFVaspDir(str(tmp_path))
     assert d.check_framework_symmetry() is True
 
 
@@ -662,7 +662,7 @@ def test_check_framework_symmetry_false_warns(tmp_path) -> None:
         species=["Li"], coords=[[0.0, 0.0, 0.0]])
     Poscar(init).write_file(tmp_path / "POSCAR")
     Poscar(final).write_file(tmp_path / "CONTCAR")
-    d = IMDGVaspDir(str(tmp_path))
+    d = MRFVaspDir(str(tmp_path))
     with pytest.warns(VaspWarning):
         assert d.check_framework_symmetry() is False
 
@@ -685,7 +685,7 @@ def graphite_li_dir(tmp_path: Path) -> Path:
 def test_check_framework_symmetry_flags_distorted_graphite(
         graphite_li_dir) -> None:
     """A framework distortion that lowers the space group warns."""
-    d = IMDGVaspDir(str(graphite_li_dir))
+    d = MRFVaspDir(str(graphite_li_dir))
     with pytest.warns(VaspWarning, match="Framework symmetry changed"):
         assert d.check_framework_symmetry() is False
     assert d.warnings.has("framework_symmetry")
@@ -703,7 +703,7 @@ def test_check_framework_symmetry_small_displacement_warns(tmp_path) -> None:
     final = Structure(lat, ["C", "C"], [[0, 0, 0], [0.5, 0.5, 0.53]])
     Poscar(init).write_file(tmp_path / "POSCAR")
     Poscar(final).write_file(tmp_path / "CONTCAR")
-    d = IMDGVaspDir(str(tmp_path))
+    d = MRFVaspDir(str(tmp_path))
     with pytest.warns(VaspWarning, match="Framework symmetry changed"):
         assert d.check_framework_symmetry() is False
 
@@ -714,7 +714,7 @@ def test_check_framework_symmetry_small_displacement_warns(tmp_path) -> None:
 def test_nebp_false(tmp_path) -> None:
     """nebp is False when INCAR has no IMAGES tag."""
     (tmp_path / "INCAR").write_text("ENCUT = 500\n")
-    d = IMDGVaspDir(str(tmp_path))
+    d = MRFVaspDir(str(tmp_path))
     assert d.nebp is False
     assert d.neb_dirs() is None
 
@@ -722,14 +722,14 @@ def test_nebp_false(tmp_path) -> None:
 def test_nebp_true(tmp_path) -> None:
     """nebp is True when INCAR has an IMAGES tag."""
     (tmp_path / "INCAR").write_text("IMAGES = 1\n")
-    d = IMDGVaspDir(str(tmp_path))
+    d = MRFVaspDir(str(tmp_path))
     assert d.nebp is True
 
 
 def test_neb_dirs_includes_ends(tmp_path) -> None:
     """neb_dirs lists all image dirs (ends included) by default."""
     _write_neb_tree(tmp_path, nimages=1)
-    d = IMDGVaspDir(str(tmp_path))
+    d = MRFVaspDir(str(tmp_path))
     dirs = d.neb_dirs()
     assert dirs is not None
     assert [Path(p.path).name for p in dirs] == ["00", "01", "02"]
@@ -738,7 +738,7 @@ def test_neb_dirs_includes_ends(tmp_path) -> None:
 def test_neb_dirs_excludes_ends(tmp_path) -> None:
     """neb_dirs(include_ends=False) drops the first and last images."""
     _write_neb_tree(tmp_path, nimages=1)
-    d = IMDGVaspDir(str(tmp_path))
+    d = MRFVaspDir(str(tmp_path))
     dirs = d.neb_dirs(include_ends=False)
     assert dirs is not None
     assert [Path(p.path).name for p in dirs] == ["01"]
@@ -747,7 +747,7 @@ def test_neb_dirs_excludes_ends(tmp_path) -> None:
 def test_mtime_detects_file_change(tmp_path) -> None:
     """mtime() reflects a change to a file that matters in the directory."""
     (tmp_path / "INCAR").write_text("ENCUT = 500\n")
-    d = IMDGVaspDir(str(tmp_path))
+    d = MRFVaspDir(str(tmp_path))
     before = d.mtime()
     os.utime(tmp_path / "INCAR", (before + 10.0, before + 10.0))
     assert d.mtime() > before
@@ -761,7 +761,7 @@ def test_mtime_compressed_vasprun(tmp_path) -> None:
         f_out.write(b"<modeling/>")
     future = time.time() + 10000.0
     os.utime(vasprun, (future, future))
-    d = IMDGVaspDir(str(tmp_path))
+    d = MRFVaspDir(str(tmp_path))
     assert d.mtime() == pytest.approx(future)
 
 
@@ -772,14 +772,14 @@ def test_output_mtime_compressed_vasprun(tmp_path) -> None:
         f_out.write(b"<modeling/>")
     future = time.time() + 10000.0
     os.utime(vasprun, (future, future))
-    d = IMDGVaspDir(str(tmp_path))
+    d = MRFVaspDir(str(tmp_path))
     assert d.output_mtime() == pytest.approx(future)
 
 
 def test_output_mtime_none_without_output(tmp_path) -> None:
     """output_mtime() is None without OUTCAR/vasprun, unlike mtime()."""
     (tmp_path / "INCAR").write_text("ENCUT = 500\n")
-    d = IMDGVaspDir(str(tmp_path))
+    d = MRFVaspDir(str(tmp_path))
     assert d.output_mtime() is None
     assert d.mtime() is not None  # mtime() falls back to INCAR
 
@@ -791,7 +791,7 @@ def test_output_mtime_outcar_wins(tmp_path) -> None:
     (tmp_path / "vasprun.xml").write_text("<modeling/>")
     future = time.time() + 10000.0
     os.utime(tmp_path / "vasprun.xml", (future, future))
-    d = IMDGVaspDir(str(tmp_path))
+    d = MRFVaspDir(str(tmp_path))
     assert d.output_mtime() == pytest.approx(os.path.getmtime(str(outcar)))
 
 
@@ -801,7 +801,7 @@ def test_output_mtime_vasprun_fallback(tmp_path) -> None:
     vasprun.write_text("<modeling/>")
     future = time.time() + 10000.0
     os.utime(vasprun, (future, future))
-    d = IMDGVaspDir(str(tmp_path))
+    d = MRFVaspDir(str(tmp_path))
     assert d.output_mtime() == pytest.approx(future)
 
 
@@ -812,7 +812,7 @@ def test_output_mtime_compressed_outcar(tmp_path) -> None:
         f_out.write(b"x")
     future = time.time() + 10000.0
     os.utime(outcar, (future, future))
-    d = IMDGVaspDir(str(tmp_path))
+    d = MRFVaspDir(str(tmp_path))
     assert d.output_mtime() == pytest.approx(future)
 
 
@@ -827,7 +827,7 @@ def test_output_mtime_neb_max(tmp_path) -> None:
         os.path.getmtime(str(tmp_path / name / "OUTCAR"))
         for name in ("00", "01", "02")
     ]
-    d = IMDGVaspDir(str(tmp_path))
+    d = MRFVaspDir(str(tmp_path))
     assert d.output_mtime() == pytest.approx(max(times))
 
 
@@ -839,7 +839,7 @@ def test_converged_neb_all_images_converged(
     for n in (0, 2):  # ends; the interior image is the converged fixture
         (root / f"{n:02d}").mkdir()
     shutil.copytree(converged_vasp_dir, root / "01")
-    d = IMDGVaspDir(str(root))
+    d = MRFVaspDir(str(root))
     assert d.nebp is True
     assert d.converged is True
 
@@ -853,7 +853,7 @@ def test_converged_neb_unconverged_image(
         (root / f"{n:02d}").mkdir()
     shutil.copytree(converged_vasp_dir, root / "01")
     (root / "01" / "UNCONVERGED").write_text("")
-    d = IMDGVaspDir(str(root))
+    d = MRFVaspDir(str(root))
     assert d.converged is False
 
 
@@ -874,7 +874,7 @@ def test_getitem_timeout_returns_none(tmp_path, monkeypatch) -> None:
         raise TimeoutException()
 
     monkeypatch.setattr(Poscar, "from_file", classmethod(_timeout))
-    d = IMDGVaspDir(str(tmp_path))
+    d = MRFVaspDir(str(tmp_path))
     assert d["POSCAR"] is None
     assert d["POSCAR"] is None  # cached, not re-parsed
 
@@ -884,9 +884,9 @@ def test_getitem_arms_and_disarms_alarm(tmp_path, monkeypatch) -> None:
     _write_poscar(tmp_path, a=5.0)
     calls: list[int] = []
     monkeypatch.setattr(signal, "alarm", lambda n: calls.append(n))
-    d = IMDGVaspDir(str(tmp_path))
+    d = MRFVaspDir(str(tmp_path))
     d["POSCAR"]
-    assert calls == [IMDGVaspDir.TIMEOUT, 0]
+    assert calls == [MRFVaspDir.TIMEOUT, 0]
 
 
 def test_getitem_timeout_disarms_alarm(tmp_path, monkeypatch) -> None:
@@ -899,9 +899,9 @@ def test_getitem_timeout_disarms_alarm(tmp_path, monkeypatch) -> None:
 
     monkeypatch.setattr(Poscar, "from_file", classmethod(_timeout))
     monkeypatch.setattr(signal, "alarm", lambda n: calls.append(n))
-    d = IMDGVaspDir(str(tmp_path))
+    d = MRFVaspDir(str(tmp_path))
     assert d["POSCAR"] is None
-    assert calls == [IMDGVaspDir.TIMEOUT, 0]
+    assert calls == [MRFVaspDir.TIMEOUT, 0]
 
 
 # --- Group F: directory / cache infrastructure --------------------------------
@@ -915,7 +915,7 @@ def test_read_vaspdirs_recurses(tmp_path) -> None:
     (tmp_path / "c").mkdir()  # no VASP files -> excluded
     _write_poscar(tmp_path / "d" / "nested", a=6.0)
 
-    result = IMDGVaspDir.read_vaspdirs(tmp_path)
+    result = MRFVaspDir.read_vaspdirs(tmp_path)
     names = {Path(p).relative_to(tmp_path).as_posix() for p in result}
     assert names == {"a", "b", "d/nested"}
 
@@ -925,7 +925,7 @@ def test_read_vaspdirs_path_filter(tmp_path) -> None:
     _write_poscar(tmp_path / "keep", a=5.0)
     _write_poscar(tmp_path / "skip", a=6.0)
 
-    result = IMDGVaspDir.read_vaspdirs(
+    result = MRFVaspDir.read_vaspdirs(
         tmp_path, path_filter=lambda p: p.name == "keep")
     assert set(result) == {str(tmp_path / "keep")}
 
@@ -937,7 +937,7 @@ def test_read_vaspdirs_multiple_roots(tmp_path) -> None:
     _write_poscar(r1, a=5.0)
     _write_poscar(r2, a=6.0)
 
-    result = IMDGVaspDir.read_vaspdirs([r1, r2])
+    result = MRFVaspDir.read_vaspdirs([r1, r2])
     assert set(result) == {str(r1), str(r2)}
 
 
@@ -945,7 +945,7 @@ def test_refresh_reparses_after_change(tmp_path) -> None:
     """refresh() re-parses files whose mtime (hash) changed."""
     incar_path = tmp_path / "INCAR"
     incar_path.write_text("ENCUT = 500\n")
-    d = IMDGVaspDir(str(tmp_path))
+    d = MRFVaspDir(str(tmp_path))
     assert d["INCAR"]["ENCUT"] == 500
 
     incar_path.write_text("ENCUT = 600\n")
@@ -964,38 +964,38 @@ def test_mtime_considers_prev_dirs(tmp_path) -> None:
     future = time.time() + 10000.0
     os.utime(prev_incar, (future, future))
 
-    d = IMDGVaspDir(str(tmp_path))
+    d = MRFVaspDir(str(tmp_path))
     assert d.mtime() == pytest.approx(future)
 
 
 def test_lmdb_cache_version_mismatch_discarded(
         converged_vasp_dir, isolated_lmdb_cache) -> None:
     """A cache entry from an older schema version is discarded on load."""
-    first = IMDGVaspDir(str(converged_vasp_dir))
+    first = MRFVaspDir(str(converged_vasp_dir))
     assert first["INCAR"] is not None
-    IMDGVaspDir.flush_cache()
+    MRFVaspDir.flush_cache()
 
-    cached = IMDGVaspDir._lmdb_get(first._index_key())
+    cached = MRFVaspDir._lmdb_get(first._index_key())
     assert cached is not None
     cached["version"] = -1
-    IMDGVaspDir._lmdb_set(first._index_key(), cached)
+    MRFVaspDir._lmdb_set(first._index_key(), cached)
 
-    second = IMDGVaspDir(str(converged_vasp_dir))
+    second = MRFVaspDir(str(converged_vasp_dir))
     assert second["INCAR"] is not None  # re-parsed, not misread
 
 
 def test_flush_cache_restores_on_failure(isolated_lmdb_cache, monkeypatch) -> None:
     """flush_cache restores pending writes when the LMDB write fails."""
-    IMDGVaspDir._add_pending_write("key1", {"a": 1})
+    MRFVaspDir._add_pending_write("key1", {"a": 1})
 
     def _fail(*args, **kwargs):
         return False
 
-    monkeypatch.setattr(IMDGVaspDir, "_lmdb_set_many", _fail)
-    IMDGVaspDir.flush_cache()
+    monkeypatch.setattr(MRFVaspDir, "_lmdb_set_many", _fail)
+    MRFVaspDir.flush_cache()
 
-    with IMDGVaspDir._pending_lock:
-        assert IMDGVaspDir._pending_writes["key1"] == {"a": 1}
+    with MRFVaspDir._pending_lock:
+        assert MRFVaspDir._pending_writes["key1"] == {"a": 1}
 
 
 def test_lmdb_evict_on_map_full(isolated_lmdb_cache, monkeypatch) -> None:
@@ -1005,17 +1005,17 @@ def test_lmdb_evict_on_map_full(isolated_lmdb_cache, monkeypatch) -> None:
     entries fill the map.  Overflow then triggers the eviction path in
     ``_lmdb_set_many``, which reclaims space oldest-first and retries.
     """
-    monkeypatch.setattr(IMDGVaspDir, "MAP_SIZE", 65536)
+    monkeypatch.setattr(MRFVaspDir, "MAP_SIZE", 65536)
 
     # Seed two entries with distinct ctimes so "oldest" is unambiguous.
     for i in range(2):
-        IMDGVaspDir._lmdb_set(f"old{i}", {"payload": "x" * 64})
+        MRFVaspDir._lmdb_set(f"old{i}", {"payload": "x" * 64})
         time.sleep(0.02)
 
     # Write enough entries to overflow the shrunken map.
     for i in range(40):
-        IMDGVaspDir._lmdb_set(f"new{i}", {"payload": "x" * 64})
+        MRFVaspDir._lmdb_set(f"new{i}", {"payload": "x" * 64})
 
     # The oldest entry was evicted; the newest survived the retry.
-    assert IMDGVaspDir._lmdb_get("old0") is _MISSING
-    assert IMDGVaspDir._lmdb_get("new39") == {"payload": "x" * 64}
+    assert MRFVaspDir._lmdb_get("old0") is _MISSING
+    assert MRFVaspDir._lmdb_get("new39") == {"payload": "x" * 64}

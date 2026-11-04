@@ -4,7 +4,7 @@
 #
 # Author: Ihor Radchenko <yantar92@posteo.net>
 #
-# This file is a part of IMDgroup-pymatgen package
+# This file is a part of MatRiFFlow package
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -25,14 +25,14 @@
 # SOFTWARE.
 
 
-"""Tests for IMDgroup.gorun.core.files."""
+"""Tests for matrifflow.gorun.core.files."""
 
 from __future__ import annotations
 
 import os
 from pathlib import Path
 
-from IMDgroup.gorun.core.files import (
+from matrifflow.gorun.core.files import (
     _any_output_older,
     _newest_source_mtime,
     maybe_regenerate,

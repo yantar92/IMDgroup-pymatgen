@@ -4,7 +4,7 @@
 #
 # Author: Ihor Radchenko <yantar92@posteo.net>
 #
-# This file is a part of IMDgroup-pymatgen package
+# This file is a part of MatRiFFlow package
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -50,7 +50,7 @@ from pathlib import Path
 
 import pytest
 
-from IMDgroup.gorun.gorun import main as gorun_main
+from matrifflow.gorun.gorun import main as gorun_main
 
 pytestmark = pytest.mark.integration
 
@@ -82,7 +82,7 @@ def _use_test_python(monkeypatch) -> None:
     """Prepend the test interpreter's directory to PATH.
 
     The INCAR.py wrapper runs a bare ``python`` heredoc; ensure that
-    resolves to the interpreter running the tests (which has IMDgroup
+    resolves to the interpreter running the tests (which has matrifflow
     and ase importable), not a system python.
     """
     bin_dir = os.path.dirname(sys.executable)
@@ -213,7 +213,7 @@ def test_vasp_local_usr1_signal_cleans_running(
 def test_vasp_incar_py_mark_uses_subclass(
     fake_cluster, tmp_path: Path, monkeypatch
 ) -> None:
-    """INCAR.py wrapper generates a script using IMDASEVasp, not a patch."""
+    """INCAR.py wrapper generates a script using MRFASEVasp, not a patch."""
     monkeypatch.chdir(tmp_path)
     _copy_vasp_inputs(tmp_path)
     (tmp_path / "INCAR.py").write_text(_SAMPLE_INCAR_PY)
@@ -224,8 +224,8 @@ def test_vasp_incar_py_mark_uses_subclass(
 
     assert rc == 0
     sub = (tmp_path / "sub").read_text()
-    assert "from IMDgroup.gorun.vasp_calculator import IMDASEVasp" in sub
-    assert "IMDASEVasp(directory='.', txt='-')" in sub
+    assert "from matrifflow.gorun.vasp_calculator import MRFASEVasp" in sub
+    assert "MRFASEVasp(directory='.', txt='-')" in sub
     assert "custom_write_potcar" not in sub
     assert "write_potcar = " not in sub
     assert (
@@ -254,7 +254,7 @@ def test_vasp_incar_py_local_executes_body(
     assert rc == 0
     assert (tmp_path / "incar_py_ran").exists()
     assert not (tmp_path / "UNCONVERGED").exists()
-    # The wrapper must not have rewritten POTCAR (IMDASEVasp.write_potcar is
+    # The wrapper must not have rewritten POTCAR (MRFASEVasp.write_potcar is
     # a no-op).
     assert (tmp_path / "POTCAR").read_text() == "LEXCH = PE\n"
 

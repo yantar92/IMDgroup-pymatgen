@@ -4,7 +4,7 @@
 #
 # Author: Ihor Radchenko <yantar92@posteo.net>
 #
-# This file is a part of IMDgroup-pymatgen package
+# This file is a part of MatRiFFlow package
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -25,7 +25,7 @@
 # SOFTWARE.
 
 
-"""Tests for IMDgroup.pymatgen.transformations.symmetry_clone.
+"""Tests for matrifflow.pymatgen.transformations.symmetry_clone.
 
 These transformations generate symmetry-equivalent clones of sites, so
 the tests focus on the decisions we make around pymatgen's SymmOp and
@@ -38,7 +38,7 @@ import numpy as np
 import pytest
 from pymatgen.core import Element, Lattice, Structure, SymmOp
 
-from IMDgroup.pymatgen.transformations.symmetry_clone import (
+from matrifflow.pymatgen.transformations.symmetry_clone import (
     SymmetryCloneTransformation,
     SymmetryFillTransformation,
     apply_operation_keep_lattice,

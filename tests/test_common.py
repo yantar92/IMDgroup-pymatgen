@@ -4,7 +4,7 @@
 #
 # Author: Ihor Radchenko <yantar92@posteo.net>
 #
-# This file is a part of IMDgroup-pymatgen package
+# This file is a part of MatRiFFlow package
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -25,11 +25,11 @@
 # SOFTWARE.
 
 
-"""Tests for IMDgroup.common."""
+"""Tests for matrifflow.common."""
 
 from __future__ import annotations
 
-from IMDgroup.common import groupby_cmp, short_path
+from matrifflow.common import groupby_cmp, short_path
 
 
 def test_groupby_cmp_groups_equivalent() -> None:

@@ -4,7 +4,7 @@
 #
 # Author: Ihor Radchenko <yantar92@posteo.net>
 #
-# This file is a part of IMDgroup-pymatgen package
+# This file is a part of MatRiFFlow package
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -25,11 +25,11 @@
 # SOFTWARE.
 
 
-"""Tests for IMDgroup.gorun.adapters.gpu (phase 1: _wrap_command only)."""
+"""Tests for matrifflow.gorun.adapters.gpu (phase 1: _wrap_command only)."""
 
 from __future__ import annotations
 
-from IMDgroup.gorun.adapters.gpu import _wrap_command
+from matrifflow.gorun.adapters.gpu import _wrap_command
 
 
 def test_wrap_command_exact_output() -> None:

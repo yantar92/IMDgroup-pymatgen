@@ -4,7 +4,7 @@
 #
 # Author: Ihor Radchenko <yantar92@posteo.net>
 #
-# This file is a part of IMDgroup-pymatgen package
+# This file is a part of MatRiFFlow package
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -25,9 +25,9 @@
 # SOFTWARE.
 
 
-"""Tests for IMDgroup.pymatgen.io.vasp.incar_toml.
+"""Tests for matrifflow.pymatgen.io.vasp.incar_toml.
 
-This module is IMDgroup's own INCAR.toml reader/writer; it does not
+This module is matrifflow's own INCAR.toml reader/writer; it does not
 delegate to pymatgen, so its full behaviour is tested here (see the
 testing principle in tests/conftest.py).
 """
@@ -36,7 +36,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from IMDgroup.pymatgen.io.vasp.incar_toml import (
+from matrifflow.pymatgen.io.vasp.incar_toml import (
     _format_toml,
     _toml_format_value,
     read_incar_toml,

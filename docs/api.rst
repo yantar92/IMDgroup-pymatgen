@@ -4,41 +4,41 @@ API Reference
 Core
 ----
 
-.. automodule:: IMDgroup.common
-.. automodule:: IMDgroup.pymatgen.core.structure
+.. automodule:: matrifflow.common
+.. automodule:: matrifflow.pymatgen.core.structure
 
 I/O
 ---
 
-.. automodule:: IMDgroup.pymatgen.io.vasp.vaspdir
-.. automodule:: IMDgroup.pymatgen.io.vasp.inputs
-.. automodule:: IMDgroup.pymatgen.io.vasp.outputs
-.. automodule:: IMDgroup.pymatgen.io.vasp.sets
-.. automodule:: IMDgroup.pymatgen.io.atat
+.. automodule:: matrifflow.pymatgen.io.vasp.vaspdir
+.. automodule:: matrifflow.pymatgen.io.vasp.inputs
+.. automodule:: matrifflow.pymatgen.io.vasp.outputs
+.. automodule:: matrifflow.pymatgen.io.vasp.sets
+.. automodule:: matrifflow.pymatgen.io.atat
 
 Diffusion
 ---------
 
-.. automodule:: IMDgroup.pymatgen.diffusion.neb
+.. automodule:: matrifflow.pymatgen.diffusion.neb
 
 Transformations
 ---------------
 
-.. automodule:: IMDgroup.pymatgen.transformations.insert_molecule
-.. automodule:: IMDgroup.pymatgen.transformations.symmetry_clone
+.. automodule:: matrifflow.pymatgen.transformations.insert_molecule
+.. automodule:: matrifflow.pymatgen.transformations.symmetry_clone
 
 Command-line interface
 ----------------------
 
-.. automodule:: IMDgroup.pymatgen.cli.imdg
-.. automodule:: IMDgroup.pymatgen.cli.imdg_analyze
-.. automodule:: IMDgroup.pymatgen.cli.imdg_create
-.. automodule:: IMDgroup.pymatgen.cli.imdg_derive
-.. automodule:: IMDgroup.pymatgen.cli.imdg_diff
-.. automodule:: IMDgroup.pymatgen.cli.imdg_status
-.. automodule:: IMDgroup.pymatgen.cli.imdg_visualize
+.. automodule:: matrifflow.pymatgen.cli.mrf
+.. automodule:: matrifflow.pymatgen.cli.mrf_analyze
+.. automodule:: matrifflow.pymatgen.cli.mrf_create
+.. automodule:: matrifflow.pymatgen.cli.mrf_derive
+.. automodule:: matrifflow.pymatgen.cli.mrf_diff
+.. automodule:: matrifflow.pymatgen.cli.mrf_status
+.. automodule:: matrifflow.pymatgen.cli.mrf_visualize
 
 Utilities
 ---------
 
-.. automodule:: IMDgroup.utils.mpl
+.. automodule:: matrifflow.utils.mpl

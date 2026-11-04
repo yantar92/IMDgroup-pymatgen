@@ -4,7 +4,7 @@
 #
 # Author: Ihor Radchenko <yantar92@posteo.net>
 #
-# This file is a part of IMDgroup-pymatgen package
+# This file is a part of MatRiFFlow package
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -25,7 +25,7 @@
 # SOFTWARE.
 
 
-"""Tests for IMDgroup.gorun.slurm."""
+"""Tests for matrifflow.gorun.slurm."""
 
 from __future__ import annotations
 
@@ -35,9 +35,9 @@ from pathlib import Path
 
 import pytest
 
-import IMDgroup.gorun.slurm as slurm_mod
+import matrifflow.gorun.slurm as slurm_mod
 
-from IMDgroup.gorun.slurm import (
+from matrifflow.gorun.slurm import (
     _executable_find,
     clear_slurm_logs,
     get_best_script,

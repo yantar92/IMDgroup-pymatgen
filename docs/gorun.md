@@ -1,6 +1,6 @@
-# Job submission: `imdg run`
+# Job submission: `mrf run`
 
-`imdg run` (= `gorun`) is a single interface for submitting Slurm jobs
+`mrf run` (= `gorun`) is a single interface for submitting Slurm jobs
 on clusters. It is not VASP only: the same command submits VASP, MACE
 multihead fine-tuning, ATAT `maps`, and arbitrary GPU jobs.
 
@@ -93,7 +93,7 @@ Inside `INCAR.py` you have three objects available:
 
 - `atoms` — the ASE `Atoms` from `POSCAR`;
 - `calc` — the pre-configured ASE `Vasp` calculator;
-- `vaspdir` — an `IMDGVaspDir` for the working directory.
+- `vaspdir` — an `MRFVaspDir` for the working directory.
 
 Use it to attach constraints, adjust the calculator, or run custom logic
 around the job:

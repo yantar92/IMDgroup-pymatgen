@@ -3,9 +3,9 @@
 The Python layer mirrors the CLI and adds programmatic access to parsed
 VASP data with persistent caching.
 
-## VASP directory handling: `IMDGVaspDir`
+## VASP directory handling: `MRFVaspDir`
 
-`IMDGVaspDir` gives dictionary-like access to a VASP directory with a
+`MRFVaspDir` gives dictionary-like access to a VASP directory with a
 persistent disk cache, so repeated analysis of large trees does not
 re-parse XML or OUTCAR files every time.
 
@@ -13,9 +13,9 @@ The cache is optimized for supercomputer file system, avoiding
 excessive IO.
 
 ```python
-from IMDgroup.pymatgen.io.vasp.vaspdir import IMDGVaspDir
+from matrifflow.pymatgen.io.vasp.vaspdir import MRFVaspDir
 
-vdir = IMDGVaspDir("path/to/vasp/calculation")
+vdir = MRFVaspDir("path/to/vasp/calculation")
 
 structure = vdir.final_structure
 energy = vdir.final_energy
@@ -40,9 +40,9 @@ directories whose relevant files changed.
 ## ATAT structure files
 
 ```python
-from IMDgroup.pymatgen.core.structure import IMDStructure
+from matrifflow.pymatgen.core.structure import MRFStructure
 
-s = IMDStructure.from_file("str.out")  # vacancies become "X"
+s = MRFStructure.from_file("str.out")  # vacancies become "X"
 ```
 
 ## Transformations
@@ -50,7 +50,7 @@ s = IMDStructure.from_file("str.out")  # vacancies become "X"
 ### Inserting molecules
 
 ```python
-from IMDgroup.pymatgen.transformations.insert_molecule import InsertMoleculeTransformation
+from matrifflow.pymatgen.transformations.insert_molecule import InsertMoleculeTransformation
 
 transformer = InsertMoleculeTransformation(
     molecule="Li",
@@ -68,7 +68,7 @@ symmetry-equivalent placement of an interstitial under the host's
 space group.
 
 ```python
-from IMDgroup.pymatgen.transformations.symmetry_clone import SymmetryCloneTransformation
+from matrifflow.pymatgen.transformations.symmetry_clone import SymmetryCloneTransformation
 from pymatgen.core import Structure
 
 host = Structure.from_file("host.cif")
@@ -81,7 +81,7 @@ clones = trans.get_all_clones(host_with_interstitial)
 ## Diffusion analysis
 
 ```python
-from IMDgroup.pymatgen.diffusion.neb import get_neb_pairs
+from matrifflow.pymatgen.diffusion.neb import get_neb_pairs
 
 pairs = get_neb_pairs(
     structures=stable_sites_list,

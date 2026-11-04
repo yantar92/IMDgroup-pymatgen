@@ -4,7 +4,7 @@
 #
 # Author: Ihor Radchenko <yantar92@posteo.net>
 #
-# This file is a part of IMDgroup-pymatgen package
+# This file is a part of MatRiFFlow package
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -25,14 +25,14 @@
 # SOFTWARE.
 
 
-"""Tests for IMDgroup.pymatgen.io.atat."""
+"""Tests for matrifflow.pymatgen.io.atat."""
 
 from __future__ import annotations
 
 import numpy as np
 from pymatgen.core import DummySpecies, Lattice, Structure
 
-from IMDgroup.pymatgen.io.atat import (
+from matrifflow.pymatgen.io.atat import (
     check_sublattice_flip,
     check_volume_distortion,
     fit_sublattice_to_structure,

@@ -4,7 +4,7 @@
 #
 # Author: Ihor Radchenko <yantar92@posteo.net>
 #
-# This file is a part of IMDgroup-pymatgen package
+# This file is a part of MatRiFFlow package
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -25,7 +25,7 @@
 # SOFTWARE.
 
 
-"""Tests for IMDgroup.gorun.adapters.mace (marked heavy).
+"""Tests for matrifflow.gorun.adapters.mace (marked heavy).
 
 The module imports pandas, ase, and sklearn at the top, so this whole
 module is marked =heavy= in pyproject.toml.
@@ -43,9 +43,9 @@ from ase.calculators.emt import EMT
 from ase.constraints import FixAtoms
 from ase.io import write as ase_write
 
-import IMDgroup.gorun.adapters.mace as mace_mod
+import matrifflow.gorun.adapters.mace as mace_mod
 
-from IMDgroup.gorun.adapters.mace import (
+from matrifflow.gorun.adapters.mace import (
     MaceMultiheadFinetuneAdapter,
     _format_cli_args,
     _read_structures,
@@ -342,7 +342,7 @@ def test_train_stage_default_module_and_toggles(tmp_path: Path) -> None:
 def test_train_stage_masked_loss_module(tmp_path: Path) -> None:
     """masked_loss switches the training module."""
     out = _make(masked_loss=True)._train_stage(tmp_path)
-    assert "IMDgroup.gorun.adapters._mace_train_masked" in out
+    assert "matrifflow.gorun.adapters._mace_train_masked" in out
 
 
 def test_train_stage_swa_ema_off(tmp_path: Path) -> None:

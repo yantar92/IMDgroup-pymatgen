@@ -4,7 +4,7 @@
 #
 # Author: Ihor Radchenko <yantar92@posteo.net>
 #
-# This file is a part of IMDgroup-pymatgen package
+# This file is a part of MatRiFFlow package
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -25,7 +25,7 @@
 # SOFTWARE.
 
 
-"""Tests for IMDgroup.gorun.adapters.vasp."""
+"""Tests for matrifflow.gorun.adapters.vasp."""
 
 from __future__ import annotations
 
@@ -33,9 +33,9 @@ from pathlib import Path
 
 import pytest
 
-import IMDgroup.gorun.adapters.vasp as vasp_mod
+import matrifflow.gorun.adapters.vasp as vasp_mod
 
-from IMDgroup.gorun.adapters.vasp import (
+from matrifflow.gorun.adapters.vasp import (
     VaspAdapter,
     _has_incar_chain,
     _modify_incar,

@@ -3,9 +3,9 @@ requires = ["setuptools >= 61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "IMDgroup-pymatgen"
+name = "MatRiFFlow"
 version = "1.2.0"
-description = "Pymatgen add-ons and cluster job-submission tools for the Inverse Materials Design group"
+description = "Pymatgen add-ons and cluster job-submission tools for the Inverse Materials Design group (formerly IMDgroup-pymatgen)"
 authors = [ {name = "Ihor Radchenko", email = "yantar92@posteo.net"},
             {name = "Oleksandr I. Malyi", email = "oleksandrmalyi@gmail.com"} ]
 readme = {file = "README.md", content-type = "text/markdown"}
@@ -60,12 +60,13 @@ mace = [
 ]
 
 [project.scripts]
-imdg = "IMDgroup.pymatgen.cli.imdg:main"
-gorun = "IMDgroup.gorun.gorun:main"
-gorun-mace = "IMDgroup.gorun.gorun:main_mace"
-gorun-mace-finetune = "IMDgroup.gorun.gorun:main_mace"
-gorun-atat-local = "IMDgroup.gorun.gorun_atat_local:main"
-gorun-maps = "IMDgroup.gorun.gorun_maps:main"
+mrf = "matrifflow.pymatgen.cli.mrf:main"
+imdg = "matrifflow.pymatgen.cli.mrf:main_deprecated_imdg"
+gorun = "matrifflow.gorun.gorun:main"
+gorun-mace = "matrifflow.gorun.gorun:main_mace"
+gorun-mace-finetune = "matrifflow.gorun.gorun:main_mace"
+gorun-atat-local = "matrifflow.gorun.gorun_atat_local:main"
+gorun-maps = "matrifflow.gorun.gorun_maps:main"
 
 [tool.setuptools]
 script-files = ["scripts/gorun-all-ready.sh"]
@@ -74,26 +75,28 @@ script-files = ["scripts/gorun-all-ready.sh"]
 exclude = ["tests"]
 where = ["src/"]
 include = [
-	"IMDgroup.pymatgen",
-	"IMDgroup.pymatgen.*",
+	"matrifflow.pymatgen",
+	"matrifflow.pymatgen.*",
+        "matrifflow",
+        "matrifflow.*",
         "IMDgroup",
         "IMDgroup.*",
         ]
 
 [tool.setuptools.package-data]
-"IMDgroup.pymatgen.io.vasp" = ["*.cif", "*.yaml"]
-"IMDgroup.gorun" = ["data/*.toml"]
+"matrifflow.pymatgen.io.vasp" = ["*.cif", "*.yaml"]
+"matrifflow.gorun" = ["data/*.toml"]
 
 [tool.pylint]
 source-roots=['./src']
 
 [tool.coverage.run]
 branch = true
-source = ["IMDgroup"]
+source = ["matrifflow"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-ra -m 'not heavy' --cov=IMDgroup --cov-report=term-missing"
+addopts = "-ra -m 'not heavy' --cov=matrifflow --cov-report=term-missing"
 pythonpath = ["src"]
 filterwarnings = [
     # Upstream warnings we cannot fix; harmless in tests.
@@ -110,7 +113,7 @@ filterwarnings = [
     "ignore:Setting the shape on a NumPy array has been deprecated:DeprecationWarning:ase\\.atoms",
     # Our own warning, expected noise in integration tests: the fake VASP
     # fixture has no vdw_kernel.bindat.
-    "ignore:Cannot find vdw_kernel.bindat:UserWarning:IMDgroup\\.gorun\\.cleanVASP",
+    "ignore:Cannot find vdw_kernel.bindat:UserWarning:matrifflow\\.gorun\\.cleanVASP",
 ]
 markers = [
     "integration: tests that require generated VASP fixtures (see scripts/prepare_vasp_fixtures.sh)",

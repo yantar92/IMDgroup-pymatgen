@@ -1,0 +1,1609 @@
+# MIT License
+#
+# Copyright (c) 2024-2026 Inverse Materials Design Group
+#
+# Author: Ihor Radchenko <yantar92@posteo.net>
+#
+# This file is a part of MatRiFFlow package
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
+
+"""mrf sub-command to create new VASP inputs from existing."""
+import os
+import re
+import warnings
+import argparse
+import dataclasses
+import logging
+from multiprocessing import Pool
+from typing import cast
+import numpy as np
+import pymatgen.core as pmg
+from pathlib import Path
+from pymatgen.io.vasp.inputs import Kpoints
+from pymatgen.core import Structure, PeriodicSite
+from matrifflow.pymatgen.core.structure import\
+    get_matched_structure, merge_structures, structure_diff, \
+    structure_is_valid2, structure_perturb
+from matrifflow.pymatgen.diffusion.neb import get_neb_pairs
+from matrifflow.pymatgen.io.vasp.sets\
+    import (MRFDerivedInputSet, MRFNEBVaspInputSet)
+from matrifflow.pymatgen.io.vasp.inputs import Incar
+from matrifflow.pymatgen.io.vasp.vaspdir import MRFVaspDir
+from matrifflow.pymatgen.transformations.insert_molecule\
+    import InsertMoleculeTransformation
+from matrifflow.pymatgen.transformations.symmetry_clone\
+    import SymmetryFillTransformation
+
+
+logger = logging.getLogger(__name__)
+
+
+def _read_vasprun(directory):
+    """Read ``vasprun.xml`` from DIRECTORY, compression-aware.
+
+    Uses :class:`MRFVaspDir` so ``vasprun.xml.gz`` and friends are
+    resolved transparently.  Raises ``FileNotFoundError`` when no
+    readable ``vasprun.xml`` exists, matching the previous
+    ``Vasprun(path)`` behaviour for the missing-file case.
+    """
+    run = MRFVaspDir(directory)['vasprun.xml']
+    if run is None:
+        raise FileNotFoundError(
+            f"No readable vasprun.xml in {directory}")
+    return run
+
+
+def add_args(parser):
+    """Register subcommand arguments.
+
+    Args:
+        parser: Sub-parser from argparse.
+    """
+    parser.add_argument(
+        "input_directory",
+        default=".",
+        help="VASP directory to read system"
+    )
+
+    parser.add_argument(
+        "--overwrite_output",
+        help="Whether to overwrite non-empty output directories"
+        "(default: True).",
+        type=str,
+        default="True"
+    )
+    parser.add_argument(
+        "--output",
+        help="Directory to write the mutated VASP input"
+        "(default: <input name>.<mutated name>)."
+    )
+    parser.add_argument(
+        "--output-prefix",
+        dest="output_prefix",
+        help="Directory prefix to write the mutated VASP input",
+        type=str
+    )
+    parser.add_argument(
+        "--subdir",
+        help="Write VASP input into a subdir instead of top level",
+        type=str
+    )
+    parser.add_argument(
+        "--inherit_prev_incarpy",
+        help="Inherit INCAR.py, if any (default: False)",
+        action="store_true"
+    )
+    parser.add_argument(
+        "--force_running",
+        help="Force using input_directory containing RUNNNING file.",
+        action="store_true"
+    )
+
+    subparsers = parser.add_subparsers(required=True)
+
+    parser_fix = subparsers.add_parser(
+        "fix",
+        help="Apply selective dynamics constraints to species",
+        description="""\
+Apply selective dynamics constraints to atomic species.
+
+Accepts a Python dict mapping element symbols to 3-element boolean
+lists (e.g. '{"Na": [True, True, True], "C": [False, False, False]}').
+Optionally discards existing constraints.""")
+    fix_add_args(parser_fix)
+
+    parser_incar = subparsers.add_parser(
+        "incar",
+        help="Modify INCAR parameters",
+        description="""\
+Modify INCAR parameters.
+
+Set or unset individual INCAR tags using PARAM:VALUE pairs.
+Use VALUE:None to remove a tag.""")
+    incar_add_args(parser_incar)
+
+    parser_potcar = subparsers.add_parser(
+        "potcar",
+        help="Change POTCAR pseudopotentials",
+        description="""\
+Change POTCAR pseudopotentials.
+
+Set individual pseudopotentials using ELEMENT:POTCAR pairs, e.g.
+'Li:Li_sv' or 'C:C'.  The resolved mapping is written to an INCAR.toml
+[POTCAR] section so that gorun reproduces the same POTCAR.""")
+    potcar_add_args(parser_potcar)
+
+    parser_supercell = subparsers.add_parser(
+        "supercell",
+        help="Create supercell with rescaled k-points",
+        description="""\
+Create a supercell from the input structure.
+
+Scales the cell by N1xN2xN3 and rescales the k-point mesh to maintain
+a target k-point density (default: 10000).""")
+    supercell_add_args(parser_supercell)
+
+    parser_functional = subparsers.add_parser(
+        "functional",
+        help="Change exchange-correlation functional",
+        description="""\
+Change the exchange-correlation functional.
+
+Supported functionals: PBE, PBEsol, PBE+D2, PBE+TS, vdW-DF, vdW-DF2,
+optB88-vdW, optB86b-vdW, PBE+D3-0, PBE+D3-BJ.""")
+    functional_add_args(parser_functional)
+
+    parser_relax = subparsers.add_parser(
+        "relax",
+        help="Create relaxation input with specified ISIF",
+        description="""\
+Create a relaxation input with specified degrees of freedom.
+
+ISIF determines what is relaxed: positions only, cell shape, volume,
+or combinations.  Sets ISTART=0, NSW=500, IBRION=2 (CG), EDIFF=1e-6,
+EDIFFG=-0.01.  When relaxing shape/volume, ENCUT is automatically
+increased to 550 eV.""")
+    relax_add_args(parser_relax)
+
+    parser_kpoints = subparsers.add_parser(
+        "kpoints",
+        help="Modify k-point density or specify a grid",
+        description="""\
+Modify k-point settings.
+
+Adjust k-point density (--density) or set an explicit grid
+(--grid, e.g. 1x1x5).""")
+    kpoints_add_args(parser_kpoints)
+
+    parser_strain = subparsers.add_parser(
+        "strain",
+        help="Apply lattice strain along a, b, c axes",
+        description="""\
+Apply lattice strain along a, b, c axes.
+
+Each axis accepts min, max, and number of steps.  Values can be
+absolute (Angstrom) or relative (percentage of initial, e.g. "98%").
+Optionally applies selective dynamics to all sites.""")
+    strain_add_args(parser_strain)
+
+    parser_perturb = subparsers.add_parser(
+        "perturb",
+        help="Randomly perturb atomic positions",
+        description="""\
+Randomly perturb atomic positions by a given distance.
+
+Adds random displacement to each atom (default: 0.1 Angstrom).
+Useful for breaking symmetry before relaxation.""")
+    perturb_add_args(parser_perturb)
+
+    parser_scf = subparsers.add_parser(
+        "scf",
+        help="Create static SCF calculation input",
+        description="""\
+Create a static self-consistent field (SCF) calculation.
+
+Sets NSW=0, IBRION=-1, ISMEAR=-5 (tetrahedron method), and clears
+IMAGES/SPRING tags from NEB runs.""")
+    scf_add_args(parser_scf)
+
+    parser_insert = subparsers.add_parser(
+        "insert",
+        help="Insert atom or molecule at interstitial sites",
+        description="""\
+Insert an atom or molecule at all symmetry-inequivalent interstitial
+sites of the host structure.  Uses grid scanning with optional noise
+and proximity filtering.  Aliased as "ins".""")
+    insert_add_args(parser_insert)
+    parser_insert2 = subparsers.add_parser(
+        "ins",
+        help="Insert atom or molecule at interstitial sites (alias for insert)",
+        description="""\
+Alias for "insert".  Insert an atom or molecule at all
+symmetry-inequivalent interstitial sites.""")
+    insert_add_args(parser_insert2)
+
+    parser_delete = subparsers.add_parser(
+        "del",
+        help="Delete atomic species from structure",
+        description="""\
+Delete specified atomic species from the structure.
+
+Removes all atoms matching the given element symbols.""")
+    delete_add_args(parser_delete)
+
+    parser_fill = subparsers.add_parser(
+        "fill",
+        help="Fill all insertion sites from relaxed configurations",
+        description="""\
+Generate a structure with all insertion sites filled.
+
+Combines multiple relaxed insertion configurations (from --uniq_sites)
+into a single structure, merging sites within tolerance.""")
+    fill_add_args(parser_fill)
+
+    parser_neb = subparsers.add_parser(
+        "neb",
+        help="Create NEB input between two VASP runs",
+        description="""\
+Create a Nudged Elastic Band (NEB) input between two VASP runs.
+
+Uses the current directory as the initial state and --target as the
+final state.  Number of images is configurable (default: 4).""")
+    neb_add_args(parser_neb)
+
+    parser_neb_diffusion = subparsers.add_parser(
+        "neb_diffusion",
+        help="Generate NEB inputs for all diffusion paths",
+        description="""\
+Generate NEB inputs for all unique diffusion paths between relaxed
+configurations.  Analyzes the topology of interstitial sites and
+automatically discovers unique hops.  Supports IDPP or linear
+interpolation, distance cutoffs, and multi-threading.""")
+    neb_diffusion_add_args(parser_neb_diffusion)
+
+    parser_atat = subparsers.add_parser(
+        "atat",
+        help="Create VASP input from ATAT str.out structure",
+        description="""\
+Create VASP input from an ATAT str.out structure.
+
+Computes k-point mesh using ATAT's kmesh utility, preserves selective
+dynamics from the original POSCAR, and uses INCAR from the parent
+directory or alongside str.out.""")
+    atat_add_args(parser_atat)
+
+
+def _str_to_bool(value):
+    """Convert string value to boolean.
+
+    Args:
+        value: String to convert.
+
+    Returns:
+        bool: Converted value.
+
+    Raises:
+        argparse.ArgumentTypeError: If the value is not a recognised
+            boolean string.
+    """
+    if value.lower() in ['true', '1', 'yes']:
+        return True
+    if value.lower() in ['false', '0', 'no']:
+        return False
+    raise argparse.ArgumentTypeError(f"Invalid boolean value: {value}")
+
+
+def perturb_add_args(parser):
+    """Setup parser arguments for perturb.
+
+    Args:
+        parser: Subparser from argparse.
+    """
+    parser.set_defaults(func_derive=perturb)
+
+    parser.add_argument(
+        "--distance",
+        help="Perturbation distance in ans (default: 0.1ans)",
+        type=float,
+        default=0.1
+    )
+    parser.add_argument(
+        "--frac_tol",
+        help="Fractional tolerance for distances in resulting structure (default: 0.5)",
+        type=float,
+        default=0.5
+    )
+
+
+def perturb(args):
+    """Create perturbed input.
+
+    Args:
+        args: Parsed command-line arguments from argparse.
+
+    Returns:
+        dict: ``{'inputsets': [<inputset>]}``.
+    """
+    inputset = MRFDerivedInputSet(
+        directory=args.input_directory,
+        inherit_prev_incarpy=args.inherit_prev_incarpy)
+
+    assert inputset.structure is not None
+    structure_perturb(
+        structure=inputset.structure,
+        distance=args.distance,
+        min_distance=None,
+        frac_tol=args.frac_tol)
+    output_dir_suffix = f"PERTURB.{args.distance}"
+    inputset.name = output_dir_suffix
+
+    return {'inputsets': [inputset]}
+
+
+def strain_add_args(parser):
+    """Setup parser arguments for strain.
+
+    Args:
+        parser: Subparser from argparse.
+    """
+    parser.set_defaults(func_derive=strain)
+    for name in ["a", "b", "c"]:
+        parser.add_argument(
+            "--" + name + "min",
+            help=f"Min value of {name} lattice parameter, "
+            "in ans (10.0) or %% of initial (10%%)",
+            type=str,
+            default="100%"
+        )
+        parser.add_argument(
+            "--" + name + "max",
+            help=f"Max value of {name} lattice parameter, "
+            "in ans (10.0) %% of initial (10%%)",
+            type=str,
+            default="100%"
+        )
+        parser.add_argument(
+            "--" + name + "steps",
+            help=f"Number of strain steps along {name} (default: 1)",
+            type=int,
+            default=1
+        )
+    parser.add_argument(
+        "--selective-dynamics",
+        dest="selective_dynamics",
+        help="Selective dynamics to be applied to the sites"
+        "(example: True, True, False)",
+        nargs=3,
+        type=_str_to_bool,
+        default=None
+    )
+
+
+def strain(args):
+    """Create strained input.
+
+    Args:
+        args: Parsed command-line arguments from argparse.
+
+    Returns:
+        dict: ``{'inputsets': <list of inputsets>}``.
+    """
+    inputset = MRFDerivedInputSet(
+        directory=args.input_directory,
+        inherit_prev_incarpy=args.inherit_prev_incarpy)
+
+    assert inputset.structure is not None
+    if args.selective_dynamics is not None:
+        for site in inputset.structure:
+            site.properties['selective_dynamics'] =\
+                args.selective_dynamics
+
+    structure0 = inputset.structure
+
+    # 10% -> 0.1; 1.3 -> 1.3/lattice constant
+    for name in ["a", "b", "c"]:
+        for suffix in ["min", "max"]:
+            attr_name = name + suffix
+            value = getattr(args, attr_name)
+            if "%" in value:
+                new_val = float(re.sub("%", "", value)) / 100.0 - 1.0
+            else:
+                new_val = float(value) / getattr(structure0.lattice, name) - 1.0
+            logger.info("%s: %s -> %f", attr_name, value, new_val)
+            setattr(args, attr_name, new_val)
+
+    strainsa = np.linspace(args.amin, args.amax, args.asteps)
+    strainsb = np.linspace(args.bmin, args.bmax, args.bsteps)
+    strainsc = np.linspace(args.cmin, args.cmax, args.csteps)
+
+    strains = [[straina, strainb, strainc]
+               for straina in strainsa
+               for strainb in strainsb
+               for strainc in strainsc]
+
+    outputs = []
+    for strn in strains:
+        inputset_new = dataclasses.replace(inputset)  # copy
+        inputset_new.structure =\
+            structure0.apply_strain(strn, inplace=False)
+        output_dir_suffix = (
+            "strain"
+            + (f".a.{strn[0]:.2f}" if strn[0] != 0 else "")
+            + (f".b.{strn[1]:.2f}" if strn[1] != 0 else "")
+            + f".c.{strn[2]:.2f}")
+        inputset_new.name = output_dir_suffix
+        outputs.append(inputset_new)
+
+    return {'inputsets': outputs}
+
+
+def relax_add_args(parser):
+    """Setup parser arguments for relax.
+
+    Args:
+        parser: Subparser from argparse.
+    """
+    parser.set_defaults(func_derive=relax)
+    parser.add_argument(
+        "isif",
+        help="What to relax",
+        choices=[
+            "RELAX_POS", "FIX_SHAPE_VOL",
+            "RELAX_POS_SHAPE_VOL", "FIX_NONE",
+            "RELAX_POS_SHAPE", "FIX_VOL",
+            "RELAX_SHAPE", "FIX_POS_VOL",
+            "RELAX_SHAPE", "FIX_POS_VOL",
+            "RELAX_SHAPE_VOL", "FIX_POS",
+            "RELAX_VOL", "FIX_POS_SHAPE",
+            "RELAX_POS_VOL", "FIX_SHAPE"
+        ]
+    )
+    parser.add_argument(
+        "--auto_encut",
+        help="Set ENCUT automatically",
+        action="store_true"
+    )
+
+
+def relax(args):
+    """Create relaxation setup.
+
+    Args:
+        args: Parsed command-line arguments from argparse.
+
+    Returns:
+        dict: ``{'inputsets': [inputset]}``.
+    """
+    relax_overrides = {
+        "ISTART": 0,
+        # Volume relaxation
+        # 500 steps because 100 suggested in some online resources
+        # may not be enough in complex supercells.
+        "NSW": 500,
+        "IBRION": Incar.IBRION_IONIC_RELAX_CGA,
+        'ISIF': vars(Incar)["ISIF_" + args.isif],
+        'EDIFF': 1e-06,
+        'EDIFFG': -0.01
+    }
+    if args.auto_encut:
+        # 550eV recommended for _volume/shape_ relaxation During
+        # volume/shape relaxation, initial automatic k-point grid
+        # calculated for original volume becomes slightly less accurate
+        # unless we increase ENCUT
+        if relax_overrides['ISIF'] != Incar.ISIF_FIX_SHAPE_VOL:
+            logger.info("Shape/volume relaxation.  Setting ENCUT=550.0")
+            warnings.warn(
+                "Shape/volume relaxation.  Setting ENCUT=550.0"
+            )
+            relax_overrides['ENCUT'] = 550.0
+        else:
+            logger.info("Shape and volume are fixed.  Setting ENCUT=500.0")
+            warnings.warn(
+                "Shape and volume are fixed.  Setting ENCUT=500.0"
+            )
+            relax_overrides['ENCUT'] = 500.0
+
+    inputset = MRFDerivedInputSet(
+        directory=args.input_directory,
+        user_incar_settings=relax_overrides,
+    )
+    output_dir_suffix = f"relax.{args.isif}"
+    inputset.name = output_dir_suffix
+    return {'inputsets': [inputset]}
+
+
+def supercell_add_args(parser):
+    """Setup parser arguments for supercell.
+
+    Args:
+        parser: Subparser from argparse.
+    """
+    parser.set_defaults(func_derive=supercell)
+    parser.add_argument(
+        "supercell_size",
+        help="Supercell size",
+        type=str)
+    parser.add_argument(
+        "--kpoint-density",
+        dest="kpoint_density",
+        help="K-point density to be used (default: 10000)",
+        type=float,
+        default=10000)
+
+
+def supercell(args):
+    """Create supercell.
+
+    Args:
+        args: Parsed command-line arguments from argparse.
+
+    Returns:
+        dict: ``{'inputsets': [<inputset>]}``.
+    """
+    inputset = MRFDerivedInputSet(
+        directory=args.input_directory,
+        inherit_prev_incarpy=args.inherit_prev_incarpy,
+        user_kpoints_settings={'grid_density': args.kpoint_density})
+    # supercell: N1xN2xN3 string
+    scaling = [int(x) for x in args.supercell_size.split("x")]
+    assert inputset.structure is not None
+    inputset.structure.make_supercell(scaling)
+    output_dir_suffix = args.supercell_size
+    inputset.name = output_dir_suffix
+    return {'inputsets': [inputset]}
+
+
+def functional_add_args(parser):
+    """Setup parser arguments for functional.
+
+    Args:
+        parser: Subparser from argparse.
+    """
+    parser.set_defaults(func_derive=functional)
+    parser.add_argument(
+        "functional_type",
+        help="Functional to be used",
+        choices=[
+            'PBE', 'PBEsol', 'PBE+D2', 'PBE+TS',
+            'vdW-DF', 'vdW-DF2',
+            'optB88-vdW', 'optB86b-vdW', 'PBE+D3-0', 'PBE+D3-BJ'],
+        type=str)
+
+
+def functional(args):
+    """Create custom functional setup.
+
+    Args:
+        args: Parsed command-line arguments from argparse.
+
+    Returns:
+        dict: ``{'inputsets': [inputset]}``.
+    """
+    inputset = MRFDerivedInputSet(
+        directory=args.input_directory,
+        inherit_prev_incarpy=args.inherit_prev_incarpy,
+        functional=args.functional_type)
+    output_dir_suffix = args.functional_type
+    inputset.name = output_dir_suffix
+    return {'inputsets': [inputset]}
+
+
+def fix_add_args(parser):
+    """Setup parser arguments for selective dynamics.
+
+    Args:
+        parser: Subparser from argparse.
+    """
+    parser.set_defaults(func_derive=fix)
+    parser.add_argument(
+        "constraints",
+        help="Constraints per species as a Python dict string. "
+             "Example: \"{'Na': [True, True, True], 'C': [False, False, False]}\"",
+        type=str
+    )
+    parser.add_argument(
+        "--discard_previous",
+        help="Discard existing selective dynamics constraints (default: False)",
+        action="store_true"
+    )
+
+
+def fix(args):
+    """Apply selective dynamics constraints.
+
+    Args:
+        args: Parsed command-line arguments from argparse.
+
+    Returns:
+        dict: ``{'inputsets': [inputset]}``.
+
+    Raises:
+        ValueError: If constraints cannot be parsed as a valid Python dict.
+    """
+    import ast
+    inputset = MRFDerivedInputSet(
+        directory=args.input_directory,
+        inherit_prev_incarpy=args.inherit_prev_incarpy)
+
+    try:
+        constraints = ast.literal_eval(args.constraints)
+        if not isinstance(constraints, dict):
+            raise ValueError("Constraints must be a dictionary")
+    except (ValueError, SyntaxError) as e:
+        raise ValueError(f"Could not parse constraints: {args.constraints}") from e
+
+    # Clean constraints to ensure boolean lists
+    cleaned_constraints = {}
+    for sp, constr in constraints.items():
+        try:
+            cleaned_constraints[sp] = [bool(x) for x in constr]
+            if len(cleaned_constraints[sp]) != 3:
+                raise ValueError
+        except (ValueError, TypeError):
+            raise ValueError(f"Invalid constraint format for {sp}: {constr}")
+
+    structure = inputset.structure
+    assert structure is not None
+
+    # Check for existing constraints
+    has_existing = any(
+        site.properties.get('selective_dynamics') is not None
+        for site in structure
+    )
+
+    if has_existing:
+        if args.discard_previous:
+            logger.info("Discarding previous selective dynamics.")
+            for site in structure:
+                if 'selective_dynamics' in site.properties:
+                    site.properties['selective_dynamics'] = None
+        else:
+            warnings.warn("Keeping previous selective dynamics constraints.")
+
+    count = 0
+    for site in structure:
+        el = site.specie.symbol
+        if el in cleaned_constraints:
+            site.properties['selective_dynamics'] = cleaned_constraints[el]
+            count += 1
+
+    logger.info("Applied selective dynamics to %d sites.", count)
+
+    inputset.name = "selective_dynamics"
+    return {'inputsets': [inputset]}
+
+
+def incar_add_args(parser):
+    """Setup parser arguments for incar.
+
+    Args:
+        parser: Subparser from argparse.
+    """
+    parser.set_defaults(func_derive=incar)
+    parser.add_argument(
+        "parameters",
+        nargs="*",
+        help="PARAM:VALUE to be set in the INCAR. (VALUE=None to unset)",
+        type=str)
+
+
+def incar(args):
+    """Create custom incar setup.
+
+    Args:
+        args: Parsed command-line arguments from argparse.
+
+    Returns:
+        dict: ``{'inputsets': [inputset]}``.
+    """
+    incar_overrides = {}
+    if args.parameters is None:
+        warnings.warn(
+            "No INCAR settings provided.  Creating a copy of the inputs."
+        )
+    else:
+        for str_val in args.parameters:
+            key, val = str_val.split(":")
+            if val == 'None':
+                val = None
+            incar_overrides[key] = val
+
+    inputset = MRFDerivedInputSet(
+        directory=args.input_directory,
+        inherit_prev_incarpy=args.inherit_prev_incarpy,
+        user_incar_settings=incar_overrides,
+    )
+    output_dir_suffix = ','.join(
+        [f'{key}.{val}' for key, val in incar_overrides.items()])
+    inputset.name = output_dir_suffix
+    return {'inputsets': [inputset]}
+
+
+def _validate_potcar_pair(element: str, symbol: str) -> None:
+    """Validate an ELEMENT:SYMBOL POTCAR override pair.
+
+    Args:
+        element: Element symbol (e.g. ``"Li"``).
+        symbol: Full POTCAR name (e.g. ``"Li_sv"`` or ``"Li"``).
+
+    Raises:
+        ValueError: If SYMBOL is not a valid potential name for ELEMENT.
+    """
+    if symbol == element:
+        return
+    if not symbol.startswith(element):
+        raise ValueError(
+            f"POTCAR name {symbol!r} does not start with "
+            f"element symbol {element!r}"
+        )
+    if not symbol[len(element):].startswith('_'):
+        raise ValueError(
+            f"POTCAR name {symbol!r} is not a valid potential name "
+            f"for element {element!r}"
+        )
+
+
+def potcar_add_args(parser):
+    """Setup parser arguments for POTCAR.
+
+    Args:
+        parser: Subparser from argparse.
+    """
+    parser.set_defaults(func_derive=potcar)
+    parser.add_argument(
+        "parameters",
+        nargs="*",
+        help="ELEMENT:POTCAR to be set in the POTCAR."
+        " (e.g. Li:Li_sv, C:C)",
+        type=str)
+
+
+def potcar(args):
+    """Create custom POTCAR setup.
+
+    Args:
+        args: Parsed command-line arguments from argparse.
+
+    Returns:
+        dict: ``{'inputsets': [inputset]}``.
+    """
+    potcar_overrides = {}
+    if not args.parameters:
+        warnings.warn(
+            "No POTCAR settings provided.  Creating a copy of the inputs."
+        )
+    else:
+        for str_val in args.parameters:
+            if ":" not in str_val:
+                raise ValueError(
+                    f"Invalid POTCAR setting {str_val!r}.  "
+                    "Expected ELEMENT:POTCAR (e.g. Li:Li_sv).")
+            key, val = str_val.split(":")
+            if not val:
+                raise ValueError(
+                    f"Empty POTCAR value for {key!r} in {str_val!r}")
+            _validate_potcar_pair(key, val)
+            potcar_overrides[key] = val
+
+    inputset = MRFDerivedInputSet(
+        directory=args.input_directory,
+        inherit_prev_incarpy=args.inherit_prev_incarpy,
+    )
+    for element, symbol in potcar_overrides.items():
+        inputset._config_dict.setdefault('POTCAR', {})[element] = symbol
+
+    output_dir_suffix = "POTCAR"
+    if potcar_overrides:
+        output_dir_suffix += "." + ','.join(
+            [f'{key}.{val}' for key, val in potcar_overrides.items()])
+    inputset.name = output_dir_suffix
+    return {'inputsets': [inputset]}
+
+
+def kpoints_add_args(parser):
+    """Setup parser arguments for kpoints.
+
+    Args:
+        parser: Subparser from argparse.
+    """
+    parser.set_defaults(func_derive=kpoints)
+    parser.add_argument(
+        "--density",
+        help="K-point density to be used",
+        type=float,
+        default=10000
+    )
+    parser.add_argument(
+        "--grid",
+        help="K-point grid to be used (e.g. 1x1x5)",
+        type=str,
+        default=None
+    )
+
+
+def kpoints(args):
+    """Create custom kpoints setup.
+
+    Args:
+        args: Parsed command-line arguments from argparse.
+
+    Returns:
+        dict: ``{'inputsets': [inputset]}``.
+    """
+    if args.grid:
+        inputset = MRFDerivedInputSet(
+            directory=args.input_directory,
+            inherit_prev_incarpy=args.inherit_prev_incarpy,
+        )
+        inputset.prev_kpoints = Kpoints(
+            kpts=[tuple(int(x) for x in args.grid.split('x'))])
+        output_dir_suffix = f"KPOINTS.{args.grid}"
+    else:
+        inputset = MRFDerivedInputSet(
+            directory=args.input_directory,
+            inherit_prev_incarpy=args.inherit_prev_incarpy,
+            user_kpoints_settings={'grid_density': args.density},
+        )
+        output_dir_suffix = f"KPOINTS.{args.density}"
+    inputset.name = output_dir_suffix
+    return {'inputsets': [inputset]}
+
+
+def scf_add_args(parser):
+    """Setup parser arguments for SCF calculation.
+
+    Args:
+        parser: Subparser from argparse.
+    """
+    parser.set_defaults(func_derive=scf)
+
+
+def scf(args):
+    """Create SCF setup.
+
+    Args:
+        args: Parsed command-line arguments from argparse.
+
+    Returns:
+        dict: ``{'inputsets': [inputset]}``.
+    """
+    inputset = MRFDerivedInputSet(
+        directory=args.input_directory,
+        # https://www.vasp.at/wiki/index.php/Smearing_technique#Which_method_to_use
+        user_incar_settings={
+            'NSW': 0, 'IBRION': -1, 'ISMEAR': -5,
+            'IMAGES': None, 'SPRING': None},
+    )
+    output_dir_suffix = "SCF"
+    inputset.name = output_dir_suffix
+    return {'inputsets': [inputset]}
+
+
+def insert_add_args(parser):
+    """Setup parser arguments for inserting an atom/molecule.
+
+    Args:
+        parser: Subparser from argparse.
+    """
+    parser.set_defaults(func_derive=insert)
+
+    parser.add_argument(
+        "atom",
+        help="Atom name to be inserted or path to molecule structure"
+    )
+    parser.add_argument(
+        "--limit",
+        help="""Number of structures (negative to select subset of structures randomly)""",
+        type=int)
+    parser.add_argument(
+        "--step",
+        help="Scan step, ans",
+        type=float)
+    parser.add_argument(
+        "--step_noise",
+        help="""Standard deviation of noise added to each point in the scan grid (default: None)
+When negative number, use random sampling instead of scanning a grid""",
+        type=float)
+    parser.add_argument(
+        "--threshold",
+        help=("Threshold multiplier for atom proximity"
+              " (default: 0.75 [x atomic radii sum])"),
+        type=float,
+        default=0.75)
+    parser.add_argument(
+        "--no-matcher",
+        dest="no_matcher",
+        help=("do not compare the candidates by symmetry"
+              "(will save generation time)"),
+        action="store_true")
+    parser.add_argument(
+        "--count",
+        help="do not write output, just print count",
+        action="store_true")
+    parser.add_argument(
+        "--multithread",
+        help="Use multithreading?",
+        action="store_true")
+
+
+def insert(args):
+    """Create setup for inserted molecules/atoms.
+
+    Args:
+        args: Parsed command-line arguments from argparse.
+
+    Returns:
+        dict: ``{'inputsets': [<list of inputsets>]}``.
+    """
+    inputset = MRFDerivedInputSet(
+        directory=args.input_directory,
+        inherit_prev_incarpy=args.inherit_prev_incarpy)
+
+    if args.no_matcher:
+        transformer = InsertMoleculeTransformation(
+            args.atom,
+            step=args.step,
+            step_noise=args.step_noise,
+            proximity_threshold=args.threshold,
+            selective_dynamics=[True, True, True],
+            matcher=None,
+            multithread=args.multithread,
+        )
+    else:
+        transformer = InsertMoleculeTransformation(
+            args.atom,
+            step=args.step,
+            step_noise=args.step_noise,
+            proximity_threshold=args.threshold,
+            selective_dynamics=[True, True, True],
+            multithread=args.multithread,
+        )
+    assert inputset.structure is not None
+    structures = transformer.all_inserts(inputset.structure, limit=args.limit)
+
+    results = []
+    if args.count:
+        print(len(structures))
+    else:
+        for idx, structure in enumerate(structures):
+            suffix = f"ins.{args.atom}.{idx}"
+            inputset2 = dataclasses.replace(inputset)
+            inputset2.structure = structure
+            inputset2.name = suffix
+            results.append(inputset2)
+
+    return {'inputsets': results}
+
+
+def delete_add_args(parser):
+    """Setup parser arguments for deleting a site.
+
+    Args:
+        parser: Subparser from argparse.
+    """
+    parser.set_defaults(func_derive=delete)
+    parser.add_argument(
+        "what",
+        nargs="+",
+        help="Specie names (e.g. Na) to be removed",
+        type=str)
+
+
+def delete(args):
+    """Delete a site/sites from structure.
+
+    Args:
+        args: Parsed command-line arguments from argparse.
+
+    Returns:
+        dict: ``{'inputsets': [inputset]}``.
+    """
+    inputset = MRFDerivedInputSet(
+        directory=args.input_directory,
+        inherit_prev_incarpy=args.inherit_prev_incarpy)
+    assert inputset.structure is not None
+    len_before = len(inputset.structure)
+    inputset.structure.remove_species(args.what)
+    if len(inputset.structure) == len_before:
+        warnings.warn("Nothing was deleted")
+    output_dir_suffix = "del." + ",".join(args.what)
+    inputset.name = output_dir_suffix
+    return {'inputsets': [inputset]}
+
+
+def fill_add_args(parser):
+    """Setup parser arguments for filling sites.
+
+    Args:
+        parser: Subparser from argparse.
+    """
+    parser.set_defaults(func_derive=fill)
+    parser.add_argument(
+        "--uniq_sites",
+        help="VASP output dirs containing equilibrium insert sites",
+        nargs="+",
+        required=True,
+        type=str
+    )
+    parser.add_argument(
+        "--tol",
+        help="Tolerance when merging structures (default: 0.1A)",
+        type=float,
+        default=0.1
+    )
+    parser.add_argument(
+        "--selective-dynamics",
+        dest="selective_dynamics",
+        help="Selective dynamics to be applied to prototype sites"
+        "(example: True, True, False)",
+        nargs=3,
+        type=_str_to_bool,
+        default=None
+    )
+
+
+def fill(args):
+    """Create a structure file with all insertion sites filled.
+
+    Take prototype structure and a set of relaxed configurations with
+    inserted atoms and generate a structure with all possible sites
+    for insertions completely filled.
+
+    Args:
+        args: Parsed command-line arguments from argparse.
+
+    Returns:
+        dict: ``{'inputsets': [inputset]}``.
+    """
+    logger.info("Reading prototype from %s", args.input_directory)
+    if os.path.isdir(args.input_directory):
+        prototype_run = _read_vasprun(args.input_directory)
+        prototype = prototype_run.final_structure
+    else:
+        # Try to load structure from file
+        prototype = pmg.Structure.from_file(args.input_directory)
+
+    trans = SymmetryFillTransformation(prototype, ['X'])
+    structures = []
+    for struct_path in args.uniq_sites:
+        logger.info("Reading structure from %s", struct_path)
+        structure_run = _read_vasprun(struct_path)
+        assert structure_run.converged
+        structure = structure_run.final_structure
+        structure = get_matched_structure(prototype, structure)
+        if len(structure) > len(prototype):
+            idxs = list(range(len(prototype), len(structure)))
+            logger.debug(
+                "Found inserted sites: %s",
+                [structure[idx] for idx in idxs]
+            )
+            for idx in idxs:
+                site = cast(PeriodicSite, structure[idx])
+                site.properties['__species'] = site.species
+                site.species = pmg.DummySpecie('X')
+            structure = trans.apply_transformation(structure)
+            for site in structure:
+                if site.specie == pmg.DummySpecie('X'):
+                    site.species = site.properties['__species']
+            structure = structure.remove_site_property('__species')
+        else:
+            logger.warning(
+                "%s does not contain added atoms to %s",
+                struct_path, args.input_directory
+            )
+
+        structure.properties['origin_path'] = struct_path
+        structure.properties['final_energy'] = structure_run.final_energy
+        if len(structure) > len(prototype):
+            structures.append(structure)
+
+    filled_structure = merge_structures(structures, tol=args.tol)
+    inputset = MRFDerivedInputSet(
+        directory=args.uniq_sites[0],
+        inherit_prev_incarpy=args.inherit_prev_incarpy
+    )
+    inputset.structure = filled_structure
+    inputset.name = "fill"
+
+    if args.selective_dynamics is not None:
+        for site in inputset.structure:
+            site.properties['selective_dynamics'] =\
+                args.selective_dynamics
+
+    return {'inputsets': [inputset]}
+
+
+def atat_add_args(parser):
+    """Setup parser arguments for ATAT input.
+
+    Args:
+        parser: Subparser from argparse.
+    """
+    parser.set_defaults(func_derive=atat)
+    parser.add_argument(
+        "atat_structure",
+        help="Path to str.out structure",
+        type=str)
+    parser.add_argument(
+        "--kpoints",
+        help="Kpoints density",
+        required=True,
+        type=float)
+
+
+def atat(args):
+    """Create ATAT input according to str.out.
+
+    Preserve selective dynamics settings from the original POSCAR.
+
+    Args:
+        args: Parsed command-line arguments from argparse.
+
+    Returns:
+        dict: ``{'inputsets': [inputset]}``.
+
+    Raises:
+        ValueError: If str.out structure length is inconsistent with
+            POSCAR.
+    """
+    from pymatgen.io.atat import Mcsqs
+    # We manually replace Vac with X instances that can be read by pymatgen.
+    atat_structure_text = Path(args.atat_structure).read_text().replace("Vac", "X")
+    structure = Mcsqs.structure_from_str(atat_structure_text)
+
+    # Generate kpoints using ATAT's algo rather than
+    # built-in pymatgens'.  ATAT's algo is more reliable
+    # when unit cell has very different lattice parameters.
+
+    # Following ATAT's approach, we norm the KPPRA by the number of
+    # sites, including vacancies; not by number of actual atoms.
+    n_kpoints = int(args.kpoints) / len(structure)
+    lattice_vector_str = '\n'.join(
+        ' '.join(map(str, row))
+        for row in structure.lattice.matrix)
+    import subprocess
+    result = subprocess.run(
+        ['kmesh', '-q', '-r'],
+        input=f"{n_kpoints}\n{lattice_vector_str}\n",
+        text=True,
+        capture_output=True
+    )
+    atat_grid_str = result.stdout
+    atat_divs = tuple(map(int, atat_grid_str.split(sep=" ")))
+    is_hexagonal: bool = structure.lattice.is_hexagonal()
+    is_face_centered: bool = structure.get_space_group_info()[0][0] == "F"
+    has_odd: bool = any(idx % 2 == 1 for idx in atat_divs)
+    if has_odd or is_hexagonal or is_face_centered:
+        style = Kpoints.supported_modes.Gamma
+    else:
+        style = Kpoints.supported_modes.Monkhorst
+    atat_kpoints = Kpoints(
+        f"ATAT (kmesh) with grid density = {args.kpoints}"
+        " / number of atoms + vacancies",
+        0,
+        style,
+        [atat_divs],
+        (0, 0, 0),
+    )
+
+    inputset = MRFDerivedInputSet(
+        directory=args.input_directory,
+        inherit_prev_incarpy=args.inherit_prev_incarpy,
+        user_kpoints_settings=atat_kpoints)  # pyright: ignore[reportArgumentType]
+    output_dir_suffix = "ATAT"
+    inputset.name = output_dir_suffix
+
+    ref_structure = inputset.structure
+    assert ref_structure is not None
+
+    # str.out must contain multiple of initial structure sites in POSCAR
+    if not len(structure) % len(ref_structure) == 0:
+        raise ValueError(
+            "Inconsistent structure lengths. ref:"
+            f" {len(ref_structure)}; ATAT: {len(structure)}")
+
+    # Assign selective dynamics as in original POSCAR
+    # FIXME: pymatgen upstream: Structure.__getitem__ lacks @overload for
+    # int vs slice, so pyright infers list[PeriodicSite] | PeriodicSite.
+    # Cast works around the false positive until upstream is fixed.
+    if 'selective_dynamics' in cast(PeriodicSite, ref_structure[0]).properties:
+        for idx, site in enumerate(structure):
+            site.properties['selective_dynamics'] = cast(
+                PeriodicSite,
+                ref_structure[idx % len(ref_structure)]
+            ).properties['selective_dynamics']
+
+    # Cleanup vacancies
+    structure.remove_species(['X'])
+
+    inputset.structure = structure
+
+    # If INCAR is present alongside str.out, use it.
+    incar_file = Path("INCAR")
+    if incar_file.is_file():
+        incar = Incar.from_file(incar_file)
+        inputset.prev_incar = incar  # pyright: ignore[reportAttributeAccessIssue]
+    incarpy_file = Path("INCAR.py")
+    if incarpy_file.is_file():
+        inputset.files_to_transfer["INCAR.py"] = incarpy_file
+
+    return {'inputsets': [inputset]}
+
+
+def neb_add_args(parser):
+    """Setup parser arguments for NEB input.
+
+    Args:
+        parser: Subparser from argparse.
+    """
+    parser.set_defaults(func_derive=neb)
+    parser.add_argument(
+        "target",
+        help="VASP output dir containing the target NEB point",
+        type=str)
+    parser.add_argument(
+        "--nimages",
+        help="Number of NEB images (default: 4)",
+        type=int,
+        default=4)
+
+
+def neb(args):
+    """Create NEB input.
+
+    Args:
+        args: Parsed command-line arguments from argparse.
+
+    Returns:
+        dict: ``{'inputsets': [inputset]}``.
+    """
+    inputset = MRFNEBVaspInputSet(
+        directory=args.input_directory,
+        target_directory=args.target,
+        user_incar_settings={'IMAGES': args.nimages})
+    output_dir_suffix = "NEB"
+    inputset.name = output_dir_suffix
+    return {'inputsets': [inputset]}
+
+
+def neb_diffusion_add_args(parser):
+    """Setup parser arguments for diffusion NEB input.
+
+    Args:
+        parser: Subparser from argparse.
+    """
+    parser.set_defaults(func_derive=neb_diffusion)
+    parser.add_argument(
+        "--diffusion_points",
+        help="VASP output dirs containing the stable, "
+        "converged diffusion sites",
+        required=True,
+        nargs="+",
+        type=str)
+    parser.add_argument(
+        "--nimages",
+        help="Number of NEB images (default: 4)",
+        type=int,
+        default=4)
+    parser.add_argument(
+        "--cutoff",
+        help="Distance cutoff between diffusion points (float or 'auto' to determine automatically).",
+        type=str,
+        default='auto')
+    parser.add_argument(
+        "--fix_dist",
+        help="Atoms further than fix_dist ans away will not be allowed to move (default: -1; no restrictions)",
+        type=float,
+        default=-1)
+    parser.add_argument(
+        "--path_method",
+        help="Interpolation method: 'linear' or 'IDPP' (default)",
+        type=str,
+        default='IDPP')
+    parser.add_argument(
+        "--frac_tol",
+        help="when path_method='linear', NEB images with atoms less than frac_tol * sum of radiuses will not be generated",
+        type=float,
+        default=0.75)
+    parser.add_argument(
+        "--use_prototype_matrix",
+        help="Before processing, alter diffusion points to use prototype matrix"
+        " (this will build diffusion points by inserting added atoms into unchanged prototype structure)",
+        action="store_true",
+    )
+    parser.add_argument(
+        "--remove_compound",
+        help="Filter out diffusion paths that may be constructed out of shorter paths",
+        action="store_true",
+    )
+    parser.add_argument(
+        "--multithread",
+        help="Use multithreading?",
+        action="store_true")
+    parser.add_argument(
+        "--write_graph",
+        help="Whether to write the full diffusion graph",
+        action="store_true")
+    parser.add_argument(
+        "--limit",
+        help="Max number of paths to return.  Default: 0 (no limit)",
+        default=0,
+        type=int)
+
+
+def __neb_diffusion_get_inputset(idx, beg, end, args, auto_nimages=False):
+    """Create a single NEB input set for a diffusion pair.
+
+    Args:
+        idx: Index for the output directory suffix.
+        beg: Beginning structure of the NEB path.
+        end: Ending structure of the NEB path.
+        args: Parsed command-line arguments from argparse.
+        auto_nimages: When True, compute NIMAGES dynamically from
+            the maximum displacement.
+
+    Returns:
+        MRFNEBVaspInputSet: Configured NEB input set.
+    """
+    if auto_nimages:
+        # Dynamically compute NIMAGES for best visualization
+        diff = structure_diff(beg, end, tol=0, match_first=False)
+        max_disp = np.max(np.linalg.norm(diff, axis=1))
+        nimages = max(args.nimages, int(np.ceil(max_disp / 0.5)))
+        frac_tol = 0
+        method = 'linear'
+    else:
+        nimages = args.nimages
+        frac_tol = args.frac_tol
+        method = args.path_method
+    inputset = MRFNEBVaspInputSet(
+        directory=beg.properties['origin_path'],
+        target_directory=end.properties['origin_path'],
+        fix_cutoff=args.fix_dist if args.fix_dist > 0 else None,
+        method=method,
+        frac_tol=frac_tol,
+        user_incar_settings={'IMAGES': nimages})
+    # Disable period boundaries and structure adjustment to force
+    # diffusion path as is.
+    inputset.update_images(
+        beg, end,
+        pbc=False, center=False, match_first=False)
+    output_dir_suffix = f"NEB.{idx:02}"
+    inputset.name = output_dir_suffix
+    return inputset
+
+
+def __neb_diffusion_get_inputsets(pairs, args, auto_nimages=False):
+    """Create NEB input sets for a list of diffusion pairs.
+
+    Args:
+        pairs: List of ``(beg, end)`` structure tuples.
+        args: Parsed command-line arguments from argparse.
+        auto_nimages: When True, compute NIMAGES dynamically.
+
+    Returns:
+        list: List of ``MRFNEBVaspInputSet`` instances.
+    """
+    if args.multithread:
+        with Pool() as pool:
+            result = pool.starmap(
+                __neb_diffusion_get_inputset,
+                [(idx, beg, end, args, auto_nimages)
+                 for idx, (beg, end) in enumerate(pairs)]
+            )
+    else:
+        result = []
+        for idx, (beg, end) in enumerate(pairs):
+            inputset = __neb_diffusion_get_inputset(
+                idx, beg, end, args, auto_nimages)
+            result.append(inputset)
+    return result
+
+
+def _append_valid(
+        site: PeriodicSite,
+        structure: Structure,
+        frac_tol: float):
+    """Append a site to a structure without breaking validity.
+
+    If the site can be appended without violating proximity
+    constraints, it is appended directly.  Otherwise, the site is
+    moved iteratively until all distances are acceptable.
+
+    Args:
+        site: Site to append.
+        structure: Structure to modify in place.
+        frac_tol: Proximity tolerance as a fraction of atomic radii sum.
+    """
+    structure.append(
+        site.species, site.coords,
+        coords_are_cartesian=True
+    )
+    if structure_is_valid2(structure, frac_tol):
+        return structure
+
+    warnings.warn(
+        "Added atoms clash with prototype.  Trying to adjust"
+    )
+
+    while not structure_is_valid2(structure, frac_tol):
+        site = cast(PeriodicSite, structure[-1])
+        # FIXME: Pyright assignment mismatch is a pymatgen upstream bug.
+        # Lattice.get_points_in_sphere return type annotation has
+        # `tuple[NDArray]` (1-element) where it should be
+        # `tuple[NDArray, NDArray, NDArray, NDArray]` (4-element).
+        # Report to pymatgen.
+        _, _, neighbor_indices, _ =(  # type: ignore[assignment]
+            structure.lattice.get_points_in_sphere(
+                frac_points=structure.frac_coords,
+                center=site.coords,  # Cartesian
+                r=5, zip_results=False
+            ))
+        neighbor_indices = cast(np.typing.NDArray, neighbor_indices)
+        close_idx = neighbor_indices[0]
+        if structure[close_idx] == site:
+            close_idx = neighbor_indices[1]
+        close = cast(PeriodicSite, structure[close_idx])
+        frac_vec = 0.1 * (site.frac_coords - close.frac_coords)
+        structure.translate_sites(
+            [len(structure) - 1],
+            frac_vec, frac_coords=True
+        )
+    return structure
+
+
+def neb_diffusion(args):
+    """Create NEB input for all possible diffusion paths.
+
+    Args:
+        args: Parsed command-line arguments from argparse.
+
+    Returns:
+        dict: ``{'inputsets': <list of inputsets>}``.
+    """
+
+    if args.cutoff != 'auto' and args.cutoff:
+        args.cutoff = float(args.cutoff)
+
+    logger.info("Reading prototype from %s", args.input_directory)
+    if os.path.isdir(args.input_directory):
+        prototype_run = _read_vasprun(args.input_directory)
+        prototype = prototype_run.final_structure
+    else:
+        # Try to load structure from file
+        prototype = pmg.Structure.from_file(args.input_directory)
+
+    structures = []
+    for struct_path in args.diffusion_points:
+        logger.info("Reading structure from %s", struct_path)
+        structure_run = _read_vasprun(struct_path)
+        assert structure_run.converged
+        structure = structure_run.final_structure
+        structure.properties['origin_path'] = struct_path
+        structure.properties['final_energy'] = structure_run.final_energy
+        structures.append(structure)
+
+    if args.use_prototype_matrix:
+        logger.info("Building new diffusion points as prototype+added atoms")
+        for idx, struct in enumerate(structures):
+            structures[idx] =\
+                get_matched_structure(prototype, struct)
+        if len(structures[0]) > len(prototype):
+            idxs = list(range(len(prototype), len(structures[0])))
+            logger.debug(
+                "Found inserted sites: %s",
+                [structures[0][idx] for idx in idxs]
+            )
+            for struct in structures:
+                new_sites = [struct[idx] for idx in idxs]
+                struct.remove_sites(list(range(len(struct))))
+                for site in prototype:
+                    struct.append(
+                        species=site.species,
+                        coords=site.coords,
+                        coords_are_cartesian=True
+                    )
+                for site in new_sites:
+                    _append_valid(site, struct, args.frac_tol)
+
+    pairs, unfiltered_pairs = get_neb_pairs(
+        structures, prototype, args.cutoff, args.remove_compound,
+        multithread=args.multithread, return_unfiltered=True, limit=args.limit)
+
+    result = __neb_diffusion_get_inputsets(pairs, args)
+    if args.write_graph:
+        graph_file = "mrf-full-graph.cif"
+        logger.info("Writing diffusion graph summary to %s", graph_file)
+        with warnings.catch_warnings(action="ignore"):
+            graph_inputs = __neb_diffusion_get_inputsets(
+                unfiltered_pairs, args, auto_nimages=True)
+        graph_images = []
+        for inputset in graph_inputs:
+            assert inputset.images is not None
+            for image in inputset.images:
+                graph_images.append(image.structure)
+        graph_combined = merge_structures(graph_images, tol=0.1)
+        graph_combined.to_file(graph_file)
+
+    return {'inputsets': result}
+
+
+def derive(args):
+    """Run the derive subcommand.
+
+    Args:
+        args: Parsed command-line arguments from argparse.
+
+    Returns:
+        int: Exit code (0 on success).
+
+    Raises:
+        IOError: If a RUNNING file is found in the input directory
+            and ``--force_running`` is not set.
+        ValueError: If ``--output`` is empty.
+    """
+
+    if not os.path.exists(args.input_directory):
+        raise ValueError(
+            f"Input path does not exist: {args.input_directory}")
+
+    if not args.force_running and\
+       (Path(args.input_directory) / 'RUNNING').is_file():
+        raise IOError(
+            "Found RUNNING file."
+            "  Refusing to use runnig VASP as input.")
+
+    data = args.func_derive(args)
+    inputsets = data['inputsets']
+
+    output_dir_prefix = os.path.basename(
+        os.path.abspath(args.input_directory)) + "."
+    if args.output_prefix is not None:
+        output_dir_prefix = args.output_prefix
+
+    output_dir = args.output
+    if args.output == "":
+        raise ValueError("--output cannot be empty")
+
+    for inputset in inputsets:
+        if output_dir_prefix:
+            output_dir = output_dir_prefix + inputset.name
+        else:
+            output_dir = inputset.name
+        if args.output:
+            if len(inputsets) == 1:
+                output_dir = args.output
+            else:
+                output_dir = os.path.join(args.output, output_dir)
+        if args.subdir:
+            output_dir = os.path.join(output_dir, args.subdir)
+        write_input = True
+        if os.path.isdir(output_dir) and os.listdir(output_dir):
+            if args.overwrite_output == "True":
+                warnings.warn(f"Overwriting non-empty dir: {output_dir}")
+            else:
+                warnings.warn(f"Skipping non-empty dir: {output_dir}")
+                write_input = False
+        if write_input:
+            logger.info("Writing inputset to %s", output_dir)
+            inputset.write_input(output_dir=output_dir)
+
+    return 0

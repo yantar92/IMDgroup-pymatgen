@@ -4,7 +4,7 @@
 #
 # Author: Ihor Radchenko <yantar92@posteo.net>
 #
-# This file is a part of IMDgroup-pymatgen package
+# This file is a part of MatRiFFlow package
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -25,7 +25,7 @@
 # SOFTWARE.
 
 
-"""Tests for IMDgroup.pymatgen.io.vasp.sets.
+"""Tests for matrifflow.pymatgen.io.vasp.sets.
 
 Per the locked testing decision, the input sets are exercised with
 ``no_potcar=True`` plus the POTCAR-mapping helpers directly, rather
@@ -44,16 +44,16 @@ from pymatgen.io.vasp.inputs import Kpoints, PmgVaspPspDirError, Poscar
 from pymatgen.io.vasp.sets import BadInputSetWarning
 from pymatgen.util.testing import MatSciTest
 
-from IMDgroup.pymatgen.io.vasp.inputs import Incar
-from IMDgroup.pymatgen.io.vasp.sets import (
-    IMDDerivedInputSet,
-    IMDNEBVaspInputSet,
-    IMDStandardVaspInputSet,
-    IMDVaspInputSet,
+from matrifflow.pymatgen.io.vasp.inputs import Incar
+from matrifflow.pymatgen.io.vasp.sets import (
+    MRFDerivedInputSet,
+    MRFNEBVaspInputSet,
+    MRFStandardVaspInputSet,
+    MRFVaspInputSet,
     POTCAR_RECOMMENDED,
     write_selective_dynamics_summary_maybe,
 )
-from IMDgroup.pymatgen.io.vasp.vaspdir import IMDGVaspDir
+from matrifflow.pymatgen.io.vasp.vaspdir import MRFVaspDir
 
 
 @pytest.fixture
@@ -62,8 +62,8 @@ def cscl():
     return MatSciTest().get_structure("CsCl")
 
 
-def _standard_set(structure, **kwargs) -> IMDStandardVaspInputSet:
-    return IMDStandardVaspInputSet(structure=structure, no_potcar=True, **kwargs)
+def _standard_set(structure, **kwargs) -> MRFStandardVaspInputSet:
+    return MRFStandardVaspInputSet(structure=structure, no_potcar=True, **kwargs)
 
 
 def test_write_input_omits_potcar(cscl, tmp_path) -> None:
@@ -286,7 +286,7 @@ def test_kpoints_density_gamma_only_no_warning(cscl) -> None:
 
 def test_incar_low_encut_warns(cscl) -> None:
     """An ENCUT below the 500 eV default emits a warning."""
-    inset = IMDStandardVaspInputSet(
+    inset = MRFStandardVaspInputSet(
         structure=cscl, no_potcar=True, user_incar_settings={"ENCUT": 300.0})
     with pytest.warns(BadInputSetWarning, match="ENCUT"):
         inset.incar
@@ -294,7 +294,7 @@ def test_incar_low_encut_warns(cscl) -> None:
 
 def test_incar_isif_relaxation_low_encut_warns(cscl) -> None:
     """Volume/shape relaxation (ISIF) with ENCUT below 550 eV warns."""
-    inset = IMDStandardVaspInputSet(
+    inset = MRFStandardVaspInputSet(
         structure=cscl,
         no_potcar=True,
         user_incar_settings={"ENCUT": 500.0, "ISIF": 3, "NSW": 10},
@@ -305,15 +305,15 @@ def test_incar_isif_relaxation_low_encut_warns(cscl) -> None:
 
 def test_encut_reference_fallback_without_potcar(cscl) -> None:
     """Without a POTCAR, the group 500/550 eV references are used."""
-    inset = IMDStandardVaspInputSet(structure=cscl, no_potcar=True)
+    inset = MRFStandardVaspInputSet(structure=cscl, no_potcar=True)
     assert inset._encut_reference() == (500.0, 550.0)
 
 
 def test_incar_encut_warning_uses_potcar_threshold(cscl, monkeypatch) -> None:
     """ENCUT is compared against the POTCAR-derived ENMAX reference."""
     fake_potcar = [SimpleNamespace(enmax=262.472)]
-    monkeypatch.setattr(IMDVaspInputSet, "potcar", fake_potcar)
-    inset = IMDStandardVaspInputSet(
+    monkeypatch.setattr(MRFVaspInputSet, "potcar", fake_potcar)
+    inset = MRFStandardVaspInputSet(
         structure=cscl,
         no_potcar=True,
         user_incar_settings={"ENCUT": 300.0, "ISIF": 3, "NSW": 10},
@@ -326,7 +326,7 @@ def test_incar_encut_warning_uses_potcar_threshold(cscl, monkeypatch) -> None:
 
 def test_incar_ncore_and_npar_warns(cscl) -> None:
     """Setting both NCORE and NPAR is contradictory and warns."""
-    inset = IMDStandardVaspInputSet(
+    inset = MRFStandardVaspInputSet(
         structure=cscl,
         no_potcar=True,
         user_incar_settings={"NCORE": 4, "NPAR": 4},
@@ -366,7 +366,7 @@ def test_write_input_psp_dir_not_configured_falls_back_to_spec(
 
     monkeypatch.setattr(
         "pymatgen.io.vasp.sets.VaspInputSet.write_input", _fake_write)
-    inset = IMDStandardVaspInputSet(structure=cscl)
+    inset = MRFStandardVaspInputSet(structure=cscl)
     with pytest.warns(UserWarning, match="POTCAR.spec"):
         inset.write_input(tmp_path)
     assert "potcar_spec" not in calls[0]
@@ -383,7 +383,7 @@ def test_write_input_psp_dir_missing_raises(
 
     monkeypatch.setattr(
         "pymatgen.io.vasp.sets.VaspInputSet.write_input", _raise)
-    inset = IMDStandardVaspInputSet(structure=cscl)
+    inset = MRFStandardVaspInputSet(structure=cscl)
     with pytest.raises(FileNotFoundError, match="Update it with"):
         inset.write_input(tmp_path)
 
@@ -399,7 +399,7 @@ def test_write_input_wrong_potcar_reraises_file_not_found(
 
     monkeypatch.setattr(
         "pymatgen.io.vasp.sets.VaspInputSet.write_input", _raise)
-    inset = IMDStandardVaspInputSet(structure=cscl)
+    inset = MRFStandardVaspInputSet(structure=cscl)
     with pytest.raises(FileNotFoundError):
         inset.write_input(tmp_path)
 
@@ -425,7 +425,7 @@ def test_kpoints_grid_density_user_kpoints_returns_none(cscl) -> None:
 def test_kpoints_grid_density_updates_dict(cscl) -> None:
     """A grid density coming from kpoints_updates is reported."""
 
-    class _UpdatesSet(IMDStandardVaspInputSet):
+    class _UpdatesSet(MRFStandardVaspInputSet):
         @property
         def kpoints_updates(self):
             return {"grid_density": 7000}
@@ -437,7 +437,7 @@ def test_kpoints_grid_density_updates_dict(cscl) -> None:
 def test_kpoints_grid_density_updates_kpoints_returns_none(cscl) -> None:
     """A Kpoints object in kpoints_updates reports None."""
 
-    class _UpdatesSet(IMDStandardVaspInputSet):
+    class _UpdatesSet(MRFStandardVaspInputSet):
         @property
         def kpoints_updates(self):
             return Kpoints.gamma_automatic((4, 4, 4))
@@ -456,7 +456,7 @@ def test_write_input_log_file(cscl, tmp_path) -> None:
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         _standard_set(cscl).write_input(tmp_path)
-    log = (tmp_path / "IMDVaspInputSet.log").read_text()
+    log = (tmp_path / "MRFVaspInputSet.log").read_text()
     assert "no_potcar: True" in log
     assert "functional:" in log
 
@@ -488,14 +488,14 @@ def test_write_input_selective_dynamics_cif(cscl, tmp_path) -> None:
     assert (tmp_path / "selective_dynamics.cif").exists()
 
 
-def _neb_image(shift: float) -> IMDVaspInputSet:
+def _neb_image(shift: float) -> MRFVaspInputSet:
     """A CsCl NEB image with its second site displaced by *shift*."""
     structure = Structure(
         lattice=Lattice.cubic(4.1),
         species=["Cs", "Cl"],
         coords=[[0.0, 0.0, 0.0], [0.5 + shift, 0.5, 0.5]],
     )
-    image = IMDVaspInputSet(no_kpoints=True, no_potcar=True, no_incar=True)
+    image = MRFVaspInputSet(no_kpoints=True, no_potcar=True, no_incar=True)
     image.structure = structure
     return image
 
@@ -507,7 +507,7 @@ def test_write_input_neb_writes_image_subdirs_and_trajectory(tmp_path) -> None:
         species=["Cs", "Cl"],
         coords=[[0.0, 0.0, 0.0], [0.5, 0.5, 0.5]],
     )
-    inset = IMDStandardVaspInputSet(
+    inset = MRFStandardVaspInputSet(
         structure=structure, no_potcar=True,
         user_incar_settings={"IMAGES": 1})
     inset.images = [_neb_image(shift) for shift in (0.0, 0.05, 0.10)]
@@ -530,8 +530,8 @@ def test_write_input_neb_image_without_structure_raises(tmp_path) -> None:
         species=["Cs", "Cl"],
         coords=[[0.0, 0.0, 0.0], [0.5, 0.5, 0.5]],
     )
-    image = IMDVaspInputSet(no_kpoints=True, no_potcar=True, no_incar=True)
-    inset = IMDStandardVaspInputSet(structure=structure, no_potcar=True)
+    image = MRFVaspInputSet(no_kpoints=True, no_potcar=True, no_incar=True)
+    inset = MRFStandardVaspInputSet(structure=structure, no_potcar=True)
     inset.images = [image]
 
     with pytest.raises(ValueError, match="Cannot build NEB trajectory"):
@@ -541,7 +541,7 @@ def test_write_input_neb_image_without_structure_raises(tmp_path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# IMDDerivedInputSet
+# MRFDerivedInputSet
 # ---------------------------------------------------------------------------
 
 
@@ -560,7 +560,7 @@ def _write_poscar(dirpath, a=4.1) -> Structure:
 def _write_neb_parent(dirpath, *, with_kpoints: bool = True):
     """Create a NEB parent dir (INCAR with IMAGES) and return its path.
 
-    The ``IMAGES`` tag makes ``IMDGVaspDir(parent).nebp`` report True,
+    The ``IMAGES`` tag makes ``MRFVaspDir(parent).nebp`` report True,
     which is what the parent-dir INCAR/KPOINTS fallback keys off.
     """
     parent = dirpath / "neb_parent"
@@ -576,7 +576,7 @@ def test_derived_reads_structure_from_poscar(tmp_path) -> None:
     _write_poscar(tmp_path)
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        inset = IMDDerivedInputSet(directory=tmp_path, no_potcar=True)
+        inset = MRFDerivedInputSet(directory=tmp_path, no_potcar=True)
     assert inset.structure.reduced_formula == "CsCl"
 
 
@@ -585,7 +585,7 @@ def test_derived_incar_none_when_forced_and_missing(tmp_path) -> None:
     _write_poscar(tmp_path)
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        inset = IMDDerivedInputSet(
+        inset = MRFDerivedInputSet(
             directory=tmp_path,
             no_potcar=True,
             force_prev_incar_file=True,
@@ -598,7 +598,7 @@ def test_derived_kpoints_none_when_forced_and_missing(tmp_path) -> None:
     _write_poscar(tmp_path)
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        inset = IMDDerivedInputSet(
+        inset = MRFDerivedInputSet(
             directory=tmp_path,
             no_potcar=True,
             force_prev_kpoints_file=True,
@@ -613,7 +613,7 @@ def test_derived_kpoints_kspacing_returns_none(tmp_path) -> None:
     Kpoints.gamma_automatic((4, 4, 4)).write_file(tmp_path / "KPOINTS")
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        inset = IMDDerivedInputSet(directory=tmp_path, no_potcar=True)
+        inset = MRFDerivedInputSet(directory=tmp_path, no_potcar=True)
     assert inset.kpoints is None
 
 
@@ -624,7 +624,7 @@ def test_derived_kpoints_updates_prefers_prev_kpoints(tmp_path) -> None:
     Kpoints.gamma_automatic((4, 4, 4)).write_file(tmp_path / "KPOINTS")
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        inset = IMDDerivedInputSet(directory=tmp_path, no_potcar=True)
+        inset = MRFDerivedInputSet(directory=tmp_path, no_potcar=True)
     assert isinstance(inset.kpoints_updates, Kpoints)
     assert inset.kpoints_updates.kpts == [(4, 4, 4)]
 
@@ -639,7 +639,7 @@ def test_derived_concar_fallback_reads_structure(tmp_path) -> None:
     Poscar(structure).write_file(tmp_path / "CONTCAR")
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        inset = IMDDerivedInputSet(directory=tmp_path, no_potcar=True)
+        inset = MRFDerivedInputSet(directory=tmp_path, no_potcar=True)
     assert inset.structure.reduced_formula == "CsCl"
 
 
@@ -673,7 +673,7 @@ def test_derived_poscar_without_elements_falls_back_to_potcar(
     )
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        inset = IMDDerivedInputSet(directory=tmp_path, no_potcar=True)
+        inset = MRFDerivedInputSet(directory=tmp_path, no_potcar=True)
 
     assert inset.structure.reduced_formula == "CsCl"
     assert [site.specie.symbol for site in inset.structure] == ["Cs", "Cl"]
@@ -689,9 +689,9 @@ def test_derived_transfers_incar_variants(tmp_path) -> None:
 
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        inherited = IMDDerivedInputSet(
+        inherited = MRFDerivedInputSet(
             directory=tmp_path, no_potcar=True, inherit_prev_incarpy=True)
-        default = IMDDerivedInputSet(directory=tmp_path, no_potcar=True)
+        default = MRFDerivedInputSet(directory=tmp_path, no_potcar=True)
 
     assert set(inherited.files_to_transfer) == {
         "INCAR.1", "INCAR.py", "INCAR.toml"}
@@ -701,12 +701,12 @@ def test_derived_transfers_incar_variants(tmp_path) -> None:
 
 
 def test_derived_accepts_vaspdir_object(tmp_path) -> None:
-    """An IMDGVaspDir object is accepted and coerced to its path string."""
+    """An MRFVaspDir object is accepted and coerced to its path string."""
     _write_poscar(tmp_path)
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        inset = IMDDerivedInputSet(
-            directory=IMDGVaspDir(tmp_path), no_potcar=True)
+        inset = MRFDerivedInputSet(
+            directory=MRFVaspDir(tmp_path), no_potcar=True)
     assert inset.directory == str(tmp_path)
     assert inset.structure.reduced_formula == "CsCl"
 
@@ -718,7 +718,7 @@ def test_derived_prev_incar_from_file(tmp_path) -> None:
     (tmp_path / "INCAR").write_text("ENCUT = 500\nNCORE = 4\n")
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        inset = IMDDerivedInputSet(directory=tmp_path, no_potcar=True)
+        inset = MRFDerivedInputSet(directory=tmp_path, no_potcar=True)
     assert inset.prev_incar is not None
     assert inset.prev_incar["ENCUT"] == 500.0
     assert inset.prev_incar["NCORE"] == 4
@@ -731,7 +731,7 @@ def test_derived_prev_kpoints_from_file(tmp_path) -> None:
     Kpoints.gamma_automatic((4, 4, 4)).write_file(tmp_path / "KPOINTS")
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        inset = IMDDerivedInputSet(directory=tmp_path, no_potcar=True)
+        inset = MRFDerivedInputSet(directory=tmp_path, no_potcar=True)
     assert isinstance(inset.prev_kpoints, Kpoints)
     assert inset.prev_kpoints.kpts == [(4, 4, 4)]
 
@@ -742,7 +742,7 @@ def test_derived_prev_incar_parent_neb_fallback(tmp_path) -> None:
     _write_poscar(parent / "00")
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        inset = IMDDerivedInputSet(directory=parent / "00", no_potcar=True)
+        inset = MRFDerivedInputSet(directory=parent / "00", no_potcar=True)
     assert inset.prev_incar is not None
     assert inset.prev_incar["IMAGES"] == 1
     assert inset.prev_incar["ENCUT"] == 500.0
@@ -754,7 +754,7 @@ def test_derived_prev_kpoints_parent_neb_fallback(tmp_path) -> None:
     _write_poscar(parent / "00")
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        inset = IMDDerivedInputSet(directory=parent / "00", no_potcar=True)
+        inset = MRFDerivedInputSet(directory=parent / "00", no_potcar=True)
     assert isinstance(inset.prev_kpoints, Kpoints)
     assert inset.prev_kpoints.kpts == [(4, 4, 4)]
 
@@ -766,7 +766,7 @@ def test_derived_incar_reflects_file(tmp_path) -> None:
     Kpoints.gamma_automatic((4, 4, 4)).write_file(tmp_path / "KPOINTS")
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        inset = IMDDerivedInputSet(directory=tmp_path, no_potcar=True)
+        inset = MRFDerivedInputSet(directory=tmp_path, no_potcar=True)
         incar = inset.incar
     assert incar["ENCUT"] == 500.0
     assert incar["NCORE"] == 4
@@ -778,25 +778,25 @@ def test_derived_no_input_raises(tmp_path) -> None:
     with pytest.raises(ValueError, match="No VASP input found"):
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            IMDDerivedInputSet(directory=tmp_path, no_potcar=True)
+            MRFDerivedInputSet(directory=tmp_path, no_potcar=True)
 
 
 # ---------------------------------------------------------------------------
-# IMDNEBVaspInputSet
+# MRFNEBVaspInputSet
 # ---------------------------------------------------------------------------
 
 
 def test_neb_incar_forces_ibrion_and_warns(monkeypatch) -> None:
     """IMAGES=0 warns; IBRION != 1 warns and is forced to 1."""
-    neb = object.__new__(IMDNEBVaspInputSet)
+    neb = object.__new__(MRFNEBVaspInputSet)
     monkeypatch.setattr(
-        IMDDerivedInputSet,
+        MRFDerivedInputSet,
         "incar",
         property(lambda self: Incar({"IMAGES": 0, "IBRION": 2})),
     )
     with pytest.warns(BadInputSetWarning, match="IMAGES=0"):
         with pytest.warns(UserWarning, match="Forcing IBRION=1"):
-            incar = IMDNEBVaspInputSet.incar.fget(neb)
+            incar = MRFNEBVaspInputSet.incar.fget(neb)
     assert incar["IBRION"] == 1
 
 
@@ -804,7 +804,7 @@ def test_neb_post_init_from_vaspruns(converged_relax_vasp_dir) -> None:
     """Two consistent converged runs set target_structure without a warning."""
     with warnings.catch_warnings():
         warnings.simplefilter("error", BadInputSetWarning)
-        neb = IMDNEBVaspInputSet(
+        neb = MRFNEBVaspInputSet(
             directory=converged_relax_vasp_dir,
             target_directory=converged_relax_vasp_dir,
             no_potcar=True,
@@ -822,7 +822,7 @@ def test_neb_post_init_compressed_vasprun(converged_relax_vasp_dir) -> None:
     xml.unlink()
     with warnings.catch_warnings():
         warnings.simplefilter("error", BadInputSetWarning)
-        neb = IMDNEBVaspInputSet(
+        neb = MRFNEBVaspInputSet(
             directory=converged_relax_vasp_dir,
             target_directory=converged_relax_vasp_dir,
             no_potcar=True,
@@ -836,7 +836,7 @@ def test_neb_post_init_target_missing_vasprun_falls_back_to_poscar(
     """A target dir without vasprun.xml falls back to its POSCAR."""
     _write_poscar(tmp_path / "target")
     with pytest.warns(UserWarning, match="Falling back to reading POSCAR"):
-        neb = IMDNEBVaspInputSet(
+        neb = MRFNEBVaspInputSet(
             directory=converged_relax_vasp_dir,
             target_directory=tmp_path / "target",
             no_potcar=True,
@@ -862,12 +862,12 @@ def test_neb_post_init_incar_inconsistent_warns(
 
     calls: list[int] = []
     monkeypatch.setattr(
-        IMDNEBVaspInputSet,
+        MRFNEBVaspInputSet,
         "update_images",
         lambda self, *args, **kwargs: calls.append(1),
     )
     with pytest.warns(BadInputSetWarning, match="inconsistent"):
-        neb = IMDNEBVaspInputSet(
+        neb = MRFNEBVaspInputSet(
             directory=converged_relax_vasp_dir,
             target_directory=target,
             no_potcar=True,
@@ -878,12 +878,12 @@ def test_neb_post_init_incar_inconsistent_warns(
 
 def test_neb_write_input_writes_neb_inputs_txt(tmp_path, monkeypatch) -> None:
     """write_input records the begin/end source dirs in NEB-inputs.txt."""
-    neb = object.__new__(IMDNEBVaspInputSet)
+    neb = object.__new__(MRFNEBVaspInputSet)
     neb.images = [_neb_image(0.0), _neb_image(0.1), _neb_image(0.2)]
     neb.directory = "/path/to/begin"
     neb.target_directory = "/path/to/end"
     monkeypatch.setattr(
-        IMDVaspInputSet, "write_input", lambda self, *args, **kwargs: None)
+        MRFVaspInputSet, "write_input", lambda self, *args, **kwargs: None)
 
     neb.write_input(tmp_path)
 
@@ -906,14 +906,14 @@ def test_neb_update_images_idpp(tmp_path, monkeypatch) -> None:
     monkeypatch.chdir(tmp_path)  # idpp_interpolate writes idpp.log to CWD
     beg, end = _neb_endpoints()
 
-    neb = object.__new__(IMDNEBVaspInputSet)
+    neb = object.__new__(MRFNEBVaspInputSet)
     neb.structure = beg
     neb.target_structure = end
     neb.method = "IDPP"
     neb.fix_cutoff = None
     neb.frac_tol = 0.5
     monkeypatch.setattr(
-        IMDDerivedInputSet,
+        MRFDerivedInputSet,
         "incar",
         property(lambda self: Incar({"IMAGES": 3, "IBRION": 1})),
     )
@@ -923,7 +923,7 @@ def test_neb_update_images_idpp(tmp_path, monkeypatch) -> None:
         neb.update_images()
 
     assert len(neb.images) == 5  # IMAGES(3) + 2 endpoints
-    assert all(isinstance(img, IMDVaspInputSet) for img in neb.images)
+    assert all(isinstance(img, MRFVaspInputSet) for img in neb.images)
     assert all(img.structure is not None for img in neb.images)
 
 
@@ -931,14 +931,14 @@ def test_neb_update_images_linear(monkeypatch) -> None:
     """Non-IDPP interpolation applies frac_tol validation and builds images."""
     beg, end = _neb_endpoints()
 
-    neb = object.__new__(IMDNEBVaspInputSet)
+    neb = object.__new__(MRFNEBVaspInputSet)
     neb.structure = beg
     neb.target_structure = end
     neb.method = "linear"
     neb.fix_cutoff = None
     neb.frac_tol = 0.5
     monkeypatch.setattr(
-        IMDDerivedInputSet,
+        MRFDerivedInputSet,
         "incar",
         property(lambda self: Incar({"IMAGES": 3, "IBRION": 1})),
     )
@@ -958,7 +958,7 @@ def test_fix_atoms_maybe_fixes_distant_atoms() -> None:
     end = Structure(lattice, ["Li", "Na"], [[0.1, 0, 0], [0.5, 0, 0]])
     images = [beg.copy(), end.copy()]
 
-    neb = object.__new__(IMDNEBVaspInputSet)
+    neb = object.__new__(MRFNEBVaspInputSet)
     neb.fix_cutoff = 2.0
     neb._fix_atoms_maybe(images)
 
@@ -975,7 +975,7 @@ def test_fix_atoms_maybe_no_cutoff_noop() -> None:
         Structure(lattice, ["Li"], [[0.1, 0, 0]]),
     ]
 
-    neb = object.__new__(IMDNEBVaspInputSet)
+    neb = object.__new__(MRFNEBVaspInputSet)
     neb.fix_cutoff = None
     assert neb._fix_atoms_maybe(images) is None
     assert all("selective_dynamics" not in site.properties
@@ -990,7 +990,7 @@ def test_fix_atoms_maybe_preserves_existing_sd() -> None:
     beg[0].properties["selective_dynamics"] = [True, True, True]
     end[0].properties["selective_dynamics"] = [True, True, True]
 
-    neb = object.__new__(IMDNEBVaspInputSet)
+    neb = object.__new__(MRFNEBVaspInputSet)
     neb.fix_cutoff = 2.0
     neb._fix_atoms_maybe([beg, end])
 
@@ -1003,12 +1003,12 @@ def test_neb_update_images_explicit_endpoints(monkeypatch, tmp_path) -> None:
     monkeypatch.chdir(tmp_path)  # idpp_interpolate writes idpp.log to CWD
     beg, end = _neb_endpoints()
 
-    neb = object.__new__(IMDNEBVaspInputSet)
+    neb = object.__new__(MRFNEBVaspInputSet)
     neb.method = "IDPP"
     neb.fix_cutoff = None
     neb.frac_tol = 0.5
     monkeypatch.setattr(
-        IMDDerivedInputSet,
+        MRFDerivedInputSet,
         "incar",
         property(lambda self: Incar({"IMAGES": 3, "IBRION": 1})),
     )
@@ -1028,7 +1028,7 @@ def test_write_input_neb_no_incar_skips_image_dirs(tmp_path) -> None:
         species=["Cs", "Cl"],
         coords=[[0.0, 0.0, 0.0], [0.5, 0.5, 0.5]],
     )
-    inset = IMDStandardVaspInputSet(
+    inset = MRFStandardVaspInputSet(
         structure=structure, no_potcar=True, no_incar=True)
     inset.images = [_neb_image(0.0), _neb_image(0.1)]
 
@@ -1041,7 +1041,7 @@ def test_write_input_neb_no_incar_skips_image_dirs(tmp_path) -> None:
 
 def test_incar_preserves_user_system_name(cscl) -> None:
     """A user-supplied SYSTEM tag is not overwritten by the auto name."""
-    inset = IMDStandardVaspInputSet(
+    inset = MRFStandardVaspInputSet(
         structure=cscl, no_potcar=True,
         user_incar_settings={"SYSTEM": "my_system"},
     )
@@ -1050,7 +1050,7 @@ def test_incar_preserves_user_system_name(cscl) -> None:
 
 def test_kpoints_grid_density_fallthrough_none(cscl) -> None:
     """An input set with no KPOINTS recipe reports None density."""
-    inset = IMDVaspInputSet(structure=cscl, no_potcar=True)
+    inset = MRFVaspInputSet(structure=cscl, no_potcar=True)
     assert inset._kpoints_grid_density() is None
 
 
@@ -1061,7 +1061,7 @@ def test_potcar_generation_when_not_suppressed(monkeypatch, cscl) -> None:
         "pymatgen.io.vasp.sets.VaspInputSet.potcar",
         property(lambda self: fake),
     )
-    inset = IMDStandardVaspInputSet(structure=cscl)
+    inset = MRFStandardVaspInputSet(structure=cscl)
     assert inset.potcar is fake
 
 
@@ -1075,10 +1075,10 @@ def test_derived_neb_parent_populates_images(tmp_path) -> None:
 
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        inset = IMDDerivedInputSet(directory=parent, no_potcar=True)
+        inset = MRFDerivedInputSet(directory=parent, no_potcar=True)
 
     assert len(inset.images) == 3
-    assert all(isinstance(img, IMDDerivedInputSet) for img in inset.images)
+    assert all(isinstance(img, MRFDerivedInputSet) for img in inset.images)
     assert all(img.structure.reduced_formula == "CsCl"
                for img in inset.images)
 
@@ -1103,7 +1103,7 @@ def test_derived_potcar_inheritance(monkeypatch, tmp_path) -> None:
     )
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        inset = IMDDerivedInputSet(directory=tmp_path, no_potcar=True)
+        inset = MRFDerivedInputSet(directory=tmp_path, no_potcar=True)
 
     assert inset._config_dict["POTCAR"] == {"Cs": "Cs_fake", "Cl": "Cl_fake"}
 
@@ -1116,7 +1116,7 @@ def test_derived_potcar_from_incar_toml_fallback(tmp_path) -> None:
 
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        inset = IMDDerivedInputSet(directory=tmp_path, no_potcar=True)
+        inset = MRFDerivedInputSet(directory=tmp_path, no_potcar=True)
 
     assert inset._config_dict["POTCAR"] == {"Cs": "Cs_custom"}
 
@@ -1138,7 +1138,7 @@ def test_derived_potcar_file_precedence_over_incar_toml(
     )
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        inset = IMDDerivedInputSet(directory=tmp_path, no_potcar=True)
+        inset = MRFDerivedInputSet(directory=tmp_path, no_potcar=True)
 
     assert inset._config_dict["POTCAR"] == {
         "Cs": "Cs_from_file", "Cl": "Cl_from_file"}
@@ -1152,7 +1152,7 @@ def test_derived_potcar_spec_not_parsed_as_potcar(tmp_path) -> None:
 
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        inset = IMDDerivedInputSet(directory=tmp_path, no_potcar=True)
+        inset = MRFDerivedInputSet(directory=tmp_path, no_potcar=True)
 
     assert inset.potcar_symbols == ["Cs_sv", "Cl"]
 
@@ -1165,7 +1165,7 @@ def test_derived_kpoints_updates_falls_back_when_no_prev_kpoints(
     (tmp_path / "INCAR").write_text("ENCUT = 500\n")
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        inset = IMDDerivedInputSet(directory=tmp_path, no_potcar=True)
+        inset = MRFDerivedInputSet(directory=tmp_path, no_potcar=True)
 
     sentinel = {"grid_density": 4242}
     monkeypatch.setattr(
@@ -1177,7 +1177,7 @@ def test_derived_kpoints_updates_falls_back_when_no_prev_kpoints(
 
 def test_incar_isif_relaxation_adequate_encut_no_warning(cscl) -> None:
     """ISIF relaxation with ENCUT >= 550 does not emit the ENCUT warning."""
-    inset = IMDStandardVaspInputSet(
+    inset = MRFStandardVaspInputSet(
         structure=cscl, no_potcar=True,
         user_incar_settings={"ENCUT": 550.0, "ISIF": 3, "NSW": 10},
     )
@@ -1189,7 +1189,7 @@ def test_incar_isif_relaxation_adequate_encut_no_warning(cscl) -> None:
 
 def test_potcar_symbols_initialises_missing_potcar_config(cscl) -> None:
     """A set without a POTCAR config still resolves recommended symbols."""
-    inset = IMDVaspInputSet(structure=cscl, no_potcar=True)
+    inset = MRFVaspInputSet(structure=cscl, no_potcar=True)
     assert inset.potcar_symbols == [
         POTCAR_RECOMMENDED.get("Cs", "Cs"),
         POTCAR_RECOMMENDED.get("Cl", "Cl"),
@@ -1203,17 +1203,17 @@ def test_write_input_records_metadata_when_not_suppressed(
         "pymatgen.io.vasp.sets.VaspInputSet.write_input",
         lambda self, *a, **k: None,
     )
-    inset = IMDStandardVaspInputSet(structure=cscl, functional="vdw-df")
+    inset = MRFStandardVaspInputSet(structure=cscl, functional="vdw-df")
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         inset.write_input(tmp_path)
-    assert (tmp_path / "IMDVaspInputSet.log").exists()
+    assert (tmp_path / "MRFVaspInputSet.log").exists()
     assert "functional" in (tmp_path / "INCAR.toml").read_text()
 
 
 def test_write_incar_toml_metadata_all_defaults(cscl, tmp_path) -> None:
     """All-default metadata produces no INCAR.toml (nothing non-default)."""
-    inset = IMDVaspInputSet(structure=cscl, no_potcar=True)
+    inset = MRFVaspInputSet(structure=cscl, no_potcar=True)
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         inset._write_incar_toml_metadata(tmp_path)

@@ -1,6 +1,6 @@
 
 
-# IMDgroup-pymatgen
+# MatRiFFlow (formerly IMDgroup-pymatgen)
 
 Python and command-line tools for **iterative development of
 computational workflows** for VASP atomistic simulations, built on top
@@ -14,46 +14,46 @@ how jobs must be executed.
 Also includes `gorun`, a cluster-agnostic job-submission script for VASP,
 MACE fine-tuning, ATAT, and generic GPU jobs on Slurm clusters.
 
-Documentation: <https://yantar92.github.io/IMDgroup-pymatgen/>
+Documentation: <https://yantar92.github.io/MatRiFFlow/>
 
 ![img](docs/img/workflow-development.svg)
 
-`imdg` can handle large collections of calculations (including
+`mrf` can handle large collections of calculations (including
 running) and detect anomalies or incomparable results.  It
 deliberately **does not automate fixing anomalies**, leaving it up to
 the user to explore the problems and identify the solutions (with the
-optional help of `imdg` tooling).
+optional help of `mrf` tooling).
 
 
 ## Workflow manager compatibility
 
-`imdg` operates directly on standard VASP directory trees without a
+`mrf` operates directly on standard VASP directory trees without a
 workflow manager-specific database or import. It can complement manual
 calculations, custom scripts, and existing workflow managers.
 
-`imdg analyze` groups runs by identical settings, `imdg diff` compares
-INCAR settings and structures, and `imdg analyze` provides calculation
+`mrf analyze` groups runs by identical settings, `mrf diff` compares
+INCAR settings and structures, and `mrf analyze` provides calculation
 summaries.
 
 
 ## High-throughput optimization
 
-`imdg` can handle directory trees containing **thousands of
+`mrf` can handle directory trees containing **thousands of
 calculations**. Parsing VASP outputs (XML, OUTCAR) is costly on
 supercomputer file systems, so the tools cache parsed results on disk
 (with invalidation if the original data changes).
 
-See the [Python API](https://yantar92.github.io/IMDgroup-pymatgen/python_api.html) for `IMDGVaspDir`, the class providing cached
+See the [Python API](https://yantar92.github.io/MatRiFFlow/python_api.html) for `MRFVaspDir`, the class providing cached
 directory inspection.
 
 
 ## Installation
 
-    git clone https://github.com/yantar92/IMDgroup-pymatgen
-    cd IMDgroup-pymatgen
+    git clone https://github.com/yantar92/MatRiFFlow
+    cd MatRiFFlow
     pip install .
 
-This installs the `imdg` and `gorun` commands.
+This installs the `mrf` and `gorun` commands.
 
 Note: the `lmdb` dependency (on-disk result cache) links against the
 native LMDB library. On some systems &ndash; especially HPC clusters &ndash; you
@@ -65,19 +65,19 @@ load the module and re-run `pip install .`.
 
 ## Next steps
 
--   [Quickstart](https://yantar92.github.io/IMDgroup-pymatgen/quickstart.html): example graphite (mp-48) workflow
--   [Why this exists](https://yantar92.github.io/IMDgroup-pymatgen/concepts.html): semi-automated workflow development
--   [Command-line reference](https://yantar92.github.io/IMDgroup-pymatgen/cli.html) and [job submission](https://yantar92.github.io/IMDgroup-pymatgen/gorun.html)
--   [Python API](https://yantar92.github.io/IMDgroup-pymatgen/python_api.html)
+-   [Quickstart](https://yantar92.github.io/MatRiFFlow/quickstart.html): example graphite (mp-48) workflow
+-   [Why this exists](https://yantar92.github.io/MatRiFFlow/concepts.html): semi-automated workflow development
+-   [Command-line reference](https://yantar92.github.io/MatRiFFlow/cli.html) and [job submission](https://yantar92.github.io/MatRiFFlow/gorun.html)
+-   [Python API](https://yantar92.github.io/MatRiFFlow/python_api.html)
 
 
 ## Contributing
 
 Contributions are welcome.
 
--   Report bugs and propose features by opening an [issue](https://github.com/yantar92/IMDgroup-pymatgen/issues).
--   Ask questions and discuss design in [GitHub Discussions](https://github.com/yantar92/IMDgroup-pymatgen/discussions).
--   Submit changes as [pull requests](https://github.com/yantar92/IMDgroup-pymatgen/pulls).
+-   Report bugs and propose features by opening an [issue](https://github.com/yantar92/MatRiFFlow/issues).
+-   Ask questions and discuss design in [GitHub Discussions](https://github.com/yantar92/MatRiFFlow/discussions).
+-   Submit changes as [pull requests](https://github.com/yantar92/MatRiFFlow/pulls).
 
 You can also contact the maintainer directly by email
 (`yantar92@posteo.net`) or on GitHub.

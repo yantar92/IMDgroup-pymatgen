@@ -1,0 +1,661 @@
+# MIT License
+#
+# Copyright (c) 2024-2026 Inverse Materials Design Group
+#
+# Author: Ihor Radchenko <yantar92@posteo.net>
+#
+# This file is a part of MatRiFFlow package
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
+
+"""Insert molecules and atoms into a given structure."""
+
+import logging
+from collections.abc import Iterable, Sequence
+from typing import cast
+from multiprocessing import Pool
+from alive_progress import alive_bar
+import numpy as np
+from pymatgen.transformations.transformation_abc import AbstractTransformation
+from pymatgen.core import (FloatWithUnit, Structure, Molecule)
+from pymatgen.util.typing import SpeciesLike
+from pymatgen.core.periodic_table import get_el_sp
+from pymatgen.symmetry.analyzer import PointGroupAnalyzer
+from pymatgen.analysis.structure_matcher import StructureMatcher
+from matrifflow.pymatgen.core.structure import reduce_supercell
+
+__author__ = "Ihor Radchenko <yantar92@posteo.net>"
+
+logger = logging.getLogger(__name__)
+
+
+class InsertMoleculeTransformation(AbstractTransformation):
+    """Generate structures with a molecule or atom inserted at all possible sites.
+
+    Scans a grid of fractional coordinates (optionally with random
+    offsets) and, for molecules, also rotates the molecule across a
+    grid of Euler angles.  Inserts that do not violate proximity
+    constraints and are symmetrically distinct are kept.
+
+    Attributes:
+        molecule: Molecule or atom to insert.
+        step: Grid spacing in Angstrom.
+        step_noise: Standard deviation of grid noise, or negative for
+            fully random sampling.
+        anglestep: Angular step in radians for molecule rotation.
+        proximity_threshold: Threshold multiplier for atomic radii.
+        label: Label prefix for inserted atoms.
+        selective_dynamics: Selective dynamics flags for inserted atoms.
+        reduce_supercell: Whether to reduce to the primitive cell first.
+        matcher: StructureMatcher for duplicate detection.
+        multithread: Whether to use multithreading.
+    """
+
+    def __init__(
+            self,
+            molecule: Molecule | SpeciesLike | str,
+            step: float,
+            step_noise: float | None = None,
+            anglestep: float | None = None,
+            proximity_threshold: float = 0.75,
+            label: str | None = "insert",
+            selective_dynamics: Iterable[bool] | None = None,
+            reduce_supercell: bool = True,
+            matcher: StructureMatcher | None =
+            StructureMatcher(attempt_supercell=True, scale=False),
+            multithread=False
+    ):
+        """Initialise the insertion transformation.
+
+        Args:
+            molecule: Species, Molecule, or path to a molecule file.
+            step: Grid spacing in Angstrom for insertion site search.
+            step_noise: When a positive float, standard deviation of
+                noise added to the grid (as a fraction of step).  When
+                negative, use fully random sampling with
+                ``abs(step_noise)`` points.
+            anglestep: Angular step in radians for molecule rotation.
+                Must be None for single-atom insertions.
+            proximity_threshold: Two atoms are considered too close
+                when their distance is less than
+                ``proximity_threshold * (r1 + r2)``.
+            label: Prefix for atom labels in the inserted molecule.
+                Each atom gets ``{label}-{element}{index}``.
+            selective_dynamics: Selective dynamics flags for the
+                inserted atoms.  When None (or all-True, meaning free)
+                and the host uses selective dynamics, inserted atoms
+                default to free ``[True, True, True]``.  A partial
+                constraint (e.g. ``[True, True, False]``) is applied
+                verbatim and, when the host lacks selective dynamics,
+                the host atoms are given free flags so the result stays
+                consistent.  An all-True value on a host without
+                selective dynamics is a no-op (no constraints written).
+            reduce_supercell: When True, reduce the host to its
+                primitive cell before scanning.
+            matcher: StructureMatcher for detecting duplicate
+                insertions.
+            multithread: Whether to use multithreading.
+        """
+        if isinstance(molecule, SpeciesLike):
+            try:
+                molecule = Molecule([get_el_sp(molecule)], [[0, 0, 0]])
+            except ValueError as e:
+                assert isinstance(molecule, str)
+                # Try to parse as filename
+                # FIXME: Molecule.from_file is annotated as
+                # returning IMolecule | Molecule, but it always
+                # returns a Molecule when called on Molecule.
+                # Report upstream to narrow the annotation to
+                # Molecule/Self.
+                molecule = cast(Molecule, Molecule.from_file(molecule))
+        if anglestep is not None:
+            assert isinstance(molecule, Molecule) and len(molecule) > 1, \
+                "Cannot rotate non-molecule or molecule with a single atom."
+        self.molecule = molecule
+        self.step = step
+        self.step_noise = step_noise
+        self.anglestep = anglestep
+        self.proximity_threshold = proximity_threshold
+        self.label = label
+        # [True, True, True] means "free", which is the default for
+        # inserted atoms.  Normalize it to None so a host without
+        # selective dynamics is not given a bogus all-free POSCAR
+        # (pymatgen rejects an all-"T T T" selective-dynamics block as
+        # redundant).
+        if selective_dynamics is not None:
+            selective_dynamics = list(selective_dynamics)
+            if all(selective_dynamics):
+                selective_dynamics = None
+        self.selective_dynamics = selective_dynamics
+        self._candidate_angles = None
+        if len(molecule) > 1 and self.anglestep is not None:
+            self._candidate_angles = self._get_angle_grid()
+        self.reduce_supercell = reduce_supercell
+        self.matcher = matcher
+        self.multithread = multithread
+
+    def _get_site_grid(self, structure: Structure):
+        """Generate a list of candidate fractional coordinates.
+                Args:
+                structure (Strcuture): Structure to put candidates into
+                Returns:
+                List of 3x1 lists representing fractional coordinates.
+                """
+        # Try to scale down a supercell.  It is pointless to search
+        # supercell beyond the underlying primitive structure.
+        if self.reduce_supercell:
+            logger.debug("Attempting to scale down the original structure")
+            reduced_structure = reduce_supercell(structure)
+            logger.info(
+                "%s",
+                'Detected '
+                f'{structure.lattice.a / reduced_structure.lattice.a:.2}'
+                f'x{structure.lattice.b / reduced_structure.lattice.b:.2}'
+                f'x{structure.lattice.c / reduced_structure.lattice.c:.2}'
+                " supercell. Limiting scan volume."
+            )
+        else:
+            reduced_structure = structure
+
+        # Fully random grid requested.
+        if self.step_noise is not None and self.step_noise < 0:
+            return [
+                [np.random.uniform(
+                    low=0.0,
+                    high=reduced_structure.lattice.a / structure.lattice.a),
+                 np.random.uniform(
+                     low=0.0,
+                     high=reduced_structure.lattice.b / structure.lattice.b),
+                 np.random.uniform(
+                     low=0.0,
+                     high=reduced_structure.lattice.c / structure.lattice.c)]
+                for _ in range(int(abs(self.step_noise)))
+            ]
+
+        xrange = np.arange(
+            0.0, reduced_structure.lattice.a / structure.lattice.a,
+            self.step / structure.lattice.a)
+        yrange = np.arange(
+            0.0, reduced_structure.lattice.b / structure.lattice.b,
+            self.step / structure.lattice.b)
+        zrange = np.arange(
+            0.0, reduced_structure.lattice.c / structure.lattice.c,
+            self.step / structure.lattice.c)
+
+        def _random(scale):
+            if self.step_noise is None:
+                return 0
+            return self.step_noise * scale\
+                * np.random.standard_normal()
+
+        def xrandom():
+            return _random(self.step / structure.lattice.a)
+
+        def yrandom():
+            return _random(self.step / structure.lattice.b)
+
+        def zrandom():
+            return _random(self.step / structure.lattice.c)
+
+        return [[x + xrandom(), y + yrandom(), z + zrandom()]
+                for x in xrange for y in yrange for z in zrange]
+
+    def _get_angle_grid(self):
+        """Generate a list of candidate Euler angles to rotate molecule.
+        Args:
+          molecule (Molecule): Molecule to rotate
+        Returns:
+          List of 3x1 lists representing Euler angle triplets, in radians.
+        """
+        assert self.anglestep
+        assert len(self.molecule) > 1
+        rotation_sym_num =\
+            PointGroupAnalyzer(self.molecule).get_rotational_symmetry_number()
+        angrange = np.arange(0.0, 2 * np.pi / rotation_sym_num, self.anglestep)
+        return [[alpha, beta, gamma]
+                for alpha in angrange
+                for beta in angrange
+                for gamma in angrange]
+
+    def _get_largest_radius(self, obj) -> float:
+        """Find the largest atomic radius across species in structurelike.
+        obj is a Molecule or Structure.
+        """
+        return max(s.atomic_radius for s in obj.species)
+
+    def _check_proximity(self, structure: Structure, site_index: int,
+                         cutoff: float | None = None):
+        """Check whether a site is far enough from all other sites.
+
+        "Far enough" means the distance exceeds
+        ``proximity_threshold * (r1 + r2)``.
+
+        Args:
+            structure: Structure to check against.
+            site_index: Index of the site in ``structure`` to test.
+            cutoff: Neighbour search radius in Angstrom.  Defaults to
+                the largest atomic radius in the structure.
+
+        Returns:
+            bool: True if the site is far enough from all other sites.
+        """
+        if cutoff is None:
+            cutoff = self._get_largest_radius(structure)
+        atom = structure[site_index]
+        # Finding neighbors is extremely fast, faster than direct
+        # distance calculation.
+        # get_points_in_sphere returns a 4-tuple when zip_results=False,
+        # but pymatgen's return annotation is a union that includes a
+        # 1-element tuple.  Cast to the real shape.
+        # FIXME: report the annotation bug upstream to pymatgen.
+        _, distances, neighbor_indices, _ = cast(
+            tuple[np.typing.NDArray, np.typing.NDArray,
+                  np.typing.NDArray, np.typing.NDArray],
+            structure.lattice.get_points_in_sphere(
+                frac_points=structure.frac_coords,
+                center=atom.coords,  # Cartesian
+                r=cutoff + cast(FloatWithUnit, atom.specie.atomic_radius),
+                zip_results=False),
+        )
+        for nidx, distance in zip(neighbor_indices, distances):
+            # Skip the site itself.  Compare indices rather than value
+            # equality: two distinct atoms may share coordinates and
+            # species, and value equality would wrongly skip the other
+            # one too.
+            if nidx == site_index:
+                continue
+            max_distance =\
+                self.proximity_threshold * (
+                    structure[nidx].specie.atomic_radius
+                    + atom.specie.atomic_radius
+                )
+            if distance < max_distance:
+                return False
+        return True
+
+    def _check_molecule_proximity(self, structure1, structure2):
+        """Check whether two molecule-only structures are distinct placements.
+
+        Args:
+            structure1 (Structure): Candidate molecule placement.
+            structure2 (Structure): Known molecule placement.
+
+        Both structures must contain only the molecule, with sites in
+        the same order (site ``i`` in each is the same molecule atom).
+
+        The placements are the same (returns False) when every atom
+        ``i`` in ``structure1`` is closer than
+        ``proximity_threshold * (r1 + r2)`` to the corresponding atom
+        ``i`` in ``structure2``.  Otherwise at least one atom has moved
+        beyond the threshold and the placements are distinct (returns
+        True).
+
+        A molecule compared to itself is therefore always "the same"
+        regardless of its internal bond lengths, while a rotation that
+        moves at least one atom beyond the threshold is distinct.
+        """
+        assert len(structure1) == len(structure2), \
+            "Both structures must contain the same molecule."
+        for idx in range(len(structure1)):
+            site1 = structure1[idx]
+            site2 = structure2[idx]
+            # ``get_distance_and_image`` takes fractional coordinates but
+            # returns the Cartesian (Angstrom) distance, matching the
+            # atomic radii used in ``max_distance`` below.
+            distance = structure1.lattice.get_distance_and_image(
+                site1.frac_coords, site2.frac_coords)[0]
+            max_distance = self.proximity_threshold * (
+                site1.specie.atomic_radius + site2.specie.atomic_radius)
+            if distance >= max_distance:
+                return True
+        return False
+
+    def rotate_molecule_euler(self, euler_angle: Sequence[float]):
+        """Rotate the molecule by a triplet of extrinsic Euler angles.
+
+        Args:
+            euler_angle: 3-element array of Euler angles in radians.
+
+        Returns:
+            Molecule: Rotated copy of ``self.molecule``.
+        """
+        assert euler_angle is not None
+        molecule = self.molecule.copy()
+        # https://en.wikipedia.org/wiki/Euler_angles (Conventions
+        # by extrinsic rotations)
+        molecule.rotate_sites(
+            theta=euler_angle[2], axis=[0, 0, 1],
+            anchor=molecule[0].coords)
+        molecule.rotate_sites(
+            theta=euler_angle[1], axis=[1, 0, 0],
+            anchor=molecule[0].coords)
+        molecule.rotate_sites(
+            theta=euler_angle[0], axis=[0, 0, 1],
+            anchor=molecule[0].coords)
+        return molecule
+
+    def _insert_molecule(
+            self,
+            structure: Structure,
+            coords: Sequence[float],
+            euler_angle: Sequence[float] | None = None,
+            known_inserts=None,
+            cutoff=None
+    ):
+        """Insert the molecule at a specific position and rotation.
+
+        The molecule is rotated around its first atom, then placed at
+        the given fractional coordinates.
+
+        Args:
+            structure: Host structure (not modified).
+            coords: 3-element fractional coordinate vector.
+            euler_angle: 3-element Euler angle triplet in radians.
+            known_inserts: List of structures (molecule-only) for
+                duplicate detection.  Modified by side effect.
+            cutoff: Neighbour search radius.
+
+        Returns:
+            Structure with molecule inserted, or None if insertion fails.
+        """
+        # Apply rotation
+        # Do it before translating to place, because otherwise boundary
+        # conditions may cause funny things to happen.
+        if euler_angle is not None:
+            molecule = self.rotate_molecule_euler(euler_angle)
+        else:
+            molecule = self.molecule
+
+        # Insert molecule atoms at arbitrary positions
+        molecule_indices = list(range(len(molecule)))
+
+        def undo_insert():
+            """Undo the insertion."""
+            structure.remove_sites(molecule_indices)
+
+        structure_has_selective_dynamics =\
+            'selective_dynamics' in structure[0].properties
+        # Decide the selective dynamics flags for the inserted atoms.
+        # Inserts default to free ([True, True, True]) when the host
+        # already uses selective dynamics.  An explicit selective_dynamics
+        # is applied verbatim and, when the host lacks the property, the
+        # host atoms are given free flags so the output stays consistent.
+        if self.selective_dynamics is not None:
+            insert_selective_dynamics = list(self.selective_dynamics)
+            if not structure_has_selective_dynamics:
+                for site in structure:
+                    site.properties['selective_dynamics'] = \
+                        [True, True, True]
+        elif structure_has_selective_dynamics:
+            insert_selective_dynamics = [True, True, True]
+        else:
+            insert_selective_dynamics = None
+        for idx, atom in enumerate(molecule):
+            structure.insert(
+                idx=idx, species=atom.species, coords=atom.coords,
+                coords_are_cartesian=True, validate_proximity=False)
+            if self.label is not None:
+                structure[idx].label = self.label + "-"\
+                    + structure[idx].specie.symbol + str(idx)
+            if insert_selective_dynamics is not None:
+                structure[idx].properties['selective_dynamics'] = \
+                    insert_selective_dynamics
+
+        # Now, move them as needed to the target coordinates.
+        anchor = structure[0].frac_coords
+        relative_coords = coords - anchor
+        structure.translate_sites(
+            molecule_indices, relative_coords, frac_coords=True)
+
+        # Make sure that the inserted molecule is not
+        # too close to existing sites.
+        if cutoff is None:
+            cutoff = self._get_largest_radius(structure)
+        if False in [self._check_proximity(structure, index, cutoff)
+                     for index in molecule_indices]:
+            logger.debug("<skip>")
+            undo_insert()
+            return None
+
+        # When known_inserts is provided, validate that we do not insert a
+        # duplicate.
+        if known_inserts is not None:
+            # Create a copy of structure with only molecule sites
+            structure_w_molecule = Structure(
+                lattice=structure.lattice, species=molecule.species,
+                coords=[structure[idx].frac_coords for idx in molecule_indices]
+            )
+            for known in known_inserts:
+                if not self._check_molecule_proximity(
+                        structure_w_molecule, known):
+                    logger.debug("<skip>")
+                    undo_insert()
+                    return None
+            known_inserts.append(structure_w_molecule)
+
+        return structure
+
+    def _generate_inserts(
+            self, structure: Structure,
+            limit: int | None = None):
+        """Generate all valid molecule insertion configurations.
+
+        Args:
+            structure: Host structure.
+            limit: Maximum number of structures.  Negative for random
+                sampling.
+
+        Returns:
+            list[Structure]: Structures with the molecule inserted at
+            distinct, valid positions.
+        """
+        logger.info("Generating inserts...")
+        logger.info("Molecule:\n---\n%s\n---", self.molecule)
+        logger.info("Matrix:\n---\n%s\n---", structure)
+
+        candidate_coords = self._get_site_grid(structure)
+        candidate_angles = self._candidate_angles
+        structure_inserts = []
+        # Inserted positions.  To be used for sorting.
+        structure_inserts_positions = []
+        known_inserts = []
+
+        cutoff = max([self._get_largest_radius(structure),
+                      self._get_largest_radius(self.molecule)])
+
+        if candidate_angles is None:
+            n_candidates = len(candidate_coords)
+        else:
+            n_candidates = len(candidate_angles) * len(candidate_coords)
+        if limit is not None and limit < 0:
+            limit = abs(limit)
+            # randomize grids
+            np.random.shuffle(candidate_coords)
+            if candidate_angles is not None:
+                np.random.shuffle(candidate_angles)
+
+        with alive_bar(n_candidates, enrich_print=False,
+                       dual_line=True, spinner='bubbles')\
+             as progress_bar:
+
+            def append_inserts_fixed_rotation(
+                    euler_angle: Sequence[float] | None = None):
+                """Insert rotated molecule into all possible positions.
+                Modify structure_inserts by side effect, adding all
+                possible positions of self.molecule into structure with
+                self.molecule rotated by a fixed euler_angle.
+
+                Args:
+                  euler_angle(3x1 vector or None):
+                    Fixed rotation angle
+                    """
+                # Accumulate all the inserts together, to automatically
+                # filter out the inserts that are too close to each other.
+                accumulate = structure.copy()
+                for coords in candidate_coords:
+                    progress_bar()  # pylint: disable=not-callable
+                    new = self._insert_molecule(
+                        structure=accumulate, coords=coords,
+                        euler_angle=euler_angle,
+                        known_inserts=known_inserts,
+                        cutoff=cutoff)
+                    if new is not None:
+                        insert = self._insert_molecule(
+                            structure.copy(), coords, euler_angle,
+                            cutoff=cutoff)
+                        assert insert is not None
+                        previous_matches = False
+                        if self.matcher:
+                            if self.multithread:
+                                with Pool() as pool:
+                                    equivs = pool.starmap(
+                                        self.matcher.fit,
+                                        [(insert, x)
+                                         for x in structure_inserts])
+                                    if True in equivs:
+                                        previous_matches = True
+                            else:
+                                for x in structure_inserts:
+                                    if insert != x and self.matcher.fit(insert, x):
+                                        previous_matches = True
+                                        break
+                        if self.matcher is None or not previous_matches:
+                            structure_inserts.append(insert)
+                            structure_inserts_positions.append(
+                                [coords, euler_angle]
+                            )
+                            if euler_angle is None:
+                                log_message =\
+                                    f"#{len(structure_inserts)} " +\
+                                    "New insert :: " +\
+                                    f"pos={coords} No rotation"
+                                progress_bar.text = log_message
+                                logger.info("%s", log_message)
+                            else:
+                                log_message =\
+                                    f"#{len(structure_inserts)} " +\
+                                    "New insert :: " +\
+                                    f"euler={euler_angle} pos={coords}"
+                                progress_bar.text = log_message
+                                logger.info("%s", log_message)
+                            if limit is not None\
+                               and len(structure_inserts) > limit:
+                                break
+                        else:
+                            logger.info('complex mather found a duplicate!')
+                            del known_inserts[-1]
+
+            if candidate_angles is None:
+                append_inserts_fixed_rotation()
+            else:
+                for euler_angle in candidate_angles:
+                    append_inserts_fixed_rotation(euler_angle)
+                    if limit is not None\
+                       and len(structure_inserts) > limit:
+                        break
+
+        logger.info("Found %d candidates", len(structure_inserts))
+
+        sorted_idx =\
+            [i[0] for i in sorted(
+                enumerate(structure_inserts_positions),
+                key=lambda x: x[1])]
+        result = [structure_inserts[idx] for idx in sorted_idx]
+        if limit is not None:
+            return result[:limit]
+        return result
+
+    def all_inserts(
+            self,
+            structure: Structure | str,
+            limit: int | None = None
+    ):
+        """Generate all possible molecule insertion configurations.
+
+        Args:
+            structure: Host structure or path to a structure file.
+            limit: Maximum number of structures to return.  When
+                negative, randomly sample ``abs(limit)`` structures.
+
+        Returns:
+            list[Structure]: Structures with the molecule inserted at
+            distinct positions.
+        """
+        if isinstance(structure, str):
+            structure = Structure.from_file(structure)
+        return self._generate_inserts(structure, limit)
+
+    def apply_transformation(
+            self,
+            structure: Structure | str,
+            return_ranked_list: bool | int = False
+    ):
+        """Apply the insertion transformation.
+
+        Args:
+            structure: Host structure or path to a structure file.
+            return_ranked_list: If an integer, return that many
+                structures as ranked dictionaries.
+
+        Returns:
+            Structure or list[dict]: Single inserted structure when
+            ``return_ranked_list`` is False, otherwise a list of
+            ``{'structure': ...}`` dictionaries.
+        """
+        if isinstance(structure, str):
+            structure = Structure.from_file(structure)
+        if not return_ranked_list:
+            return self._generate_inserts(structure, 1)[0]
+        return [{"structure": structure}
+                for structure in
+                self._generate_inserts(structure, return_ranked_list)]
+
+    @property
+    def is_one_to_many(self) -> bool:
+        """Whether the transformation is one-to-many (always True)."""
+        return True
+
+
+def get_all_molecule_inserts(
+        molecule: Molecule | SpeciesLike | str,
+        structure: Structure | str,
+        step: float,
+        anglestep: float | None = None,
+        label: str | None = "insert",
+        limit: int | None = None):
+    """Convenience wrapper for generating molecule insertion structures.
+
+    Args:
+        molecule: Species, Molecule, or path to a molecule file.
+        structure: Host structure or path to a structure file.
+        step: Grid spacing in Angstrom.
+        anglestep: Angular step in degrees.  None means no rotation.
+        label: Label prefix for inserted atoms.
+        limit: Maximum number of structures.  Negative for random
+            sampling.
+
+    Returns:
+        list[Structure]: Structures with the molecule inserted.
+    """
+    transformer = InsertMoleculeTransformation(
+        molecule, step=step,
+        anglestep=None if anglestep is None else np.radians(anglestep),
+        label=label)
+    return transformer.all_inserts(structure, limit)

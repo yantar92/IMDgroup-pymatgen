@@ -4,7 +4,7 @@
 #
 # Author: Ihor Radchenko <yantar92@posteo.net>
 #
-# This file is a part of IMDgroup-pymatgen package
+# This file is a part of MatRiFFlow package
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -27,9 +27,9 @@
 
 """Shared test infrastructure and conventions.
 
-Testing principle: test IMDgroup code, not pymatgen.
+Testing principle: test matrifflow code, not pymatgen.
 
-IMDgroup-pymatgen is a thin layer over pymatgen.  When one of our
+MatRiFFlow is a thin layer over pymatgen.  When one of our
 classes delegates to a pymatgen method, we do not re-test the upstream
 behaviour.  Instead we test only what is ours:
 

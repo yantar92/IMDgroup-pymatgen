@@ -4,7 +4,7 @@
 #
 # Author: Ihor Radchenko <yantar92@posteo.net>
 #
-# This file is a part of IMDgroup-pymatgen package
+# This file is a part of MatRiFFlow package
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -25,7 +25,7 @@
 # SOFTWARE.
 
 
-"""Tests for IMDgroup.gorun.sbatch."""
+"""Tests for matrifflow.gorun.sbatch."""
 
 from __future__ import annotations
 
@@ -35,9 +35,9 @@ from types import SimpleNamespace
 
 import pytest
 
-import IMDgroup.gorun.sbatch as sbatch_mod
+import matrifflow.gorun.sbatch as sbatch_mod
 
-from IMDgroup.gorun.sbatch import (
+from matrifflow.gorun.sbatch import (
     current_server,
     get_default_job_name,
     get_sbatch_args,
@@ -95,12 +95,12 @@ def test_read_example_config_returns_bundled_toml() -> None:
 # --- _candidate_config_paths / missing_config_message ------------------------
 
 
-def test_candidate_config_paths_with_imdgroup(monkeypatch) -> None:
+def test_candidate_config_paths_with_mrfroup(monkeypatch) -> None:
     """An IMDGroup checkout path takes precedence over the XDG location."""
-    monkeypatch.setenv("IMDGroup", "/opt/imdgroup")
+    monkeypatch.setenv("IMDGroup", "/opt/mrfroup")
     monkeypatch.setenv("XDG_CONFIG_HOME", "/xdg")
     paths = sbatch_mod._candidate_config_paths()
-    assert paths[0] == "/opt/imdgroup/dist/etc/gorun.toml"
+    assert paths[0] == "/opt/mrfroup/dist/etc/gorun.toml"
     assert paths[1] == "/xdg/gorun/gorun.toml"
 
 

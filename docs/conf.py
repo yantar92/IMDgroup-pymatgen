@@ -1,4 +1,4 @@
-"""Sphinx configuration for IMDgroup-pymatgen.
+"""Sphinx configuration for MatRiFFlow.
 
 Generates API documentation from docstrings using automodule
 with explicitly listed modules.
@@ -13,10 +13,10 @@ from importlib.metadata import version as get_version
 sys.path.insert(0, os.path.abspath("../src"))
 
 # -- Project information -----------------------------------------------------
-project = "IMDgroup-pymatgen"
+project = "MatRiFFlow"
 copyright = "2024-2026, Inverse Materials Design Group"
 author = "Ihor Radchenko"
-release = get_version("IMDgroup-pymatgen")
+release = get_version("MatRiFFlow")
 version = ".".join(release.split(".")[:2])
 
 # -- General configuration ---------------------------------------------------
@@ -36,7 +36,7 @@ extensions = [
 myst_fence_as_directive = ["mermaid"]
 
 # Emit HTML anchors for headings up to level 3.  Without this, references
-# such as [imdg create](cli.md#imdg-create) cannot be resolved and Sphinx
+# such as [mrf create](cli.md#mrf-create) cannot be resolved and Sphinx
 # reports myst.xref_missing.
 myst_heading_anchors = 3
 
@@ -93,7 +93,7 @@ html_theme_options = {
 html_context = {
     "display_github": True,
     "github_user": "yantar92",
-    "github_repo": "IMDgroup-pymatgen",
+    "github_repo": "MatRiFFlow",
     "github_version": "main",
     "conf_py_path": "/docs/",
 }
