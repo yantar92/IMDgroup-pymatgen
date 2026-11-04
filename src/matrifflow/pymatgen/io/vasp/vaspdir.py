@@ -541,6 +541,13 @@ class MRFVaspDir(Mapping, MSONable):
     def _get_cache_dir() -> Path:
         cache_dir = os.getenv("XDG_CACHE_HOME")\
             or os.path.expanduser("~/.cache")
+        # The cache directory was renamed imdgVASPDIRcache -> mrfVASPDIRcache
+        # during the MatRiFFlow rename.  Prefer the legacy directory when it
+        # already exists so previously parsed results are not discarded;
+        # otherwise use the new name for fresh installations.
+        legacy_dir = Path(cache_dir) / "imdgVASPDIRcache"
+        if legacy_dir.is_dir():
+            return legacy_dir
         return Path(cache_dir) / "mrfVASPDIRcache"
 
     def _index_key(self) -> str:
