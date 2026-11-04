@@ -95,12 +95,12 @@ def test_read_example_config_returns_bundled_toml() -> None:
 # --- _candidate_config_paths / missing_config_message ------------------------
 
 
-def test_candidate_config_paths_with_mrfroup(monkeypatch) -> None:
+def test_candidate_config_paths_with_imdgroup(monkeypatch) -> None:
     """An IMDGroup checkout path takes precedence over the XDG location."""
-    monkeypatch.setenv("IMDGroup", "/opt/mrfroup")
+    monkeypatch.setenv("IMDGroup", "/opt/imdgroup")
     monkeypatch.setenv("XDG_CONFIG_HOME", "/xdg")
     paths = sbatch_mod._candidate_config_paths()
-    assert paths[0] == "/opt/mrfroup/dist/etc/gorun.toml"
+    assert paths[0] == "/opt/imdgroup/dist/etc/gorun.toml"
     assert paths[1] == "/xdg/gorun/gorun.toml"
 
 
