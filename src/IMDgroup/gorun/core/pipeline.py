@@ -292,6 +292,8 @@ def dispatch_run(args, adapter: SoftwareAdapter) -> int:
         if not queues:
             print(colored("No queues configured for this server.", "red"))
             return 1
+        assert server is not None, "This should not happen"
+        assert config is not None, "This should not happen"
         alt_args = [
             get_sbatch_args(args, config, server, queue_name, adapter.name)
             for queue_name in queues
