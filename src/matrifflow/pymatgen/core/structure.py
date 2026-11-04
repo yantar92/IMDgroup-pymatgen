@@ -51,7 +51,7 @@ logger = logging.getLogger(__name__)
 # FIXME: cannot read lat.in because it will have >1 occupancies
 # when calling Mcsqs.structure_from_str.  Need to modify Mcsqs
 class MRFStructure(Structure):
-    """IMDGroup variant of pymatgen Structure.
+    """MatRiFFlow variant of pymatgen Structure.
 
     Adds the ability to read and write ATAT ``str.out`` files and
     handle vacancies (Vac) as dummy species X.

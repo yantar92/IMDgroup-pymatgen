@@ -135,7 +135,7 @@ def write_selective_dynamics_summary_maybe(structure, fname):
 
 @dataclass
 class MRFVaspInputSet(VaspInputSet):
-    """IMDGroup variant of VaspInputSet.
+    """MatRiFFlow variant of VaspInputSet.
 
     Key additions over pymatgen's VaspInputSet:
 
@@ -826,7 +826,7 @@ class MRFDerivedInputSet(MRFVaspInputSet):
 
 @dataclass
 class MRFStandardVaspInputSet(MRFVaspInputSet):
-    """Standard input set for IMDGroup.
+    """Standard input set for MatRiFFlow.
 
     Uses VASP-recommended potentials from ASE by default.  Potentials
     do not need to be specified explicitly.
