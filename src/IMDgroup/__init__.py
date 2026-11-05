@@ -50,15 +50,18 @@ class _AliasLoader(importlib.abc.Loader):
         self._real_name = real_name
 
     def create_module(self, spec):
+        _ = spec # unused
         return importlib.import_module(self._real_name)
 
     def exec_module(self, module):
+        _ = module # unused
         # Already executed by create_module()'s import_module() call.
         pass
 
 
 class _AliasFinder(importlib.abc.MetaPathFinder):
     def find_spec(self, fullname, path=None, target=None):
+        _, _ = path, target # unused
         if fullname == _LEGACY or not fullname.startswith(_LEGACY + "."):
             return None
         real_name = _TARGET + fullname[len(_LEGACY):]
@@ -69,6 +72,7 @@ class _AliasFinder(importlib.abc.MetaPathFinder):
         if real_spec is None:
             return None
         spec = importlib.util.spec_from_loader(fullname, _AliasLoader(real_name))
+        assert spec is not None
         if real_spec.submodule_search_locations is not None:
             spec.submodule_search_locations = list(real_spec.submodule_search_locations)
         return spec
