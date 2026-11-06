@@ -215,15 +215,7 @@ serialization, needs manual database management, and stores only a
 fraction of the parsed data. MatRiFFlow's VASP directory container
 does not require its users to know the implementation details, and
 provides full access to all the data transparently, using the API
-directly compatible with `PMGDir` from Pymatgen:
-
-```python
-from matrifflow.pymatgen.io.vasp.vaspdir import MRFVaspDir
-vaspdir = MRFVaspDir('./')
-vaspdir['vasprun.xml'] # cached Vasprun('./vasprun.xml')
-vaspdir.final_structure # automatically uses CONTCAR or vasprun.xml or OUTCAR for fast access
-vaspdir.warnings # list of all the anomalies detected, accessible programmatically
-```
+directly compatible with `PMGDir` from Pymatgen.
 
 `MRFVaspDir` is also the basis of anomaly detection, augmenting
 Pymatgen's default VASP parsers with additional consistency
@@ -238,16 +230,7 @@ Pymatgen's notion of a VASP input set, extending it to allow
 additional consistency validations of the VASP input parameters
 (e.g. abnormal k-point grid densities or energy cutoffs) and utilizing
 `MRFVaspDir` to quickly read and modify the existing VASP calculations
-while retaining the ability to capture anomalies. For example, here is
-how `mrf derive . functional optB88-vdW` is implemented (the code is
-simplified):
-
-```python
-from matrifflow.pymatgen.io.vasp.sets import MRFDerivedInputSet
-# will automatically detect anomalies in source VASP output and report them as warnings
-inputset = MRFDerivedInputSet(directory='./', functional='optB88-vdW') 
-inputset.write_input(output_dir=inputset.name)
-```
+while retaining the ability to capture anomalies.
 
 # Research impact statement
 
