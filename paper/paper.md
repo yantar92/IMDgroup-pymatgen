@@ -21,7 +21,7 @@ bibliography: paper.bib
 
 # Summary
 
-In the field of atomistic simulations, there is an increasing interest
+In the field of atomistic simulations, there is a increasing interest
 in developing automated, reliable, and reproducible calculation
 workflows. A number of workflow automation libraries like AiiDA
 [@huber_aiida_2020; @pizzi_aiida_2016], Atomate2
@@ -61,13 +61,13 @@ easily predicted without running the workflow on realistic inputs.
 Indeed, numerical convergence or edge cases are common enough that it
 is a pretty standard practice for the workflow libraries to allow
 writing custom error handlers, where all possible edge cases can be
-incorporated into the workflow itself. Moreover, libraries like AiiDA
-[@huber_aiida_2020; @pizzi_aiida_2016] or Custodian [@ong_python_2013;
-@CustodianVaspHandlers] provide ready-to-use error handlers for the
-common failure modes (e.g. VASP failing to converge). However, writing
-error handlers for non-standard errors that are specific to a given
-workflow still requires writing custom logic as a part of the
-workflow.
+incorporated into the workflow itself. Moreover, libraries like
+AiiDA-VASP [@rico_haeuselmann_aiida-vaspaiida-vasp_2026] or Custodian
+[@ong_python_2013; @CustodianVaspHandlers] provide ready-to-use error
+handlers for the common failure modes (e.g. VASP failing to
+converge). However, writing error handlers for non-standard errors
+that are specific to a given workflow still requires writing custom
+logic as a part of the workflow.
 
 MatRiFFlow aims to make it easier and faster to develop custom error
 handlers. It does not replace the need to incorporate the handlers
@@ -83,16 +83,16 @@ handler in the workflow library of the user's choice.
 Automatic detection of calculation anomalies is not uncommon in the
 field of atomistic simulations. For example, Custodian
 [@ong_python_2013; @CustodianVaspHandlers] implements a comprehensive
-suite for automatic VASP error recovery for unconverged VASP runs,
-including VASP warning detection, and common recipes to converge
-failed calculations depending on the reported VASP warnings. The
-AiiDA-VASP module [@rico_haeuselmann_aiida-vaspaiida-vasp_2026] also
-provides a set of automatic error recovery tools. Pymatgen
-[@ong_python_2013] provides some simple warnings for numerically
-unconverged VASP simulations or VASP simulations that finish with exit
-code 0 but are not converged (e.g. structure relaxation runs where the
-maximum number of relaxation steps is reached without achieving
-convergence thresholds).
+suite for automatic VASP error recovery for common VASP errors and
+convergence failures, including VASP warning detection, and common
+recipes to converge failed calculations depending on the reported VASP
+warnings. The AiiDA-VASP module
+[@rico_haeuselmann_aiida-vaspaiida-vasp_2026] also provides a set of
+automatic error recovery tools. Pymatgen [@ong_python_2013] provides
+some simple warnings for numerically unconverged VASP simulations or
+VASP simulations that finish with exit code 0 but are not converged
+(e.g. structure relaxation runs where the maximum number of relaxation
+steps is reached without achieving convergence thresholds).
 
 MatRiFFlow builds on these existing ideas, extending anomaly detection
 from simple VASP failures or trivial convergence checks to detecting
@@ -111,20 +111,20 @@ performed while running high-throughput calculations.
 MatRiFFlow is designed with two primary use cases in mind: (1) a
 command-line interface (CLI) for quick experimentation directly on
 supercomputers; (2) a Python API allowing users to integrate
-MatRiFFlow with other popular Python-based workflow managers, like
-AiiDA or PerQueue. The CLI is split into independent modules,
-illustrated in \autoref{fig:overview}, that allow (1) detecting
-anomalies in running and completed VASP calculations, both
-automatically and manually, by visual inspection (`mrf status`, `mrf
-visualize`); (2) comparing the calculation results (`mrf analyze`,
-`mrf diff`); (3) quickly creating new VASP inputs – from scratch or
-using existing, possibly failed, calculations (`mrf create`, `mrf
-derive`); (4) running the calculations on configured supercomputers
-(`mrf run`). The modules, in principle, can be used to implement
-simple complete workflows, where more complex workflow libraries are
-overkill. However, the primary use case is rather using appropriate
-CLI modules to augment workflow development with one of the existing
-workflow libraries of the user's choice.
+MatRiFFlow with other popular Python-based workflow managers. The CLI
+is split into independent modules, illustrated in
+\autoref{fig:overview}, that allow (1) detecting anomalies in running
+and completed VASP calculations, both automatically and manually, by
+visual inspection (`mrf status`, `mrf visualize`); (2) comparing the
+calculation results (`mrf analyze`, `mrf diff`); (3) quickly creating
+new VASP inputs – from scratch or using existing, possibly failed,
+calculations (`mrf create`, `mrf derive`); (4) running the
+calculations on configured supercomputers (`mrf run`). The modules, in
+principle, can be used to implement simple complete workflows, where
+more complex workflow libraries are overkill. However, the primary use
+case is rather using appropriate CLI modules to augment workflow
+development with one of the existing workflow libraries of the user's
+choice.
 
 ![MatRiFFlow is a tool assisting iterative workflow
  development. Rather than replacing the existing workflow managers,
@@ -184,8 +184,8 @@ calculations, and avoiding erroneous submissions of already-converged
 or running calculations.  All the CLI modules are built on top of the
 Python API that is based on the base Pymatgen classes. The two central
 concepts used in the API are (1) a cached VASP directory container,
-based on the `PMGDir` class from Pymatgen; (2) a "derived" VASP input
-set, based on `VaspInputSet` from Pymatgen.
+based on the `PMGDir` class from Pymatgen [@PymatgenPMGDir]; (2) a
+"derived" VASP input set, based on `VaspInputSet` from Pymatgen.
 
 The VASP directory container (`MRFVaspDir`) is an abstraction allowing
 fast access to thousands of VASP calculations without having to
@@ -210,12 +210,12 @@ fast loading of the data from the database. The LMDB is used to
 minimize input-output on the file system and allow parallel access –
 LMDB reduces file system access frequency that can be critical on
 supercomputers, especially on the login nodes. This design differs
-from Pymatgen's Borg module [@PymatgenBorg] that uses JSON
-serialization, needs manual database management, and stores only a
-fraction of the parsed data. MatRiFFlow's VASP directory container
-does not require its users to know the implementation details, and
-provides full access to all the data transparently, using the API
-directly compatible with `PMGDir` from Pymatgen.
+from Pymatgen's Borg module [@PymatgenBorg], which provides optional
+JSON serialization for a subset of the parsed data. MatRiFFlow's
+VASP directory container does not require its users to know the
+implementation details, and provides full access to all the data
+transparently, using the API directly compatible with `PMGDir` from
+Pymatgen.
 
 `MRFVaspDir` is also the basis of anomaly detection, augmenting
 Pymatgen's default VASP parsers with additional consistency
@@ -226,11 +226,12 @@ MatRiFFlow Python API as a replacement for Pymatgen defaults, even
 without directly running the CLI tools.
 
 Beyond accessing the existing VASP outputs, MatRiFFlow builds on
-Pymatgen's notion of a VASP input set, extending it to allow
-additional consistency validations of the VASP input parameters
-(e.g. abnormal k-point grid densities or energy cutoffs) and utilizing
-`MRFVaspDir` to quickly read and modify the existing VASP calculations
-while retaining the ability to capture anomalies.
+Pymatgen's notion of a VASP input set, extending it
+(`MRFDerivedInputSet`) to allow additional consistency validations of
+the VASP input parameters (e.g. abnormal k-point grid densities or
+energy cutoffs) and utilizing `MRFVaspDir` to quickly read and modify
+the existing VASP calculations while retaining the ability to capture
+anomalies. The same API is used to implement all the CLI commands.
 
 # Research impact statement
 
@@ -240,8 +241,8 @@ expanded graphite [@wang_lattice_2026] and polyethylene oxide (PEO)
 [@du_interchain_2026]. It has also been used in conjunction with the
 Alloy Theoretic Automated Toolkit (ATAT) [@van_de_walle_alloy_2002]
 workflow to study hard carbon anodes [@radchenko_rational_2026]. More
-recently, MatRiFFlow has also been used to implement a custom workflow
-for studying Na storage inside carbon nanotubes
+recently, MatRiFFlow has been used to implement a custom workflow for
+studying Na storage inside carbon nanotubes
 [@radchenko_cnt-pore-filling-dft_nodate].
 
 # AI usage disclosure
