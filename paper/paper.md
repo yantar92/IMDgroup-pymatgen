@@ -12,6 +12,7 @@ authors:
     - name: Oleksandr I. Malyi
       orcid: 0000-0002-2366-2838
       affiliation: 1
+      corresponding: true
 affiliations:
     - name: Centre of Excellence ENSEMBLE3 Sp. z o. o., Wolczynska Str. 133, Warsaw, 01-919, Poland
       index: 1
