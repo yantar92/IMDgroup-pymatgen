@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "MatRiFFlow"
-version = "1.2.0"
+version = "2.0.0"
 description = "Pymatgen add-ons and cluster job-submission tools for the Inverse Materials Design group (formerly IMDgroup-pymatgen)"
 authors = [ {name = "Ihor Radchenko", email = "yantar92@posteo.net"},
             {name = "Oleksandr I. Malyi", email = "oleksandrmalyi@gmail.com"} ]

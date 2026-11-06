@@ -4,6 +4,8 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## 2.0.0 - 2026-11-06
+
 ### Renamed to MatRiFFlow
 
 The project was renamed from **IMDgroup-pymatgen** to **MatRiFFlow**:
@@ -46,8 +48,6 @@ command.
 
 ## 1.2.0 - 2026-10-06
 
-Changes since `1.1.0`:
-
 -   New `imdg derive` subcommand `potcar` (override pseudopotentials with
     `ELEMENT:POTCAR` pairs, written to `INCAR.toml`).
 -   `imdg status`:
@@ -65,8 +65,6 @@ Changes since `1.1.0`:
 -   Dependencies: `tomli` added (Python < 3.11).
 
 ## 1.1.0 - 2026-09-11
-
-Changes since `1.0.0`:
 
 -   New `imdg visualize` subcommands:
     -   **`hull`:** plot a formation-energy convex hull from VASP outputs or
