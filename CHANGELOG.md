@@ -10,7 +10,7 @@ All notable changes to this project are documented in this file.
 
 The project was renamed from **IMDgroup-pymatgen** to **MatRiFFlow**:
 
--   Import package `IMDgroup` -> `matriflow`; importing `IMDgroup` still
+-   Import package `IMDgroup` -> `matrifflow`; importing `IMDgroup` still
     works but emits a `DeprecationWarning` and redirects to the new modules.
 -   CLI `imdg` -> `mrf`; the `imdg` entry point remains as a deprecated
     alias.
