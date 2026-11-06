@@ -20,3 +20,7 @@ acknowledgements
 
 api
 ```
+
+```{include} ../CHANGELOG.md
+:relative-images:
+```
