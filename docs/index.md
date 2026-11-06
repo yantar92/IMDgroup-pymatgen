@@ -12,6 +12,7 @@ cli
 gorun
 python_api
 acknowledgements
+changelog
 ```
 
 ```{toctree}
@@ -19,8 +20,4 @@ acknowledgements
 :caption: API reference
 
 api
-```
-
-```{include} ../CHANGELOG.md
-:relative-images:
 ```
