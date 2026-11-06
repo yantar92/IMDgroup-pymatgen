@@ -32,7 +32,7 @@ from pathlib import Path
 logger = logging.getLogger(__name__)
 
 
-def short_path(path) -> str:
+def short_path(path: str) -> str:
     """Return the final path component for compact log messages.
 
     gorun working directories live under long cluster mount points
