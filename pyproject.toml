@@ -90,6 +90,12 @@ include = [
 [tool.pylint]
 source-roots=['./src']
 
+[tool.pyright]
+include = ["src"]
+exclude = ["**/__pycache__", "build", "**/.mypy_cache"]
+typeCheckingMode = "strict"
+pythonPlatform = "Linux"
+
 [tool.coverage.run]
 branch = true
 source = ["matrifflow"]
