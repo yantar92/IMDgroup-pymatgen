@@ -182,6 +182,7 @@ def _copy_structures_to(structures, directory):
         # Avoid directories with the same name
         if target_subdir in subdirs:
             target_subdir = target_subdir + f".{idx + 1}"
+        subdirs.append(target_subdir)
         shutil.copytree(source, os.path.join(directory, target_subdir))
     print(f"\rCopying unique structures to '{directory}'...",
           colored('done', 'green'))
