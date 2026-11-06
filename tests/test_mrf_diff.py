@@ -31,16 +31,23 @@ from __future__ import annotations
 
 import argparse
 import gzip
+import shutil
 from pathlib import Path
 
 import pytest
 from rich.console import Console
 
+from matrifflow.pymatgen.cli import mrf_diff
 from matrifflow.pymatgen.cli.mrf_diff import (
     _copy_structures_to,
     _ignored_params_summary,
     _read_structures,
+    add_args,
+    diff,
     diff_incar,
+    diff_structures,
+    incar_add_args,
+    structure_add_args,
     print_incar_groups,
 )
 from matrifflow.pymatgen.io.vasp.inputs import Incar
@@ -279,3 +286,233 @@ def test_diff_incar_missing_incar_warns(tmp_path: Path, capsys) -> None:
     with pytest.warns(UserWarning, match="No INCAR found"):
         assert diff_incar(args) == 0
     assert "ENCUT:500.0" in capsys.readouterr().out
+
+
+## _read_structures: vasprun paths
+
+
+def test_read_structures_all_vasprun(converged_vasp_dir, tmp_path: Path) -> None:
+    """All-vasprun dirs read final structures with source_dir and energy."""
+    a = tmp_path / "a"
+    b = tmp_path / "b"
+    a.mkdir()
+    b.mkdir()
+    shutil.copy(converged_vasp_dir / "vasprun.xml", a / "vasprun.xml")
+    shutil.copy(converged_vasp_dir / "vasprun.xml", b / "vasprun.xml")
+
+    structures = _read_structures([str(a), str(b)])
+
+    assert [s.properties["source_dir"] for s in structures] == [str(a), str(b)]
+    assert all("final_energy" in s.properties for s in structures)
+    energies = [s.properties["final_energy"] for s in structures]
+    assert all(e == energies[0] for e in energies)
+
+
+def test_read_structures_unparseable_vasprun_warns(tmp_path: Path) -> None:
+    """A present-but-unparseable vasprun.xml is warned about and skipped."""
+    d = _make_dir(tmp_path / "a", with_vasprun=True)
+    with pytest.warns(UserWarning, match="Failed to read vasprun"):
+        structures = _read_structures([str(d)])
+    assert structures == []
+
+
+## _copy_structures_to: duplicate basenames
+
+
+def test_copy_structures_to_duplicate_basename(tmp_path: Path) -> None:
+    """Two source dirs sharing a basename get disambiguated suffixes."""
+    a = tmp_path / "src1" / "run"
+    b = tmp_path / "src2" / "run"
+    a.mkdir(parents=True)
+    b.mkdir(parents=True)
+    (a / "marker").write_text("a")
+    (b / "marker").write_text("b")
+    target = tmp_path / "out"
+    target.mkdir()
+
+    _copy_structures_to(
+        [_struct_with_source(str(a)), _struct_with_source(str(b))],
+        str(target),
+    )
+
+    assert (target / "run" / "marker").read_text() == "a"
+    assert (target / "run.2" / "marker").read_text() == "b"
+
+
+## diff_structures
+
+
+class _FakeStructure:
+    """Stand-in structure carrying only the attributes diff_structures uses."""
+
+    def __init__(self, source_dir: str, key: str, energy=None) -> None:
+        self.properties = {"source_dir": source_dir}
+        self._key = key
+        if energy is not None:
+            self.properties["final_energy"] = energy
+
+
+class _FakeMatcher:
+    """Stub StructureMatcher grouping by a simple key."""
+
+    def __init__(self, **kwargs) -> None:
+        pass
+
+    def fit(self, s1, s2) -> bool:
+        return s1._key == s2._key
+
+
+def _diff_args(dirs, *, energy_tol=3, copy_to=None) -> argparse.Namespace:
+    return argparse.Namespace(
+        dirs=dirs,
+        poscar=False,
+        vasprun=False,
+        energy_tol=energy_tol,
+        copy_to=copy_to,
+    )
+
+
+def test_diff_structures_groups_by_similarity(
+    monkeypatch, tmp_path: Path, capsys
+) -> None:
+    """Identical structures collapse into one group printed as Energy=N/A."""
+    s1 = _FakeStructure(str(tmp_path / "a"), key="si")
+    s2 = _FakeStructure(str(tmp_path / "b"), key="si")
+    s3 = _FakeStructure(str(tmp_path / "c"), key="other")
+    monkeypatch.setattr(
+        mrf_diff, "_read_structures", lambda *a, **k: [s1, s2, s3]
+    )
+    monkeypatch.setattr(mrf_diff, "StructureMatcher", _FakeMatcher)
+
+    diff_structures(_diff_args(["a", "b", "c"]))
+
+    out = capsys.readouterr().out
+    assert "Group 1" in out
+    assert "Group 2" in out
+    assert "Energy=N/A" in out
+
+
+def test_diff_structures_energy_mismatch_splits_groups(
+    monkeypatch, tmp_path: Path, capsys
+) -> None:
+    """Same key but different energies are kept in separate groups."""
+    s1 = _FakeStructure(str(tmp_path / "a"), key="si", energy=1.0)
+    s2 = _FakeStructure(str(tmp_path / "b"), key="si", energy=2.0)
+    monkeypatch.setattr(mrf_diff, "_read_structures", lambda *a, **k: [s1, s2])
+    monkeypatch.setattr(mrf_diff, "StructureMatcher", _FakeMatcher)
+
+    diff_structures(_diff_args(["a", "b"]))
+
+    out = capsys.readouterr().out
+    assert "Group 1" in out
+    assert "Group 2" in out
+    assert "Energy=1.0eV" in out
+    assert "Energy=2.0eV" in out
+    assert out.index("Energy=1.0eV") < out.index("Energy=2.0eV")
+
+
+def test_diff_structures_equal_energy_groups_together(
+    monkeypatch, tmp_path: Path, capsys
+) -> None:
+    """Same key and same energy collapse into one group (energy matches)."""
+    s1 = _FakeStructure(str(tmp_path / "a"), key="si", energy=1.0)
+    s2 = _FakeStructure(str(tmp_path / "b"), key="si", energy=1.0)
+    monkeypatch.setattr(mrf_diff, "_read_structures", lambda *a, **k: [s1, s2])
+    monkeypatch.setattr(mrf_diff, "StructureMatcher", _FakeMatcher)
+
+    diff_structures(_diff_args(["a", "b"]))
+
+    out = capsys.readouterr().out
+    assert "Group 1" in out
+    assert "Group 2" not in out
+    assert "Energy=1.0eV" in out
+
+
+def test_diff_structures_copy_to(
+    monkeypatch, tmp_path: Path, capsys
+) -> None:
+    """--copy-to copies the first (unique) structure of every group."""
+    src1 = tmp_path / "src1"
+    src2 = tmp_path / "src2"
+    src1.mkdir()
+    src2.mkdir()
+    (src1 / "marker").write_text("1")
+    (src2 / "marker").write_text("2")
+    s1 = _FakeStructure(str(src1), key="si")
+    s2 = _FakeStructure(str(src2), key="other")
+    monkeypatch.setattr(mrf_diff, "_read_structures", lambda *a, **k: [s1, s2])
+    monkeypatch.setattr(mrf_diff, "StructureMatcher", _FakeMatcher)
+    out = tmp_path / "out"
+
+    diff_structures(_diff_args(["x"], copy_to=str(out)))
+
+    assert (out / "src1" / "marker").read_text() == "1"
+    assert (out / "src2" / "marker").read_text() == "2"
+
+
+def test_diff_structures_real_poscar(tmp_path: Path, capsys) -> None:
+    """End-to-end grouping of identical POSCAR directories."""
+    dirs = [
+        _make_dir(tmp_path / "a", with_vasprun=False),
+        _make_dir(tmp_path / "b", with_vasprun=False),
+    ]
+    args = argparse.Namespace(
+        dirs=[str(d) for d in dirs],
+        poscar=False,
+        vasprun=False,
+        energy_tol=3,
+        copy_to=None,
+    )
+    diff_structures(args)
+    out = capsys.readouterr().out
+    assert "Group 1" in out
+    assert "Energy=N/A" in out
+
+
+## CLI wiring
+
+
+def test_structure_add_args() -> None:
+    """--poscar/--vasprun/--copy-to/--energy-tol register and default."""
+    parser = argparse.ArgumentParser()
+    structure_add_args(parser)
+    assert parser.get_default("func_diff") is diff_structures
+
+    ns = parser.parse_args(["--poscar", "--energy-tol", "5"])
+    assert ns.poscar is True
+    assert ns.vasprun is False
+    assert ns.energy_tol == 5
+    assert ns.copy_to is None
+
+
+def test_incar_add_args() -> None:
+    """incar subcommand dispatches to diff_incar."""
+    parser = argparse.ArgumentParser()
+    incar_add_args(parser)
+    assert parser.get_default("func_diff") is diff_incar
+
+
+def test_add_args_registers_subcommands() -> None:
+    """Both structure and incar subcommands parse and set their handler."""
+    parser = argparse.ArgumentParser()
+    add_args(parser)
+
+    ns = parser.parse_args(["structure", "a", "b"])
+    assert ns.func_diff is diff_structures
+    assert ns.dirs == ["a", "b"]
+
+    ns = parser.parse_args(["incar", "a"])
+    assert ns.func_diff is diff_incar
+    assert ns.dirs == ["a"]
+
+
+def test_diff_dispatches_and_returns_zero() -> None:
+    """diff calls the selected handler and returns 0."""
+    seen = []
+
+    def fake_func(args):
+        seen.append(args)
+
+    args = argparse.Namespace(func_diff=fake_func)
+    assert diff(args) == 0
+    assert seen == [args]
